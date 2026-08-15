@@ -41,7 +41,15 @@ export interface VapidKeys {
  * base64url
  * ------------------------------------------------------------------------ */
 
-export function b64urlToBytes(s: string): Uint8Array {
+/**
+ * Every byte array here is explicitly backed by an ArrayBuffer rather than the
+ * wider ArrayBufferLike. Web Crypto's BufferSource excludes SharedArrayBuffer,
+ * and without pinning this the whole module fails to typecheck against modern
+ * lib.dom — which would be a confusing way to discover a non-problem.
+ */
+type Bytes = Uint8Array<ArrayBuffer>;
+
+export function b64urlToBytes(s: string): Bytes {
   const b64 = s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4);
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
@@ -55,7 +63,7 @@ export function bytesToB64url(b: Uint8Array): string {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function concat(...arrays: Uint8Array[]): Uint8Array {
+function concat(...arrays: Uint8Array[]): Bytes {
   const total = arrays.reduce((n, a) => n + a.length, 0);
   const out = new Uint8Array(total);
   let off = 0;
@@ -66,18 +74,27 @@ function concat(...arrays: Uint8Array[]): Uint8Array {
   return out;
 }
 
-const utf8 = (s: string) => new TextEncoder().encode(s);
+const utf8 = (s: string): Bytes => {
+  const encoded = new TextEncoder().encode(s);
+  const out = new Uint8Array(encoded.length);
+  out.set(encoded);
+  return out;
+};
 
 /* ---------------------------------------------------------------------------
  * HKDF, as RFC 8291 uses it: one-block expand, so the info is always suffixed
  * with a single 0x01 counter byte and the output truncated.
  * ------------------------------------------------------------------------ */
 
-async function hmac(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
-  const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, [
-    'sign',
-  ]);
-  return new Uint8Array(await crypto.subtle.sign('HMAC', k, data));
+async function hmac(key: Uint8Array, data: Uint8Array): Promise<Bytes> {
+  const k = await crypto.subtle.importKey(
+    'raw',
+    key as BufferSource,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  return new Uint8Array(await crypto.subtle.sign('HMAC', k, data as BufferSource));
 }
 
 export async function hkdf(
@@ -85,7 +102,7 @@ export async function hkdf(
   ikm: Uint8Array,
   info: Uint8Array,
   length: number,
-): Promise<Uint8Array> {
+): Promise<Bytes> {
   const prk = await hmac(salt, ikm);
   const okm = await hmac(prk, concat(info, new Uint8Array([1])));
   return okm.slice(0, length);

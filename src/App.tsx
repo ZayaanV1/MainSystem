@@ -1,119 +1,103 @@
-import { useState } from 'react';
-import { formatDay, todayKey, zoneAbbrev } from './lib/time';
+import { useEffect, useState } from 'react';
+import { AuthProvider, useAuth } from './lib/auth';
+import { isConfigured } from './lib/supabase';
+import { startOutbox, subscribeOutbox, type OutboxState } from './lib/outbox';
+import { refreshSubscription } from './lib/notifications';
+import { SignIn } from './routes/SignIn';
+import { Today } from './routes/Today';
+import { Settings } from './routes/Settings';
+import { Specimen } from './routes/Specimen';
 
 /**
- * TEMPORARY — foundation specimen.
- *
- * This is not a screen in the app. It exists so Phase 0.5 can be checked by
- * eye: that every token resolves, that light mode and low-battery mode restyle
- * the whole interface from one attribute, and that the fonts loaded. It gets
- * deleted the moment the Today view exists.
+ * Two screens, so routing is a piece of state rather than a dependency. Phase 1
+ * introduces Week and Month and will want a real router; adding one now would
+ * be furniture for a room that does not exist.
  */
+type Screen = 'today' | 'settings';
 
-const URGENCY = [
-  { label: 'Overdue', cls: 'bg-t-overdue', window: 'past due' },
-  { label: 'Critical', cls: 'bg-t-critical', window: 'under 48h' },
-  { label: 'Urgent', cls: 'bg-t-urgent', window: '3-5 days' },
-  { label: 'Approaching', cls: 'bg-t-approaching', window: '6-14 days' },
-  { label: 'Distant', cls: 'bg-t-distant', window: '15+ days' },
-  { label: 'Done', cls: 'bg-t-done', window: 'complete' },
-];
+/** Shown before setup has been run, instead of a white screen and a console error. */
+function NotConfigured() {
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-100 flex-col justify-center px-6">
+      <h1 className="type-h1 mb-2 text-text-hi">Not set up yet</h1>
+      <p className="type-body text-text-mid">
+        No Supabase connection is configured. Copy .env.setup.example to .env.setup, fill it in,
+        and run npm run setup.
+      </p>
+    </main>
+  );
+}
 
-const MACROS = [
-  { label: 'Calories', cls: 'text-m-calories', value: '2,940', target: '2,900-3,100' },
-  { label: 'Protein', cls: 'text-m-protein', value: '168', target: '160-175 g' },
-  { label: 'Carbs', cls: 'text-m-carbs', value: '372', target: '350-400 g' },
-  { label: 'Fat', cls: 'text-m-fat', value: '74', target: '70-80 g' },
-];
+/**
+ * The sync banner.
+ *
+ * Rule 5: never silently lose data. Queued writes are invisible by design —
+ * that is the point of optimistic UI — so the one moment they must become
+ * visible is when they stop going through.
+ */
+function SyncBanner() {
+  const [state, setState] = useState<OutboxState>({ pending: 0, error: null, syncing: false });
 
-const COURSES = ['bg-c-1', 'bg-c-2', 'bg-c-3', 'bg-c-4', 'bg-c-5', 'bg-c-6', 'bg-c-7', 'bg-c-8'];
+  useEffect(() => subscribeOutbox(setState), []);
 
-export default function App() {
-  const [light, setLight] = useState(false);
-  const [lowBattery, setLowBattery] = useState(false);
-
-  // Both modes are driven entirely by a root attribute. No component below
-  // knows which mode it is in, which is the point.
-  const root = document.documentElement;
-  root.setAttribute('data-theme', light ? 'light' : 'dark');
-  root.setAttribute('data-low-battery', String(lowBattery));
-
-  const today = todayKey();
+  if (!state.error) return null;
 
   return (
-    <main className="mx-auto max-w-160 p-6">
-      <header className="mb-8">
-        <h1 className="type-h1 text-text-hi">Foundation</h1>
-        <p className="type-body mt-2 text-text-mid">
-          {formatDay(today)} &middot; {zoneAbbrev()} &middot; America/Toronto
-        </p>
-      </header>
+    <div
+      role="status"
+      className="border-b border-ink-600 bg-ink-700 px-4 py-3"
+    >
+      <p className="type-caption text-t-critical">
+        {state.error} {state.pending} change{state.pending === 1 ? '' : 's'} waiting.
+      </p>
+    </div>
+  );
+}
 
-      <div className="mb-8 flex gap-3">
-        <button
-          onClick={() => setLight((v) => !v)}
-          className="rounded-pill border border-ink-600 bg-ink-800 px-4 type-label text-text-hi"
-        >
-          {light ? 'Dark mode' : 'Light mode'}
-        </button>
-        <button
-          onClick={() => setLowBattery((v) => !v)}
-          className="rounded-pill border border-ink-600 bg-ink-800 px-4 type-label text-text-hi"
-        >
-          {lowBattery ? 'Exit low battery' : 'Low battery'}
-        </button>
-      </div>
+function Shell() {
+  const { session, loading } = useAuth();
+  const [screen, setScreen] = useState<Screen>('today');
 
-      <section className="mb-8">
-        <h2 className="type-h2 mb-3 text-text-hi">Time / urgency</h2>
-        <div className="overflow-hidden rounded-card bg-ink-800">
-          {URGENCY.map((u) => (
-            <div key={u.label} className="flex items-center gap-3 border-b border-ink-600 px-4 last:border-b-0">
-              <span className={`h-8 w-1 shrink-0 rounded-pill ${u.cls}`} aria-hidden />
-              <span className="type-label flex-1 text-text-hi">{u.label}</span>
-              <span className="type-caption text-text-low">{u.window}</span>
-            </div>
-          ))}
-        </div>
-        <p className="type-caption mt-2 text-text-low">Every state carries a label, not just a colour</p>
-      </section>
+  useEffect(() => {
+    if (!session) return;
 
-      <section className="mb-8">
-        <h2 className="type-h2 mb-3 text-text-hi">Macros</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {MACROS.map((m) => (
-            <div key={m.label} className="rounded-card bg-ink-800 p-4">
-              <div className="type-caption text-text-low">{m.label}</div>
-              <div className={`type-display mt-1 ${m.cls}`}>{m.value}</div>
-              <div className="type-caption mt-1 text-text-mid">{m.target}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+    startOutbox();
 
-      <section className="mb-8">
-        <h2 className="type-h2 mb-3 text-text-hi">Courses</h2>
-        <div className="flex flex-wrap gap-2">
-          {COURSES.map((c, i) => (
-            <span key={c} className="flex items-center gap-2 rounded-card bg-ink-800 px-3 py-2">
-              <span className={`h-1.5 w-1.5 rounded-pill ${c}`} aria-hidden />
-              <span className="type-label text-text-hi">Course {i + 1}</span>
-            </span>
-          ))}
-        </div>
-      </section>
+    // iOS invalidates push subscriptions while the app is closed and says
+    // nothing. Re-subscribing on every launch is the only defence.
+    void refreshSubscription();
+  }, [session]);
 
-      <section>
-        <h2 className="type-h2 mb-3 text-text-hi">Type</h2>
-        <div className="rounded-card bg-ink-800 p-4">
-          <p className="type-display text-text-hi">2,940</p>
-          <p className="type-h1 mt-2 text-text-hi">Screen title</p>
-          <p className="type-h2 mt-2 text-text-hi">Section header</p>
-          <p className="type-body mt-2 text-text-hi">Body copy sits here at sixteen pixels.</p>
-          <p className="type-label mt-2 text-text-mid">Card title and button label</p>
-          <p className="type-caption mt-2 text-text-low">Metadata and urgency labels</p>
-        </div>
-      </section>
-    </main>
+  // Nothing is rendered until the stored session has been read back, so the
+  // sign-in screen does not flash on every launch.
+  if (loading) return null;
+
+  if (!session) return <SignIn />;
+
+  return (
+    <>
+      <SyncBanner />
+      {screen === 'today' ? (
+        <Today onOpenSettings={() => setScreen('settings')} />
+      ) : (
+        <Settings onBack={() => setScreen('today')} />
+      )}
+    </>
+  );
+}
+
+export default function App() {
+  // The design system specimen, in development only. Never reachable in a
+  // production build, and tree-shaken out of it entirely.
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('specimen')) {
+    return <Specimen />;
+  }
+
+  if (!isConfigured) return <NotConfigured />;
+
+  return (
+    <AuthProvider>
+      <Shell />
+    </AuthProvider>
   );
 }

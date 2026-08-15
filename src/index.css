@@ -179,6 +179,18 @@
   }
 }
 
+/* The only keyframe in the app. There is no ambient or looping animation
+   anywhere — it exists solely so a sheet arrives from the direction it is
+   anchored to rather than appearing on top of you. */
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 /* ============================================================================
    Type scale. Six sizes, no others.
    ========================================================================= */

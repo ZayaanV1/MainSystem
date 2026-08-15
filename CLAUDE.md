@@ -81,8 +81,20 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **0 — foundation + push proof**
+Phase: **0 — foundation + push proof.** Code complete, **not verified.**
 
 Phase 0 is not done until a scheduled server job has delivered a real notification to the phone. Do not begin feature work before that. If iOS push proves unworkable, we need to know now, not in October.
+
+**Everything is built and tested except the one thing that matters.** 85 tests pass, the app builds, the pipeline is wired end to end — but no notification has ever been delivered, because that needs live credentials. Run `npm run setup` (see `SETUP.md`), then `npm run test:notify`. **If a Telegram message arrives on the phone, Phase 0 is done and Phase 1 may begin. Not before.**
+
+Deliberate Phase 0 scope decisions, so they are not mistaken for gaps:
+
+- **No feature tables.** Assignments, events, courses and the checklist are Phase 1. The digest builder correctly returns the empty digest ("Nothing due.") — which is a real specified code path, not a placeholder, and it is the branch hardest to notice being broken.
+- **The offline outbox is the mechanism only**, exercised on one write type. Phase 1 routes its writes through it unchanged.
+- **Web Push is written and unit-tested but unproven.** It is priority 20, below Telegram at 10. Promote it to 10 only after the 5-day soak; if it drops two days, leave Telegram primary and move on.
+
+Three tokens deviate from `docs/design-system.md` to satisfy its own contrast floor. Each is documented inline in `tokens.css` with its measurement. Revert if you disagree.
+
+Design system: **built** (Phase 0.5). Eight primitives, specimen page at `/?specimen` in dev.
 
 _Update this section at the end of every phase._
