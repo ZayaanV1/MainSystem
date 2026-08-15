@@ -1,0 +1,230 @@
+@import 'tailwindcss';
+@import './styles/tokens.css';
+
+/* ============================================================================
+   Fonts — self-hosted latin subsets. No runtime request to Google.
+
+   Space Grotesk for headings and every numeral: its squared figures are what
+   make this read as an instrument panel rather than a to-do list.
+   Public Sans for body and UI. There is no third family.
+   ========================================================================= */
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/SpaceGrotesk-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/SpaceGrotesk-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/SpaceGrotesk-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/PublicSans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/PublicSans-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/PublicSans-600.woff2') format('woff2');
+}
+
+/* ============================================================================
+   Token -> utility mapping.
+
+   `inline` matters here: it makes `bg-ink-800` compile to the var() reference
+   itself rather than a snapshot of its value, so switching theme or entering
+   low-battery mode restyles the whole app without a re-render.
+
+   Note what is deliberately absent: there is no hex code below. Every value
+   points back at tokens.css.
+   ========================================================================= */
+
+@theme inline {
+  --color-ink-900: var(--ink-900);
+  --color-ink-800: var(--ink-800);
+  --color-ink-700: var(--ink-700);
+  --color-ink-600: var(--ink-600);
+
+  --color-text-hi: var(--text-hi);
+  --color-text-mid: var(--text-mid);
+  --color-text-low: var(--text-low);
+
+  --color-t-distant: var(--t-distant);
+  --color-t-approaching: var(--t-approaching);
+  --color-t-urgent: var(--t-urgent);
+  --color-t-critical: var(--t-critical);
+  --color-t-overdue: var(--t-overdue);
+  --color-t-done: var(--t-done);
+
+  --color-m-calories: var(--m-calories);
+  --color-m-protein: var(--m-protein);
+  --color-m-carbs: var(--m-carbs);
+  --color-m-fat: var(--m-fat);
+
+  --color-c-1: var(--c-1);
+  --color-c-2: var(--c-2);
+  --color-c-3: var(--c-3);
+  --color-c-4: var(--c-4);
+  --color-c-5: var(--c-5);
+  --color-c-6: var(--c-6);
+  --color-c-7: var(--c-7);
+  --color-c-8: var(--c-8);
+
+  --color-focus-ring: var(--focus-ring);
+
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* 4px scale. Tailwind's default spacing ramp is replaced, not extended, so
+     `p-5` and `gap-7` simply do not exist and cannot drift into the app. */
+  --spacing: 4px;
+
+  --radius-card: var(--r-card);
+  --radius-sheet: var(--r-sheet);
+  --radius-pill: var(--r-pill);
+}
+
+/* ============================================================================
+   Base
+   ========================================================================= */
+
+@layer base {
+  html {
+    /* Stop iOS inflating text in landscape, which breaks the 4px rhythm. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--ink-900);
+    color: var(--text-hi);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    /* Digits that change width while a ring animates make the whole interface
+       feel unstable. This is not cosmetic. */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    /* Respect the notch and the home indicator once installed to the home
+       screen; without this the bottom row of actions sits under the bar. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* Rubber-band scrolling reveals the page behind the app in standalone
+       mode. Painting the ground colour there keeps it seamless. */
+    overscroll-behavior-y: none;
+    min-height: 100dvh;
+  }
+
+  /* Visible keyboard focus everywhere, never removed. */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Every interactive element clears the 44px floor by default rather than
+     each component remembering to. */
+  button,
+  [role='button'],
+  a[href],
+  input,
+  select,
+  textarea {
+    min-height: var(--tap);
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    text-align: left;
+  }
+
+  /* No looping or ambient animation exists in this app, so honouring the
+     reduced-motion preference costs nothing and is simply correct. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================================================
+   Type scale. Six sizes, no others.
+   ========================================================================= */
+
+@utility type-display {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+@utility type-h1 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+@utility type-body {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+@utility type-label {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+@utility type-caption {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
