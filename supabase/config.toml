@@ -1,0 +1,8 @@
+project_id = "life-planner"
+
+[functions.dispatch]
+# The scheduler authenticates with a shared secret header rather than a JWT,
+# because pg_cron has no user session to present. The function verifies the
+# secret itself in constant time, and falls back to verifying a real user JWT
+# for the "send test digest now" path. Leaving this true would block pg_cron.
+verify_jwt = false

@@ -31,3 +31,7 @@ dist-ssr
 # Supabase CLI
 supabase/.temp
 supabase/.branches
+
+# Setup inputs and generated secrets — never commit
+.env.setup
+.env.generated

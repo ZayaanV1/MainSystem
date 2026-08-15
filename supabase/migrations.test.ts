@@ -25,7 +25,16 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationsDir = join(here, 'migrations');
 
-const AUTH_STUB = `
+/**
+ * Stand-ins for the pieces Supabase provides rather than our schema: the auth
+ * schema, Vault, pg_cron and pg_net. Same names and signatures, so our DDL
+ * compiles and runs against them exactly as written.
+ *
+ * cron.schedule records its calls in a table, which lets the tests assert that
+ * the job is scheduled once with the expected expression — the kind of thing
+ * that is otherwise only discovered by receiving four identical notifications.
+ */
+const PLATFORM_STUB = `
   create schema if not exists auth;
 
   create table auth.users (
@@ -40,19 +49,96 @@ const AUTH_STUB = `
   as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 
   create role authenticated;
+  create role anon;
+  create role service_role;
+
+  -- Vault stores secrets encrypted and exposes them through a decrypting view.
+  -- Reproduced here as a table pair with the same names and function
+  -- signatures, so setup_dispatch runs against it unmodified.
+  create schema if not exists vault;
+  create table vault.secrets (
+    id uuid primary key default gen_random_uuid(),
+    name text unique,
+    secret text
+  );
+  create view vault.decrypted_secrets as
+    select id, name, secret as decrypted_secret from vault.secrets;
+
+  create function vault.create_secret(new_secret text, new_name text default null,
+                                      new_description text default '')
+  returns uuid language plpgsql as $fn$
+  declare v_id uuid;
+  begin
+    insert into vault.secrets (name, secret) values (new_name, new_secret) returning id into v_id;
+    return v_id;
+  end;
+  $fn$;
+
+  create function vault.update_secret(secret_id uuid, new_secret text default null,
+                                      new_name text default null, new_description text default null)
+  returns void language plpgsql as $fn$
+  begin
+    update vault.secrets set secret = coalesce(new_secret, secret) where id = secret_id;
+  end;
+  $fn$;
+
+  create schema if not exists cron;
+  create table cron.jobs (jobname text primary key, schedule text, command text);
+
+  -- Parameters are prefixed to avoid shadowing the column names they are
+  -- compared against. Real pg_cron is a C function and has no such problem.
+  create function cron.schedule(p_jobname text, p_schedule text, p_command text)
+  returns bigint language plpgsql as $fn$
+  begin
+    insert into cron.jobs (jobname, schedule, command)
+    values (p_jobname, p_schedule, p_command)
+      on conflict (jobname) do update set schedule = excluded.schedule,
+                                          command  = excluded.command;
+    return 1;
+  end;
+  $fn$;
+
+  create function cron.unschedule(p_jobname text)
+  returns boolean language plpgsql as $fn$
+  begin
+    if not exists (select 1 from cron.jobs where jobname = p_jobname) then
+      raise exception 'could not find valid entry for job %', p_jobname;
+    end if;
+    delete from cron.jobs where jobname = p_jobname;
+    return true;
+  end;
+  $fn$;
+
+  create schema if not exists net;
+  create table net.calls (id bigserial primary key, url text, headers jsonb, body jsonb);
+
+  create function net.http_post(url text, body jsonb default '{}', params jsonb default '{}',
+                                headers jsonb default '{}', timeout_milliseconds int default 5000)
+  returns bigint language plpgsql as $fn$
+  declare v_id bigint;
+  begin
+    insert into net.calls (url, headers, body) values (url, headers, body) returning id into v_id;
+    return v_id;
+  end;
+  $fn$;
 `;
 
-/** Strip only the hosted-platform extensions; leave all of our DDL intact. */
+/** Strip only the hosted-platform extension declarations; leave our DDL intact. */
 function loadMigrations(): { name: string; sql: string }[] {
   return readdirSync(migrationsDir)
     .filter((f) => f.endsWith('.sql'))
     .sort()
     .map((name) => ({
       name,
-      sql: readFileSync(join(migrationsDir, name), 'utf8').replace(
-        /create extension if not exists (pg_cron|pg_net);/g,
-        '-- (extension stubbed in test)',
-      ),
+      sql: readFileSync(join(migrationsDir, name), 'utf8')
+        .replace(
+          /create extension if not exists (pg_cron|pg_net);/g,
+          '-- (extension stubbed in test)',
+        )
+        .replace(
+          /create extension if not exists supabase_vault with schema vault;/g,
+          '-- (extension stubbed in test)',
+        ),
     }));
 }
 
@@ -82,7 +168,7 @@ async function asUser<T>(uid: string, fn: () => Promise<T>): Promise<T> {
 
 beforeAll(async () => {
   db = new PGlite();
-  await db.exec(AUTH_STUB);
+  await db.exec(PLATFORM_STUB);
 
   for (const { name, sql } of loadMigrations()) {
     try {
@@ -129,6 +215,94 @@ describe('migrations apply', () => {
     for (const leaked of ['assignments', 'events', 'courses', 'checklist_items']) {
       expect(names).not.toContain(leaked);
     }
+  });
+});
+
+describe('the scheduled job', () => {
+  it('is scheduled exactly once, every 15 minutes', async () => {
+    const res = await db.query<{ jobname: string; schedule: string; command: string }>(
+      `select jobname, schedule, command from cron.jobs`,
+    );
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0].jobname).toBe('life-planner-dispatch');
+    expect(res.rows[0].schedule).toBe('*/15 * * * *');
+    expect(res.rows[0].command).toContain('dispatch_tick');
+  });
+
+  it('stays at one job when the migration is applied again', async () => {
+    // Re-running migrations must not accumulate duplicate schedules. Four
+    // identical 07:00 notifications is a bug you only discover on a phone.
+    for (const { sql } of loadMigrations().filter((m) => m.name.startsWith('0002'))) {
+      await db.exec(sql);
+    }
+    const res = await db.query(`select jobname from cron.jobs`);
+    expect(res.rows).toHaveLength(1);
+  });
+
+  it('does nothing quietly when the secrets are not configured yet', async () => {
+    // This is the real state between running migrations and running setup.
+    // It must no-op rather than raise every 15 minutes forever.
+    await db.exec(`delete from vault.secrets`);
+    await db.exec(`delete from net.calls`);
+
+    await expect(db.exec(`select private.dispatch_tick()`)).resolves.toBeTruthy();
+
+    const res = await db.query(`select * from net.calls`);
+    expect(res.rows).toHaveLength(0);
+  });
+
+  it('posts to the dispatch URL with the cron secret once configured', async () => {
+    await db.exec(
+      `select public.setup_dispatch('https://ref.supabase.co/functions/v1/dispatch', 'super-secret-value')`,
+    );
+    await db.exec(`delete from net.calls`);
+
+    await db.exec(`select private.dispatch_tick()`);
+
+    const res = await db.query<{ url: string; headers: Record<string, string> }>(
+      `select url, headers from net.calls`,
+    );
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0].url).toBe('https://ref.supabase.co/functions/v1/dispatch');
+    expect(res.rows[0].headers['x-cron-secret']).toBe('super-secret-value');
+  });
+
+  it('is safe to reconfigure — setup can be re-run without duplicating secrets', async () => {
+    await db.exec(`select public.setup_dispatch('https://ref.supabase.co/x', 'rotated-secret')`);
+    const res = await db.query<{ n: number }>(
+      `select count(*)::int as n from vault.secrets where name = 'cron_secret'`,
+    );
+    expect(res.rows[0].n).toBe(1);
+
+    const secret = await db.query<{ decrypted_secret: string }>(
+      `select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret'`,
+    );
+    expect(secret.rows[0].decrypted_secret).toBe('rotated-secret');
+  });
+
+  it('does not expose the tick function to the client roles', async () => {
+    for (const role of ['authenticated', 'anon']) {
+      const res = await db.query<{ ok: boolean }>(
+        `select has_function_privilege('${role}', 'private.dispatch_tick()', 'execute') as ok`,
+      );
+      expect(res.rows[0].ok, `${role} can execute dispatch_tick`).toBe(false);
+    }
+  });
+
+  it('does not let the browser rewrite where the scheduler posts', async () => {
+    // setup_dispatch is service_role only. If authenticated could call it, the
+    // client could redirect every future digest to an endpoint it controls.
+    for (const role of ['authenticated', 'anon']) {
+      const res = await db.query<{ ok: boolean }>(
+        `select has_function_privilege('${role}', 'public.setup_dispatch(text,text)', 'execute') as ok`,
+      );
+      expect(res.rows[0].ok, `${role} can execute setup_dispatch`).toBe(false);
+    }
+
+    const svc = await db.query<{ ok: boolean }>(
+      `select has_function_privilege('service_role', 'public.setup_dispatch(text,text)', 'execute') as ok`,
+    );
+    expect(svc.rows[0].ok).toBe(true);
   });
 });
 

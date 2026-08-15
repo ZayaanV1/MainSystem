@@ -10,7 +10,9 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:tz": "for z in UTC Asia/Tokyo Australia/Lord_Howe Pacific/Kiritimati America/Los_Angeles; do echo \"== $z\"; TZ=$z vitest run; done"
+    "test:tz": "for z in UTC Asia/Tokyo Australia/Lord_Howe Pacific/Kiritimati America/Los_Angeles; do echo \"== $z\"; TZ=$z vitest run; done",
+    "setup": "node scripts/setup.mjs",
+    "test:notify": "node scripts/notify.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
