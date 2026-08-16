@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:tz": "for z in UTC Asia/Tokyo Australia/Lord_Howe Pacific/Kiritimati America/Los_Angeles; do echo \"== $z\"; TZ=$z vitest run; done",
     "setup": "node scripts/setup.mjs",
-    "test:notify": "node scripts/notify.mjs"
+    "test:notify": "node scripts/notify.mjs",
+    "check:deno": "npx --yes deno@2 check supabase/functions/dispatch/index.ts",
+    "check": "npm run build && npm test && npm run check:deno"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",

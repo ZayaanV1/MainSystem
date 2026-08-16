@@ -33,17 +33,21 @@ export interface DigestSettings {
 }
 
 /**
- * Minimal shape of the database handle this module needs. Declared structurally
- * rather than importing the Supabase client type, so the builder can be tested
- * with a plain object and never needs a live connection.
+ * The database handle.
+ *
+ * Deliberately untyped. The obvious alternative — importing SupabaseClient —
+ * would drag an `npm:` specifier into this module, and this module has to stay
+ * importable by the browser test runner so `renderDigest` can be unit-tested
+ * without a network or a Deno runtime.
+ *
+ * The previous attempt here described the client's shape structurally, which
+ * looked safer and was not: PostgrestFilterBuilder is thenable but not a
+ * Promise, so the two types never matched and the whole function failed to
+ * typecheck under Deno. Real query typing arrives in Phase 1 at the call sites,
+ * where there are actual queries to type.
  */
-export interface DigestDb {
-  from(table: string): {
-    select(columns: string): {
-      eq(column: string, value: unknown): Promise<{ data: unknown[] | null; error: unknown }>;
-    };
-  };
-}
+// deno-lint-ignore no-explicit-any
+export type DigestDb = any;
 
 /**
  * Gathers the content sections of the digest.
