@@ -29,7 +29,7 @@ your chat ID from that message, and there is nothing to find until you do.
 cp .env.setup.example .env.setup
 ```
 
-Open `.env.setup`. It asks for seven values and tells you where each one
+Open `.env.setup`. It asks for eight values and tells you where each one
 lives in the Supabase dashboard. The two that people hunt for:
 
 - **Project ref** — the subdomain in your dashboard URL,

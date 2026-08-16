@@ -157,7 +157,9 @@ function supabase(args, opts = {}) {
 }
 
 step(2, 'Linking the Supabase project');
-supabase(['link', '--project-ref', REF, '--password', cfg.SUPABASE_DB_PASSWORD], { quiet: true });
+// Output is inherited rather than captured: if the CLI ever asks something,
+// a captured stream would hang with a blank terminal and no way to answer.
+supabase(['link', '--project-ref', REF, '--password', cfg.SUPABASE_DB_PASSWORD]);
 ok(`linked to ${REF}`);
 
 step(3, 'Applying migrations');
