@@ -195,26 +195,257 @@ beforeAll(async () => {
 }, 60_000);
 
 describe('migrations apply', () => {
-  it('creates every Phase 0 table', async () => {
+  it('creates every table, Phase 0 infrastructure and Phase 1 content', async () => {
     const res = await db.query<{ tablename: string }>(
       `select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );
     expect(res.rows.map((r) => r.tablename)).toEqual([
       'app_settings',
+      'assignments',
+      'checklist_completions',
+      'checklist_items',
+      'courses',
       'delivery_log',
+      'events',
+      'inbox_items',
       'notification_channels',
       'push_subscriptions',
+      'subtasks',
     ]);
   });
 
-  it('contains no Phase 1 feature tables — the push proof comes first', async () => {
-    const res = await db.query<{ tablename: string }>(
-      `select tablename from pg_tables where schemaname = 'public'`,
+  it('stores no streak or missed-day counters anywhere', async () => {
+    // A structural guard on rule 3. CLAUDE.md records that no-streak-shaming
+    // "has been violated by well-meaning refactors before", and the cheapest
+    // way for that to happen is a column quietly appearing to cache a count.
+    // Missed days are the absence of a row, never a number.
+    // Anchored to word boundaries: an unanchored 'missed' also matches
+    // `dismissed_at`, which is a legitimate inbox column.
+    const res = await db.query<{ table_name: string; column_name: string }>(
+      `select table_name, column_name from information_schema.columns
+        where table_schema = 'public'
+          and (column_name ~ '(^|_)streak(_|$)'
+               or column_name ~ '(^|_)missed(_|$)'
+               or column_name ~ '(^|_)consecutive(_|$)'
+               or column_name ~ '(^|_)(days|times)_in_a_row(_|$)'
+               or column_name ~ '_count$')`,
     );
-    const names = res.rows.map((r) => r.tablename);
-    for (const leaked of ['assignments', 'events', 'courses', 'checklist_items']) {
-      expect(names).not.toContain(leaked);
+    expect(res.rows.map((r) => `${r.table_name}.${r.column_name}`)).toEqual([]);
+  });
+});
+
+describe('capture friction — almost everything is optional on purpose', () => {
+  it('captures an inbox item from nothing but text', async () => {
+    await db.exec(
+      `insert into public.inbox_items (user_id, body) values ('${USER_A}', 'chem lab report??')`,
+    );
+    const res = await db.query<{ body: string; source: string }>(
+      `select body, source from public.inbox_items where user_id = '${USER_A}'`,
+    );
+    expect(res.rows[0]).toMatchObject({ body: 'chem lab report??', source: 'app' });
+  });
+
+  it('rejects an empty capture, which would be a row that means nothing', async () => {
+    await expect(
+      db.exec(`insert into public.inbox_items (user_id, body) values ('${USER_A}', '   ')`),
+    ).rejects.toThrow(/check constraint/i);
+  });
+
+  it('creates an assignment with only a title — no course, no due date', async () => {
+    await db.exec(`insert into public.assignments (user_id, title) values ('${USER_A}', 'email prof')`);
+    const res = await db.query<{ title: string; status: string; due_at: string | null }>(
+      `select title, status, due_at from public.assignments where title = 'email prof'`,
+    );
+    expect(res.rows[0]).toMatchObject({ status: 'todo', due_at: null });
+  });
+
+  it('keeps an assignment when its course is deleted, rather than deleting the work', async () => {
+    await db.exec(`insert into public.courses (id, user_id, name)
+      values ('aaaaaaaa-0000-0000-0000-000000000001', '${USER_A}', 'Chem 101')`);
+    await db.exec(`insert into public.assignments (id, user_id, course_id, title)
+      values ('bbbbbbbb-0000-0000-0000-000000000001', '${USER_A}',
+              'aaaaaaaa-0000-0000-0000-000000000001', 'Lab report')`);
+
+    await db.exec(`delete from public.courses where id = 'aaaaaaaa-0000-0000-0000-000000000001'`);
+
+    const res = await db.query<{ course_id: string | null }>(
+      `select course_id from public.assignments where id = 'bbbbbbbb-0000-0000-0000-000000000001'`,
+    );
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0].course_id).toBeNull();
+  });
+});
+
+describe('checklist recurrence', () => {
+  it('accepts a plain daily item', async () => {
+    await db.exec(
+      `insert into public.checklist_items (user_id, title) values ('${USER_A}', 'Creatine')`,
+    );
+    const res = await db.query(`select 1 from public.checklist_items where title = 'Creatine'`);
+    expect(res.rows).toHaveLength(1);
+  });
+
+  it('rejects a weekdays item with no weekdays, which would never appear', async () => {
+    await expect(
+      db.exec(`insert into public.checklist_items (user_id, title, recurrence)
+               values ('${USER_A}', 'Gym', 'weekdays')`),
+    ).rejects.toThrow(/recurrence_is_complete/i);
+  });
+
+  it('rejects an interval item with no interval', async () => {
+    await expect(
+      db.exec(`insert into public.checklist_items (user_id, title, recurrence)
+               values ('${USER_A}', 'Sheets', 'interval')`),
+    ).rejects.toThrow(/recurrence_is_complete/i);
+  });
+
+  it('accepts a fully specified interval item', async () => {
+    await db.exec(`insert into public.checklist_items
+      (user_id, title, recurrence, interval_days, anchor_day)
+      values ('${USER_A}', 'Change sheets', 'interval', 14, '2026-08-17')`);
+    const res = await db.query(`select 1 from public.checklist_items where title = 'Change sheets'`);
+    expect(res.rows).toHaveLength(1);
+  });
+});
+
+describe('medication dose counting — the number it is worst to get wrong', () => {
+  const MED = 'cccccccc-0000-0000-0000-000000000001';
+
+  beforeAll(async () => {
+    await db.exec(`insert into public.checklist_items
+      (id, user_id, title, tracks_doses, doses_remaining, doses_per_completion)
+      values ('${MED}', '${USER_A}', 'Medication', true, 30, 1)`);
+  });
+
+  const doses = async () => {
+    const r = await db.query<{ doses_remaining: number }>(
+      `select doses_remaining from public.checklist_items where id = '${MED}'`,
+    );
+    return r.rows[0].doses_remaining;
+  };
+
+  it('counts down when the box is checked', async () => {
+    await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day)
+                   values ('${USER_A}', '${MED}', '2026-08-17')`);
+    expect(await doses()).toBe(29);
+  });
+
+  it('gives the dose back when the box is unchecked', async () => {
+    // Undo is a tap in the same place, so it happens by accident constantly.
+    // Losing a dose each time would make the counter useless within a week.
+    await db.exec(
+      `delete from public.checklist_completions where item_id = '${MED}' and local_day = '2026-08-17'`,
+    );
+    expect(await doses()).toBe(30);
+  });
+
+  it('counts down by the configured dose size, not by one', async () => {
+    await db.exec(
+      `update public.checklist_items set doses_per_completion = 2 where id = '${MED}'`,
+    );
+    await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day)
+                   values ('${USER_A}', '${MED}', '2026-08-18')`);
+    expect(await doses()).toBe(28);
+  });
+
+  it('never goes negative', async () => {
+    await db.exec(`update public.checklist_items set doses_remaining = 1 where id = '${MED}'`);
+    await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day)
+                   values ('${USER_A}', '${MED}', '2026-08-19')`);
+    expect(await doses()).toBe(0);
+  });
+
+  it('leaves non-medication items alone', async () => {
+    await db.exec(`insert into public.checklist_items
+      (id, user_id, title) values ('dddddddd-0000-0000-0000-000000000001', '${USER_A}', 'Walk')`);
+    await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day)
+      values ('${USER_A}', 'dddddddd-0000-0000-0000-000000000001', '2026-08-17')`);
+
+    const r = await db.query<{ doses_remaining: number | null }>(
+      `select doses_remaining from public.checklist_items
+        where id = 'dddddddd-0000-0000-0000-000000000001'`,
+    );
+    expect(r.rows[0].doses_remaining).toBeNull();
+  });
+});
+
+describe('checklist completions are per local day', () => {
+  const ITEM = 'eeeeeeee-0000-0000-0000-000000000001';
+
+  beforeAll(async () => {
+    await db.exec(`insert into public.checklist_items (id, user_id, title)
+                   values ('${ITEM}', '${USER_A}', 'Read')`);
+  });
+
+  it('allows one completion per item per day', async () => {
+    await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day)
+                   values ('${USER_A}', '${ITEM}', '2026-08-17')`);
+    await expect(
+      db.exec(`insert into public.checklist_completions (user_id, item_id, local_day)
+               values ('${USER_A}', '${ITEM}', '2026-08-17')`),
+    ).rejects.toThrow(/duplicate key/i);
+  });
+
+  it('back-fills an earlier day as an ordinary insert', async () => {
+    // Missed days must be trivially recoverable. This is the whole mechanism:
+    // a different string, no special case, no penalty.
+    await db.exec(`insert into public.checklist_completions
+      (user_id, item_id, local_day, backfilled)
+      values ('${USER_A}', '${ITEM}', '2026-08-14', true)`);
+
+    const r = await db.query<{ local_day: string }>(
+      `select local_day from public.checklist_completions
+        where item_id = '${ITEM}' order by local_day`,
+    );
+    expect(r.rows.map((x) => x.local_day)).toEqual(['2026-08-14', '2026-08-17']);
+  });
+
+  it('refuses a malformed day key', async () => {
+    await expect(
+      db.exec(`insert into public.checklist_completions (user_id, item_id, local_day)
+               values ('${USER_A}', '${ITEM}', 'yesterday')`),
+    ).rejects.toThrow(/check constraint/i);
+  });
+});
+
+describe('Phase 1 tables are private too', () => {
+  it('enables RLS on every content table', async () => {
+    for (const t of [
+      'courses',
+      'inbox_items',
+      'assignments',
+      'subtasks',
+      'events',
+      'checklist_items',
+      'checklist_completions',
+    ]) {
+      const r = await db.query<{ relrowsecurity: boolean }>(
+        `select relrowsecurity from pg_class where relname = '${t}'`,
+      );
+      expect(r.rows[0].relrowsecurity, `${t} has RLS disabled`).toBe(true);
     }
+  });
+
+  it('does not show one user another user’s assignments', async () => {
+    await db.exec(
+      `insert into public.assignments (user_id, title) values ('${USER_B}', 'B private essay')`,
+    );
+
+    const res = await asUser(USER_A, () =>
+      db.query<{ title: string }>(`select title from public.assignments`),
+    );
+    expect(res.rows.map((r) => r.title)).not.toContain('B private essay');
+  });
+
+  it('does not show one user another user’s captured thoughts', async () => {
+    await db.exec(
+      `insert into public.inbox_items (user_id, body) values ('${USER_B}', 'B private thought')`,
+    );
+
+    const res = await asUser(USER_A, () =>
+      db.query<{ body: string }>(`select body from public.inbox_items`),
+    );
+    expect(res.rows.map((r) => r.body)).not.toContain('B private thought');
   });
 });
 
