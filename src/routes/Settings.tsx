@@ -70,7 +70,15 @@ export function Settings({ onBack }: { onBack: () => void }) {
           : `Couldn't send. ${body.errors?.join('; ') ?? `HTTP ${res.status}`}`,
       );
     } catch (e) {
-      setMessage(`Couldn't send. ${(e as Error).message}`);
+      // Safari reports every blocked or failed request as "Load failed", which
+      // tells you nothing. The overwhelmingly likely cause is that the server
+      // does not recognise this origin, so say that instead of repeating it.
+      const raw = (e as Error).message;
+      setMessage(
+        /load failed|failed to fetch|networkerror/i.test(raw)
+          ? "Couldn't reach the server. If the app's address changed, run npm run set:url with the new one."
+          : `Couldn't send. ${raw}`,
+      );
     } finally {
       setTesting(false);
       void reload();

@@ -38,17 +38,36 @@ const VAPID: VapidKeys = {
   subject: env('VAPID_SUBJECT') || 'mailto:noreply@example.com',
 };
 
-const CORS = {
-  'Access-Control-Allow-Origin': APP_URL || '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type, x-cron-secret',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+/**
+ * CORS.
+ *
+ * This was previously pinned to APP_URL alone, which fails badly: deploy to a
+ * new URL, or open a Vercel preview build, and every request dies with Safari's
+ * opaque "Load failed" — no clue that the cause is a stale environment
+ * variable. That is precisely the kind of silent, undiagnosable breakage this
+ * project is supposed to avoid.
+ *
+ * CORS is not the security boundary here in any case. Every path is gated on
+ * either a user JWT or the cron secret, and the browser sends a bearer token
+ * rather than a cookie, so no request is authorised merely by its origin.
+ */
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body, null, 2), {
-    status,
-    headers: { 'content-type': 'application/json', ...CORS },
-  });
+  const allowed =
+    origin === APP_URL ||
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
+    /^http:\/\/localhost(:\d+)?$/i.test(origin) ||
+    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+
+  return {
+    'Access-Control-Allow-Origin': allowed && origin ? origin : APP_URL || '*',
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-cron-secret',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
+  };
+}
 
 interface SettingsRow extends DigestSettings {
   user_id: string;
@@ -58,6 +77,14 @@ interface SettingsRow extends DigestSettings {
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  const CORS = corsFor(req);
+
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body, null, 2), {
+      status,
+      headers: { 'content-type': 'application/json', ...CORS },
+    });
+
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
 
