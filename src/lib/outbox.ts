@@ -58,17 +58,47 @@ function nextStamp(): number {
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
+let storageUnavailable = false;
 
-function db(): Promise<IDBPDatabase> {
-  dbPromise ??= openDB(DB_NAME, DB_VERSION, {
-    upgrade(database) {
-      if (!database.objectStoreNames.contains(STORE)) {
-        const store = database.createObjectStore(STORE, { keyPath: 'id' });
-        store.createIndex('createdAt', 'createdAt');
-      }
-    },
-  });
-  return dbPromise;
+/**
+ * How long to wait for IndexedDB before giving up on it.
+ *
+ * `indexedDB.open` can hang indefinitely rather than fail: a blocked version
+ * upgrade from another tab, storage eviction mid-flight, Safari private
+ * browsing. Awaiting that forever means every tap does nothing, reports
+ * nothing, and saves nothing — the worst possible reading of rule 5, and it
+ * was reproduced in a real browser rather than imagined.
+ */
+const OPEN_TIMEOUT_MS = 3000;
+
+async function db(): Promise<IDBPDatabase | null> {
+  if (storageUnavailable) return null;
+
+  dbPromise ??= Promise.race([
+    openDB(DB_NAME, DB_VERSION, {
+      upgrade(database) {
+        if (!database.objectStoreNames.contains(STORE)) {
+          const store = database.createObjectStore(STORE, { keyPath: 'id' });
+          store.createIndex('createdAt', 'createdAt');
+        }
+      },
+      blocked: () => setState({ error: 'Another tab is upgrading storage. Close it and retry.' }),
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('IndexedDB did not open')), OPEN_TIMEOUT_MS),
+    ),
+  ]);
+
+  try {
+    return await dbPromise;
+  } catch {
+    // Degrade rather than hang. Writes still go out, they simply are not
+    // durable across a reload — and the user is told, instead of tapping into
+    // a void.
+    storageUnavailable = true;
+    dbPromise = null;
+    return null;
+  }
 }
 
 /* -------------------------------------------------------------- listeners  */
@@ -97,8 +127,9 @@ function setState(next: Partial<OutboxState>) {
 }
 
 async function refreshCount() {
-  const count = await (await db()).count(STORE);
-  setState({ pending: count });
+  const database = await db();
+  if (!database) return;
+  setState({ pending: await database.count(STORE) });
 }
 
 /* ------------------------------------------------------------------ queue  */
@@ -124,7 +155,17 @@ export async function enqueue(
     attempts: 0,
   };
 
-  await (await db()).put(STORE, entry);
+  const database = await db();
+
+  if (!database) {
+    // No durable queue. Send straight away and report the outcome — degraded,
+    // but never silent, and never a tap that does nothing.
+    const error = await apply(entry);
+    setState({ error: error ? `Couldn't save. ${error}` : null });
+    return;
+  }
+
+  await database.put(STORE, entry);
   await refreshCount();
 
   // Deliberately not awaited. The caller's UI updates optimistically the
@@ -168,6 +209,7 @@ async function drain(): Promise<void> {
 
   try {
     const database = await db();
+    if (!database) return; // degraded mode: writes already went out directly
 
     for (;;) {
       const entries = (await database.getAllFromIndex(STORE, 'createdAt')) as OutboxEntry[];
@@ -229,9 +271,10 @@ async function apply(entry: OutboxEntry): Promise<string | null> {
 
 /** Discards the queue. Only ever called from an explicit user action. */
 export async function clearOutbox(): Promise<void> {
-  await (await db()).clear(STORE);
+  const database = await db();
+  if (database) await database.clear(STORE);
   await refreshCount();
-  setState({ error: null });
+  setState({ error: null, pending: 0 });
 }
 
 /* ------------------------------------------------------------ lifecycle    */
