@@ -276,9 +276,21 @@ describe('dueTimestamp', () => {
     expect(dueTimestamp(one('Read the book'))).toBeNull();
   });
 
-  it('defaults a dateless time to the END of the day, not the start', () => {
+  it('defaults an assignment to the END of its day', () => {
     // Storing midnight would make "due Friday" look overdue for all of Friday.
     expect(dueTimestamp(one('Essay, Sep 20'))).toBe('2026-09-21T03:59:00.000Z'); // 23:59 EDT
+  });
+
+  it('defaults an EVENT to the start of its day instead', () => {
+    // An all-day exam stored at 23:59 sorts below everything else on the day
+    // it happens, and a T-1 reminder would fire on the wrong evening.
+    const exam = one('Midterm exam, Oct 15');
+    expect(exam.kind).toBe('event');
+    expect(dueTimestamp(exam)).toBe('2026-10-15T04:00:00.000Z'); // 00:00 EDT
+  });
+
+  it('still honours an explicit time on an event', () => {
+    expect(dueTimestamp(one('Midterm exam, Oct 15, 2pm'))).toBe('2026-10-15T18:00:00.000Z');
   });
 
   it('honours an explicit time', () => {

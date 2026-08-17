@@ -402,14 +402,23 @@ export function parseBulk(
 /**
  * Turns a confirmed row into the timestamp to store.
  *
- * A row with no time is stored at 23:59 local, not midnight: "due Friday"
- * means the end of Friday, and storing midnight makes it look overdue for the
- * entire day it is actually due.
+ * The default time depends on what the row IS, which is easy to get wrong by
+ * sharing one rule:
+ *
+ *   An assignment with no time is due at the END of its day. "Due Friday"
+ *   means by the end of Friday, and storing midnight makes it look overdue
+ *   for the entire day it is actually due.
+ *
+ *   An event with no time STARTS at the beginning of its day. An all-day exam
+ *   stored at 23:59 sorts below everything else on the day it happens, and
+ *   would make a T-1 reminder fire on the wrong evening.
  */
 export function dueTimestamp(row: ParsedRow, timezone?: string): string | null {
   if (!row.dueDay) return null;
 
-  const [h, m] = row.dueTime ? row.dueTime.split(':').map(Number) : [23, 59];
+  const fallback: [number, number] = row.kind === 'event' ? [0, 0] : [23, 59];
+  const [h, m] = row.dueTime ? row.dueTime.split(':').map(Number) : fallback;
+
   return wallClockToUTC(row.dueDay, h, m, 0, timezone).toISOString();
 }
 
