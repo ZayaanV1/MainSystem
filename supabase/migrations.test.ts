@@ -355,6 +355,39 @@ describe('medication dose counting — the number it is worst to get wrong', () 
     expect(await doses()).toBe(0);
   });
 
+  it('does not invent a dose when checked and unchecked at zero', async () => {
+    // The state on 17 Aug 2026: none left, refill tomorrow. Tapping the row by
+    // accident and untapping it must not conjure a pill that does not exist —
+    // undo has to return exactly what was taken, which at zero is nothing.
+    await db.exec(`update public.checklist_items set doses_remaining = 0 where id = '${MED}'`);
+
+    await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day)
+                   values ('${USER_A}', '${MED}', '2026-08-20')`);
+    expect(await doses()).toBe(0);
+
+    await db.exec(
+      `delete from public.checklist_completions where item_id = '${MED}' and local_day = '2026-08-20'`,
+    );
+    expect(await doses()).toBe(0);
+  });
+
+  it('returns only the partial amount actually deducted', async () => {
+    // One dose left, two taken per completion: the deduction is capped at one,
+    // so undo must return one, not two.
+    await db.exec(
+      `update public.checklist_items set doses_remaining = 1, doses_per_completion = 2 where id = '${MED}'`,
+    );
+
+    await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day)
+                   values ('${USER_A}', '${MED}', '2026-08-21')`);
+    expect(await doses()).toBe(0);
+
+    await db.exec(
+      `delete from public.checklist_completions where item_id = '${MED}' and local_day = '2026-08-21'`,
+    );
+    expect(await doses()).toBe(1);
+  });
+
   it('leaves non-medication items alone', async () => {
     await db.exec(`insert into public.checklist_items
       (id, user_id, title) values ('dddddddd-0000-0000-0000-000000000001', '${USER_A}', 'Walk')`);

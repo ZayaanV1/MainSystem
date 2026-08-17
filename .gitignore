@@ -35,3 +35,6 @@ supabase/.branches
 # Setup inputs and generated secrets — never commit
 .env.setup
 .env.generated
+
+# transient local auth handoff for verification
+public/_session.json

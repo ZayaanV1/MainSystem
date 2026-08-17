@@ -176,6 +176,18 @@ export function addDays(day: DayKey, n: number): DayKey {
   return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}`;
 }
 
+/**
+ * ISO weekday for a day key: 1 = Monday through 7 = Sunday.
+ *
+ * Computed from the calendar rather than from an instant, so it cannot be
+ * shifted by a DST transition or by the host's timezone.
+ */
+export function isoWeekday(day: DayKey): number {
+  const [y, m, d] = day.split('-').map(Number);
+  const sunday0 = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return sunday0 === 0 ? 7 : sunday0;
+}
+
 /** Whole calendar days from `from` to `to`. Negative if `to` is earlier. */
 export function daysBetween(from: DayKey, to: DayKey): number {
   const [ay, am, ad] = from.split('-').map(Number);
