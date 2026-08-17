@@ -81,11 +81,20 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **0 — foundation + push proof.** Code complete, **not verified.**
+Phase: **0 — foundation + push proof. DONE**, verified 17 Aug 2026.
 
-Phase 0 is not done until a scheduled server job has delivered a real notification to the phone. Do not begin feature work before that. If iOS push proves unworkable, we need to know now, not in October.
+The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
 
-**Everything is built and tested except the one thing that matters.** 85 tests pass, the app builds, the pipeline is wired end to end — but no notification has ever been delivered, because that needs live credentials. Run `npm run setup` (see `SETUP.md`), then `npm run test:notify`. **If a Telegram message arrives on the phone, Phase 0 is done and Phase 1 may begin. Not before.**
+- `cron.job_run_details` — the 15-minute job fires and succeeds.
+- `net._http_response` — pg_net reaches the edge function, HTTP 200.
+- The scheduled branch produced `sent: true` via Telegram with a real digest row (`"Mon, Aug 17" / "Nothing due."`), by temporarily moving the digest time to the current minute. Settings were restored and the forced row deleted afterwards.
+
+117 tests, clean build, clean `deno check`. `npm run check` runs all three.
+
+**Still open from Phase 0**, neither of which blocks Phase 1:
+
+- **Not deployed.** `APP_URL` is still `http://localhost:5173`, so notification deep links are dead on the phone. Deployment is also a hard prerequisite for the Web Push soak — iOS only permits push for a PWA installed to the home screen over HTTPS.
+- **The 7-day pause theory is untested.** Confirm around 24 Aug that the project is still awake.
 
 Deliberate Phase 0 scope decisions, so they are not mistaken for gaps:
 
