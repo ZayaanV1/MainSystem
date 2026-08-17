@@ -18,7 +18,16 @@
  * nothing else in this file changes.
  */
 
-import { formatDay, type DayKey } from './time.ts';
+import {
+  addDays,
+  daysBetween,
+  endOfDayUTC,
+  formatDay,
+  localDayKey,
+  startOfDayUTC,
+  type DayKey,
+} from './time.ts';
+import { dueOn, refillStatus, type ChecklistItem } from './checklist.ts';
 import type { OutboundMessage } from './types.ts';
 
 export interface DigestSection {
@@ -52,18 +61,118 @@ export type DigestDb = any;
 /**
  * Gathers the content sections of the digest.
  *
- * Phase 1 fills this in: assignments due within `assignment_window_days` with
- * overdue called out first, events within `event_window_days`, and today's
- * uncompleted checklist items. Until those tables exist it correctly returns
- * nothing, and the empty-state message below is what gets sent.
+ * Order is the message: overdue first, because it is the thing most likely to
+ * be forgotten and least likely to be surfaced anywhere else; then what is due
+ * inside the window; then events; then what is left on today's checklist.
+ *
+ * A section with nothing in it is omitted entirely rather than rendered empty.
+ * "Overdue: none" is a line about failure that did not need writing.
  */
 export async function collectSections(
-  _db: DigestDb,
-  _userId: string,
-  _settings: DigestSettings,
-  _localDay: DayKey,
+  db: DigestDb,
+  userId: string,
+  settings: DigestSettings,
+  localDay: DayKey,
 ): Promise<DigestSection[]> {
-  return [];
+  const tz = settings.timezone;
+  const dayStart = startOfDayUTC(localDay, tz).toISOString();
+  const assignmentEnd = endOfDayUTC(addDays(localDay, settings.assignment_window_days), tz).toISOString();
+  const eventEnd = endOfDayUTC(addDays(localDay, settings.event_window_days), tz).toISOString();
+
+  const [assignments, events, items, completions] = await Promise.all([
+    db
+      .from('assignments')
+      .select('title, due_at, course_id')
+      .eq('user_id', userId)
+      .neq('status', 'done')
+      .not('due_at', 'is', null)
+      .lte('due_at', assignmentEnd)
+      .order('due_at', { ascending: true }),
+
+    db
+      .from('events')
+      .select('title, starts_at, kind')
+      .eq('user_id', userId)
+      .gte('starts_at', dayStart)
+      .lte('starts_at', eventEnd)
+      .order('starts_at', { ascending: true }),
+
+    db.from('checklist_items').select('*').eq('user_id', userId).eq('active', true),
+
+    db
+      .from('checklist_completions')
+      .select('item_id')
+      .eq('user_id', userId)
+      .eq('local_day', localDay),
+  ]);
+
+  const sections: DigestSection[] = [];
+
+  const due = (assignments.data ?? []) as { title: string; due_at: string }[];
+  const overdue = due.filter((a) => a.due_at < dayStart);
+  const upcoming = due.filter((a) => a.due_at >= dayStart);
+
+  if (overdue.length) {
+    sections.push({
+      heading: 'Overdue',
+      items: overdue.map((a) => `${a.title} — ${relativeDay(a.due_at, localDay, tz)}`),
+    });
+  }
+
+  if (upcoming.length) {
+    sections.push({
+      heading: `Due in the next ${settings.assignment_window_days} days`,
+      items: upcoming.map((a) => `${a.title} — ${relativeDay(a.due_at, localDay, tz)}`),
+    });
+  }
+
+  const upcomingEvents = (events.data ?? []) as { title: string; starts_at: string }[];
+  if (upcomingEvents.length) {
+    sections.push({
+      heading: `Coming up in ${settings.event_window_days} days`,
+      items: upcomingEvents.map((e) => `${e.title} — ${relativeDay(e.starts_at, localDay, tz)}`),
+    });
+  }
+
+  const doneToday = new Set(
+    ((completions.data ?? []) as { item_id: string }[]).map((c) => c.item_id),
+  );
+  const outstanding = dueOn((items.data ?? []) as ChecklistItem[], localDay).filter(
+    (i) => !doneToday.has(i.id),
+  );
+
+  if (outstanding.length) {
+    sections.push({
+      heading: 'Today',
+      items: outstanding.map((i) => {
+        const refill = refillStatus(i);
+        return refill.needsRefill && refill.label ? `${i.title} (${refill.label})` : i.title;
+      }),
+    });
+  }
+
+  return sections;
+}
+
+/**
+ * How a date reads relative to the digest's own day.
+ *
+ * Named days rather than counted ones wherever a name exists: "tomorrow" is
+ * read at a glance, "in 1 day" has to be decoded. Lateness is stated as a fact
+ * and never as an accusation.
+ */
+function relativeDay(iso: string, localDay: DayKey, tz: string): string {
+  const day = localDayKey(new Date(iso), tz);
+  const delta = daysBetween(localDay, day);
+
+  if (delta < 0) {
+    const late = Math.abs(delta);
+    return `${late} ${late === 1 ? 'day' : 'days'} ago`;
+  }
+  if (delta === 0) return 'today';
+  if (delta === 1) return 'tomorrow';
+  if (delta <= 6) return formatDay(day, tz);
+  return `${formatDay(day, tz)}, in ${delta} days`;
 }
 
 /**
