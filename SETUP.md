@@ -101,8 +101,12 @@ Once Vercel gives you a URL, point the backend at it so notification deep
 links work:
 
 ```bash
-npx supabase secrets set APP_URL=https://your-app.vercel.app
+npm run set:url https://your-app.vercel.app
 ```
+
+Use this rather than calling the Supabase CLI directly — the CLI needs an
+access token that lives in `.env.setup`, and a bare `npx supabase secrets set`
+has no way to know that and fails with a confusing auth error.
 
 Then open that URL on your iPhone in Safari, Share → **Add to Home Screen**.
 

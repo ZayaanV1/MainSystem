@@ -14,7 +14,8 @@
     "setup": "node scripts/setup.mjs",
     "test:notify": "node scripts/notify.mjs",
     "check:deno": "npx --yes deno@2 check supabase/functions/dispatch/index.ts",
-    "check": "npm run build && npm test && npm run check:deno"
+    "check": "npm run build && npm test && npm run check:deno",
+    "set:url": "node scripts/set-app-url.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
