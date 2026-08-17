@@ -81,7 +81,44 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **0 — foundation + push proof. DONE**, verified 17 Aug 2026.
+Phase: **1 — core planner. In progress.** Phase 0 done and verified 17 Aug 2026.
+
+### Phase 1 so far
+
+Built and verified against the live database: the content schema, quick
+capture, the checklist with the medication counter, courses, assignments with
+proximity flags and derived start-by dates, the bulk syllabus importer, and a
+digest that reports real work instead of always saying "Nothing due".
+
+**Still to build in Phase 1:** Week and Month views, assignment editing and
+subtasks, a checklist item editor (until then `npm run doses` sets the count),
+and the completion heatmap — which ships only with the hard rules agreed: no
+counts, no percentages, no "best run", empty cells as ground colour, ~5 weeks
+maximum.
+
+### Bugs found by verifying rather than assuming
+
+Each of these was invisible in the UI and only surfaced by reading what
+actually reached the database. Worth remembering as a working method.
+
+- **Dose counter invented medication.** Deducting a floored amount but
+  restoring the full amount meant a tap-and-untap at zero created a pill. The
+  completion row now records what was taken and returns exactly that.
+- **The outbox stranded writes.** A single-pass flush dropped anything queued
+  while it ran — six rows imported, one written, five silent. It now drains
+  until empty, and `await flush()` actually waits.
+- **Replay order was not guaranteed.** Millisecond timestamps collide, so an
+  edit could land before the insert that created its row. Timestamps are now
+  strictly increasing.
+- **A hung IndexedDB hung every write.** `open` can never settle; every tap
+  then did nothing, silently. Now raced against a timeout, degrading to direct
+  sends with the failure reported.
+- **All-day events were stored at 23:59**, sharing the assignment rule. They
+  now start at the beginning of their day, or T-1 reminders fire a day early.
+
+---
+
+## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
 
