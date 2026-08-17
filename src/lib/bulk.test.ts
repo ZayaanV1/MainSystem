@@ -137,6 +137,19 @@ describe('courses', () => {
     expect(r.warnings).toContain('no course matched');
   });
 
+  it('strips an unknown course code and names what is missing', () => {
+    // Before any courses exist, leaving "CHEM 233:" glued to every title makes
+    // the whole preview noisier and the titles wrong.
+    const r = parseLine('CHEM 233: Lab report, Sept 12', [], TODAY);
+    expect(r.title).toBe('Lab report');
+    expect(r.warnings).toContain('course "CHEM 233" not found');
+  });
+
+  it('does not strip a prefix that is not shaped like a course code', () => {
+    const r = parseLine('Reminder: buy folders, Sept 12', [], TODAY);
+    expect(r.title).toBe('Reminder: buy folders');
+  });
+
   it('does not mistake a colon inside a title for a course prefix', () => {
     const r = one('Reading: chapters 4-6, Sep 9');
     expect(r.courseId).toBeNull();

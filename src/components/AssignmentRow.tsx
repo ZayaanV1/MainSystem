@@ -1,0 +1,113 @@
+import { startBy, startByIsDue, urgencyFor, type Thresholds } from '../lib/urgency';
+import { formatDay, formatTime, localDayKey } from '../lib/time';
+import type { Assignment, Course } from '../lib/planner';
+import { courseVar } from '../lib/planner';
+
+/**
+ * One assignment.
+ *
+ * The colour law gives both urgency and courses a claim on an edge, so they
+ * are separated by form as well as by hue: urgency is the vertical bar down
+ * the left, the course is a 6px dot beside the title. Warm bar, cool dot,
+ * different shapes — legible even if you cannot tell the two hues apart.
+ *
+ * The urgency colour never appears without its written label. That pairing is
+ * the rule, and it is also the entire colourblind-safety answer.
+ */
+
+interface AssignmentRowProps {
+  assignment: Assignment;
+  course?: Course;
+  thresholds?: Thresholds;
+  now?: Date;
+  onToggleDone: () => void;
+}
+
+export function AssignmentRow({
+  assignment,
+  course,
+  thresholds,
+  now,
+  onToggleDone,
+}: AssignmentRowProps) {
+  const due = assignment.due_at ? new Date(assignment.due_at) : null;
+  const done = assignment.status === 'done';
+
+  const urgency = urgencyFor(due, { done, now, thresholds });
+
+  const start = startBy(due, assignment.effort_minutes, assignment.start_by_override);
+  // Only surfaced once it is relevant. "Start by 12 December" in August is
+  // noise, and noise on this screen is what makes the screen ignorable.
+  const showStart = !done && startByIsDue(start, now);
+
+  const dueLabel = due
+    ? assignment.due_has_time
+      ? `${formatDay(localDayKey(due))} ${formatTime(due)}`
+      : formatDay(localDayKey(due))
+    : null;
+
+  return (
+    <div className="flex items-stretch gap-3 border-b border-ink-600 last:border-b-0">
+      {/* Urgency, as a bar. Never the only signal — the label below repeats it. */}
+      <span
+        aria-hidden
+        className="w-[3px] shrink-0 rounded-pill"
+        style={{ backgroundColor: `var(${urgency.colourVar})` }}
+      />
+
+      <button
+        type="button"
+        onClick={onToggleDone}
+        aria-pressed={done}
+        className="flex min-h-[var(--tap)] flex-1 items-center gap-3 py-3 pr-4 text-left"
+      >
+        <span
+          aria-hidden
+          className={[
+            'flex h-5 w-5 shrink-0 items-center justify-center rounded-pill border-2',
+            done ? 'border-t-done bg-t-done' : 'border-ink-600',
+          ].join(' ')}
+        >
+          {done && (
+            <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden>
+              <path
+                d="M2.5 6.2 L4.8 8.5 L9.5 3.8"
+                fill="none"
+                stroke="var(--ink-900)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            {course && (
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 shrink-0 rounded-pill"
+                style={{ backgroundColor: `var(${courseVar(course.colour_index)})` }}
+              />
+            )}
+            <span className={`type-body truncate ${done ? 'text-text-low' : 'text-text-hi'}`}>
+              {assignment.title}
+            </span>
+          </span>
+
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="type-caption" style={{ color: `var(${urgency.colourVar})` }}>
+              {urgency.label}
+            </span>
+            {dueLabel && <span className="type-caption text-text-low">{dueLabel}</span>}
+            {course && <span className="type-caption text-text-low">{course.code ?? course.name}</span>}
+            {showStart && start && (
+              <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
+            )}
+          </span>
+        </span>
+      </button>
+    </div>
+  );
+}

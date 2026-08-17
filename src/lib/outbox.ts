@@ -38,6 +38,25 @@ export interface OutboxEntry {
   lastError?: string;
 }
 
+/**
+ * A strictly increasing timestamp.
+ *
+ * Date.now() has millisecond resolution, and writes queued in a tight loop —
+ * a syllabus import, a burst of taps — routinely land in the same
+ * millisecond. The replay index then orders them arbitrarily, which breaks
+ * the one guarantee the queue makes: that an edit never reaches the server
+ * before the insert that created the row.
+ *
+ * Nudging forward on collision keeps ordering exact within a session, and a
+ * later session's clock is far past anything a previous one produced.
+ */
+let lastStamp = 0;
+function nextStamp(): number {
+  const now = Date.now();
+  lastStamp = now > lastStamp ? now : lastStamp + 1;
+  return lastStamp;
+}
+
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
 function db(): Promise<IDBPDatabase> {
@@ -101,13 +120,16 @@ export async function enqueue(
     op,
     payload,
     match,
-    createdAt: Date.now(),
+    createdAt: nextStamp(),
     attempts: 0,
   };
 
   await (await db()).put(STORE, entry);
   await refreshCount();
 
+  // Deliberately not awaited. The caller's UI updates optimistically the
+  // moment the write is durable on disk; whether it has reached the server yet
+  // is the outbox's problem, reported through subscribeOutbox.
   void flush();
 }
 
@@ -117,30 +139,54 @@ export async function enqueue(
  * Order matters and is preserved: a later edit to a row must not be applied
  * before the insert that created it. Stopping rather than skipping is what
  * guarantees that.
+ *
+ * The outer loop is load-bearing, not defensive tidiness. A single pass reads
+ * the queue once, and anything enqueued while that pass is in flight has its
+ * own flush() call swallowed by the `syncing` guard below — so those writes
+ * would sit on disk forever with no error and no retry. That is exactly what
+ * happened importing a syllabus: six rows queued in a tight loop, one written.
+ * Re-reading until the queue is genuinely empty closes the window.
  */
-export async function flush(): Promise<void> {
-  if (state.syncing) return;
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+let inFlight: Promise<void> | null = null;
 
+export function flush(): Promise<void> {
+  // Returning the in-flight promise rather than resolving immediately means
+  // `await flush()` actually waits for the queue to drain. The previous
+  // version resolved straight away whenever a flush was already running, so a
+  // caller could not tell "already done" from "not started".
+  if (inFlight) return inFlight;
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return Promise.resolve();
+
+  inFlight = drain().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function drain(): Promise<void> {
   setState({ syncing: true });
 
   try {
     const database = await db();
-    const entries = (await database.getAllFromIndex(STORE, 'createdAt')) as OutboxEntry[];
 
-    for (const entry of entries) {
-      const error = await apply(entry);
+    for (;;) {
+      const entries = (await database.getAllFromIndex(STORE, 'createdAt')) as OutboxEntry[];
+      if (entries.length === 0) break;
 
-      if (error) {
-        entry.attempts += 1;
-        entry.lastError = error;
-        await database.put(STORE, entry);
-        setState({ error: `Couldn't sync. ${error}` });
-        return;
+      for (const entry of entries) {
+        const error = await apply(entry);
+
+        if (error) {
+          entry.attempts += 1;
+          entry.lastError = error;
+          await database.put(STORE, entry);
+          setState({ error: `Couldn't sync. ${error}` });
+          return;
+        }
+
+        await database.delete(STORE, entry.id);
+        await refreshCount();
       }
-
-      await database.delete(STORE, entry.id);
-      await refreshCount();
     }
 
     setState({ error: null });

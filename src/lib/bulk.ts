@@ -258,6 +258,13 @@ export function parseLine(line: string, courses: CourseRef[], today: DayKey): Pa
     if (hit) {
       course = hit;
       working = prefixed[2];
+    } else if (/^[A-Za-z]{2,8}\s?\d{2,4}[A-Za-z]?$/.test(prefixed[1].trim())) {
+      // Looks unmistakably like a course code but matches nothing on file.
+      // Strip it anyway — leaving "CHEM 233:" glued to the title makes every
+      // row on the screen noisier — and say which course is missing, so the
+      // fix is obvious rather than mysterious.
+      warnings.push(`course "${prefixed[1].trim()}" not found`);
+      working = prefixed[2];
     }
   }
 

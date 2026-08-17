@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { AssignmentRow } from '../components/AssignmentRow';
 import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
 import { EmptyState } from '../components/EmptyState';
@@ -12,6 +13,7 @@ import {
   completionKey,
   completionSet,
   loadToday,
+  setAssignmentStatus,
   setCompletion,
   type TodayData,
 } from '../lib/planner';
@@ -28,7 +30,15 @@ import { formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
  * The capture box is always visible and always focusable, and it never asks a
  * second question.
  */
-export function Today({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function Today({
+  onOpenSettings,
+  onOpenPlan,
+  onData,
+}: {
+  onOpenSettings: () => void;
+  onOpenPlan: () => void;
+  onData?: (d: TodayData) => void;
+}) {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
 
@@ -38,7 +48,14 @@ export function Today({ onOpenSettings }: { onOpenSettings: () => void }) {
   const [health, setHealth] = useState<NotificationHealth | null>(null);
 
   const today = todayKey();
-  const reload = useCallback(() => loadToday(today).then(setData), [today]);
+  const reload = useCallback(
+    () =>
+      loadToday(today).then((d) => {
+        setData(d);
+        onData?.(d);
+      }),
+    [today, onData],
+  );
 
   useEffect(() => {
     void reload();
@@ -92,9 +109,14 @@ export function Today({ onOpenSettings }: { onOpenSettings: () => void }) {
             {formatDay(today)} &middot; {zoneAbbrev()}
           </p>
         </div>
-        <button type="button" onClick={onOpenSettings} className="type-label text-text-mid">
-          Settings
-        </button>
+        <div className="flex gap-4">
+          <button type="button" onClick={onOpenPlan} className="type-label text-text-mid">
+            Plan
+          </button>
+          <button type="button" onClick={onOpenSettings} className="type-label text-text-mid">
+            Settings
+          </button>
+        </div>
       </header>
 
       <CaptureBox userId={userId} onCaptured={reload} />
@@ -127,6 +149,26 @@ export function Today({ onOpenSettings }: { onOpenSettings: () => void }) {
                 />
               );
             })}
+          </Card>
+        )}
+      </section>
+
+      <section className="mb-8">
+        <h2 className="type-h2 mb-3 px-4 text-text-hi">Work</h2>
+        {!data?.assignments.length ? (
+          <EmptyState>Nothing due.</EmptyState>
+        ) : (
+          <Card>
+            {data.assignments.map((a) => (
+              <AssignmentRow
+                key={a.id}
+                assignment={a}
+                course={data.courses.find((c) => c.id === a.course_id)}
+                onToggleDone={() =>
+                  void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done')
+                }
+              />
+            ))}
           </Card>
         )}
       </section>

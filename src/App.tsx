@@ -3,8 +3,10 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { startOutbox, subscribeOutbox, type OutboxState } from './lib/outbox';
 import { refreshSubscription } from './lib/notifications';
+import type { Course } from './lib/planner';
 import { SignIn } from './routes/SignIn';
 import { Today } from './routes/Today';
+import { Plan } from './routes/Plan';
 import { Settings } from './routes/Settings';
 import { Specimen } from './routes/Specimen';
 
@@ -13,7 +15,7 @@ import { Specimen } from './routes/Specimen';
  * introduces Week and Month and will want a real router; adding one now would
  * be furniture for a room that does not exist.
  */
-type Screen = 'today' | 'settings';
+type Screen = 'today' | 'plan' | 'settings';
 
 /** Shown before setup has been run, instead of a white screen and a console error. */
 function NotConfigured() {
@@ -40,15 +42,19 @@ function SyncBanner() {
 
   useEffect(() => subscribeOutbox(setState), []);
 
-  if (!state.error) return null;
+  // Two conditions, not one. An error is obvious, but the worse case is work
+  // sitting in the queue with nothing wrong reported — which is exactly what a
+  // stalled flush looked like: durable on disk, never sent, entirely silent.
+  // Queued-and-not-syncing means offline or stuck, and both deserve saying.
+  const stalled = state.pending > 0 && !state.syncing;
+  if (!state.error && !stalled) return null;
+
+  const waiting = `${state.pending} change${state.pending === 1 ? '' : 's'} waiting.`;
 
   return (
-    <div
-      role="status"
-      className="border-b border-ink-600 bg-ink-700 px-4 py-3"
-    >
-      <p className="type-caption text-t-critical">
-        {state.error} {state.pending} change{state.pending === 1 ? '' : 's'} waiting.
+    <div role="status" className="border-b border-ink-600 bg-ink-700 px-4 py-3">
+      <p className={`type-caption ${state.error ? 'text-t-critical' : 'text-text-mid'}`}>
+        {state.error ? `${state.error} ${waiting}` : `Offline. ${waiting}`}
       </p>
     </div>
   );
@@ -57,6 +63,9 @@ function SyncBanner() {
 function Shell() {
   const { session, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>('today');
+  const [courses, setCourses] = useState<Course[]>([]);
+  // Bumped to make Today refetch after Plan writes something.
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     if (!session) return;
@@ -77,11 +86,27 @@ function Shell() {
   return (
     <>
       <SyncBanner />
-      {screen === 'today' ? (
-        <Today onOpenSettings={() => setScreen('settings')} />
-      ) : (
-        <Settings onBack={() => setScreen('today')} />
+
+      {screen === 'settings' && <Settings onBack={() => setScreen('today')} />}
+
+      {screen === 'plan' && (
+        <Plan
+          courses={courses}
+          onBack={() => setScreen('today')}
+          onChanged={() => setRevision((r) => r + 1)}
+        />
       )}
+
+      {/* Today stays mounted so returning to it is instant and the capture box
+          never loses what is half-typed in it. */}
+      <div hidden={screen !== 'today'}>
+        <Today
+          key={revision}
+          onOpenSettings={() => setScreen('settings')}
+          onOpenPlan={() => setScreen('plan')}
+          onData={(d) => setCourses(d.courses)}
+        />
+      </div>
     </>
   );
 }
