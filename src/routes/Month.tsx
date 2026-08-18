@@ -6,6 +6,7 @@ import { EmptyState } from '../components/EmptyState';
 import {
   courseVar,
   setAssignmentStatus,
+  subtaskProgress,
   type Assignment,
   type Course,
   type TodayData,
@@ -67,6 +68,7 @@ export function Month({
   }, [anchor, data, courseFilter, today]);
 
   const courseFor = (id: string | null) => courses.find((c) => c.id === id);
+  const progressFor = (id: string) => subtaskProgress(data?.subtasks ?? [], id);
   const toggle = (a: Assignment) =>
     void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done').then(onChanged);
 
@@ -148,7 +150,15 @@ export function Month({
         ))}
       </div>
 
-      {openCell && <DayDetail cell={openCell} courseFor={courseFor} onToggle={toggle} onOpen={onOpenAssignment} />}
+      {openCell && (
+        <DayDetail
+          cell={openCell}
+          courseFor={courseFor}
+          progressFor={progressFor}
+          onToggle={toggle}
+          onOpen={onOpenAssignment}
+        />
+      )}
 
       {grid.undated.length > 0 && (
         <section className="mb-8">
@@ -161,6 +171,7 @@ export function Month({
               <AssignmentRow
                 key={a.id}
                 assignment={a}
+                progress={progressFor(a.id)}
                 course={courseFor(a.course_id)}
                 onToggleDone={() => toggle(a)}
                 onOpen={() => onOpenAssignment(a)}
@@ -219,11 +230,13 @@ function DayCell({
 function DayDetail({
   cell,
   courseFor,
+  progressFor,
   onToggle,
   onOpen,
 }: {
   cell: MonthCell;
   courseFor: (id: string | null) => Course | undefined;
+  progressFor: (id: string) => { done: number; total: number } | null;
   onToggle: (a: Assignment) => void;
   onOpen: (a: Assignment) => void;
 }) {
@@ -258,6 +271,7 @@ function DayDetail({
             <AssignmentRow
               key={a.id}
               assignment={a}
+              progress={progressFor(a.id)}
               course={courseFor(a.course_id)}
               onToggleDone={() => onToggle(a)}
               onOpen={() => onOpen(a)}

@@ -115,7 +115,9 @@ Inbox triage closes the capture loop: tap a captured thought to turn it into
 work, with Today / Tomorrow / Next week as one tap each. The item is stamped
 rather than deleted and keeps its original wording.
 
-**Still to build in Phase 1:** Month view, subtasks, and the completion
+Month view shows the shape of a term: what is due, never what was done.
+
+**Still to build in Phase 1:** subtasks, and the completion
 heatmap — which ships only with the hard rules agreed: no counts, no
 percentages, no "best run", empty cells as ground colour, ~5 weeks maximum.
 

@@ -28,6 +28,8 @@ interface AssignmentRowProps {
   now?: Date;
   onToggleDone: () => void;
   onOpen?: () => void;
+  /** Steps completed, when the work has been broken down. */
+  progress?: { done: number; total: number } | null;
 }
 
 export function AssignmentRow({
@@ -37,6 +39,7 @@ export function AssignmentRow({
   now,
   onToggleDone,
   onOpen,
+  progress,
 }: AssignmentRowProps) {
   const due = assignment.due_at ? new Date(assignment.due_at) : null;
   const done = assignment.status === 'done';
@@ -119,6 +122,13 @@ export function AssignmentRow({
           {course && <span className="type-caption text-text-low">{course.code ?? course.name}</span>}
           {showStart && start && (
             <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
+          )}
+          {/* Surfaced rather than hidden behind a tap: knowing three of five
+              steps are done is most of what decides whether to pick this up. */}
+          {progress && (
+            <span className="type-caption text-text-mid">
+              {progress.done} of {progress.total} steps
+            </span>
           )}
         </span>
       </button>

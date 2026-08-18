@@ -4,14 +4,18 @@ import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
 import { Sheet } from '../components/Sheet';
 import {
+  addSubtask,
   courseVar,
   deleteAssignment,
+  deleteSubtask,
+  setSubtaskDone,
   updateAssignment,
   type Assignment,
   type AssignmentFields,
   type Course,
+  type Subtask,
 } from '../lib/planner';
-import { localDayKey, localHourMinute, type DayKey } from '../lib/time';
+import { formatDay, localDayKey, localHourMinute, type DayKey } from '../lib/time';
 import { startBy, urgencyFor } from '../lib/urgency';
 
 /**
@@ -46,12 +50,16 @@ export function AssignmentEditor({
   open,
   assignment,
   courses,
+  subtasks = [],
+  userId,
   onClose,
   onSaved,
 }: {
   open: boolean;
   assignment: Assignment;
   courses: Course[];
+  subtasks?: Subtask[];
+  userId: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -147,7 +155,14 @@ export function AssignmentEditor({
           min={1}
           value={fields.effort_minutes ?? ''}
           onChange={(e) => set('effort_minutes', Number(e.target.value) || null)}
-          hint={start ? `Start by ${start}` : 'Used to work out when to start.'}
+          hint={start ? `Start by ${formatDay(start)}` : 'Used to work out when to start.'}
+        />
+
+        <Subtasks
+          assignmentId={assignment.id}
+          userId={userId}
+          subtasks={subtasks}
+          onChanged={onSaved}
         />
 
         <div className="flex flex-col gap-2">
@@ -187,5 +202,108 @@ export function AssignmentEditor({
         </div>
       </form>
     </Sheet>
+  );
+}
+
+/**
+ * First moves.
+ *
+ * "Write research paper" is paralysis; "open a doc and write three possible
+ * thesis sentences" is not. This list exists to manufacture the second kind,
+ * so adding one asks for a line of text and nothing else — no date, no
+ * estimate, no ceremony.
+ *
+ * Ticking one is not a completion event and gets no celebration. It is a
+ * placeholder for where you are, so that picking the work back up tomorrow
+ * does not start with rereading everything.
+ */
+function Subtasks({
+  assignmentId,
+  userId,
+  subtasks,
+  onChanged,
+}: {
+  assignmentId: string;
+  userId: string;
+  subtasks: Subtask[];
+  onChanged: () => void;
+}) {
+  const [draft, setDraft] = useState('');
+  const mine = subtasks
+    .filter((s) => s.assignment_id === assignmentId)
+    .sort((a, b) => a.position - b.position);
+
+  async function add() {
+    const text = draft.trim();
+    if (!text) return;
+    setDraft('');
+    await addSubtask(userId, assignmentId, text, mine.length);
+    onChanged();
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="type-label text-text-mid">
+        Steps{mine.length > 0 && ` — ${mine.filter((s) => s.done).length} of ${mine.length}`}
+      </span>
+
+      {mine.length > 0 && (
+        <div className="overflow-hidden rounded-card bg-ink-800">
+          {mine.map((s) => (
+            <div key={s.id} className="flex items-center border-b border-ink-600 last:border-b-0">
+              <button
+                type="button"
+                onClick={() => void setSubtaskDone(s.id, !s.done).then(onChanged)}
+                aria-pressed={s.done}
+                aria-label={s.done ? `Mark "${s.title}" not done` : `Mark "${s.title}" done`}
+                className="flex min-h-[var(--tap)] flex-1 items-center gap-3 px-4 text-left"
+              >
+                <span
+                  aria-hidden
+                  className={[
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-pill border-2',
+                    s.done ? 'border-t-done bg-t-done' : 'border-ink-600',
+                  ].join(' ')}
+                />
+                <span className={`type-body ${s.done ? 'text-text-low' : 'text-text-hi'}`}>
+                  {s.title}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void deleteSubtask(s.id).then(onChanged)}
+                aria-label={`Remove "${s.title}"`}
+                // Sized to its label rather than a fixed 44px box: 'Remove' is wider
+                // than that and was being clipped. Height still meets the tap floor.
+                className="flex min-h-[var(--tap)] shrink-0 items-center px-4 type-caption text-text-low"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <input
+          value={draft}
+          onChange={(ev) => setDraft(ev.target.value)}
+          onKeyDown={(ev) => {
+            // Enter adds the step without submitting the whole form, so several
+            // can be typed in a row.
+            if (ev.key === 'Enter') {
+              ev.preventDefault();
+              void add();
+            }
+          }}
+          placeholder="A first move"
+          className="flex-1 rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
+        />
+        <Button onClick={() => void add()} disabled={!draft.trim()}>
+          Add
+        </Button>
+      </div>
+    </div>
   );
 }

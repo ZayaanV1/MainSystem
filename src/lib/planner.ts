@@ -49,6 +49,14 @@ export function courseVar(colourIndex: number | null | undefined): string | unde
   return `--c-${Math.min(8, Math.max(1, colourIndex))}`;
 }
 
+export interface Subtask {
+  id: string;
+  assignment_id: string;
+  title: string;
+  done: boolean;
+  position: number;
+}
+
 export interface Completion {
   item_id: string;
   local_day: DayKey;
@@ -72,6 +80,7 @@ export interface TodayData {
   courses: Course[];
   assignments: Assignment[];
   events: PlannerEvent[];
+  subtasks: Subtask[];
 }
 
 /** How many days of back-fill are offered. Bounded on purpose. */
@@ -80,7 +89,7 @@ export const BACKFILL_DAYS = 5;
 export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> {
   const window = recentDays(today, BACKFILL_DAYS);
 
-  const [items, completions, inbox, courses, assignments, events] = await Promise.all([
+  const [items, completions, inbox, courses, assignments, events, subtasks] = await Promise.all([
     supabase
       .from('checklist_items')
       .select(
@@ -126,6 +135,11 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
       .select('id, course_id, title, kind, starts_at, ends_at, all_day, location')
       .gte('starts_at', startOfDayUTC(today).toISOString())
       .order('starts_at', { ascending: true }),
+
+    supabase
+      .from('subtasks')
+      .select('id, assignment_id, title, done, position')
+      .order('position', { ascending: true }),
   ]);
 
   return {
@@ -135,6 +149,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     courses: (courses.data ?? []) as Course[],
     assignments: (assignments.data ?? []) as Assignment[],
     events: (events.data ?? []) as PlannerEvent[],
+    subtasks: (subtasks.data ?? []) as Subtask[],
   };
 }
 
@@ -170,6 +185,51 @@ export async function setAssignmentStatus(
     { status, completed_at: status === 'done' ? new Date().toISOString() : null },
     { id },
   );
+}
+
+/* --------------------------------------------------------------- subtasks */
+
+/**
+ * Break a piece of work into first moves.
+ *
+ * "Write research paper" is paralysis; "open a doc and write three possible
+ * thesis sentences" is not. Subtasks exist to manufacture that second thing,
+ * and in Phase 4 the breakdown button will fill them in automatically — which
+ * is why adding one asks for nothing but a line of text.
+ */
+export async function addSubtask(
+  userId: string,
+  assignmentId: string,
+  title: string,
+  position: number,
+): Promise<void> {
+  const text = title.trim();
+  if (!text) return;
+
+  await enqueue('subtasks', 'insert', {
+    user_id: userId,
+    assignment_id: assignmentId,
+    title: text,
+    position,
+  });
+}
+
+export async function setSubtaskDone(id: string, done: boolean): Promise<void> {
+  await enqueue('subtasks', 'update', { done }, { id });
+}
+
+export async function deleteSubtask(id: string): Promise<void> {
+  await enqueue('subtasks', 'delete', {}, { id });
+}
+
+/** How far along a piece of work is. Null when it has no subtasks. */
+export function subtaskProgress(
+  subtasks: Subtask[],
+  assignmentId: string,
+): { done: number; total: number } | null {
+  const mine = subtasks.filter((s) => s.assignment_id === assignmentId);
+  if (mine.length === 0) return null;
+  return { done: mine.filter((s) => s.done).length, total: mine.length };
 }
 
 /* ------------------------------------------------------------- checklist */

@@ -6,6 +6,7 @@ import { EmptyState } from '../components/EmptyState';
 import {
   courseVar,
   setAssignmentStatus,
+  subtaskProgress,
   type Assignment,
   type Course,
   type PlannerEvent,
@@ -58,6 +59,7 @@ export function Week({
   }, [data, courseFilter, today]);
 
   const courseFor = (id: string | null) => courses.find((c) => c.id === id);
+  const progressFor = (id: string) => subtaskProgress(data?.subtasks ?? [], id);
   const toggle = (a: Assignment) =>
     void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done').then(onChanged);
 
@@ -108,6 +110,7 @@ export function Week({
               <AssignmentRow
                 key={a.id}
                 assignment={a}
+                progress={progressFor(a.id)}
                 course={courseFor(a.course_id)}
                 onToggleDone={() => toggle(a)}
                 onOpen={() => onOpenAssignment(a)}
@@ -123,6 +126,7 @@ export function Week({
           group={group}
           isToday={group.day === today}
           courseFor={courseFor}
+          progressFor={progressFor}
           onToggle={toggle}
           onOpen={onOpenAssignment}
         />
@@ -139,6 +143,7 @@ export function Week({
               <AssignmentRow
                 key={a.id}
                 assignment={a}
+                progress={progressFor(a.id)}
                 course={courseFor(a.course_id)}
                 onToggleDone={() => toggle(a)}
                 onOpen={() => onOpenAssignment(a)}
@@ -168,12 +173,14 @@ function DaySection({
   group,
   isToday,
   courseFor,
+  progressFor,
   onToggle,
   onOpen,
 }: {
   group: DayGroup;
   isToday: boolean;
   courseFor: (id: string | null) => Course | undefined;
+  progressFor: (id: string) => { done: number; total: number } | null;
   onToggle: (a: Assignment) => void;
   onOpen: (a: Assignment) => void;
 }) {
@@ -204,6 +211,7 @@ function DaySection({
             <AssignmentRow
               key={a.id}
               assignment={a}
+              progress={progressFor(a.id)}
               course={courseFor(a.course_id)}
               onToggleDone={() => onToggle(a)}
               onOpen={() => onOpen(a)}

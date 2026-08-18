@@ -143,6 +143,8 @@ function Shell() {
           open
           assignment={openAssignment}
           courses={data?.courses ?? []}
+          subtasks={data?.subtasks ?? []}
+          userId={session.user.id}
           onClose={() => setOpenAssignment(null)}
           onSaved={() => setRevision((r) => r + 1)}
         />

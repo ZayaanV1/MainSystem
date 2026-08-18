@@ -19,6 +19,7 @@ import {
   completionSet,
   loadToday,
   setAssignmentStatus,
+  subtaskProgress,
   setCompletion,
   type Assignment,
   type InboxItem,
@@ -226,6 +227,8 @@ export function Today({
           open
           assignment={openAssignment}
           courses={data?.courses ?? []}
+          subtasks={data?.subtasks ?? []}
+          userId={userId}
           onClose={() => setOpenAssignment(null)}
           onSaved={reload}
         />
@@ -252,6 +255,7 @@ export function Today({
               <AssignmentRow
                 key={a.id}
                 assignment={a}
+                progress={subtaskProgress(data?.subtasks ?? [], a.id)}
                 course={data.courses.find((c) => c.id === a.course_id)}
                 onToggleDone={() =>
                   void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done')

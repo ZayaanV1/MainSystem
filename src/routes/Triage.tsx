@@ -11,7 +11,7 @@ import {
   type Course,
   type InboxItem,
 } from '../lib/planner';
-import { addDays, todayKey } from '../lib/time';
+import { addDays, formatDay, todayKey } from '../lib/time';
 import { startBy, urgencyFor } from '../lib/urgency';
 
 /**
@@ -177,7 +177,7 @@ export function Triage({
           min={1}
           value={fields.effort_minutes ?? ''}
           onChange={(e) => set('effort_minutes', Number(e.target.value) || null)}
-          hint={start ? `Start by ${start}` : 'Optional. Used to work out when to start.'}
+          hint={start ? `Start by ${formatDay(start)}` : 'Optional. Used to work out when to start.'}
         />
 
         <div className="flex flex-wrap items-center gap-3">
