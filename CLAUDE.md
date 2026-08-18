@@ -94,10 +94,13 @@ the bulk syllabus importer, the Week view, and a digest that reports real work.
 at 11:00:02Z and delivered real content — the outstanding checklist with the
 medication flagged as empty. Nobody touched it.
 
-**Still to build in Phase 1:** Month view, subtasks, inbox triage (capture
-currently accumulates with no way to turn an item into work), and the
-completion heatmap — which ships only with the hard rules agreed: no counts,
-no percentages, no "best run", empty cells as ground colour, ~5 weeks maximum.
+Inbox triage closes the capture loop: tap a captured thought to turn it into
+work, with Today / Tomorrow / Next week as one tap each. The item is stamped
+rather than deleted and keeps its original wording.
+
+**Still to build in Phase 1:** Month view, subtasks, and the completion
+heatmap — which ships only with the hard rules agreed: no counts, no
+percentages, no "best run", empty cells as ground colour, ~5 weeks maximum.
 
 ### Bugs found by verifying rather than assuming
 
@@ -124,6 +127,14 @@ actually reached the database. Worth remembering as a working method.
 - **Duplicate courses were possible.** A double-tapped "Add course" made two,
   and every filter, dot and syllabus match then referred to whichever was
   found first. Six identical chips in the Week view is how it surfaced.
+- **Chip had the submit-button bug too.** Fixing Button was not enough; the
+  same hole existed in a second component and produced an undated task when
+  "Tomorrow" was tapped. `tests/markup.test.ts` now fails the build if any
+  `<button>` omits a type, and guards the colour law the same way. Fixing an
+  instance is not fixing the class.
+- **Verbatim text was rendered uppercase.** The captured wording is shown
+  during triage so it is not lost, but `type-caption` uppercases — so the
+  thing being preserved was being rewritten on screen.
 
 ---
 
