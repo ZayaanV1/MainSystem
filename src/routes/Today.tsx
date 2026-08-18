@@ -41,11 +41,13 @@ export function Today({
   onOpenSettings,
   onOpenPlan,
   onOpenWeek,
+  onOpenMonth,
   onData,
 }: {
   onOpenSettings: () => void;
   onOpenPlan: () => void;
   onOpenWeek: () => void;
+  onOpenMonth: () => void;
   onData?: (d: TodayData) => void;
 }) {
   const { session } = useAuth();
@@ -125,6 +127,9 @@ export function Today({
         <div className="flex gap-4">
           <button type="button" onClick={onOpenWeek} className="type-label text-text-mid">
             Week
+          </button>
+          <button type="button" onClick={onOpenMonth} className="type-label text-text-mid">
+            Month
           </button>
           <button type="button" onClick={onOpenPlan} className="type-label text-text-mid">
             Plan

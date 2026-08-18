@@ -11,7 +11,7 @@ import {
   type PlannerEvent,
   type TodayData,
 } from '../lib/planner';
-import { formatDay, formatTime, todayKey, type DayKey } from '../lib/time';
+import { formatDay, formatTime, todayKey } from '../lib/time';
 import { effortMinutes, groupWeek, type DayGroup } from '../lib/week';
 
 /**
@@ -249,4 +249,3 @@ function EventRow({ event, course }: { event: PlannerEvent; course?: Course }) {
   );
 }
 
-export type { DayKey };

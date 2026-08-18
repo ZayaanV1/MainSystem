@@ -8,6 +8,7 @@ import { SignIn } from './routes/SignIn';
 import { Today } from './routes/Today';
 import { Plan } from './routes/Plan';
 import { Week } from './routes/Week';
+import { Month } from './routes/Month';
 import { AssignmentEditor } from './routes/AssignmentEditor';
 import { Settings } from './routes/Settings';
 import { Specimen } from './routes/Specimen';
@@ -15,13 +16,13 @@ import { Specimen } from './routes/Specimen';
 /**
  * Routing is a piece of state rather than a dependency.
  *
- * Four screens with no nesting, no URL to preserve and one user. A router
+ * Five screens with no nesting, no URL to preserve and one user. A router
  * would add a dependency, a bundle, and a set of concepts to hold, in exchange
  * for nothing this app currently needs. Revisit when a screen needs to be
  * linkable from outside — a notification deep link into a specific assignment
  * would be the moment.
  */
-type Screen = 'today' | 'week' | 'plan' | 'settings';
+type Screen = 'today' | 'week' | 'month' | 'plan' | 'settings';
 
 /** Shown before setup has been run, instead of a white screen and a console error. */
 function NotConfigured() {
@@ -105,6 +106,15 @@ function Shell() {
         />
       )}
 
+      {screen === 'month' && (
+        <Month
+          data={data}
+          onBack={() => setScreen('today')}
+          onOpenAssignment={setOpenAssignment}
+          onChanged={() => setRevision((r) => r + 1)}
+        />
+      )}
+
       {screen === 'plan' && (
         <Plan
           courses={data?.courses ?? []}
@@ -121,6 +131,7 @@ function Shell() {
           onOpenSettings={() => setScreen('settings')}
           onOpenPlan={() => setScreen('plan')}
           onOpenWeek={() => setScreen('week')}
+          onOpenMonth={() => setScreen('month')}
           onData={setData}
         />
       </div>
