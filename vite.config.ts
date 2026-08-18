@@ -60,7 +60,16 @@ export default defineConfig({
 
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'supabase/**/*.test.ts'],
+    include: [
+      'src/**/*.test.ts',
+      'src/**/*.test.tsx',
+      'supabase/**/*.test.ts',
+      // Structural guards over the source tree. They live outside src/ for
+      // the same reason the migration tests do: they use Node APIs, and the
+      // app's tsconfig deliberately has no Node types so that app code
+      // cannot reach for them by accident.
+      'tests/**/*.test.ts',
+    ],
     // The host timezone is deliberately NOT pinned here. The time layer must be
     // correct regardless of the machine it runs on — the app runs in a browser
     // in Montreal and the digest runs on an edge server somewhere unknown.

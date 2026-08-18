@@ -6,6 +6,7 @@ import { CheckRow } from '../components/CheckRow';
 import { EmptyState } from '../components/EmptyState';
 import { ChecklistEditor } from './ChecklistEditor';
 import { AssignmentEditor } from './AssignmentEditor';
+import { Triage } from './Triage';
 import type { ChecklistItem } from '../lib/checklist';
 import { useAuth } from '../lib/auth';
 import { dueOn, recentDays, refillStatus } from '../lib/checklist';
@@ -20,6 +21,7 @@ import {
   setAssignmentStatus,
   setCompletion,
   type Assignment,
+  type InboxItem,
   type TodayData,
 } from '../lib/planner';
 import { formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
@@ -54,6 +56,7 @@ export function Today({
   const [pendingToggles, setPendingToggles] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<NotificationHealth | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
+  const [triaging, setTriaging] = useState<InboxItem | null>(null);
   const [editing, setEditing] = useState(false);
   const [editorFor, setEditorFor] = useState<{ item: ChecklistItem | null } | null>(null);
 
@@ -203,6 +206,16 @@ export function Today({
         </div>
       </section>
 
+      {triaging && (
+        <Triage
+          item={triaging}
+          courses={data?.courses ?? []}
+          userId={userId}
+          onClose={() => setTriaging(null)}
+          onDone={reload}
+        />
+      )}
+
       {openAssignment && (
         <AssignmentEditor
           open
@@ -246,18 +259,23 @@ export function Today({
       </section>
 
       <section className="mb-8 flex-1">
-        <h2 className="type-h2 mb-3 px-4 text-text-hi">Inbox</h2>
+        <h2 className="type-h2 mb-1 px-4 text-text-hi">Inbox</h2>
+        {Boolean(data?.inbox.length) && (
+          <p className="type-caption mb-3 px-4 text-text-low">Tap one to sort it out.</p>
+        )}
         {!data?.inbox.length ? (
           <EmptyState>Capture anything here. Sort it later.</EmptyState>
         ) : (
           <Card>
             {data.inbox.map((entry) => (
-              <div
+              <button
                 key={entry.id}
-                className="border-b border-ink-600 px-4 py-3 last:border-b-0"
+                type="button"
+                onClick={() => setTriaging(entry)}
+                className="flex min-h-[var(--tap)] w-full items-center border-b border-ink-600 px-4 py-3 text-left last:border-b-0"
               >
-                <p className="type-body text-text-hi">{entry.body}</p>
-              </div>
+                <span className="type-body text-text-hi">{entry.body}</span>
+              </button>
             ))}
           </Card>
         )}

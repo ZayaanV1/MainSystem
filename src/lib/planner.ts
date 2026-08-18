@@ -272,6 +272,44 @@ export async function capture(userId: string, body: string): Promise<void> {
   });
 }
 
+/**
+ * Turn a captured thought into a piece of work.
+ *
+ * Two writes that must both land: the assignment is created, and the inbox
+ * item is stamped rather than deleted. Stamping keeps the original wording —
+ * "chem lab report??" is sometimes more informative than the tidy title it
+ * became — and makes it possible to see later what capture actually caught.
+ *
+ * The id is generated here rather than by the database so the second write can
+ * point at the first without waiting for a round trip. That is what lets
+ * triage work with no connection at all.
+ */
+export async function triageToAssignment(
+  userId: string,
+  itemId: string,
+  fields: AssignmentFields,
+): Promise<void> {
+  const id = crypto.randomUUID();
+
+  await enqueue('assignments', 'insert', {
+    id,
+    user_id: userId,
+    title: fields.title.trim(),
+    course_id: fields.course_id,
+    due_at: assignmentDueAt(fields.due_day, fields.due_time),
+    due_has_time: Boolean(fields.due_time),
+    effort_minutes: fields.effort_minutes,
+    notes: fields.notes?.trim() || null,
+  });
+
+  await enqueue(
+    'inbox_items',
+    'update',
+    { triaged_at: new Date().toISOString(), converted_to: id },
+    { id: itemId },
+  );
+}
+
 export async function dismissInboxItem(id: string): Promise<void> {
   await enqueue('inbox_items', 'update', { dismissed_at: new Date().toISOString() }, { id });
 }

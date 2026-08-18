@@ -53,6 +53,10 @@ export function Chip({
 
   return (
     <button
+      // Same trap as Button: a bare button inside a form defaults to
+      // type="submit", so tapping a filter or a date shortcut submitted the
+      // form instead of setting the value. Inert by default.
+      type="button"
       {...rest}
       onClick={onClick}
       aria-pressed={selected}
