@@ -53,6 +53,20 @@ export function registerServiceWorker(): void {
     .then((registration) => {
       set({ status: 'ready', scope: registration.scope });
 
+      // "Registered" is not "working". If the install step throws, the worker
+      // goes redundant and never activates — and serviceWorker.ready simply
+      // never resolves, which is indistinguishable from a slow network. Watch
+      // for it so the phone can say so out loud.
+      const watch = registration.installing ?? registration.waiting;
+      watch?.addEventListener('statechange', () => {
+        if (watch.state === 'redundant') {
+          set({
+            status: 'failed',
+            error: 'the worker installed and was then discarded, so it never started',
+          });
+        }
+      });
+
       // Updates apply silently. There is no "a new version is available"
       // prompt on purpose: it is a decision the user cannot make an informed
       // choice about, arriving while they were trying to do something else.

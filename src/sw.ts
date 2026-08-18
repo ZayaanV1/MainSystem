@@ -34,7 +34,28 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE);
-      await cache.addAll(MANIFEST.map((e) => e.url));
+
+      // Deliberately NOT cache.addAll. addAll is atomic: one asset that 404s,
+      // times out, or is blocked by the network and the entire install
+      // rejects, the worker never activates, and navigator.serviceWorker.ready
+      // never resolves — which surfaces as push being impossible to enable,
+      // with nothing anywhere saying why.
+      //
+      // Offline reading of one stale asset is a far smaller problem than a
+      // worker that refuses to exist, so failures are collected and the
+      // install continues.
+      const results = await Promise.allSettled(
+        MANIFEST.map((entry) => cache.add(entry.url)),
+      );
+
+      const failed = results
+        .map((r, i) => (r.status === 'rejected' ? MANIFEST[i].url : null))
+        .filter(Boolean);
+
+      if (failed.length) {
+        console.warn('[sw] could not precache', failed.length, 'of', MANIFEST.length, failed);
+      }
+
       // Take over immediately. A half-updated app that needs a second launch
       // to become correct is a bug you cannot explain to yourself at 7am.
       await self.skipWaiting();
