@@ -90,9 +90,26 @@ capture, the checklist with its medication counter and item editor, courses,
 assignments with proximity flags, derived start-by dates, editing and delete,
 the bulk syllabus importer, the Week view, and a digest that reports real work.
 
-**The loop runs unattended.** On 17 Aug 2026 the 07:00 digest fired on its own
-at 11:00:02Z and delivered real content — the outstanding checklist with the
-medication flagged as empty. Nobody touched it.
+**The loop runs unattended.** On 17 and 18 Aug 2026 the 07:00 digest fired on
+its own at 11:00:0xZ both mornings and delivered real content. Nobody touched it.
+
+**Web Push is proven on the device.** 18 Aug 2026, iPhone iOS 18.7: Apple
+accepted the encrypted push and the notification displayed. The RFC 8291
+implementation is therefore validated against a real push service — Apple
+rejects malformed encryption, a bad VAPID signature or wrong headers outright,
+so a 201 means the ECDH agreement, HKDF derivation, AES-GCM payload and ES256
+JWT are all correct.
+
+Web Push now leads at priority 10 with Telegram at 20 catching misses. The
+5-day soak is running and `delivery_log` is the result: five clean mornings
+keeps it primary, two misses puts Telegram back in front. Either way the digest
+still arrives.
+
+Getting there took three days and the cause was almost certainly `cache.addAll`
+being atomic — one asset failing to cache killed the whole install, the worker
+never activated, and `serviceWorker.ready` hung forever with nothing anywhere
+saying why. Worth remembering: "registered" is not "working", and a promise
+that never settles is harder to find than one that rejects.
 
 Inbox triage closes the capture loop: tap a captured thought to turn it into
 work, with Today / Tomorrow / Next week as one tap each. The item is stamped
