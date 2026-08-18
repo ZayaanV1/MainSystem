@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
+import { HISTORY_DAYS } from '../../supabase/functions/_shared/history';
 import { startOfDayUTC, todayKey, wallClockToUTC, type DayKey } from './time';
 
 /**
@@ -83,11 +84,16 @@ export interface TodayData {
   subtasks: Subtask[];
 }
 
-/** How many days of back-fill are offered. Bounded on purpose. */
+/** How many days the Today day-strip offers. Bounded on purpose. */
 export const BACKFILL_DAYS = 5;
 
 export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> {
-  const window = recentDays(today, BACKFILL_DAYS);
+  // Completions are fetched for the full HISTORY window, not the five days the
+  // day-strip shows. Fetching only five made the history grid draw every older
+  // day as untouched — a month of completed days rendered as a wall of blanks,
+  // which is precisely the shaming display rule 3 forbids, produced by nothing
+  // but a query limit.
+  const window = recentDays(today, Math.max(BACKFILL_DAYS, HISTORY_DAYS));
 
   const [items, completions, inbox, courses, assignments, events, subtasks] = await Promise.all([
     supabase

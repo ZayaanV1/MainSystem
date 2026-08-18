@@ -65,6 +65,9 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         tabIndex={-1}
         className={[
           'relative w-full max-w-160 bg-ink-700 px-6 pb-8 pt-6',
+          // A sheet taller than the screen must scroll, not overflow. The
+          // history grid and a long editor both exceed a phone easily.
+          'max-h-[90dvh] overflow-y-auto overscroll-contain',
           'rounded-t-sheet',
           'motion-safe:animate-[sheet-in_250ms_cubic-bezier(0.2,0,0,1)]',
           // The sheet sits above the home indicator on an installed PWA.

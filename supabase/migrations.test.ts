@@ -838,3 +838,58 @@ describe('courses cannot be duplicated', () => {
     expect(r.rows[0].n).toBe(1);
   });
 });
+
+describe('back-filling a past day does not spend a dose', () => {
+  const MED = 'ffffffff-0000-0000-0000-000000000001';
+  const U = '55555555-5555-5555-5555-000000000001';
+
+  beforeAll(async () => {
+    await db.exec(`insert into auth.users (id, email) values ('${U}', 'bf@example.com')`);
+    await db.exec(`insert into public.checklist_items
+      (id, user_id, title, tracks_doses, doses_remaining, doses_per_completion)
+      values ('${MED}', '${U}', 'Adderall XR 20mg', true, 30, 1)`);
+  });
+
+  const doses = async () => {
+    const r = await db.query<{ doses_remaining: number }>(
+      `select doses_remaining from public.checklist_items where id = '${MED}'`,
+    );
+    return r.rows[0].doses_remaining;
+  };
+
+  it('spends one for today', async () => {
+    await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day, backfilled)
+                   values ('${U}', '${MED}', '2026-08-18', false)`);
+    expect(await doses()).toBe(29);
+  });
+
+  it('spends nothing for an earlier day', async () => {
+    // The pill left the bottle weeks ago and is already absent from the count.
+    // Deducting again would make back-filling a rough week destroy the number.
+    await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day, backfilled)
+                   values ('${U}', '${MED}', '2026-07-29', true)`);
+    expect(await doses()).toBe(29);
+  });
+
+  it('survives back-filling a whole rough week', async () => {
+    for (const d of ['2026-08-05', '2026-08-06', '2026-08-07', '2026-08-08', '2026-08-09']) {
+      await db.exec(`insert into public.checklist_completions (user_id, item_id, local_day, backfilled)
+                     values ('${U}', '${MED}', '${d}', true)`);
+    }
+    expect(await doses()).toBe(29);
+  });
+
+  it('undoes a back-fill without inventing a dose', async () => {
+    await db.exec(
+      `delete from public.checklist_completions where item_id = '${MED}' and local_day = '2026-07-29'`,
+    );
+    expect(await doses()).toBe(29);
+  });
+
+  it('still returns the dose when today is unticked', async () => {
+    await db.exec(
+      `delete from public.checklist_completions where item_id = '${MED}' and local_day = '2026-08-18'`,
+    );
+    expect(await doses()).toBe(30);
+  });
+});

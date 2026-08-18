@@ -7,6 +7,7 @@ import { EmptyState } from '../components/EmptyState';
 import { ChecklistEditor } from './ChecklistEditor';
 import { AssignmentEditor } from './AssignmentEditor';
 import { Triage } from './Triage';
+import { History } from './History';
 import type { ChecklistItem } from '../lib/checklist';
 import { useAuth } from '../lib/auth';
 import { dueOn, recentDays, refillStatus } from '../lib/checklist';
@@ -62,6 +63,7 @@ export function Today({
   const [triaging, setTriaging] = useState<InboxItem | null>(null);
   const [editing, setEditing] = useState(false);
   const [editorFor, setEditorFor] = useState<{ item: ChecklistItem | null } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const today = todayKey();
   const reload = useCallback(
@@ -200,9 +202,14 @@ export function Today({
 
         <div className="mt-3 flex gap-3 px-4">
           {!editing && items.length > 0 && (
-            <Button variant="quiet" onClick={() => setEditing(true)}>
-              Edit list
-            </Button>
+            <>
+              <Button variant="quiet" onClick={() => setEditing(true)}>
+                Edit list
+              </Button>
+              <Button variant="quiet" onClick={() => setHistoryOpen(true)}>
+                Fill in a day
+              </Button>
+            </>
           )}
           {editing && (
             <Button variant="quiet" onClick={() => setEditorFor({ item: null })}>
@@ -211,6 +218,16 @@ export function Today({
           )}
         </div>
       </section>
+
+      {historyOpen && (
+        <History
+          items={data?.items ?? []}
+          completions={data?.completions ?? []}
+          userId={userId}
+          onClose={() => setHistoryOpen(false)}
+          onChanged={reload}
+        />
+      )}
 
       {triaging && (
         <Triage
