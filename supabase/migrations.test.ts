@@ -195,21 +195,26 @@ beforeAll(async () => {
 }, 60_000);
 
 describe('migrations apply', () => {
-  it('creates every table, Phase 0 infrastructure and Phase 1 content', async () => {
+  it('creates every table across all three phases', async () => {
     const res = await db.query<{ tablename: string }>(
       `select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );
     expect(res.rows.map((r) => r.tablename)).toEqual([
       'app_settings',
       'assignments',
+      'bodyweight',
       'checklist_completions',
       'checklist_items',
       'courses',
       'delivery_log',
       'events',
+      'food_entries',
+      'food_items',
       'inbox_items',
+      'macro_targets',
       'notification_channels',
       'push_subscriptions',
+      'saved_meals',
       'subtasks',
     ]);
   });
@@ -891,5 +896,170 @@ describe('back-filling a past day does not spend a dose', () => {
       `delete from public.checklist_completions where item_id = '${MED}' and local_day = '2026-08-18'`,
     );
     expect(await doses()).toBe(30);
+  });
+});
+
+describe('macro targets are versioned, never overwritten', () => {
+  const U = '66666666-6666-6666-6666-000000000001';
+
+  beforeAll(async () => {
+    await db.exec(`insert into auth.users (id, email) values ('${U}', 'diet@example.com')`);
+    await db.exec(`insert into public.macro_targets
+      (user_id, effective_from, calories_min, calories_max, protein_min, protein_max,
+       carbs_min, carbs_max, fat_min, fat_max)
+      values ('${U}', '2026-08-01', 2900, 3100, 160, 175, 350, 400, 70, 80)`);
+  });
+
+  it('adds a new row rather than editing the old one', async () => {
+    // Changing today's protein goal must not silently rewrite whether every
+    // day in July was "on target".
+    await db.exec(`insert into public.macro_targets
+      (user_id, effective_from, calories_min, calories_max, protein_min, protein_max,
+       carbs_min, carbs_max, fat_min, fat_max)
+      values ('${U}', '2026-09-01', 3000, 3200, 180, 195, 350, 400, 70, 80)`);
+
+    const r = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.macro_targets where user_id = '${U}'`,
+    );
+    expect(r.rows[0].n).toBe(2);
+  });
+
+  it('lets any day read the targets that were in force on it', async () => {
+    const onDay = async (day: string) => {
+      const r = await db.query<{ protein_min: string }>(
+        `select protein_min from public.macro_targets
+          where user_id = '${U}' and effective_from <= '${day}'
+          order by effective_from desc limit 1`,
+      );
+      return Number(r.rows[0]?.protein_min);
+    };
+
+    expect(await onDay('2026-08-15')).toBe(160);
+    expect(await onDay('2026-09-15')).toBe(180);
+  });
+
+  it('refuses two versions on the same day', async () => {
+    await expect(
+      db.exec(`insert into public.macro_targets
+        (user_id, effective_from, calories_min, calories_max, protein_min, protein_max,
+         carbs_min, carbs_max, fat_min, fat_max)
+        values ('${U}', '2026-09-01', 1, 2, 1, 2, 1, 2, 1, 2)`),
+    ).rejects.toThrow(/duplicate key/i);
+  });
+
+  it('rejects a band whose minimum exceeds its maximum', async () => {
+    await expect(
+      db.exec(`insert into public.macro_targets
+        (user_id, effective_from, calories_min, calories_max, protein_min, protein_max,
+         carbs_min, carbs_max, fat_min, fat_max)
+        values ('${U}', '2026-10-01', 3100, 2900, 160, 175, 350, 400, 70, 80)`),
+    ).rejects.toThrow(/bands_are_ordered/i);
+  });
+});
+
+describe('macros do not drift', () => {
+  const U = '77777777-7777-7777-7777-000000000001';
+
+  beforeAll(async () => {
+    await db.exec(`insert into auth.users (id, email) values ('${U}', 'macros@example.com')`);
+    await db.exec(`insert into public.food_entries (id, user_id, local_day)
+      values ('88888888-0000-0000-0000-000000000001', '${U}', '2026-08-18')`);
+  });
+
+  it('sums thirty portions without accumulating float error', async () => {
+    // The reason these columns are numeric rather than double precision. A
+    // calorie count that disagrees with itself is one you stop trusting.
+    for (let i = 0; i < 30; i++) {
+      await db.exec(`insert into public.food_items
+        (user_id, entry_id, name, calories, protein_g, carbs_g, fat_g)
+        values ('${U}', '88888888-0000-0000-0000-000000000001', 'bite ${i}', 33.3, 1.1, 4.4, 0.7)`);
+    }
+
+    const r = await db.query<{ cal: string; protein: string }>(
+      `select sum(calories) as cal, sum(protein_g) as protein
+         from public.food_items where user_id = '${U}'`,
+    );
+    expect(Number(r.rows[0].cal)).toBe(999);
+    expect(Number(r.rows[0].protein)).toBe(33);
+  });
+
+  it('deletes its items when an entry is undone', async () => {
+    // A mis-parse is undone as a unit, which is what you want after the model
+    // has invented three foods you did not eat.
+    await db.exec(`delete from public.food_entries
+      where id = '88888888-0000-0000-0000-000000000001'`);
+
+    const r = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.food_items where user_id = '${U}'`,
+    );
+    expect(r.rows[0].n).toBe(0);
+  });
+});
+
+describe('an estimate stays marked as one', () => {
+  const U = '99999999-9999-9999-9999-000000000001';
+
+  beforeAll(async () => {
+    await db.exec(`insert into auth.users (id, email) values ('${U}', 'est@example.com')`);
+    await db.exec(`insert into public.food_entries (id, user_id, local_day, source)
+      values ('aaaaaaaa-1111-0000-0000-000000000001', '${U}', '2026-08-18', 'ai')`);
+  });
+
+  it('tracks estimate per item, not per entry', async () => {
+    // One entry can hold a barcode-exact item beside a guessed one, and the
+    // guess must still look like a guess.
+    await db.exec(`insert into public.food_items
+      (user_id, entry_id, name, calories, is_estimate, source_ref) values
+      ('${U}', 'aaaaaaaa-1111-0000-0000-000000000001', 'Natrel milk', 260, false, 'off:0067312000135'),
+      ('${U}', 'aaaaaaaa-1111-0000-0000-000000000001', 'handful of nuts', 180, true, null)`);
+
+    const r = await db.query<{ name: string; is_estimate: boolean }>(
+      `select name, is_estimate from public.food_items
+        where entry_id = 'aaaaaaaa-1111-0000-0000-000000000001' order by name`,
+    );
+    expect(r.rows).toEqual([
+      { name: 'Natrel milk', is_estimate: false },
+      { name: 'handful of nuts', is_estimate: true },
+    ]);
+  });
+
+  it('defaults to exact rather than guessed', async () => {
+    // A silent default of "estimate" would let real data look uncertain; the
+    // opposite would be worse, so the default is stated explicitly at write.
+    await db.exec(`insert into public.food_items (user_id, entry_id, name, calories)
+      values ('${U}', 'aaaaaaaa-1111-0000-0000-000000000001', 'plain', 100)`);
+    const r = await db.query<{ is_estimate: boolean }>(
+      `select is_estimate from public.food_items where name = 'plain'`,
+    );
+    expect(r.rows[0].is_estimate).toBe(false);
+  });
+});
+
+describe('one bodyweight reading per day', () => {
+  const U = 'bbbbbbbb-0000-0000-0000-000000000009';
+
+  beforeAll(async () => {
+    await db.exec(`insert into auth.users (id, email) values ('${U}', 'bw@example.com')`);
+  });
+
+  it('accepts a reading', async () => {
+    await db.exec(`insert into public.bodyweight (user_id, local_day, kg)
+      values ('${U}', '2026-08-18', 74.5)`);
+    const r = await db.query(`select 1 from public.bodyweight where user_id = '${U}'`);
+    expect(r.rows).toHaveLength(1);
+  });
+
+  it('refuses a second reading for the same day', async () => {
+    await expect(
+      db.exec(`insert into public.bodyweight (user_id, local_day, kg)
+        values ('${U}', '2026-08-18', 75.1)`),
+    ).rejects.toThrow(/duplicate key/i);
+  });
+
+  it('rejects an impossible weight rather than storing it', async () => {
+    await expect(
+      db.exec(`insert into public.bodyweight (user_id, local_day, kg)
+        values ('${U}', '2026-08-19', 0)`),
+    ).rejects.toThrow(/check constraint/i);
   });
 });
