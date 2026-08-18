@@ -81,45 +81,41 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **1 — core planner. In progress.** Phase 0 done and verified 17 Aug 2026.
+Phase: **1 — core planner. DONE**, 18 Aug 2026. Phase 0 done and verified 17 Aug.
 
-### Phase 1 so far
+Every Phase 1 item ships: quick capture, triage, courses, assignments with
+proximity flags and derived start-by dates, events, subtasks, Today, Week and
+Month views, the daily checklist with its medication counter and item editor,
+the bulk syllabus importer, and the completion history.
 
-Built and verified against the live database: the content schema, quick
-capture, the checklist with its medication counter and item editor, courses,
-assignments with proximity flags, derived start-by dates, editing and delete,
-the bulk syllabus importer, the Week view, and a digest that reports real work.
+**The loop runs unattended.** The 07:00 digest fired on its own on 17 and 18
+Aug and delivered real content both mornings.
 
-**The loop runs unattended.** On 17 and 18 Aug 2026 the 07:00 digest fired on
-its own at 11:00:0xZ both mornings and delivered real content. Nobody touched it.
+**Web Push is proven on the device.** 18 Aug, iPhone iOS 18.7: Apple accepted
+the encrypted push and the notification displayed, which validates the RFC 8291
+implementation against a real push service rather than only against itself.
 
-**Web Push is proven on the device.** 18 Aug 2026, iPhone iOS 18.7: Apple
-accepted the encrypted push and the notification displayed. The RFC 8291
-implementation is therefore validated against a real push service — Apple
-rejects malformed encryption, a bad VAPID signature or wrong headers outright,
-so a 201 means the ECDH agreement, HKDF derivation, AES-GCM payload and ES256
-JWT are all correct.
+### Open, and neither blocks Phase 2
 
-Web Push now leads at priority 10 with Telegram at 20 catching misses. The
-5-day soak is running and `delivery_log` is the result: five clean mornings
-keeps it primary, two misses puts Telegram back in front. Either way the digest
-still arrives.
+- **The Web Push soak.** Running now: Web Push at priority 10, Telegram at 20
+  catching misses. `delivery_log` is the result — five clean 07:00 digests
+  keeps Web Push primary, two misses puts Telegram back in front. Either way
+  the digest still arrives.
+- **The free-tier pause.** Confirm around 24 Aug that the project is awake. The
+  15-minute cron should prevent it, but that is theory until a week has passed.
+- **Offline durability on real hardware.** The outbox is covered by tests, but
+  the browser used for verification cannot host IndexedDB or service workers,
+  so capture-in-airplane-mode has never been tried on the phone.
 
-Getting there took three days and the cause was almost certainly `cache.addAll`
-being atomic — one asset failing to cache killed the whole install, the worker
-never activated, and `serviceWorker.ready` hung forever with nothing anywhere
-saying why. Worth remembering: "registered" is not "working", and a promise
-that never settles is harder to find than one that rejects.
+### Next: Phase 2 — digest and survival features
 
-Inbox triage closes the capture loop: tap a captured thought to turn it into
-work, with Today / Tomorrow / Next week as one tap each. The item is stamped
-rather than deleted and keeps its original wording.
-
-Month view shows the shape of a term: what is due, never what was done.
-
-**Still to build in Phase 1:** subtasks, and the completion
-heatmap — which ships only with the hard rules agreed: no counts, no
-percentages, no "best run", empty cells as ground colour, ~5 weeks maximum.
+The digest already builds and delivers, so Phase 2 is mostly configuration and
+the pieces around it: a settings surface for digest time and both windows,
+exam escalation at T-1, per-item reminders, and **low-battery mode**, which is
+a survival feature and not a nice-to-have. The token architecture for it
+already exists — one root attribute desaturates the entire interface — so what
+remains is the toggle, the persistence, and deciding exactly which two or three
+things survive the collapse.
 
 ### Bugs found by verifying rather than assuming
 
@@ -154,6 +150,18 @@ actually reached the database. Worth remembering as a working method.
 - **Verbatim text was rendered uppercase.** The captured wording is shown
   during triage so it is not lost, but `type-caption` uppercases — so the
   thing being preserved was being rewritten on screen.
+- **The history grid drew a month of completed days as blank**, because
+  `loadToday` fetched five days of completions while the grid drew thirty-five.
+  A query limit was manufacturing the exact wall rule 3 forbids.
+- **Back-filling a past day spent a dose.** That pill left the bottle weeks
+  ago and is already absent from the count, so recovering a rough week
+  silently destroyed the number meant to protect you. Today spends; any other
+  day only records.
+- **The service worker never registered**, for three days, with no error
+  anywhere. `cache.addAll` is atomic, so one asset failing to cache killed the
+  whole install; the worker never activated and `serviceWorker.ready` hung
+  forever. Registered is not working, and a promise that never settles is far
+  harder to find than one that rejects.
 
 ---
 
