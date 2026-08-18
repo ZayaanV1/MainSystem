@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { AssignmentRow } from '../components/AssignmentRow';
+import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
 import { EmptyState } from '../components/EmptyState';
+import { ChecklistEditor } from './ChecklistEditor';
+import type { ChecklistItem } from '../lib/checklist';
 import { useAuth } from '../lib/auth';
 import { dueOn, recentDays, refillStatus } from '../lib/checklist';
 import { describeHealth, fetchHealth, type NotificationHealth } from '../lib/health';
@@ -46,6 +49,8 @@ export function Today({
   const [day, setDay] = useState<DayKey>(todayKey());
   const [pendingToggles, setPendingToggles] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<NotificationHealth | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editorFor, setEditorFor] = useState<{ item: ChecklistItem | null } | null>(null);
 
   const today = todayKey();
   const reload = useCallback(
@@ -124,11 +129,27 @@ export function Today({
       <section className="mb-8">
         <div className="mb-3 flex items-baseline justify-between gap-4 px-4">
           <h2 className="type-h2 text-text-hi">Checklist</h2>
-          <DayStrip today={today} selected={day} onSelect={setDay} />
+          {editing ? (
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="type-label text-text-mid"
+            >
+              Done
+            </button>
+          ) : (
+            <DayStrip today={today} selected={day} onSelect={setDay} />
+          )}
         </div>
 
         {items.length === 0 ? (
-          <EmptyState>Nothing on the checklist yet.</EmptyState>
+          <EmptyState
+            action={
+              <Button onClick={() => setEditorFor({ item: null })}>Add an item</Button>
+            }
+          >
+            Nothing on the checklist yet.
+          </EmptyState>
         ) : (
           <Card>
             {items.map((item) => {
@@ -137,10 +158,18 @@ export function Today({
                 <CheckRow
                   key={item.id}
                   label={item.title}
-                  done={isDone(item.id)}
-                  onToggle={() => void toggle(item.id)}
+                  // In edit mode the row opens its settings instead of
+                  // ticking. One tap target per row either way — a second
+                  // control beside the checkbox would be a 44px target sitting
+                  // next to another 44px target, on a phone, at 7am.
+                  done={editing ? false : isDone(item.id)}
+                  onToggle={() =>
+                    editing ? setEditorFor({ item }) : void toggle(item.id)
+                  }
                   meta={
-                    refill.label ? (
+                    editing ? (
+                      <span className="text-text-mid">Edit</span>
+                    ) : refill.label ? (
                       <span className={refill.needsRefill ? 'text-t-critical' : undefined}>
                         {refill.label}
                       </span>
@@ -151,7 +180,31 @@ export function Today({
             })}
           </Card>
         )}
+
+        <div className="mt-3 flex gap-3 px-4">
+          {!editing && items.length > 0 && (
+            <Button variant="quiet" onClick={() => setEditing(true)}>
+              Edit list
+            </Button>
+          )}
+          {editing && (
+            <Button variant="quiet" onClick={() => setEditorFor({ item: null })}>
+              Add an item
+            </Button>
+          )}
+        </div>
       </section>
+
+      {editorFor && (
+        <ChecklistEditor
+          open
+          item={editorFor.item}
+          userId={userId}
+          nextSortOrder={(data?.items.length ?? 0) + 1}
+          onClose={() => setEditorFor(null)}
+          onSaved={reload}
+        />
+      )}
 
       <section className="mb-8">
         <h2 className="type-h2 mb-3 px-4 text-text-hi">Work</h2>

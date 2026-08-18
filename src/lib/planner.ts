@@ -151,6 +151,74 @@ export async function setAssignmentStatus(
   );
 }
 
+/* ------------------------------------------------------------- checklist */
+
+export interface ChecklistFields {
+  title: string;
+  recurrence: 'daily' | 'weekdays' | 'interval';
+  weekdays: number[] | null;
+  interval_days: number | null;
+  anchor_day: DayKey | null;
+  tracks_doses: boolean;
+  doses_remaining: number | null;
+  doses_per_completion: number;
+  refill_warning_days: number;
+}
+
+export async function addChecklistItem(
+  userId: string,
+  fields: ChecklistFields,
+  sortOrder: number,
+): Promise<void> {
+  await enqueue('checklist_items', 'insert', {
+    user_id: userId,
+    sort_order: sortOrder,
+    ...normaliseChecklist(fields),
+  });
+}
+
+export async function updateChecklistItem(
+  id: string,
+  fields: ChecklistFields,
+): Promise<void> {
+  await enqueue('checklist_items', 'update', normaliseChecklist(fields), { id });
+}
+
+/**
+ * Items are deactivated, never deleted.
+ *
+ * Deleting would cascade away every completion attached to it, quietly
+ * rewriting history — and the medication record in particular is worth
+ * keeping even after the prescription changes.
+ */
+export async function deactivateChecklistItem(id: string): Promise<void> {
+  await enqueue('checklist_items', 'update', { active: false }, { id });
+}
+
+/**
+ * Clears the fields that do not apply to the chosen recurrence.
+ *
+ * The database rejects a weekdays item with no weekdays and an interval item
+ * with no interval, but it will happily store a daily item carrying stale
+ * weekday data from a previous edit — which then reappears if the recurrence
+ * is switched back, silently and wrongly.
+ */
+function normaliseChecklist(f: ChecklistFields) {
+  return {
+    title: f.title.trim(),
+    recurrence: f.recurrence,
+    weekdays: f.recurrence === 'weekdays' ? f.weekdays : null,
+    interval_days: f.recurrence === 'interval' ? f.interval_days : null,
+    anchor_day: f.recurrence === 'interval' ? f.anchor_day : null,
+    tracks_doses: f.tracks_doses,
+    doses_remaining: f.tracks_doses ? (f.doses_remaining ?? 0) : null,
+    doses_per_completion: Math.max(1, f.doses_per_completion),
+    refill_warning_days: Math.max(0, f.refill_warning_days),
+  };
+}
+
+/* ---------------------------------------------------------------- courses */
+
 export async function addCourse(
   userId: string,
   name: string,
