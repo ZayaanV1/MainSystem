@@ -37,6 +37,7 @@ const WEEKDAYS = [
 const blank = (): ChecklistFields => ({
   title: '',
   essential: false,
+  remind_at: null,
   recurrence: 'daily',
   weekdays: [1, 2, 3, 4, 5],
   interval_days: 7,
@@ -50,6 +51,7 @@ const blank = (): ChecklistFields => ({
 const fromItem = (i: ChecklistItem): ChecklistFields => ({
   title: i.title,
   essential: i.essential,
+  remind_at: i.remind_at ? i.remind_at.slice(0, 5) : null,
   recurrence: i.recurrence,
   weekdays: i.weekdays ?? [1, 2, 3, 4, 5],
   interval_days: i.interval_days ?? 7,
@@ -187,6 +189,14 @@ export function ChecklistEditor({
             />
           )}
         </div>
+
+        <Field
+          label="Remind me at"
+          type="time"
+          value={fields.remind_at ?? ''}
+          onChange={(e) => set('remind_at', e.target.value || null)}
+          hint="Optional. Only on days this is due, and only while it is still outstanding."
+        />
 
         <div className="flex flex-col gap-2">
           <button

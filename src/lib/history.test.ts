@@ -21,6 +21,7 @@ const item = (id: string, o: Partial<ChecklistItem> = {}): ChecklistItem => ({
   active: true,
   sort_order: 0,
   essential: false,
+  remind_at: null,
   tracks_doses: false,
   doses_remaining: null,
   doses_per_completion: 1,

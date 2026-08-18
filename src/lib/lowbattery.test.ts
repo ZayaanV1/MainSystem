@@ -12,6 +12,7 @@ const item = (id: string, essential: boolean): ChecklistItem => ({
   active: true,
   sort_order: 0,
   essential,
+  remind_at: null,
   tracks_doses: false,
   doses_remaining: null,
   doses_per_completion: 1,

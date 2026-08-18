@@ -15,7 +15,7 @@ import {
   type Course,
   type Subtask,
 } from '../lib/planner';
-import { formatDay, localDayKey, localHourMinute, type DayKey } from '../lib/time';
+import { formatDay, localDayKey, localHourMinute, wallClockToUTC, type DayKey } from '../lib/time';
 import { startBy, urgencyFor } from '../lib/urgency';
 
 /**
@@ -32,6 +32,25 @@ import { startBy, urgencyFor } from '../lib/urgency';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+/**
+ * datetime-local speaks in the browser's own zone, which for this app is
+ * always Montreal. Converting through the shared time layer rather than the
+ * Date constructor keeps the stored instant correct on both sides of a DST
+ * change.
+ */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const day = localDayKey(d);
+  const hm = localHourMinute(d);
+  return `${day}T${pad(hm.hour)}:${pad(hm.minute)}`;
+}
+
+function fromLocalInput(value: string): string {
+  const [day, time] = value.split('T');
+  const [h, m] = time.split(':').map(Number);
+  return wallClockToUTC(day, h, m).toISOString();
+}
+
 function fromAssignment(a: Assignment): AssignmentFields {
   const due = a.due_at ? new Date(a.due_at) : null;
   const hm = due && a.due_has_time ? localHourMinute(due) : null;
@@ -43,6 +62,7 @@ function fromAssignment(a: Assignment): AssignmentFields {
     due_time: hm ? `${pad(hm.hour)}:${pad(hm.minute)}` : null,
     effort_minutes: a.effort_minutes,
     notes: a.notes,
+    remind_at: a.remind_at,
   };
 }
 
@@ -145,6 +165,30 @@ export function AssignmentEditor({
               onChange={(e) => set('due_time', e.target.value || null)}
               hint="Optional. Empty means the end of that day."
             />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Field
+            label="Remind me"
+            type="datetime-local"
+            value={fields.remind_at ? toLocalInput(fields.remind_at) : ''}
+            onChange={(e) =>
+              set('remind_at', e.target.value ? fromLocalInput(e.target.value) : null)
+            }
+            hint="Optional. One reminder, at that moment. Silent once the work is done."
+          />
+
+          {fields.due_day && !fields.remind_at && (
+            <button
+              type="button"
+              onClick={() =>
+                set('remind_at', fromLocalInput(`${fields.due_day}T16:00`))
+              }
+              className="self-start type-caption text-text-mid"
+            >
+              Use 4 p.m. on the due date
+            </button>
           )}
         </div>
 

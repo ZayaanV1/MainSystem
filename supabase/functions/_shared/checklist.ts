@@ -25,6 +25,9 @@ export interface ChecklistItem {
   /** Shown in low-battery mode; everything else is hidden there. */
   essential: boolean;
 
+  /** Local wall-clock reminder time, or null. */
+  remind_at: string | null;
+
   tracks_doses: boolean;
   doses_remaining: number | null;
   doses_per_completion: number;

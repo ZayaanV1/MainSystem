@@ -29,6 +29,15 @@ import {
   renderEscalation,
   type EscalatableEvent,
 } from '../_shared/escalation.ts';
+import {
+  assignmentReminderKey,
+  assignmentRemindersDue,
+  checklistReminderKey,
+  checklistRemindersDue,
+  renderReminder,
+  type RemindableAssignment,
+  type RemindableItem,
+} from '../_shared/reminders.ts';
 import type { VapidKeys } from '../_shared/channels/webpush.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
@@ -167,11 +176,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    // Escalations run independently of the digest: a different hour, a
-    // different idempotency key, and no reason for one to block the other.
+    // Escalations and reminders run independently of the digest and of each
+    // other: different hours, different idempotency keys, and no reason for
+    // one to block another.
     for (const settings of (data ?? []) as SettingsRow[]) {
       const escalated = await runEscalations(admin, deps, settings, now);
       if (escalated.length) results.push({ user: settings.user_id, escalations: escalated });
+
+      const reminded = await runReminders(admin, deps, settings, now);
+      if (reminded.length) results.push({ user: settings.user_id, reminders: reminded });
     }
 
     return json({ ran: 'scheduled', at: now.toISOString(), results });
@@ -269,6 +282,84 @@ async function runEscalations(
     const outcome = await deliver(deps, settings.user_id, 'escalation', localDay, msg, key);
 
     if (outcome.delivered) sent.push(event.title);
+  }
+
+  return sent;
+}
+
+/**
+ * Sends any per-item reminder whose moment has arrived.
+ *
+ * Checklist reminders repeat and are suppressed once the item is ticked;
+ * assignment reminders happen once. Both are keyed so the 15-minute scheduler
+ * can re-enter their window harmlessly.
+ */
+async function runReminders(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  // deno-lint-ignore no-explicit-any
+  deps: any,
+  settings: SettingsRow,
+  now: Date,
+): Promise<string[]> {
+  const localDay = localDayKey(now, settings.timezone);
+  const sent: string[] = [];
+
+  const alreadySent = async (key: string): Promise<boolean> => {
+    const { count } = await admin
+      .from('delivery_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', settings.user_id)
+      .eq('kind', 'reminder')
+      .eq('dedupe_key', key)
+      .eq('status', 'sent');
+    return (count ?? 0) > 0;
+  };
+
+  const send = async (title: string, key: string) => {
+    if (await alreadySent(key)) return;
+    const msg = renderReminder(title, APP_URL);
+    const outcome = await deliver(deps, settings.user_id, 'reminder', localDay, msg, key);
+    if (outcome.delivered) sent.push(title);
+  };
+
+  // ---- checklist ---------------------------------------------------------
+  const [{ data: items }, { data: completions }] = await Promise.all([
+    admin
+      .from('checklist_items')
+      .select('*')
+      .eq('user_id', settings.user_id)
+      .eq('active', true)
+      .not('remind_at', 'is', null),
+    admin
+      .from('checklist_completions')
+      .select('item_id')
+      .eq('user_id', settings.user_id)
+      .eq('local_day', localDay),
+  ]);
+
+  const done = new Set(((completions ?? []) as { item_id: string }[]).map((c) => c.item_id));
+
+  for (const item of checklistRemindersDue(
+    (items ?? []) as RemindableItem[],
+    done,
+    localDay,
+    now,
+    settings.timezone,
+  )) {
+    await send(item.title, checklistReminderKey(item.id, localDay));
+  }
+
+  // ---- assignments -------------------------------------------------------
+  const { data: work } = await admin
+    .from('assignments')
+    .select('id, title, status, remind_at')
+    .eq('user_id', settings.user_id)
+    .neq('status', 'done')
+    .not('remind_at', 'is', null);
+
+  for (const a of assignmentRemindersDue((work ?? []) as RemindableAssignment[], now)) {
+    await send(a.title, assignmentReminderKey(a.id, a.remind_at!));
   }
 
   return sent;

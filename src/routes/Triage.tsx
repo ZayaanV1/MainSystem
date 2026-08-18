@@ -49,6 +49,7 @@ export function Triage({
     due_time: null,
     effort_minutes: null,
     notes: null,
+    remind_at: null,
   });
   const [busy, setBusy] = useState(false);
 

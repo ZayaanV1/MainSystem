@@ -42,6 +42,7 @@ export interface Assignment {
   status: 'todo' | 'doing' | 'done';
   notes: string | null;
   start_by_override: DayKey | null;
+  remind_at: string | null;
 }
 
 /** Course colour tokens, by the index stored on the row. */
@@ -110,7 +111,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase
       .from('checklist_items')
       .select(
-        'id, title, recurrence, weekdays, interval_days, anchor_day, active, sort_order, essential, tracks_doses, doses_remaining, doses_per_completion, refill_warning_days',
+        'id, title, recurrence, weekdays, interval_days, anchor_day, active, sort_order, essential, remind_at, tracks_doses, doses_remaining, doses_per_completion, refill_warning_days',
       )
       .eq('active', true)
       .order('sort_order'),
@@ -140,7 +141,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase
       .from('assignments')
       .select(
-        'id, course_id, title, due_at, due_has_time, effort_minutes, status, notes, start_by_override',
+        'id, course_id, title, due_at, due_has_time, effort_minutes, status, notes, start_by_override, remind_at',
       )
       .neq('status', 'done')
       .order('due_at', { ascending: true, nullsFirst: false }),
@@ -267,6 +268,8 @@ export function subtaskProgress(
 export interface ChecklistFields {
   title: string;
   essential: boolean;
+  /** Local 'HH:MM', or null for no reminder. */
+  remind_at: string | null;
   recurrence: 'daily' | 'weekdays' | 'interval';
   weekdays: number[] | null;
   interval_days: number | null;
@@ -319,6 +322,7 @@ function normaliseChecklist(f: ChecklistFields) {
   return {
     title: f.title.trim(),
     essential: f.essential,
+    remind_at: f.remind_at || null,
     recurrence: f.recurrence,
     weekdays: f.recurrence === 'weekdays' ? f.weekdays : null,
     interval_days: f.recurrence === 'interval' ? f.interval_days : null,
@@ -450,6 +454,7 @@ export async function triageToAssignment(
     due_has_time: Boolean(fields.due_time),
     effort_minutes: fields.effort_minutes,
     notes: fields.notes?.trim() || null,
+    remind_at: fields.remind_at,
   });
 
   await enqueue(
@@ -507,6 +512,8 @@ export function completionSet(completions: Completion[]): Set<string> {
 
 export interface AssignmentFields {
   title: string;
+  /** A single instant, or null. Stored as ISO. */
+  remind_at: string | null;
   course_id: string | null;
   /** Local calendar date, or null for undated work. */
   due_day: DayKey | null;
@@ -543,6 +550,7 @@ export async function updateAssignment(id: string, fields: AssignmentFields): Pr
       due_has_time: Boolean(fields.due_time),
       effort_minutes: fields.effort_minutes,
       notes: fields.notes?.trim() || null,
+      remind_at: fields.remind_at,
     },
     { id },
   );
