@@ -38,10 +38,12 @@ import { formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 export function Today({
   onOpenSettings,
   onOpenPlan,
+  onOpenWeek,
   onData,
 }: {
   onOpenSettings: () => void;
   onOpenPlan: () => void;
+  onOpenWeek: () => void;
   onData?: (d: TodayData) => void;
 }) {
   const { session } = useAuth();
@@ -118,6 +120,9 @@ export function Today({
           </p>
         </div>
         <div className="flex gap-4">
+          <button type="button" onClick={onOpenWeek} className="type-label text-text-mid">
+            Week
+          </button>
           <button type="button" onClick={onOpenPlan} className="type-label text-text-mid">
             Plan
           </button>

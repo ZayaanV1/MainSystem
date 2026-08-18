@@ -3,19 +3,25 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { startOutbox, subscribeOutbox, type OutboxState } from './lib/outbox';
 import { refreshSubscription } from './lib/notifications';
-import type { Course } from './lib/planner';
+import type { Assignment, TodayData } from './lib/planner';
 import { SignIn } from './routes/SignIn';
 import { Today } from './routes/Today';
 import { Plan } from './routes/Plan';
+import { Week } from './routes/Week';
+import { AssignmentEditor } from './routes/AssignmentEditor';
 import { Settings } from './routes/Settings';
 import { Specimen } from './routes/Specimen';
 
 /**
- * Two screens, so routing is a piece of state rather than a dependency. Phase 1
- * introduces Week and Month and will want a real router; adding one now would
- * be furniture for a room that does not exist.
+ * Routing is a piece of state rather than a dependency.
+ *
+ * Four screens with no nesting, no URL to preserve and one user. A router
+ * would add a dependency, a bundle, and a set of concepts to hold, in exchange
+ * for nothing this app currently needs. Revisit when a screen needs to be
+ * linkable from outside — a notification deep link into a specific assignment
+ * would be the moment.
  */
-type Screen = 'today' | 'plan' | 'settings';
+type Screen = 'today' | 'week' | 'plan' | 'settings';
 
 /** Shown before setup has been run, instead of a white screen and a console error. */
 function NotConfigured() {
@@ -63,7 +69,8 @@ function SyncBanner() {
 function Shell() {
   const { session, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>('today');
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [data, setData] = useState<TodayData | null>(null);
+  const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
   // Bumped to make Today refetch after Plan writes something.
   const [revision, setRevision] = useState(0);
 
@@ -89,9 +96,18 @@ function Shell() {
 
       {screen === 'settings' && <Settings onBack={() => setScreen('today')} />}
 
+      {screen === 'week' && (
+        <Week
+          data={data}
+          onBack={() => setScreen('today')}
+          onOpenAssignment={setOpenAssignment}
+          onChanged={() => setRevision((r) => r + 1)}
+        />
+      )}
+
       {screen === 'plan' && (
         <Plan
-          courses={courses}
+          courses={data?.courses ?? []}
           onBack={() => setScreen('today')}
           onChanged={() => setRevision((r) => r + 1)}
         />
@@ -104,9 +120,22 @@ function Shell() {
           key={revision}
           onOpenSettings={() => setScreen('settings')}
           onOpenPlan={() => setScreen('plan')}
-          onData={(d) => setCourses(d.courses)}
+          onOpenWeek={() => setScreen('week')}
+          onData={setData}
         />
       </div>
+
+      {/* Lives at the shell so opening a piece of work from Week does not need
+          Week to know how to edit one. */}
+      {openAssignment && screen !== 'today' && (
+        <AssignmentEditor
+          open
+          assignment={openAssignment}
+          courses={data?.courses ?? []}
+          onClose={() => setOpenAssignment(null)}
+          onSaved={() => setRevision((r) => r + 1)}
+        />
+      )}
     </>
   );
 }

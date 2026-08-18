@@ -265,9 +265,19 @@ function CourseEditor({
 
   const nextColour = (courses.length % 8) + 1;
 
+  // The database refuses duplicates outright, so the point of checking here
+  // is to name which course clashes, rather than surfacing a constraint
+  // violation in the sync banner several seconds later.
+  const norm = (v: string) => v.trim().toLowerCase();
+  const clash = courses.find(
+    (c) =>
+      (name.trim() && norm(c.name) === norm(name)) ||
+      (code.trim() && c.code && norm(c.code) === norm(code)),
+  );
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || clash) return;
 
     await addCourse(userId, name, nextColour, code);
     setName('');
@@ -311,8 +321,9 @@ function CourseEditor({
             onChange={(e) => setCode(e.target.value)}
             placeholder="CHEM 233"
             hint="Optional. A pasted syllabus matches on this."
+            error={clash ? (clash.code ?? clash.name) + ' is already on the list.' : null}
           />
-          <Button type="submit" variant="primary" disabled={!name.trim()}>
+          <Button type="submit" variant="primary" disabled={!name.trim() || Boolean(clash)}>
             Add course
           </Button>
         </form>

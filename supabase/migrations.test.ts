@@ -751,3 +751,90 @@ describe('settings bootstrap and constraints', () => {
     expect(res.rows[0].n).toBe(0);
   });
 });
+
+describe('courses cannot be duplicated', () => {
+  const U = '44444444-4444-4444-4444-000000000001';
+
+  beforeAll(async () => {
+    await db.exec(`insert into auth.users (id, email) values ('${U}', 'courses@example.com')`);
+    await db.exec(
+      `insert into public.courses (user_id, name, code) values ('${U}', 'Organic Chemistry', 'CHEM 233')`,
+    );
+  });
+
+  it('rejects the same code twice', async () => {
+    // A double-tapped "Add course" used to produce two, and from then on every
+    // filter chip and syllabus match silently referred to whichever was found
+    // first.
+    await expect(
+      db.exec(
+        `insert into public.courses (user_id, name, code) values ('${U}', 'Orgo', 'CHEM 233')`,
+      ),
+    ).rejects.toThrow(/duplicate key/i);
+  });
+
+  it('treats codes case-insensitively', async () => {
+    // "chem 233" and "CHEM 233" are the same course, and being told otherwise
+    // by your own planner is absurd.
+    await expect(
+      db.exec(
+        `insert into public.courses (user_id, name, code) values ('${U}', 'Orgo', 'chem 233')`,
+      ),
+    ).rejects.toThrow(/duplicate key/i);
+  });
+
+  it('ignores surrounding whitespace', async () => {
+    await expect(
+      db.exec(
+        `insert into public.courses (user_id, name, code) values ('${U}', 'Orgo', '  CHEM 233 ')`,
+      ),
+    ).rejects.toThrow(/duplicate key/i);
+  });
+
+  it('rejects the same name twice, even without a code', async () => {
+    await expect(
+      db.exec(`insert into public.courses (user_id, name) values ('${U}', 'organic chemistry')`),
+    ).rejects.toThrow(/duplicate key/i);
+  });
+
+  it('allows a different course', async () => {
+    await db.exec(
+      `insert into public.courses (user_id, name, code) values ('${U}', 'Linear Algebra', 'MATH 133')`,
+    );
+    const r = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.courses where user_id = '${U}'`,
+    );
+    expect(r.rows[0].n).toBe(2);
+  });
+
+  it('allows two courses that both have no code', async () => {
+    await db.exec(`insert into public.courses (user_id, name) values ('${U}', 'Yoga')`);
+    await db.exec(`insert into public.courses (user_id, name) values ('${U}', 'Reading group')`);
+    const r = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.courses where user_id = '${U}' and code is null`,
+    );
+    expect(r.rows[0].n).toBe(2);
+  });
+
+  it('lets an archived course free its code for a retake', async () => {
+    await db.exec(`update public.courses set archived = true where user_id = '${U}'`);
+    await db.exec(
+      `insert into public.courses (user_id, name, code) values ('${U}', 'Organic Chemistry', 'CHEM 233')`,
+    );
+    const r = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.courses
+        where user_id = '${U}' and code = 'CHEM 233'`,
+    );
+    expect(r.rows[0].n).toBe(2);
+  });
+
+  it('does not collide across users', async () => {
+    await db.exec(
+      `insert into public.courses (user_id, name, code) values ('${USER_B}', 'Organic Chemistry', 'CHEM 233')`,
+    );
+    const r = await db.query<{ n: number }>(
+      `select count(*)::int as n from public.courses where user_id = '${USER_B}'`,
+    );
+    expect(r.rows[0].n).toBe(1);
+  });
+});

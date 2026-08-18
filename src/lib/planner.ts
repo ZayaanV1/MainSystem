@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
-import { todayKey, wallClockToUTC, type DayKey } from './time';
+import { startOfDayUTC, todayKey, wallClockToUTC, type DayKey } from './time';
 
 /**
  * Data access for the planner.
@@ -54,12 +54,24 @@ export interface Completion {
   local_day: DayKey;
 }
 
+export interface PlannerEvent {
+  id: string;
+  course_id: string | null;
+  title: string;
+  kind: 'exam' | 'lab' | 'presentation' | 'other';
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  location: string | null;
+}
+
 export interface TodayData {
   items: ChecklistItem[];
   completions: Completion[];
   inbox: InboxItem[];
   courses: Course[];
   assignments: Assignment[];
+  events: PlannerEvent[];
 }
 
 /** How many days of back-fill are offered. Bounded on purpose. */
@@ -68,7 +80,7 @@ export const BACKFILL_DAYS = 5;
 export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> {
   const window = recentDays(today, BACKFILL_DAYS);
 
-  const [items, completions, inbox, courses, assignments] = await Promise.all([
+  const [items, completions, inbox, courses, assignments, events] = await Promise.all([
     supabase
       .from('checklist_items')
       .select(
@@ -106,6 +118,14 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
       )
       .neq('status', 'done')
       .order('due_at', { ascending: true, nullsFirst: false }),
+
+    // Events from the start of today onwards. Past events are not shown
+    // anywhere — an exam you already sat is not information, it is clutter.
+    supabase
+      .from('events')
+      .select('id, course_id, title, kind, starts_at, ends_at, all_day, location')
+      .gte('starts_at', startOfDayUTC(today).toISOString())
+      .order('starts_at', { ascending: true }),
   ]);
 
   return {
@@ -114,6 +134,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     inbox: (inbox.data ?? []) as InboxItem[],
     courses: (courses.data ?? []) as Course[],
     assignments: (assignments.data ?? []) as Assignment[],
+    events: (events.data ?? []) as PlannerEvent[],
   };
 }
 
