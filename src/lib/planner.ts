@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
 import { HISTORY_DAYS } from '../../supabase/functions/_shared/history';
-import { startOfDayUTC, todayKey, wallClockToUTC, type DayKey } from './time';
+import { endOfDayUTC, startOfDayUTC, todayKey, wallClockToUTC, type DayKey } from './time';
 
 /**
  * Data access for the planner.
@@ -82,6 +82,14 @@ export interface TodayData {
   assignments: Assignment[];
   events: PlannerEvent[];
   subtasks: Subtask[];
+  /**
+   * Work finished today.
+   *
+   * Fetched only so the app can tell "you cleared it" apart from "there was
+   * never anything". Congratulating an empty day you did nothing to earn is
+   * the kind of hollow praise you can feel, and it devalues the real thing.
+   */
+  completedToday: Assignment[];
 }
 
 /** How many days the Today day-strip offers. Bounded on purpose. */
@@ -95,7 +103,8 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
   // but a query limit.
   const window = recentDays(today, Math.max(BACKFILL_DAYS, HISTORY_DAYS));
 
-  const [items, completions, inbox, courses, assignments, events, subtasks] = await Promise.all([
+  const [items, completions, inbox, courses, assignments, events, subtasks, completedToday] =
+    await Promise.all([
     supabase
       .from('checklist_items')
       .select(
@@ -146,6 +155,15 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
       .from('subtasks')
       .select('id, assignment_id, title, done, position')
       .order('position', { ascending: true }),
+
+    supabase
+      .from('assignments')
+      .select(
+        'id, course_id, title, due_at, due_has_time, effort_minutes, status, notes, start_by_override',
+      )
+      .eq('status', 'done')
+      .gte('completed_at', startOfDayUTC(today).toISOString())
+      .lt('completed_at', endOfDayUTC(today).toISOString()),
   ]);
 
   return {
@@ -156,6 +174,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     assignments: (assignments.data ?? []) as Assignment[],
     events: (events.data ?? []) as PlannerEvent[],
     subtasks: (subtasks.data ?? []) as Subtask[],
+    completedToday: (completedToday.data ?? []) as Assignment[],
   };
 }
 

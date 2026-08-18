@@ -107,6 +107,18 @@ export function Today({
 
   const allDone = items.length > 0 && items.every((i) => isDone(i.id));
 
+  // Work is only "cleared" if something was actually finished today. Without
+  // that check an untouched day and a conquered one would read identically,
+  // and the praise would be worthless on both.
+  const workCleared =
+    (data?.assignments.length ?? 0) === 0 && (data?.completedToday.length ?? 0) > 0;
+
+  // Same distinction for the inbox: an inbox you emptied is not an inbox you
+  // never used. Tracked across this session rather than guessed from a count.
+  const hadInbox = useRef(false);
+  if ((data?.inbox.length ?? 0) > 0) hadInbox.current = true;
+  const inboxCleared = hadInbox.current && (data?.inbox.length ?? 0) === 0;
+
   async function toggle(itemId: string) {
     const key = completionKey(itemId, day);
     const next = !isDone(itemId);
@@ -276,7 +288,13 @@ export function Today({
       <section className="mb-8">
         <h2 className="type-h2 mb-3 px-4 text-text-hi">Work</h2>
         {!data?.assignments.length ? (
-          <EmptyState>Nothing due.</EmptyState>
+          workCleared ? (
+            <p className="px-4 py-8 type-body text-t-done">
+              That's all the work due today, done.
+            </p>
+          ) : (
+            <EmptyState>Nothing due.</EmptyState>
+          )
         ) : (
           <Card>
             {data.assignments.map((a) => (
@@ -301,7 +319,11 @@ export function Today({
           <p className="type-caption mb-3 px-4 text-text-low">Tap one to sort it out.</p>
         )}
         {!data?.inbox.length ? (
-          <EmptyState>Capture anything here. Sort it later.</EmptyState>
+          inboxCleared ? (
+            <p className="px-4 py-8 type-body text-t-done">Inbox clear.</p>
+          ) : (
+            <EmptyState>Capture anything here. Sort it later.</EmptyState>
+          )
         ) : (
           <Card>
             {data.inbox.map((entry) => (
