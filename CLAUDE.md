@@ -83,41 +83,45 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **1 — core planner. DONE**, 18 Aug 2026. Phase 0 done and verified 17 Aug.
+Phase: **2 — digest and survival. DONE**, 18 Aug 2026. Phases 0 and 1 done 17-18 Aug.
 
-Every Phase 1 item ships: quick capture, triage, courses, assignments with
-proximity flags and derived start-by dates, events, subtasks, Today, Week and
-Month views, the daily checklist with its medication counter and item editor,
-the bulk syllabus importer, and the completion history.
+Every Phase 2 item ships: configurable digest time and both windows, exam
+escalation at T-1, per-item reminders, and low-battery mode.
 
-**The loop runs unattended.** The 07:00 digest fired on its own on 17 and 18
-Aug and delivered real content both mornings.
+**Low-battery mode is the one to preserve carefully.** It collapses the day to
+what you marked non-negotiable plus ONE piece of work, chosen small-and-soon
+rather than most-overdue — the most overdue item is the one avoided longest,
+and offering it as today's only task on the worst day of the month is exactly
+how the feature would backfire. Hidden work is counted, never named, never
+marked skipped. Turning it off returns the day untouched: if using it cost
+something later, it would not get used.
 
-**Web Push is proven on the device.** 18 Aug, iPhone iOS 18.7: Apple accepted
-the encrypted push and the notification displayed, which validates the RFC 8291
-implementation against a real push service rather than only against itself.
+**Escalation and reminders both go quiet when they should.** An exam escalates
+at 20:00 the night before, and only exams and presentations do, because if
+everything escalates nothing does. A reminder about something already ticked is
+never sent — verified live in both directions, with the dedupe record cleared
+first so only the done-check could suppress it.
 
-### Open, and neither blocks Phase 2
+### Open, and none of it blocks Phase 3
 
-- **The Web Push soak.** Running now: Web Push at priority 10, Telegram at 20
-  catching misses. `delivery_log` is the result — five clean 07:00 digests
-  keeps Web Push primary, two misses puts Telegram back in front. Either way
-  the digest still arrives.
-- **The free-tier pause.** Confirm around 24 Aug that the project is awake. The
-  15-minute cron should prevent it, but that is theory until a week has passed.
-- **Offline durability on real hardware.** The outbox is covered by tests, but
-  the browser used for verification cannot host IndexedDB or service workers,
-  so capture-in-airplane-mode has never been tried on the phone.
+- **The Web Push soak.** Web Push leads at priority 10, Telegram at 20 catches
+  misses. Escalation and reminder tests both delivered via Web Push, which is
+  encouraging but not the soak — that needs five clean 07:00 digests.
+- **The free-tier pause.** Confirm around 24 Aug the project is awake.
+- **Offline durability on real hardware**, still untested: capture something in
+  airplane mode and reopen.
 
-### Next: Phase 2 — digest and survival features
+### Next: Phase 3 — diet tracker
 
-The digest already builds and delivers, so Phase 2 is mostly configuration and
-the pieces around it: a settings surface for digest time and both windows,
-exam escalation at T-1, per-item reminders, and **low-battery mode**, which is
-a survival feature and not a nice-to-have. The token architecture for it
-already exists — one root attribute desaturates the entire interface — so what
-remains is the toggle, the persistence, and deciding exactly which two or three
-things survive the collapse.
+The largest phase, and the first to need an outside dependency. Natural-language
+food parsing behind one swappable LLM module, structured JSON validated before
+it touches the database, a mandatory confirmation step, USDA and Open Food
+Facts lookups preferred over model guesses, barcode scanning, saved meals, and
+the four macro rings. The Ring component and the macro tokens have been waiting
+since Phase 0.5.
+
+Two things to settle before building it: which free-tier LLM, and that its
+data-use policy is acceptable for food and medication data.
 
 ### Bugs found by verifying rather than assuming
 
