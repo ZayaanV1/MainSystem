@@ -63,6 +63,8 @@ export async function deliver(
   kind: DeliveryKind,
   localDay: DayKey,
   msg: OutboundMessage,
+  /** Identity for non-digest notifications, so a repeat send is rejected. */
+  dedupeKey?: string,
 ): Promise<DeliveryOutcome> {
   const { db } = deps;
 
@@ -77,7 +79,7 @@ export async function deliver(
   const rows: ChannelRow[] = channels ?? [];
 
   if (rows.length === 0) {
-    await log(db, userId, kind, null, localDay, 'skipped', msg, 'no notification channel configured');
+    await log(db, userId, kind, null, localDay, 'skipped', msg, 'no notification channel configured', dedupeKey);
     return { delivered: false, errors: ['no notification channel configured'] };
   }
 
@@ -87,7 +89,7 @@ export async function deliver(
     const result = await attempt(deps, userId, channel, msg);
 
     if (result.ok) {
-      const logged = await log(db, userId, kind, channel.kind, localDay, 'sent', msg, null);
+      const logged = await log(db, userId, kind, channel.kind, localDay, 'sent', msg, null, dedupeKey);
       if (logged === 'duplicate') {
         return { delivered: true, channel: channel.kind, errors, duplicate: true };
       }
@@ -95,7 +97,7 @@ export async function deliver(
     }
 
     errors.push(result.error);
-    await log(db, userId, kind, channel.kind, localDay, 'failed', msg, result.error);
+    await log(db, userId, kind, channel.kind, localDay, 'failed', msg, result.error, dedupeKey);
 
     // Retire the channel only when the failure means it will never work again
     // without the user doing something. Everything else gets retried tomorrow.
@@ -200,6 +202,7 @@ async function log(
   status: 'sent' | 'failed' | 'skipped',
   msg: OutboundMessage,
   error: string | null,
+  dedupeKey?: string,
 ): Promise<'ok' | 'duplicate'> {
   const { error: insertError } = await db.from('delivery_log').insert({
     user_id: userId,
@@ -208,6 +211,7 @@ async function log(
     local_day: localDay,
     status,
     error,
+    dedupe_key: dedupeKey ?? null,
     payload: { title: msg.title, body: msg.body },
   });
 

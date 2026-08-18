@@ -22,7 +22,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { deliver } from '../_shared/deliver.ts';
 import { buildDigest, renderTestMessage, type DigestSettings } from '../_shared/digest.ts';
 import { decideDigest } from '../_shared/schedule.ts';
-import { localDayKey } from '../_shared/time.ts';
+import { localDayKey, minutesSinceLocal } from '../_shared/time.ts';
+import {
+  dueForEscalation,
+  escalationKey,
+  renderEscalation,
+  type EscalatableEvent,
+} from '../_shared/escalation.ts';
 import type { VapidKeys } from '../_shared/channels/webpush.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
@@ -37,6 +43,20 @@ const VAPID: VapidKeys = {
   privateKey: env('VAPID_PRIVATE_KEY'),
   subject: env('VAPID_SUBJECT') || 'mailto:noreply@example.com',
 };
+
+/**
+ * When an exam the next day gets its own notification.
+ *
+ * 20:00 local, because the night before is the last moment preparation is
+ * still possible — the morning of is information you already have and can do
+ * nothing with. A fixed hour rather than a setting, for now: one more dial on
+ * the settings screen costs more than it earns until there is evidence this
+ * one is wrong.
+ */
+const ESCALATION_HOUR = 20;
+
+/** Same catch-up tolerance as the digest, for the same reason. */
+const ESCALATION_WINDOW_MINUTES = 180;
 
 /**
  * CORS.
@@ -147,6 +167,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    // Escalations run independently of the digest: a different hour, a
+    // different idempotency key, and no reason for one to block the other.
+    for (const settings of (data ?? []) as SettingsRow[]) {
+      const escalated = await runEscalations(admin, deps, settings, now);
+      if (escalated.length) results.push({ user: settings.user_id, escalations: escalated });
+    }
+
     return json({ ran: 'scheduled', at: now.toISOString(), results });
   }
 
@@ -193,4 +220,56 @@ function timingSafeEqual(a: string, b: string): boolean {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+/**
+ * Sends tomorrow's exams and presentations, once each.
+ *
+ * Returns what it sent, so a scheduled run reports escalations the same way it
+ * reports the digest — a notification nobody can see the record of is one you
+ * cannot debug when it fails to arrive.
+ */
+async function runEscalations(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  // deno-lint-ignore no-explicit-any
+  deps: any,
+  settings: SettingsRow,
+  now: Date,
+): Promise<string[]> {
+  const elapsed = minutesSinceLocal(ESCALATION_HOUR, 0, now, settings.timezone);
+  if (elapsed < 0 || elapsed > ESCALATION_WINDOW_MINUTES) return [];
+
+  const localDay = localDayKey(now, settings.timezone);
+
+  const { data: events } = await admin
+    .from('events')
+    .select('id, title, kind, starts_at, all_day, location')
+    .eq('user_id', settings.user_id);
+
+  const due = dueForEscalation((events ?? []) as EscalatableEvent[], localDay, settings.timezone);
+  if (due.length === 0) return [];
+
+  const sent: string[] = [];
+
+  for (const event of due) {
+    const key = escalationKey(event, localDay);
+
+    const { count } = await admin
+      .from('delivery_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', settings.user_id)
+      .eq('kind', 'escalation')
+      .eq('dedupe_key', key)
+      .eq('status', 'sent');
+
+    if ((count ?? 0) > 0) continue;
+
+    const msg = renderEscalation([event], localDay, settings.timezone, APP_URL);
+    const outcome = await deliver(deps, settings.user_id, 'escalation', localDay, msg, key);
+
+    if (outcome.delivered) sent.push(event.title);
+  }
+
+  return sent;
 }
