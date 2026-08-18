@@ -22,7 +22,11 @@ const PUSH_COPY: Record<PushStatus, string> = {
   'needs-install': 'Add the app to your home screen first. iOS requires it for push.',
   'needs-permission': 'Push is not enabled on this device.',
   denied: 'Notifications are blocked. Change this in iOS Settings, then reload.',
-  subscribed: 'Push is enabled on this device.',
+  'no-service-worker':
+    'The service worker has not started, so push cannot be set up. Close the app fully and reopen it.',
+  'device-only':
+    'This device is subscribed, but the server has no record of it — so nothing would be delivered. Register it again.',
+  subscribed: 'Push is enabled, and the server knows about this device.',
 };
 
 export function Settings({ onBack }: { onBack: () => void }) {
@@ -112,8 +116,15 @@ export function Settings({ onBack }: { onBack: () => void }) {
               {testing ? 'Sending' : 'Send test notification'}
             </Button>
 
-            {push === 'needs-permission' && (
-              <Button onClick={enablePush}>Enable push here</Button>
+            {/* Offered for every state a tap can actually fix. Hiding it when
+                the browser claimed success is what let a half-registered
+                device sit there looking fine. */}
+            {(push === 'needs-permission' ||
+              push === 'device-only' ||
+              push === 'no-service-worker') && (
+              <Button onClick={enablePush}>
+                {push === 'device-only' ? 'Register this device' : 'Enable push here'}
+              </Button>
             )}
           </div>
 

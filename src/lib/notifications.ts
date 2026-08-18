@@ -28,6 +28,9 @@ export type PushStatus =
   | 'needs-install'
   | 'needs-permission'
   | 'denied'
+  | 'no-service-worker'
+  /** The browser has a subscription the server has never been told about. */
+  | 'device-only'
   | 'subscribed';
 
 /** True when running as an installed PWA rather than in a browser tab. */
@@ -39,15 +42,56 @@ export function isStandalone(): boolean {
   );
 }
 
+/**
+ * Is this device actually going to receive a digest?
+ *
+ * The browser's own answer is not sufficient, and assuming it was hid a real
+ * failure: iOS had created a subscription, so the app reported "push is
+ * enabled", while the server held no row and could send nothing. The only fact
+ * that decides whether a notification arrives is whether the SERVER knows this
+ * endpoint — so that is what gets checked.
+ */
 export async function pushStatus(): Promise<PushStatus> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
   if (!isStandalone()) return 'needs-install';
   if (Notification.permission === 'denied') return 'denied';
   if (Notification.permission !== 'granted') return 'needs-permission';
 
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await serviceWorkerReady();
+  if (!reg) return 'no-service-worker';
+
   const sub = await reg.pushManager.getSubscription();
-  return sub ? 'subscribed' : 'needs-permission';
+  if (!sub) return 'needs-permission';
+
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .select('id')
+    .eq('endpoint', sub.endpoint)
+    .limit(1);
+
+  // A failed lookup is not proof of absence, so it does not claim the device
+  // is unregistered — but it must not claim success either.
+  if (error) return 'device-only';
+
+  return (data?.length ?? 0) > 0 ? 'subscribed' : 'device-only';
+}
+
+/**
+ * How long to wait for the service worker before giving up on it.
+ *
+ * `navigator.serviceWorker.ready` does not reject — if registration never
+ * completes it simply waits forever. Awaiting it directly meant tapping
+ * "Enable push" could do nothing at all: no subscription, no error, no
+ * message, and every reason to assume it had worked. Same failure shape as the
+ * IndexedDB hang, and just as invisible.
+ */
+const SW_READY_TIMEOUT_MS = 8000;
+
+async function serviceWorkerReady(): Promise<ServiceWorkerRegistration | null> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), SW_READY_TIMEOUT_MS)),
+  ]);
 }
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
@@ -71,12 +115,25 @@ export async function subscribeToPush(): Promise<{ ok: boolean; error?: string }
   }
 
   try {
-    const permission = await Notification.requestPermission();
+    // Only ask when it has not already been answered. Calling this outside a
+    // user gesture — which is what the launch-time refresh is — can be ignored
+    // or throw on iOS.
+    const permission =
+      Notification.permission === 'granted'
+        ? 'granted'
+        : await Notification.requestPermission();
+
     if (permission !== 'granted') {
       return { ok: false, error: 'Notifications are blocked. Change this in iOS Settings.' };
     }
 
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await serviceWorkerReady();
+    if (!reg) {
+      return {
+        ok: false,
+        error: 'The service worker never started. Close the app fully and reopen it.',
+      };
+    }
 
     // Reuse the existing subscription when there is one; iOS hands back the
     // same endpoint and re-subscribing needlessly would churn the row.
