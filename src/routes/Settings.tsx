@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth';
 import { exportCsv, exportJson } from '../lib/export';
 import { fetchDeliveryLog, type DeliveryRow } from '../lib/health';
 import { pushStatus, subscribeToPush, type PushStatus } from '../lib/notifications';
+import { subscribeSw, type SwState } from '../lib/sw';
 import { supabase } from '../lib/supabase';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 
@@ -36,6 +37,9 @@ export function Settings({ onBack }: { onBack: () => void }) {
   const [push, setPush] = useState<PushStatus | null>(null);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [sw, setSw] = useState<SwState>({ status: 'registering' });
+
+  useEffect(() => subscribeSw(setSw), []);
 
   const reload = useCallback(async () => {
     const [rows, status] = await Promise.all([fetchDeliveryLog(), pushStatus()]);
@@ -110,6 +114,20 @@ export function Settings({ onBack }: { onBack: () => void }) {
 
         <Card className="p-4">
           <p className="type-body text-text-mid">{push ? PUSH_COPY[push] : 'Checking.'}</p>
+
+          {/* The registration result, stated outright. This failed silently
+              for two days: no registration, no error, and a status line
+              confidently reporting success. */}
+          {sw.status === 'failed' && (
+            <p className="mt-2 type-caption text-t-overdue">
+              Service worker did not register: {sw.error}
+            </p>
+          )}
+          {sw.status === 'unsupported' && (
+            <p className="mt-2 type-caption text-text-low">
+              This browser has no service worker support.
+            </p>
+          )}
 
           <div className="mt-4 flex flex-wrap gap-3">
             <Button variant="primary" onClick={sendTest} disabled={testing}>

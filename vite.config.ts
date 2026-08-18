@@ -16,7 +16,10 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'autoUpdate',
+      // The app registers the worker itself, in src/lib/sw.ts. The generated
+      // helper silently failed to register anything on the deployed site, and
+      // swallowed the reason — so nothing here should inject a registration.
+      injectRegister: null,
 
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,woff2,png,svg}'],
