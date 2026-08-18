@@ -5,6 +5,7 @@ import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
 import { EmptyState } from '../components/EmptyState';
 import { ChecklistEditor } from './ChecklistEditor';
+import { AssignmentEditor } from './AssignmentEditor';
 import type { ChecklistItem } from '../lib/checklist';
 import { useAuth } from '../lib/auth';
 import { dueOn, recentDays, refillStatus } from '../lib/checklist';
@@ -18,6 +19,7 @@ import {
   loadToday,
   setAssignmentStatus,
   setCompletion,
+  type Assignment,
   type TodayData,
 } from '../lib/planner';
 import { formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
@@ -49,6 +51,7 @@ export function Today({
   const [day, setDay] = useState<DayKey>(todayKey());
   const [pendingToggles, setPendingToggles] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<NotificationHealth | null>(null);
+  const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
   const [editing, setEditing] = useState(false);
   const [editorFor, setEditorFor] = useState<{ item: ChecklistItem | null } | null>(null);
 
@@ -195,6 +198,16 @@ export function Today({
         </div>
       </section>
 
+      {openAssignment && (
+        <AssignmentEditor
+          open
+          assignment={openAssignment}
+          courses={data?.courses ?? []}
+          onClose={() => setOpenAssignment(null)}
+          onSaved={reload}
+        />
+      )}
+
       {editorFor && (
         <ChecklistEditor
           open
@@ -220,6 +233,7 @@ export function Today({
                 onToggleDone={() =>
                   void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done')
                 }
+                onOpen={() => setOpenAssignment(a)}
               />
             ))}
           </Card>

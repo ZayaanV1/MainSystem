@@ -30,11 +30,17 @@ export function Button({
   variant = 'secondary',
   full = false,
   className = '',
+  type = 'button',
   children,
   ...rest
 }: ButtonProps) {
   return (
     <button
+      // HTML defaults a button inside a form to type="submit". That silently
+      // turned every secondary action in a form — Delete, Cancel, Remove —
+      // into a save, which is the opposite of what it said on the label. The
+      // safe default is inert; submitting is opted into explicitly.
+      type={type}
       {...rest}
       className={[
         'inline-flex items-center justify-center gap-2 rounded-pill border px-5',

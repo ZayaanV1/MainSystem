@@ -13,6 +13,12 @@ import { courseVar } from '../lib/planner';
  *
  * The urgency colour never appears without its written label. That pairing is
  * the rule, and it is also the entire colourblind-safety answer.
+ *
+ * Two targets, not one: the box ticks it off, the body opens it. That split is
+ * the convention every task app uses, and it is discoverable because the box
+ * looks like a box. The checklist deliberately does the opposite — a single
+ * whole-row target — because ticking is almost the only thing you do there,
+ * and a second control beside it would be a mis-tap at 7am.
  */
 
 interface AssignmentRowProps {
@@ -21,6 +27,7 @@ interface AssignmentRowProps {
   thresholds?: Thresholds;
   now?: Date;
   onToggleDone: () => void;
+  onOpen?: () => void;
 }
 
 export function AssignmentRow({
@@ -29,6 +36,7 @@ export function AssignmentRow({
   thresholds,
   now,
   onToggleDone,
+  onOpen,
 }: AssignmentRowProps) {
   const due = assignment.due_at ? new Date(assignment.due_at) : null;
   const done = assignment.status === 'done';
@@ -59,12 +67,13 @@ export function AssignmentRow({
         type="button"
         onClick={onToggleDone}
         aria-pressed={done}
-        className="flex min-h-[var(--tap)] flex-1 items-center gap-3 py-3 pr-4 text-left"
+        aria-label={done ? `Mark ${assignment.title} not done` : `Mark ${assignment.title} done`}
+        className="flex min-h-[var(--tap)] w-11 shrink-0 items-center justify-center"
       >
         <span
           aria-hidden
           className={[
-            'flex h-5 w-5 shrink-0 items-center justify-center rounded-pill border-2',
+            'flex h-5 w-5 items-center justify-center rounded-pill border-2',
             done ? 'border-t-done bg-t-done' : 'border-ink-600',
           ].join(' ')}
         >
@@ -81,31 +90,36 @@ export function AssignmentRow({
             </svg>
           )}
         </span>
+      </button>
 
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            {course && (
-              <span
-                aria-hidden
-                className="h-1.5 w-1.5 shrink-0 rounded-pill"
-                style={{ backgroundColor: `var(${courseVar(course.colour_index)})` }}
-              />
-            )}
-            <span className={`type-body truncate ${done ? 'text-text-low' : 'text-text-hi'}`}>
-              {assignment.title}
-            </span>
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={!onOpen}
+        className="flex min-h-[var(--tap)] min-w-0 flex-1 flex-col justify-center py-3 pr-4 text-left"
+      >
+        <span className="flex items-center gap-2">
+          {course && (
+            <span
+              aria-hidden
+              className="h-1.5 w-1.5 shrink-0 rounded-pill"
+              style={{ backgroundColor: `var(${courseVar(course.colour_index)})` }}
+            />
+          )}
+          <span className={`type-body truncate ${done ? 'text-text-low' : 'text-text-hi'}`}>
+            {assignment.title}
           </span>
+        </span>
 
-          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="type-caption" style={{ color: `var(${urgency.colourVar})` }}>
-              {urgency.label}
-            </span>
-            {dueLabel && <span className="type-caption text-text-low">{dueLabel}</span>}
-            {course && <span className="type-caption text-text-low">{course.code ?? course.name}</span>}
-            {showStart && start && (
-              <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
-            )}
+        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="type-caption" style={{ color: `var(${urgency.colourVar})` }}>
+            {urgency.label}
           </span>
+          {dueLabel && <span className="type-caption text-text-low">{dueLabel}</span>}
+          {course && <span className="type-caption text-text-low">{course.code ?? course.name}</span>}
+          {showStart && start && (
+            <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
+          )}
         </span>
       </button>
     </div>

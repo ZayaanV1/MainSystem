@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
-import { todayKey, type DayKey } from './time';
+import { todayKey, wallClockToUTC, type DayKey } from './time';
 
 /**
  * Data access for the planner.
@@ -292,4 +292,61 @@ export function completionKey(itemId: string, day: DayKey): string {
 
 export function completionSet(completions: Completion[]): Set<string> {
   return new Set(completions.map((c) => completionKey(c.item_id, c.local_day)));
+}
+
+/* ------------------------------------------------------------ assignment edit */
+
+export interface AssignmentFields {
+  title: string;
+  course_id: string | null;
+  /** Local calendar date, or null for undated work. */
+  due_day: DayKey | null;
+  /** Local wall-clock 'HH:MM', or null for "some time that day". */
+  due_time: string | null;
+  effort_minutes: number | null;
+  notes: string | null;
+}
+
+/**
+ * An assignment with no time is due at the END of its day.
+ *
+ * Midnight would make "due Friday" read as overdue for the whole of Friday,
+ * which is the fastest way to stop trusting the colour on the left edge.
+ */
+export function assignmentDueAt(
+  day: DayKey | null,
+  time: string | null,
+  timezone?: string,
+): string | null {
+  if (!day) return null;
+  const [h, m] = time ? time.split(':').map(Number) : [23, 59];
+  return wallClockToUTC(day, h, m, 0, timezone).toISOString();
+}
+
+export async function updateAssignment(id: string, fields: AssignmentFields): Promise<void> {
+  await enqueue(
+    'assignments',
+    'update',
+    {
+      title: fields.title.trim(),
+      course_id: fields.course_id,
+      due_at: assignmentDueAt(fields.due_day, fields.due_time),
+      due_has_time: Boolean(fields.due_time),
+      effort_minutes: fields.effort_minutes,
+      notes: fields.notes?.trim() || null,
+    },
+    { id },
+  );
+}
+
+/**
+ * Genuinely deletes.
+ *
+ * Unlike a checklist item, an assignment carries no history worth preserving
+ * once it is gone — and a planner you cannot remove things from accumulates
+ * into a wall of things you are not doing, which is its own reason to stop
+ * opening it.
+ */
+export async function deleteAssignment(id: string): Promise<void> {
+  await enqueue('assignments', 'delete', {}, { id });
 }
