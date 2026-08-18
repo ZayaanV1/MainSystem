@@ -20,6 +20,7 @@ const item = (id: string, o: Partial<ChecklistItem> = {}): ChecklistItem => ({
   anchor_day: null,
   active: true,
   sort_order: 0,
+  essential: false,
   tracks_doses: false,
   doses_remaining: null,
   doses_per_completion: 1,

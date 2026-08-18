@@ -90,6 +90,8 @@ export interface TodayData {
    * the kind of hollow praise you can feel, and it devalues the real thing.
    */
   completedToday: Assignment[];
+  /** Persisted server-side, so a bad day does not start by finding a toggle. */
+  lowBattery: boolean;
 }
 
 /** How many days the Today day-strip offers. Bounded on purpose. */
@@ -103,12 +105,12 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
   // but a query limit.
   const window = recentDays(today, Math.max(BACKFILL_DAYS, HISTORY_DAYS));
 
-  const [items, completions, inbox, courses, assignments, events, subtasks, completedToday] =
+  const [items, completions, inbox, courses, assignments, events, subtasks, completedToday, settings] =
     await Promise.all([
     supabase
       .from('checklist_items')
       .select(
-        'id, title, recurrence, weekdays, interval_days, anchor_day, active, sort_order, tracks_doses, doses_remaining, doses_per_completion, refill_warning_days',
+        'id, title, recurrence, weekdays, interval_days, anchor_day, active, sort_order, essential, tracks_doses, doses_remaining, doses_per_completion, refill_warning_days',
       )
       .eq('active', true)
       .order('sort_order'),
@@ -164,6 +166,8 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
       .eq('status', 'done')
       .gte('completed_at', startOfDayUTC(today).toISOString())
       .lt('completed_at', endOfDayUTC(today).toISOString()),
+
+    supabase.from('app_settings').select('low_battery').limit(1),
   ]);
 
   return {
@@ -175,6 +179,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     events: (events.data ?? []) as PlannerEvent[],
     subtasks: (subtasks.data ?? []) as Subtask[],
     completedToday: (completedToday.data ?? []) as Assignment[],
+    lowBattery: Boolean((settings.data ?? [])[0]?.low_battery),
   };
 }
 
@@ -261,6 +266,7 @@ export function subtaskProgress(
 
 export interface ChecklistFields {
   title: string;
+  essential: boolean;
   recurrence: 'daily' | 'weekdays' | 'interval';
   weekdays: number[] | null;
   interval_days: number | null;
@@ -312,6 +318,7 @@ export async function deactivateChecklistItem(id: string): Promise<void> {
 function normaliseChecklist(f: ChecklistFields) {
   return {
     title: f.title.trim(),
+    essential: f.essential,
     recurrence: f.recurrence,
     weekdays: f.recurrence === 'weekdays' ? f.weekdays : null,
     interval_days: f.recurrence === 'interval' ? f.interval_days : null,
@@ -321,6 +328,19 @@ function normaliseChecklist(f: ChecklistFields) {
     doses_per_completion: Math.max(1, f.doses_per_completion),
     refill_warning_days: Math.max(0, f.refill_warning_days),
   };
+}
+
+/* ----------------------------------------------------------- low battery */
+
+/**
+ * Turning the day down, or back up.
+ *
+ * Written straight through rather than queued, and awaited. This is the one
+ * setting whose whole value is that it takes effect the instant it is asked
+ * for — a bad day is not the moment to wonder whether a tap registered.
+ */
+export async function setLowBattery(userId: string, on: boolean): Promise<void> {
+  await supabase.from('app_settings').update({ low_battery: on }).eq('user_id', userId);
 }
 
 /* ---------------------------------------------------------------- courses */

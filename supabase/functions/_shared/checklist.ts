@@ -22,6 +22,9 @@ export interface ChecklistItem {
   active: boolean;
   sort_order: number;
 
+  /** Shown in low-battery mode; everything else is hidden there. */
+  essential: boolean;
+
   tracks_doses: boolean;
   doses_remaining: number | null;
   doses_per_completion: number;

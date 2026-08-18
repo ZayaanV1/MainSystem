@@ -8,6 +8,7 @@ import { ChecklistEditor } from './ChecklistEditor';
 import { AssignmentEditor } from './AssignmentEditor';
 import { Triage } from './Triage';
 import { History } from './History';
+import { LowBattery } from './LowBattery';
 import type { ChecklistItem } from '../lib/checklist';
 import { useAuth } from '../lib/auth';
 import { dueOn, recentDays, refillStatus } from '../lib/checklist';
@@ -22,6 +23,7 @@ import {
   setAssignmentStatus,
   subtaskProgress,
   setCompletion,
+  setLowBattery,
   type Assignment,
   type InboxItem,
   type TodayData,
@@ -131,6 +133,31 @@ export function Today({
   useEffect(() => {
     setPendingToggles(new Set());
   }, [data]);
+
+  // One root attribute collapses every urgency and macro colour to muted
+  // ground. No component below knows the mode exists, which is why it cannot
+  // be forgotten when a new screen is added.
+  const lowBattery = Boolean(data?.lowBattery);
+  useEffect(() => {
+    document.documentElement.setAttribute('data-low-battery', String(lowBattery));
+  }, [lowBattery]);
+
+  async function exitLowBattery() {
+    await setLowBattery(userId, false);
+    await reload();
+  }
+
+  if (lowBattery && data) {
+    return (
+      <LowBattery
+        data={data}
+        onExit={() => void exitLowBattery()}
+        onChanged={reload}
+        isDone={isDone}
+        onToggleItem={(id) => void toggle(id)}
+      />
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-160 flex-col px-4 pt-6">
@@ -339,6 +366,15 @@ export function Today({
           </Card>
         )}
       </section>
+
+      <div className="mb-8 px-4">
+        <Button
+          variant="quiet"
+          onClick={() => void setLowBattery(userId, true).then(reload)}
+        >
+          Low battery
+        </Button>
+      </div>
 
       {status && (
         <footer className="border-t border-ink-600 px-4 py-4">

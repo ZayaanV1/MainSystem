@@ -36,6 +36,7 @@ const WEEKDAYS = [
 
 const blank = (): ChecklistFields => ({
   title: '',
+  essential: false,
   recurrence: 'daily',
   weekdays: [1, 2, 3, 4, 5],
   interval_days: 7,
@@ -48,6 +49,7 @@ const blank = (): ChecklistFields => ({
 
 const fromItem = (i: ChecklistItem): ChecklistFields => ({
   title: i.title,
+  essential: i.essential,
   recurrence: i.recurrence,
   weekdays: i.weekdays ?? [1, 2, 3, 4, 5],
   interval_days: i.interval_days ?? 7,
@@ -184,6 +186,27 @@ export function ChecklistEditor({
               hint={`Counting from ${fields.anchor_day}`}
             />
           )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => set('essential', !fields.essential)}
+            aria-pressed={fields.essential}
+            className="flex items-center gap-3 text-left"
+          >
+            <span
+              aria-hidden
+              className={[
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded-pill border-2',
+                fields.essential ? 'border-t-done bg-t-done' : 'border-ink-600',
+              ].join(' ')}
+            />
+            <span className="type-label text-text-hi">Keep on a bad day</span>
+          </button>
+          <p className="type-caption text-text-low">
+            Low-battery mode shows only these. Everything else is hidden until you turn it off.
+          </p>
         </div>
 
         <div className="flex flex-col gap-3">
