@@ -330,6 +330,51 @@ function normaliseChecklist(f: ChecklistFields) {
   };
 }
 
+/* -------------------------------------------------------------- settings */
+
+export interface DigestSettings {
+  digest_hour: number;
+  digest_minute: number;
+  digest_enabled: boolean;
+  assignment_window_days: number;
+  event_window_days: number;
+}
+
+export async function loadDigestSettings(): Promise<DigestSettings | null> {
+  const { data } = await supabase
+    .from('app_settings')
+    .select('digest_hour, digest_minute, digest_enabled, assignment_window_days, event_window_days')
+    .limit(1);
+
+  return (data?.[0] as DigestSettings) ?? null;
+}
+
+/**
+ * Written straight through rather than queued.
+ *
+ * The scheduler reads these on its own timetable, so a change sitting in the
+ * outbox would mean the digest quietly kept its old time until the app
+ * happened to sync — and the whole point of changing it is that the new time
+ * is the one you want tomorrow morning.
+ */
+export async function saveDigestSettings(
+  userId: string,
+  fields: DigestSettings,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('app_settings')
+    .update({
+      digest_hour: Math.min(23, Math.max(0, fields.digest_hour)),
+      digest_minute: Math.min(59, Math.max(0, fields.digest_minute)),
+      digest_enabled: fields.digest_enabled,
+      assignment_window_days: Math.min(90, Math.max(1, fields.assignment_window_days)),
+      event_window_days: Math.min(90, Math.max(1, fields.event_window_days)),
+    })
+    .eq('user_id', userId);
+
+  return { error: error ? error.message : null };
+}
+
 /* ----------------------------------------------------------- low battery */
 
 /**

@@ -7,6 +7,7 @@ import { exportCsv, exportJson } from '../lib/export';
 import { fetchDeliveryLog, type DeliveryRow } from '../lib/health';
 import { pushStatus, subscribeToPush, type PushStatus } from '../lib/notifications';
 import { subscribeSw, type SwState } from '../lib/sw';
+import { DigestSettings } from './DigestSettings';
 import { supabase } from '../lib/supabase';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 
@@ -148,6 +149,11 @@ export function Settings({ onBack }: { onBack: () => void }) {
 
           {message && <p className="type-caption mt-4 text-text-mid">{message}</p>}
         </Card>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="type-h2 mb-3 px-4 text-text-hi">Morning digest</h2>
+        <DigestSettings />
       </section>
 
       <section className="mb-8">
