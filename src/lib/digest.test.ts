@@ -287,12 +287,10 @@ describe('copy voice', () => {
     }
   });
 
-  it('never praises, laments, or apologises', () => {
-    // Nothing was earned, so saying so is a lie the reader can feel — and an
-    // app that congratulates you on a good day is one that indicts you on a
-    // bad one.
-    const banned =
-      /\b(great|well done|nice work|good job|congrat\w*|amazing|awesome|oops|sorry|unfortunately|sadly|uh oh)\b/i;
+  it('never laments or apologises', () => {
+    // Warmth is allowed; self-pity and apology are not. An error or an empty
+    // day states what is true and what can be done, and nothing else.
+    const banned = /\b(oops|sorry|unfortunately|sadly|uh oh|afraid)\b/i;
 
     for (const m of samples) {
       expect(banned.test(`${m.title} ${m.body}`), `${m.title} / ${m.body}`).toBe(false);

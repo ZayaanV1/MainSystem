@@ -105,6 +105,8 @@ export function Today({
     return pendingToggles.has(key) ? !done.has(key) : done.has(key);
   };
 
+  const allDone = items.length > 0 && items.every((i) => isDone(i.id));
+
   async function toggle(itemId: string) {
     const key = completionKey(itemId, day);
     const next = !isDone(itemId);
@@ -198,6 +200,15 @@ export function Today({
               );
             })}
           </Card>
+        )}
+
+        {/* Said once, for this day, and never compared to any other. A
+            moment can be praised safely; a streak cannot, because a streak is
+            something that can be taken away and then held against you. */}
+        {!editing && allDone && (
+          <p className="mt-3 px-4 type-body text-t-done">
+            {day === today ? "That's everything for today." : "That's everything for that day."}
+          </p>
         )}
 
         <div className="mt-3 flex gap-3 px-4">

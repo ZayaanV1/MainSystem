@@ -29,7 +29,9 @@ import { formatDay, todayKey, type DayKey } from '../lib/time';
  * a single tap. Everything on screen serves that.
  *
  * What is deliberately absent: any count, any percentage, any streak, any
- * "best run", any word for a day that went untouched. An empty day is drawn in
+ * "best run", any comparison between one day and another, any word for a day
+ * that went untouched. Warmth about a finished day is fine; a running tally
+ * is not, because a tally is something that can be lost. An empty day is drawn in
  * ground colour — the same colour as the card it sits on — so it reads as
  * nothing rather than as a hole. Five weeks, and no way to scroll further back,
  * because a longer record is a longer indictment.

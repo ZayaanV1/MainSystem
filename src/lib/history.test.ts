@@ -117,12 +117,14 @@ describe('rule 3 — nothing here scores anything', () => {
     expect(text).not.toMatch(/missed|none done|empty|failed/i);
   });
 
-  it('says nothing congratulatory about a full day either', () => {
-    // Praise on a good day is what makes its absence an accusation on a bad one.
+  it('may be warm about a finished day, but never comparative', () => {
+    // Praise for a moment is safe. Praise that accumulates — a streak, a best
+    // week, a chain — creates something losable, and losing it is what makes
+    // the app hard to reopen.
     const h = buildHistory([item('med')], [done('med', TODAY)], TODAY);
     const text = describeDay(h[h.length - 1], 'Tue, Aug 18');
-    expect(text).toBe('Tue, Aug 18, all ticked');
-    expect(text).not.toMatch(/well done|great|nice|perfect|streak|keep it up|!/i);
+    expect(text).toBe('Tue, Aug 18, all done');
+    expect(text).not.toMatch(/streak|in a row|days running|best|chain|record|again/i);
   });
 });
 

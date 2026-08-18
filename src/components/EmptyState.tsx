@@ -7,11 +7,13 @@ import type { ReactNode } from 'react';
  * survives a bad week. So the empty states were designed first rather than
  * last, and the copy rules are strict:
  *
- *   - Neutral or an invitation. Never praise, never a lament.
- *   - "Nothing due this week." Full stop. Not "great job!" — nothing was
- *     earned, so saying so is a lie the user can feel.
+ *   - Neutral or an invitation. Never a lament.
+ *   - "Nothing due this week." Full stop. An empty week was not earned, so it
+ *     is stated rather than congratulated — but finishing something is a
+ *     different matter, and warmth there is welcome.
  *   - "Capture anything here. Sort it later." — an invitation, not a void.
  *   - No emoji. No exclamation marks. No illustration of a person relaxing.
+ *   - Never comparative. No streak, no "best week", no chain to break.
  *
  * Empty rings are a starting state, not a deficit.
  */

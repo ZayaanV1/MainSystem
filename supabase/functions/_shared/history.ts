@@ -113,6 +113,9 @@ export function asWeeks(history: HistoryDay[]): HistoryDay[][] {
  * Used as the accessible name and never shown as a visible score. Note what is
  * absent: no "you missed", no "incomplete", no count. A day with nothing ticked
  * is described by what can be done about it, not by what did not happen.
+ *
+ * A finished day may be warm about it. What it may never be is comparative —
+ * nothing here knows or mentions what any other day looked like.
  */
 export function describeDay(day: HistoryDay, formatted: string): string {
   switch (day.fill) {
@@ -123,7 +126,7 @@ export function describeDay(day: HistoryDay, formatted: string): string {
     case 'partial':
       return `${formatted}, partly ticked — tap to fill it in`;
     case 'complete':
-      return `${formatted}, all ticked`;
+      return `${formatted}, all done`;
   }
 }
 
