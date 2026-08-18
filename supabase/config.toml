@@ -6,3 +6,7 @@ project_id = "life-planner"
 # secret itself in constant time, and falls back to verifying a real user JWT
 # for the "send test digest now" path. Leaving this true would block pg_cron.
 verify_jwt = false
+
+[functions.parse-food]
+# Verifies the user JWT itself, same as dispatch, so the shape stays uniform.
+verify_jwt = false
