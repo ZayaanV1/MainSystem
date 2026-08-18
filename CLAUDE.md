@@ -86,15 +86,18 @@ Phase: **1 — core planner. In progress.** Phase 0 done and verified 17 Aug 202
 ### Phase 1 so far
 
 Built and verified against the live database: the content schema, quick
-capture, the checklist with the medication counter, courses, assignments with
-proximity flags and derived start-by dates, the bulk syllabus importer, and a
-digest that reports real work instead of always saying "Nothing due".
+capture, the checklist with its medication counter and item editor, courses,
+assignments with proximity flags, derived start-by dates, editing and delete,
+the bulk syllabus importer, the Week view, and a digest that reports real work.
 
-**Still to build in Phase 1:** Week and Month views, assignment editing and
-subtasks, a checklist item editor (until then `npm run doses` sets the count),
-and the completion heatmap — which ships only with the hard rules agreed: no
-counts, no percentages, no "best run", empty cells as ground colour, ~5 weeks
-maximum.
+**The loop runs unattended.** On 17 Aug 2026 the 07:00 digest fired on its own
+at 11:00:02Z and delivered real content — the outstanding checklist with the
+medication flagged as empty. Nobody touched it.
+
+**Still to build in Phase 1:** Month view, subtasks, inbox triage (capture
+currently accumulates with no way to turn an item into work), and the
+completion heatmap — which ships only with the hard rules agreed: no counts,
+no percentages, no "best run", empty cells as ground colour, ~5 weeks maximum.
 
 ### Bugs found by verifying rather than assuming
 
@@ -115,6 +118,12 @@ actually reached the database. Worth remembering as a working method.
   sends with the failure reported.
 - **All-day events were stored at 23:59**, sharing the assignment rule. They
   now start at the beginning of their day, or T-1 reminders fire a day early.
+- **Every secondary button in a form was a submit button.** Button set no
+  `type`, and HTML defaults to submit inside a form, so "Delete" saved and
+  "Remove from list" saved. Each did the opposite of its label, silently.
+- **Duplicate courses were possible.** A double-tapped "Add course" made two,
+  and every filter, dot and syllabus match then referred to whichever was
+  found first. Six identical chips in the Week view is how it surfaced.
 
 ---
 
