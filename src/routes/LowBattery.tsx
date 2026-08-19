@@ -115,7 +115,7 @@ export function LowBattery({
       <footer className="border-t border-ink-600 px-4 py-6">
         {hiddenCount > 0 && (
           // Counted, never named, and explicitly not a debt.
-          <p className="mb-4 type-caption text-text-low">
+          <p className="mb-4 type-note text-text-low">
             {hiddenCount} other {hiddenCount === 1 ? 'thing is' : 'things are'} hidden. They keep.
           </p>
         )}

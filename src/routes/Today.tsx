@@ -348,7 +348,7 @@ export function Today({
       <section className="mb-8 flex-1">
         <h2 className="type-h2 mb-1 px-4 text-text-hi">Inbox</h2>
         {Boolean(data?.inbox.length) && (
-          <p className="type-caption mb-3 px-4 text-text-low">Tap one to sort it out.</p>
+          <p className="type-note mb-3 px-4 text-text-low">Tap one to sort it out.</p>
         )}
         {!data?.inbox.length ? (
           inboxCleared ? (

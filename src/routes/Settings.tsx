@@ -120,12 +120,12 @@ export function Settings({ onBack }: { onBack: () => void }) {
               for two days: no registration, no error, and a status line
               confidently reporting success. */}
           {sw.status === 'failed' && (
-            <p className="mt-2 type-caption text-t-overdue">
+            <p className="mt-2 type-note text-t-overdue">
               Service worker did not register: {sw.error}
             </p>
           )}
           {sw.status === 'unsupported' && (
-            <p className="mt-2 type-caption text-text-low">
+            <p className="mt-2 type-note text-text-low">
               This browser has no service worker support.
             </p>
           )}

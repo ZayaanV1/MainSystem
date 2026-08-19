@@ -167,6 +167,18 @@ actually reached the database. Worth remembering as a working method.
   ago and is already absent from the count, so recovering a rough week
   silently destroyed the number meant to protect you. Today spends; any other
   day only records.
+- **Prose was rendered in the uppercase caption style, three times.** The
+  captured wording on the triage screen, the raw text of a food entry, and
+  then every input hint in the app at once, because `Field` put its hint slot
+  in `type-caption`. The design system reserves that style for "urgency
+  labels, metadata (uppercase)". The worst instance was the low-battery
+  footer — "2 OTHER THINGS ARE HIDDEN. THEY KEEP." — on the one screen written
+  for the worst day. There is now a `type-note` utility and a test that fails
+  the build on a sentence in `type-caption`.
+- **parse-food was never deployed.** `setup.mjs` deployed only `dispatch`, so
+  the parser 404'd and the app said "couldn't reach the parser", which reads
+  as a network problem rather than a missing function. Both functions are
+  deployed by setup now.
 - **A meal silently logged short.** PostgREST rejects a bulk insert whose
   objects have differing key sets (PGRST102, "All object keys must match"), so
   a meal where one item matched a barcode and carried `source_ref` and another

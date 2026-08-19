@@ -135,7 +135,7 @@ export function Week({
       {grouping.undated.length > 0 && (
         <section className="mb-8">
           <h2 className="type-h2 mb-1 px-4 text-text-hi">No date</h2>
-          <p className="type-caption mb-3 px-4 text-text-low">
+          <p className="type-note mb-3 px-4 text-text-low">
             Kept here so it is not lost. Give it a date when you know one.
           </p>
           <Card>
@@ -154,7 +154,7 @@ export function Week({
       )}
 
       {grouping.laterCount > 0 && (
-        <p className="mb-12 px-4 type-caption text-text-low">
+        <p className="mb-12 px-4 type-note text-text-low">
           {grouping.laterCount} more after this week.
         </p>
       )}

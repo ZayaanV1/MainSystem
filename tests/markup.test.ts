@@ -82,3 +82,74 @@ describe('the colour law holds in the markup', () => {
     expect(offenders, `colour values belong in tokens.css:\n${offenders.join('\n')}`).toEqual([]);
   });
 });
+
+/**
+ * Prose is never rendered in the uppercase caption style.
+ *
+ * This bug has now arrived three times from three unrelated places: the
+ * captured wording on the triage screen, the raw text of a food entry, and
+ * every input hint in the app at once, because `Field` put its hint slot in
+ * `type-caption`. The design system reserves that style for "urgency labels,
+ * metadata (uppercase)"; running a sentence through it both shouts and breaks
+ * the sentence-case copy rule.
+ *
+ * It matters most in exactly the places it is least visible. "2 OTHER THINGS
+ * ARE HIDDEN. THEY KEEP." is the low-battery footer — the one screen written
+ * for the worst day — and the whole point of that copy is that it does not
+ * raise its voice.
+ *
+ * `type-note` is the correct home for small prose. Fixing an instance is not
+ * fixing the class, so this fails the build instead.
+ *
+ * Limit worth stating: only authored text is checked. Content that is entirely
+ * an interpolation is skipped, because "7:57 p.m. · ai" and "45 min" are
+ * genuine metadata and belong in `type-caption`. A sentence assembled wholly
+ * inside a template literal would slip through.
+ */
+/** Removes every balanced {...} region, leaving only authored text. */
+function stripBraces(input: string): string {
+  let depth = 0;
+  let out = '';
+  for (const ch of input) {
+    if (ch === '{') depth += 1;
+    else if (ch === '}') depth = Math.max(0, depth - 1);
+    else if (depth === 0) out += ch;
+    if (ch === '{' || ch === '}') out += ' ';
+  }
+  return out;
+}
+
+describe('prose is not rendered in the uppercase caption style', () => {
+  it('leaves no sentence in type-caption', () => {
+    const offenders: string[] = [];
+
+    for (const file of MARKUP) {
+      const source = readFileSync(file, 'utf8');
+      const element =
+        /<(\w+)[^>]*className=(?:"|\{`)[^"`]*\btype-caption\b[^"`]*(?:"|`\})[^>]*>([\s\S]*?)<\/\1>/g;
+
+      for (const match of source.matchAll(element)) {
+        const body = match[2];
+        if (/<\w/.test(body)) continue; // nested elements; not a text node
+
+        // Drop interpolations entirely: what remains is what a person wrote.
+        // Braces nest — `{cond && ` · ${x}`}` — so this counts depth rather
+        // than pattern-matching, which would strip the inner pair and leave
+        // the outer one behind as text.
+        const authored = stripBraces(body).replace(/\s+/g, ' ').trim();
+        if (!authored) continue;
+
+        const words = authored.split(' ').filter(Boolean).length;
+        const endsASentence = /[a-z]\.$/.test(authored);
+        const containsASentenceBreak = /[a-z]\. [A-Z]/.test(authored);
+
+        if (words >= 5 || endsASentence || containsASentenceBreak) {
+          const line = source.slice(0, match.index).split('\n').length;
+          offenders.push(`${file}:${line} — ${authored}`);
+        }
+      }
+    }
+
+    expect(offenders, 'use type-note for prose; type-caption is for labels').toEqual([]);
+  });
+});

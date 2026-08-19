@@ -242,15 +242,17 @@
 }
 
 /*
- * Small text that is quoted back rather than authored by the app: what you
- * typed into the food parser, a captured thought, an imported title.
+ * Small text read as a sentence rather than scanned as a label: input hints,
+ * validation messages, a line of explanation under a heading, and anything
+ * quoted back that the app did not author.
  *
- * Deliberately not type-caption. That utility uppercases, which is right for
- * a machine label like "ESTIMATED" and wrong for a sentence — "150G CHICKEN
- * BREAST AND A SCOOP OF WHEY" reads as shouting and breaks the sentence-case
- * copy rule on the one text the app did not write.
+ * Deliberately not type-caption. The design system reserves that for "urgency
+ * labels, metadata (uppercase)", and uppercasing prose both shouts and breaks
+ * the sentence-case copy rule — "150G CHICKEN BREAST AND A SCOOP OF WHEY" is
+ * not what was typed, and "ROUGH IS FINE" is not the tone the app wants on a
+ * bad day.
  */
-@utility type-quote {
+@utility type-note {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 400;

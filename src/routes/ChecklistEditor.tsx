@@ -214,7 +214,7 @@ export function ChecklistEditor({
             />
             <span className="type-label text-text-hi">Keep on a bad day</span>
           </button>
-          <p className="type-caption text-text-low">
+          <p className="type-note text-text-low">
             Low-battery mode shows only these. Everything else is hidden until you turn it off.
           </p>
         </div>
@@ -280,7 +280,7 @@ export function ChecklistEditor({
         </div>
 
         {invalidWeekdays && (
-          <p className="type-caption text-t-overdue">
+          <p className="type-note text-t-overdue">
             Pick at least one day, or this never appears.
           </p>
         )}

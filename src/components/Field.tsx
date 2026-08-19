@@ -44,7 +44,7 @@ export function Field({ label, hint, error, className = '', ...rest }: FieldProp
       {(hint || error) && (
         <p
           id={describedBy}
-          className={`type-caption ${error ? 'text-t-overdue' : 'text-text-low'}`}
+          className={`type-note ${error ? 'text-t-overdue' : 'text-text-low'}`}
           // Announced when it changes, so an error is not silent for a screen
           // reader that has already moved past the field.
           role={error ? 'alert' : undefined}

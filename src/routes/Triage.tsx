@@ -102,10 +102,10 @@ export function Triage({
             "chem lab report??" is sometimes more informative than whatever it
             becomes, and it is the only record of what capture actually caught. */}
         {fields.title.trim() !== item.body && (
-          // Not type-caption: that style is uppercase, which would rewrite the
-          // very thing being preserved. "chem lab report??" shown as
-          // "CHEM LAB REPORT??" is no longer what was captured.
-          <p className="-mt-4 type-label font-normal text-text-low">
+          // type-note, not type-caption: that style is uppercase, which
+          // would rewrite the very thing being preserved. "chem lab report??"
+          // shown as "CHEM LAB REPORT??" is no longer what was captured.
+          <p className="-mt-4 type-note text-text-low">
             Captured as: {item.body}
           </p>
         )}

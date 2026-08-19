@@ -182,9 +182,15 @@ supabase(
 );
 ok('secrets set');
 
-step(5, 'Deploying the dispatch function');
+step(5, 'Deploying the edge functions');
 supabase(['functions', 'deploy', 'dispatch']);
 ok('dispatch deployed');
+// parse-food is deployed here too. It was once left out, and the failure was
+// invisible in the right way to waste an evening: the app showed "couldn't
+// reach the parser", which reads as a network problem, when the function
+// simply was not there.
+supabase(['functions', 'deploy', 'parse-food']);
+ok('parse-food deployed');
 
 /* ------------------------------------------------------------- rest api --- */
 

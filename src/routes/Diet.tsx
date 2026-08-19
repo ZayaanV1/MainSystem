@@ -15,6 +15,7 @@ import {
   type MacroBand,
 } from '../lib/diet';
 import { formatTime, todayKey } from '../lib/time';
+import { LogFood } from './LogFood';
 
 /**
  * The food log.
@@ -36,6 +37,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
   const userId = session?.user.id ?? '';
 
   const [data, setData] = useState<DietDay | null>(null);
+  const [logging, setLogging] = useState(false);
   const day = todayKey();
 
   const reload = useCallback(() => loadDay(day).then(setData), [day]);
@@ -100,10 +102,16 @@ export function Diet({ onBack }: { onBack: () => void }) {
         <EmptyState>No macro targets set yet.</EmptyState>
       )}
 
+      <div className="mb-8 px-4">
+        <Button variant="primary" onClick={() => setLogging(true)}>
+          Log food
+        </Button>
+      </div>
+
       {data.savedMeals.length > 0 && (
         <section className="mb-8">
           <h2 className="type-h2 mb-1 px-4 text-text-hi">Saved meals</h2>
-          <p className="type-caption mb-3 px-4 text-text-low">One tap logs it again.</p>
+          <p className="type-note mb-3 px-4 text-text-low">One tap logs it again.</p>
           <div className="flex flex-wrap gap-2 px-4">
             {data.savedMeals.slice(0, 8).map((meal) => (
               <Chip
@@ -158,7 +166,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
                       you cannot audit is a number you stop trusting.
                     */}
                     {entry.raw_text && (
-                      <p className="mt-1 type-quote text-text-low">{entry.raw_text}</p>
+                      <p className="mt-1 type-note text-text-low">{entry.raw_text}</p>
                     )}
                   </div>
 
@@ -173,6 +181,14 @@ export function Diet({ onBack }: { onBack: () => void }) {
       </section>
 
       <WeightRow current={data.weightKg} userId={userId} day={day} onSaved={reload} />
+
+      <LogFood
+        open={logging}
+        userId={userId}
+        day={day}
+        onClose={() => setLogging(false)}
+        onLogged={reload}
+      />
     </main>
   );
 }

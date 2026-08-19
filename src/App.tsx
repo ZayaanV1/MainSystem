@@ -61,7 +61,7 @@ function SyncBanner() {
 
   return (
     <div role="status" className="border-b border-ink-600 bg-ink-700 px-4 py-3">
-      <p className={`type-caption ${state.error ? 'text-t-critical' : 'text-text-mid'}`}>
+      <p className={`type-note ${state.error ? 'text-t-critical' : 'text-text-mid'}`}>
         {state.error ? `${state.error} ${waiting}` : `Offline. ${waiting}`}
       </p>
     </div>

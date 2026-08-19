@@ -163,7 +163,7 @@ export function Month({
       {grid.undated.length > 0 && (
         <section className="mb-8">
           <h2 className="type-h2 mb-1 px-4 text-text-hi">No date</h2>
-          <p className="type-caption mb-3 px-4 text-text-low">
+          <p className="type-note mb-3 px-4 text-text-low">
             Belongs to no day, so it is kept here rather than dropped.
           </p>
           <Card>

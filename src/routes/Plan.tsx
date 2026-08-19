@@ -100,7 +100,7 @@ export function Plan({ courses, onBack, onChanged }: {
 
       <section className="mb-8">
         <h2 className="type-h2 mb-1 px-4 text-text-hi">Paste a syllabus</h2>
-        <p className="type-caption mb-3 px-4 text-text-low">
+        <p className="type-note mb-3 px-4 text-text-low">
           One deadline per line. Course, date, time and effort are picked out wherever they sit.
         </p>
 
