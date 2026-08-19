@@ -29,15 +29,33 @@ const SERVICE_ROLE_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
 const LOOKBACK_DAYS = 60;
 const LOOKAHEAD_DAYS = 240;
 
+/**
+ * A feed is fetched by a calendar app server-side, so CORS is not needed for
+ * the real subscription path. It is answered anyway: an endpoint that 405s a
+ * preflight is a foot-gun for any later in-app preview, and three lines is
+ * cheaper than rediscovering why the fetch fails.
+ *
+ * The feed is already public to anyone holding the token, so a permissive
+ * origin here gives away nothing the URL does not.
+ */
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+  'Access-Control-Allow-Headers': 'content-type',
+  'Access-Control-Max-Age': '86400',
+};
+
 Deno.serve(async (req: Request): Promise<Response> => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+
   if (req.method !== 'GET' && req.method !== 'HEAD') {
-    return new Response('GET only', { status: 405 });
+    return new Response('GET only', { status: 405, headers: CORS });
   }
 
   const token = new URL(req.url).searchParams.get('token') ?? '';
 
   // A short token is not a real one; rejected before touching the database.
-  if (token.length < 20) return new Response('Not found', { status: 404 });
+  if (token.length < 20) return new Response('Not found', { status: 404, headers: CORS });
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -50,7 +68,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .maybeSingle();
 
   // Deliberately identical to the short-token response.
-  if (!settings) return new Response('Not found', { status: 404 });
+  if (!settings) return new Response('Not found', { status: 404, headers: CORS });
 
   const userId = settings.user_id as string;
   const timezone = (settings.timezone as string) ?? 'America/Toronto';
@@ -117,6 +135,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   return new Response(req.method === 'HEAD' ? null : body, {
     status: 200,
     headers: {
+      ...CORS,
       'content-type': 'text/calendar; charset=utf-8',
       'content-disposition': 'inline; filename="planner.ics"',
       // Clients poll often; a short cache spares the function without making
