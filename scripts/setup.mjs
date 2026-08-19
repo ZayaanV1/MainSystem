@@ -193,6 +193,8 @@ supabase(['functions', 'deploy', 'parse-food']);
 ok('parse-food deployed');
 supabase(['functions', 'deploy', 'assist']);
 ok('assist deployed');
+supabase(['functions', 'deploy', 'calendar']);
+ok('calendar deployed');
 
 /* ------------------------------------------------------------- rest api --- */
 

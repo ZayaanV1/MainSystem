@@ -226,6 +226,49 @@ export async function loadCalibrationPairs(): Promise<{ estimated: number; actua
   }));
 }
 
+/**
+ * Archives a course, or brings it back.
+ *
+ * Nothing is deleted. Last term's work is the record of what happened, and a
+ * planner that quietly discards it stops being trustworthy for the one
+ * question you eventually ask it — what did I actually do.
+ *
+ * Archiving only stops the course appearing in chips, filters and syllabus
+ * matching, which is the actual complaint by week two of a new term.
+ */
+export async function setCourseArchived(id: string, archived: boolean): Promise<void> {
+  await enqueue('courses', 'update', { archived }, { id });
+}
+
+/** Every course including archived ones, for the archive screen. */
+export async function loadAllCourses(): Promise<Course[]> {
+  const { data } = await supabase
+    .from('courses')
+    .select('id, name, code, colour_index, archived')
+    .order('archived')
+    .order('name');
+
+  return (data ?? []) as Course[];
+}
+
+/* -------------------------------------------------------- calendar feed --- */
+
+/**
+ * The subscribable feed URL, creating a token on first use.
+ *
+ * `rotate` is the revoke button: the old link stops working immediately, which
+ * matters because that URL is readable by anyone who has it.
+ */
+export async function calendarFeedUrl(userId: string, rotate = false): Promise<string | null> {
+  const { data, error } = await supabase.rpc('ensure_ics_token', {
+    p_user_id: userId,
+    p_rotate: rotate,
+  });
+
+  if (error || !data) return null;
+  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calendar?token=${data}`;
+}
+
 /* ------------------------------------------------------------ assignments */
 
 export async function addAssignment(
@@ -471,12 +514,16 @@ export interface DigestSettings {
   digest_enabled: boolean;
   assignment_window_days: number;
   event_window_days: number;
+  /** Off by default; a second recurring notification has to be asked for. */
+  weekly_review_enabled: boolean;
+  /** ISO weekday, 1 Monday to 7 Sunday. Shares the digest's send time. */
+  weekly_review_weekday: number;
 }
 
 export async function loadDigestSettings(): Promise<DigestSettings | null> {
   const { data } = await supabase
     .from('app_settings')
-    .select('digest_hour, digest_minute, digest_enabled, assignment_window_days, event_window_days')
+    .select('digest_hour, digest_minute, digest_enabled, assignment_window_days, event_window_days, weekly_review_enabled, weekly_review_weekday')
     .limit(1);
 
   return (data?.[0] as DigestSettings) ?? null;
@@ -502,6 +549,8 @@ export async function saveDigestSettings(
       digest_enabled: fields.digest_enabled,
       assignment_window_days: Math.min(90, Math.max(1, fields.assignment_window_days)),
       event_window_days: Math.min(90, Math.max(1, fields.event_window_days)),
+      weekly_review_enabled: fields.weekly_review_enabled,
+      weekly_review_weekday: Math.min(7, Math.max(1, fields.weekly_review_weekday)),
     })
     .eq('user_id', userId);
 

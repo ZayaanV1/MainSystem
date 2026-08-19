@@ -22,7 +22,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { deliver } from '../_shared/deliver.ts';
 import { buildDigest, renderTestMessage, type DigestSettings } from '../_shared/digest.ts';
 import { decideDigest } from '../_shared/schedule.ts';
-import { localDayKey, minutesSinceLocal } from '../_shared/time.ts';
+import { buildWeekly, decideWeekly } from '../_shared/weekly.ts';
+import { addDays, endOfDayUTC, localDayKey, minutesSinceLocal, startOfDayUTC } from '../_shared/time.ts';
 import {
   dueForEscalation,
   escalationKey,
@@ -103,6 +104,77 @@ interface SettingsRow extends DigestSettings {
   digest_hour: number;
   digest_minute: number;
   digest_enabled: boolean;
+  /** Off unless asked for; the weekly review shares the digest's send time. */
+  weekly_review_enabled: boolean;
+  weekly_review_weekday: number;
+}
+
+/**
+ * The rows behind a weekly review.
+ *
+ * Deliberately narrow. This runs unattended for every user on a fifteen-minute
+ * cron, so it fetches four small windows rather than anything open-ended.
+ */
+// deno-lint-ignore no-explicit-any
+async function gatherWeekly(admin: any, userId: string, today: string) {
+  const weekAgo = addDays(today, -7);
+  const weekAhead = addDays(today, 7);
+
+  const [finished, upcoming, overdue, deferralRows, openWork] = await Promise.all([
+    admin
+      .from('assignments')
+      .select('title')
+      .eq('user_id', userId)
+      .eq('status', 'done')
+      .gte('completed_at', startOfDayUTC(weekAgo).toISOString())
+      .lte('completed_at', endOfDayUTC(today).toISOString())
+      .limit(20),
+    admin
+      .from('assignments')
+      .select('title, due_at, effort_minutes')
+      .eq('user_id', userId)
+      .neq('status', 'done')
+      .gt('due_at', endOfDayUTC(today).toISOString())
+      .lte('due_at', endOfDayUTC(weekAhead).toISOString())
+      .limit(40),
+    admin
+      .from('assignments')
+      .select('title, due_at')
+      .eq('user_id', userId)
+      .neq('status', 'done')
+      .lt('due_at', startOfDayUTC(today).toISOString())
+      .limit(20),
+    admin.from('deferrals').select('assignment_id').eq('user_id', userId),
+    admin.from('assignments').select('id, title').eq('user_id', userId).neq('status', 'done'),
+  ]);
+
+  const counts = new Map<string, number>();
+  for (const row of (deferralRows.data ?? []) as { assignment_id: string }[]) {
+    counts.set(row.assignment_id, (counts.get(row.assignment_id) ?? 0) + 1);
+  }
+
+  const stuck = ((openWork.data ?? []) as { id: string; title: string }[])
+    .map((a) => ({ title: a.title, deferrals: counts.get(a.id) ?? 0 }))
+    .filter((a) => a.deferrals >= 6)
+    .sort((a, b) => b.deferrals - a.deferrals);
+
+  return {
+    today,
+    // deno-lint-ignore no-explicit-any
+    finished: ((finished.data ?? []) as any[]).map((a) => ({ title: a.title })),
+    // deno-lint-ignore no-explicit-any
+    upcoming: ((upcoming.data ?? []) as any[]).map((a) => ({
+      title: a.title,
+      due_day: localDayKey(new Date(a.due_at)),
+      effort_minutes: a.effort_minutes,
+    })),
+    // deno-lint-ignore no-explicit-any
+    overdue: ((overdue.data ?? []) as any[]).map((a) => ({
+      title: a.title,
+      due_day: localDayKey(new Date(a.due_at)),
+    })),
+    stuck,
+  };
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -140,7 +212,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (CRON_SECRET && timingSafeEqual(presented, CRON_SECRET)) {
     const { data, error } = await admin
       .from('app_settings')
-      .select('user_id, timezone, digest_hour, digest_minute, digest_enabled, assignment_window_days, event_window_days');
+      .select('user_id, timezone, digest_hour, digest_minute, digest_enabled, assignment_window_days, event_window_days, weekly_review_enabled, weekly_review_weekday');
 
     if (error) return json({ error: error.message }, 500);
 
@@ -172,6 +244,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
         sent: outcome.delivered,
         channel: outcome.channel,
         minutesLate: decision.minutesLate,
+        errors: outcome.errors,
+      });
+    }
+
+    // The weekly review runs on the same pass but is independent of the
+    // digest: both can go out on the same morning, and neither failing should
+    // stop the other.
+    for (const settings of (data ?? []) as SettingsRow[]) {
+      const localDay = localDayKey(now, settings.timezone);
+
+      const { count } = await admin
+        .from('delivery_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', settings.user_id)
+        .eq('kind', 'weekly')
+        .eq('local_day', localDay)
+        .eq('status', 'sent');
+
+      const decision = decideWeekly(settings, now, (count ?? 0) > 0);
+      if (!decision.send) continue;
+
+      const msg = buildWeekly(await gatherWeekly(admin, settings.user_id, decision.localDay));
+      const outcome = await deliver(deps, settings.user_id, 'weekly', decision.localDay, msg);
+
+      results.push({
+        user: settings.user_id,
+        weekly: outcome.delivered,
+        channel: outcome.channel,
         errors: outcome.errors,
       });
     }

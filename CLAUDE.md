@@ -83,7 +83,7 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **6 — intelligence. DONE**, 19 Aug 2026. Phases 0 to 5 done 17-19 Aug.
+Phase: **7 — extras. DONE**, 19 Aug 2026. All seven phases done 17-19 Aug.
 
 ### Phase 2 — digest and survival. DONE, 18 Aug 2026
 
@@ -256,11 +256,51 @@ avoided ones — so the rule that was meant to avoid hiding work ended up
 serving the single most avoided item. Stuck work is now held back unless it is
 all that is left, and work known to fit is preferred over work of unknown size.
 
-### Next: Phase 7 — extras
+### Phase 7 — extras. DONE, 19 Aug 2026
 
-Mood and energy check-in, doctor-appointment summary export, weekly review
-digest, a subscribable .ics feed, global search, term archiving. None of it is
-load-bearing, which is the point: the app is complete without it.
+Scoped to the organisational items on request: **no mood or energy check-in
+and no doctor-appointment export.** This is a tool for keeping academic work
+in order, and those two were the parts of Phase 7 that were not.
+
+Low-battery mode and the no-streak rules stay exactly as they were. They are
+friction reduction, not a wellbeing feature — they are what keeps the app
+usable in a bad week, which is the academic case as much as any other.
+
+**Global search** covers work, events, the inbox, courses and food from one
+box. Ranked so a title that starts with what you typed beats one that merely
+contains it, and open work beats finished — searching is nearly always a
+prelude to acting rather than auditing. Grouped by kind, because the first
+thing you know about what you are looking for is usually what sort of thing
+it is.
+
+**A subscribable .ics feed**, so deadlines appear in the calendar app that is
+already on the lock screen. This is the only endpoint served without a login,
+because a calendar client cannot present one, and the design follows from
+that: the token is 32 random bytes, a wrong one and a missing one return the
+same bare 404 so the endpoint is not an oracle, and only titles and times are
+published — never notes. "Replace the link" is the revoke button.
+
+RFC 5545 fails silently, so the tests are mostly about the format: a line over
+75 octets, an unescaped comma, or LF instead of CRLF, and a client accepts the
+feed and quietly drops events. Folding counts octets and never splits a
+multi-byte character.
+
+**Term archiving** hides a course from chips, filters and syllabus matching
+without touching its work. Last term's record is the one thing a planner must
+not quietly discard.
+
+**A weekly review**, off unless asked for, on a chosen weekday at the digest's
+own time. It names what was finished rather than counting it — "you finished
+4 things" invites a comparison with last week, which is the first step to a
+score. Nothing that did not happen is mentioned as a miss, and a quiet week
+gets a neutral sentence.
+
+Two things worth recording. Migration 0014 added `courses.archived_at` when
+0003 had already added `courses.archived`, complete with a partial index and a
+filter in the app's own query; 0015 drops the duplicate, because two columns
+for one fact is how a fact ends up with two answers. And a seed script hit
+PGRST102 again — one row with `completed_at`, two without — which is the same
+class `itemRows` exists to prevent, arriving in a place with no guard.
 
 ### A documented deviation from the colour law
 

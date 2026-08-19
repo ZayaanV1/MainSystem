@@ -8,6 +8,7 @@ import { fetchDeliveryLog, type DeliveryRow } from '../lib/health';
 import { pushStatus, subscribeToPush, type PushStatus } from '../lib/notifications';
 import { subscribeSw, type SwState } from '../lib/sw';
 import { DigestSettings } from './DigestSettings';
+import { calendarFeedUrl } from '../lib/planner';
 import { supabase } from '../lib/supabase';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 
@@ -32,7 +33,8 @@ const PUSH_COPY: Record<PushStatus, string> = {
 };
 
 export function Settings({ onBack }: { onBack: () => void }) {
-  const { signOut } = useAuth();
+  const { signOut, session } = useAuth();
+  const userId = session?.user.id ?? '';
 
   const [log, setLog] = useState<DeliveryRow[]>([]);
   const [push, setPush] = useState<PushStatus | null>(null);
@@ -200,6 +202,8 @@ export function Settings({ onBack }: { onBack: () => void }) {
         )}
       </section>
 
+      <CalendarFeed userId={userId} />
+
       <section className="mb-8">
         <h2 className="type-h2 mb-3 px-4 text-text-hi">Your data</h2>
         <Card className="p-4">
@@ -219,5 +223,83 @@ export function Settings({ onBack }: { onBack: () => void }) {
         </Button>
       </section>
     </main>
+  );
+}
+
+/**
+ * The subscribable calendar link.
+ *
+ * Deadlines belong where you already look. A planner you have to remember to
+ * open is competing with the calendar app on your lock screen, and it loses.
+ *
+ * The warning is not boilerplate. This is the one URL in the app that works
+ * without a login, because a calendar app cannot present one — so anyone the
+ * link reaches can read your deadlines until it is rotated. Saying that
+ * plainly, next to the button that reveals it, is the whole safeguard.
+ */
+function CalendarFeed({ userId }: { userId: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function reveal(rotate = false) {
+    setBusy(true);
+    setCopied(false);
+    const next = await calendarFeedUrl(userId, rotate);
+    setUrl(next);
+    setBusy(false);
+  }
+
+  async function copy() {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      // Clipboard access is refused in some contexts; the field below is
+      // selectable, so this is a missing convenience rather than a failure.
+      setCopied(false);
+    }
+  }
+
+  return (
+    <section className="mb-8">
+      <h2 className="type-h2 mb-1 px-4 text-text-hi">Calendar feed</h2>
+      <p className="type-note mb-3 px-4 text-text-low">
+        Subscribe to this in any calendar app and your deadlines appear there. Titles and times
+        only — never notes.
+      </p>
+
+      <div className="flex flex-col gap-3 px-4">
+        {url === null ? (
+          <div>
+            <Button variant="quiet" disabled={busy} onClick={() => void reveal(false)}>
+              {busy ? 'Getting the link' : 'Show the link'}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <input
+              readOnly
+              value={url}
+              onFocus={(e) => e.currentTarget.select()}
+              className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-quote text-text-mid"
+            />
+            <p className="type-note text-t-approaching">
+              Anyone with this link can read your deadlines. Replace it if it goes somewhere it
+              should not.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="quiet" onClick={() => void copy()}>
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
+              <Button variant="quiet" disabled={busy} onClick={() => void reveal(true)}>
+                Replace the link
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   );
 }

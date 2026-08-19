@@ -8,7 +8,13 @@ import { Field } from '../components/Field';
 import { useAuth } from '../lib/auth';
 import { dueTimestamp, parseBulk, summarise, type ParsedRow } from '../lib/bulk';
 import { enqueue } from '../lib/outbox';
-import { addCourse, courseVar, type Course } from '../lib/planner';
+import {
+  addCourse,
+  courseVar,
+  loadAllCourses,
+  setCourseArchived,
+  type Course,
+} from '../lib/planner';
 import { formatDay } from '../lib/time';
 
 /**
@@ -286,6 +292,13 @@ function CourseEditor({
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [open, setOpen] = useState(false);
+  const [managing, setManaging] = useState(false);
+  const [all, setAll] = useState<Course[]>([]);
+
+  // Loaded only when the archive is opened, and reloaded after each change.
+  // The normal course list already excludes archived ones, so this is the
+  // only place that needs the full set.
+  const refreshAll = () => void loadAllCourses().then(setAll);
 
   const nextColour = (courses.length % 8) + 1;
 
@@ -314,12 +327,59 @@ function CourseEditor({
     <section className="mb-8">
       <div className="mb-3 flex items-baseline justify-between gap-4 px-4">
         <h2 className="type-h2 text-text-hi">Courses</h2>
-        <button type="button" onClick={() => setOpen((v) => !v)} className="type-label text-text-mid">
-          {open ? 'Cancel' : 'Add'}
-        </button>
+        <div className="flex items-baseline gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              setManaging((v) => !v);
+              if (!managing) refreshAll();
+            }}
+            className="type-label text-text-mid"
+          >
+            {managing ? 'Done' : 'Archive'}
+          </button>
+          <button type="button" onClick={() => setOpen((v) => !v)} className="type-label text-text-mid">
+            {open ? 'Cancel' : 'Add'}
+          </button>
+        </div>
       </div>
 
-      {courses.length === 0 && !open ? (
+      {/*
+        Archiving a course only stops it appearing in chips, filters and
+        syllabus matching. Its work is untouched — last term's record is the
+        one thing a planner must not quietly discard, and the copy says so
+        rather than leaving "archive" to be read as "delete".
+      */}
+      {managing ? (
+        <div className="flex flex-col">
+          <p className="mb-2 px-4 type-note text-text-low">
+            Archiving hides a course from the lists. Everything you logged against it stays.
+          </p>
+          {all.map((c) => (
+            <div
+              key={c.id}
+              className="flex items-baseline justify-between gap-4 border-b border-ink-600 px-4 py-3 last:border-b-0"
+            >
+              <span className={`type-body ${c.archived ? 'text-text-low' : 'text-text-hi'}`}>
+                {c.code ?? c.name}
+                {c.archived && <span className="type-caption text-text-low"> archived</span>}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  void setCourseArchived(c.id, !c.archived).then(() => {
+                    refreshAll();
+                    onChanged();
+                  })
+                }
+                className="type-caption text-text-low"
+              >
+                {c.archived ? 'Restore' : 'Archive'}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : courses.length === 0 && !open ? (
         <EmptyState>No courses yet. Adding them lets a pasted syllabus match itself up.</EmptyState>
       ) : (
         <div className="flex flex-wrap gap-2 px-4">

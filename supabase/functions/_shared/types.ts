@@ -12,7 +12,7 @@
 
 export type ChannelKind = 'telegram' | 'webpush';
 
-export type DeliveryKind = 'digest' | 'test' | 'escalation' | 'reminder';
+export type DeliveryKind = 'digest' | 'test' | 'escalation' | 'reminder' | 'weekly';
 
 export type DeliveryStatus = 'sent' | 'failed' | 'skipped';
 

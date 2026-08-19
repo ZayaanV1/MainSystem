@@ -14,3 +14,8 @@ verify_jwt = false
 [functions.assist]
 # Same shape as the others: the function verifies the user JWT itself.
 verify_jwt = false
+
+[functions.calendar]
+# The only endpoint served without a login: a calendar app cannot present one.
+# The token in the query string is the credential, and the function checks it.
+verify_jwt = false

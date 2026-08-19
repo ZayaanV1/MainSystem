@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
 import { useAuth } from '../lib/auth';
 import {
@@ -120,6 +121,48 @@ export function DigestSettings({ onSaved }: { onSaved?: () => void }) {
           )}
 
           <div className="flex flex-wrap items-center gap-3">
+          {/*
+            A second recurring message, off unless asked for. It rides the
+            digest's send time rather than adding another pair of boxes: two
+            configurable times for two notifications is more setup than the
+            feature is worth.
+          */}
+          <div className="flex flex-col gap-3 border-t border-ink-600 pt-6">
+            <button
+              type="button"
+              onClick={() => set('weekly_review_enabled', !fields.weekly_review_enabled)}
+              aria-pressed={fields.weekly_review_enabled}
+              className="flex items-center gap-3 text-left"
+            >
+              <span
+                aria-hidden
+                className={[
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded-pill border-2',
+                  fields.weekly_review_enabled ? 'border-t-done bg-t-done' : 'border-ink-600',
+                ].join(' ')}
+              />
+              <span className="type-label text-text-hi">Weekly review</span>
+            </button>
+            <p className="type-note text-text-low">
+              What you finished, what is due next, and anything that has been sitting. Sent at the
+              same time as the digest.
+            </p>
+
+            {fields.weekly_review_enabled && (
+              <div className="flex flex-wrap gap-2">
+                {([1, 2, 3, 4, 5, 6, 7] as const).map((d) => (
+                  <Chip
+                    key={d}
+                    selected={fields.weekly_review_weekday === d}
+                    onClick={() => set('weekly_review_weekday', d)}
+                  >
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d - 1]}
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </div>
+
             <Button type="submit" variant="primary" disabled={saving}>
               {saving ? 'Saving' : 'Save'}
             </Button>
