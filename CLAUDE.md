@@ -1,6 +1,19 @@
 # CLAUDE.md
 
-Personal life planner. Single user, built for someone with ADHD and possible depression. Read this fully at the start of every session.
+A student planner, built as a product for other people to use. Read this fully
+at the start of every session.
+
+**This was a single-user personal app until 19 Aug 2026 and the change is
+permanent.** Anything still written as though there is one user, one timezone
+or one set of targets is a leftover, not a decision — fix it rather than
+matching it. The known ones are listed under "Carried over from the single-user
+build" below.
+
+What has NOT changed is what the app is for: getting academic work and daily
+obligations in order with as little friction as possible. The design rules
+below were written for one person and they survive the move, because low
+friction and never scolding the user are good product principles, not personal
+accommodations.
 
 Full spec: `docs/spec.md` · Design tokens: `docs/design-system.md`
 
@@ -8,9 +21,20 @@ Full spec: `docs/spec.md` · Design tokens: `docs/design-system.md`
 
 ## The thing to understand first
 
-The hard part of this project is not the features. It's that the app has to stay openable on a bad week. A technically correct planner that feels like a chore is a failed planner, and the failure is silent — it just stops getting opened one day and never gets opened again.
+The hard part of this project is not the features. It's that the app has to
+stay openable in a bad week. A technically correct planner that feels like a
+chore is a failed planner, and the failure is silent — it just stops getting
+opened one day and never gets opened again. For a product, that failure has a
+name: churn, and it happens before anyone writes a review explaining why.
 
-So when a tradeoff comes up between "more capable" and "less friction," take less friction. Every time.
+So when a tradeoff comes up between "more capable" and "less friction," take
+less friction. Every time.
+
+Being a product adds a second rule of the same kind: **nothing may assume the
+user is the person who built it.** No seeded personal data, no hardcoded
+timezone, no target that is somebody's actual bulk. A new account opening the
+app for the first time is now the most important screen in the build, and it
+is the one with the least work in it.
 
 ---
 
@@ -69,7 +93,14 @@ If asked to add one mid-build, push back and say why before complying. Scope cre
 
 React + Vite + TypeScript + Tailwind, PWA · Supabase (Postgres, auth, RLS, edge functions) · Cloudflare Pages or Vercel · scheduled edge function for the 07:00 digest · one swappable LLM module shared by the diet parser and the chatbot · USDA FoodData Central + Open Food Facts.
 
-Free tiers only, permanently. If something can't be done free, say so rather than assuming a paid tier.
+Free tiers were the rule while this served one person, and they do not survive
+contact with many. One shared Gemini key funds every user's food parsing and
+every user's chat; Supabase's free row and bandwidth limits are a single pool.
+
+Until there is a decision on this, treat the free tier as a hard constraint and
+say plainly when a feature would breach it — but do not design as though it
+scales, and do not quietly assume a paid tier either. Per-user cost is now a
+design input, not an afterthought.
 
 ## Conventions
 
@@ -80,6 +111,43 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 - Every table has RLS enabled. Data must not be publicly readable.
 
 ---
+
+## Carried over from the single-user build
+
+Found by audit on 19 Aug 2026, in the order they should be fixed. The schema
+itself is already multi-user: RLS is `auth.uid() = user_id` on every table, a
+trigger creates `app_settings` on signup, and the scheduler already iterates
+every user. None of the below needs re-architecting.
+
+1. **Timezone is a module constant.** `_shared/time.ts` exports
+   `TZ = 'America/Toronto'`, and every "today", every local-day key and every
+   due-date render goes through it. `app_settings.timezone` already exists and
+   the digest already reads it — the client does not. A user in Vancouver
+   currently has their day computed three hours out, which silently moves what
+   "due today" means. This is the deepest one and the most dangerous, because
+   it is the confidently-wrong-deadline failure sitting at the foundation.
+   `src/routes/Today.tsx` and `src/lib/month.ts` hardcode the zone separately.
+
+2. **There is no way to sign up.** `auth.tsx` only calls
+   `signInWithPassword`; the one existing account was created by `setup.mjs`.
+
+3. **The macro targets are one person's.** Migration 0010 seeds 2,900-3,100
+   kcal and 160-175 g of protein across `auth.users` at migration time. Those
+   are a specific person's lean-bulk numbers, and a new account gets none at
+   all because the seed already ran. Needs a default that is either absent
+   until asked for, or derived from something the user tells us.
+
+4. **Nothing onboards.** A fresh account has no courses, no checklist and no
+   targets. Every screen has an honest empty state, which is not the same as
+   a first run that goes somewhere.
+
+5. **One Gemini key serves everyone.** `CHAT_CALLS_PER_DAY` is counted per
+   user in `ai_usage`, but the quota underneath it is global — one heavy user
+   can exhaust food parsing for all of them. See the stack note on free tiers.
+
+6. **`setup.mjs` provisions a person, not an environment.** It creates the
+   account and seeds that account's data. For a product it should set up the
+   project and nothing else.
 
 ## Current status
 
