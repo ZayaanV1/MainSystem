@@ -83,7 +83,9 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **2 — digest and survival. DONE**, 18 Aug 2026. Phases 0 and 1 done 17-18 Aug.
+Phase: **3 — diet tracker. DONE**, 19 Aug 2026. Phases 0 to 2 done 17-18 Aug.
+
+### Phase 2 — digest and survival. DONE, 18 Aug 2026
 
 Every Phase 2 item ships: configurable digest time and both windows, exam
 escalation at T-1, per-item reminders, and low-battery mode.
@@ -102,26 +104,61 @@ everything escalates nothing does. A reminder about something already ticked is
 never sent — verified live in both directions, with the dedupe record cleared
 first so only the done-check could suppress it.
 
-### Open, and none of it blocks Phase 3
+### Phase 3 — diet tracker. DONE, 19 Aug 2026
 
-- **The Web Push soak.** Web Push leads at priority 10, Telegram at 20 catches
-  misses. Escalation and reminder tests both delivered via Web Push, which is
-  encouraging but not the soak — that needs five clean 07:00 digests.
+Every Phase 3 item ships except camera barcode scanning, which was a deliberate
+call rather than an omission — see below.
+
+Four ways in, one way out. Typed food goes to Gemini; a photo goes to the same
+model; a barcode goes to Open Food Facts; an unbranded food goes to USDA
+FoodData Central. All four land on the same editable confirmation screen, and
+**nothing is written until it is confirmed**. Every path can be skipped
+entirely: "Add by hand" is a visible button, not a sentence in an error.
+
+**Provenance is recorded, not implied.** Every entry keeps its source and its
+raw text, and every item keeps a `source_ref` — `off:` for a barcode, `fdc:`
+for a USDA match. A model's low confidence arrives as an "Estimated" toggle
+already set, which can be cleared once the chicken is actually weighed. The
+point is that a month later you can still tell which numbers you chose, which
+were read off a label, and which a model guessed.
+
+**Saved meals keep the one-tap promise literally.** The portion selector
+defaults to 1, so a tap logs a portion. It is sticky across chips and resets on
+every visit, because a portion left at 2 from yesterday is a silent way to log
+twice what you ate.
+
+**Targets are versioned and the date is visible.** Changing today's protein
+goal must not decide you were off target every day in July, and hiding the
+effective date would make the mechanism invisible even though it works.
+Verified live: raising protein today left 18 Aug still reading 160-175.
+
+**The trend chart breaks its line across weeks with no weigh-ins.** A straight
+segment across three unmeasured weeks draws a trend that was never observed.
+Gaps read "not weighed", never zero, and no direction is graded.
+
+### Open, carried into Phase 4
+
+- **The Web Push soak.** Still wants five clean 07:00 digests.
 - **The free-tier pause.** Confirm around 24 Aug the project is awake.
 - **Offline durability on real hardware**, still untested: capture something in
-  airplane mode and reopen.
+  airplane mode and reopen. The browser used for verification can host neither
+  IndexedDB nor a service worker, so this cannot be checked from here.
+- **Camera barcode scanning was not built.** iOS Safari has no
+  `BarcodeDetector`, and a decoding library is a large dependency for a path
+  that already works — the digits are printed under the barcode and the packet
+  is in your hand when you are logging it. Say if you want it for Android or a
+  laptop webcam anyway.
+- **Photo logging is verified through the API but not through the camera.** A
+  real Gemini vision response came back correctly, low-confidence and all, from
+  a generated image. The iOS file picker itself has never been exercised.
 
-### Next: Phase 3 — diet tracker
+### Next: Phase 4 — AI leverage
 
-The largest phase, and the first to need an outside dependency. Natural-language
-food parsing behind one swappable LLM module, structured JSON validated before
-it touches the database, a mandatory confirmation step, USDA and Open Food
-Facts lookups preferred over model guesses, barcode scanning, saved meals, and
-the four macro rings. The Ring component and the macro tokens have been waiting
-since Phase 0.5.
-
-Two things to settle before building it: which free-tier LLM, and that its
-data-use policy is acceptable for food and medication data.
+Syllabus import from a PDF, the task-breakdown button, and the protein-gap meal
+suggestion. The first two are the same shape as the food parser — extract,
+validate, confirm before writing — so the LLM module and the confirmation
+pattern both carry over. The third needs nothing new: the macro totals and the
+saved meals are already there.
 
 ### A documented deviation from the colour law
 
