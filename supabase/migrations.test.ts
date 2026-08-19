@@ -195,14 +195,16 @@ beforeAll(async () => {
 }, 60_000);
 
 describe('migrations apply', () => {
-  it('creates every table across all three phases', async () => {
+  it('creates every table across every phase so far', async () => {
     const res = await db.query<{ tablename: string }>(
       `select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );
     expect(res.rows.map((r) => r.tablename)).toEqual([
+      'ai_usage',
       'app_settings',
       'assignments',
       'bodyweight',
+      'chat_messages',
       'checklist_completions',
       'checklist_items',
       'courses',

@@ -108,6 +108,30 @@ export async function readSyllabus(input: {
   };
 }
 
+export interface ChatResponse {
+  ok: true;
+  reply: string;
+  action: Record<string, unknown> | null;
+  referenced: string[];
+  warnings: string[];
+  /** Questions left in today's self-imposed budget. */
+  remaining: number;
+}
+
+export async function askChat(message: string): Promise<ChatResponse | AssistFailure> {
+  const body = await call({ task: 'chat', message });
+  if (body.ok !== true) return failureOf(body);
+
+  return {
+    ok: true,
+    reply: String(body.reply ?? ''),
+    action: (body.action ?? null) as Record<string, unknown> | null,
+    referenced: (body.referenced ?? []) as string[],
+    warnings: (body.warnings ?? []) as string[],
+    remaining: Number(body.remaining ?? 0),
+  };
+}
+
 /**
  * Reads a file as base64 for the syllabus request.
  *

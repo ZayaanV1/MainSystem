@@ -18,12 +18,33 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { geminiProvider } from '../_shared/llm/gemini.ts';
 import { BREAKDOWN_INSTRUCTION, BREAKDOWN_SCHEMA, validateBreakdown } from '../_shared/breakdown.ts';
 import { SYLLABUS_INSTRUCTION, SYLLABUS_SCHEMA, validateSyllabus } from '../_shared/syllabus.ts';
+import { CHAT_INSTRUCTION, CHAT_SCHEMA, validateChat } from '../_shared/chat.ts';
+import { buildContext } from '../_shared/context.ts';
+import { localDayKey } from '../_shared/time.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
 
 const SUPABASE_URL = env('SUPABASE_URL');
 const SERVICE_ROLE_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
 const APP_URL = env('APP_URL');
+
+/**
+ * How many model calls a day the chatbot may make before it stands down.
+ *
+ * The chatbot and the diet parser share one free-tier quota, and they are not
+ * equally important: logging food is a thing the app exists to do, and asking
+ * it a question is a convenience. So the chatbot stops first and says why,
+ * rather than both hitting the wall together halfway through a meal.
+ *
+ * Deliberately not derived from Google's published limits. Those change, are
+ * per-model, and are not visible from here — a number invented from them would
+ * be a guess dressed as a policy. This is a self-imposed budget instead, and
+ * running into Google's real limit is still handled as a 'quota' failure.
+ */
+const CHAT_CALLS_PER_DAY = Number(Deno.env.get('CHAT_CALLS_PER_DAY') ?? '40');
+
+/** How many turns of history to send. Enough to follow a thread, bounded. */
+const HISTORY_TURNS = 8;
 
 /** A syllabus PDF. Larger than a meal photo, and they do run long. */
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
@@ -63,6 +84,160 @@ const FAILURE_COPY: Record<string, string> = {
   retired: 'The configured model is no longer available. This needs GEMINI_MODEL set to a current model.',
 };
 
+/**
+ * Fetches the bounded slice of the user's data the chatbot may see.
+ *
+ * Every query is filtered by user_id even though the service role bypasses
+ * RLS. The row-level policies are the guarantee, but a function that relied on
+ * them silently would break the moment it was called with the wrong id, and
+ * there is exactly one user to get wrong.
+ *
+ * All of it is bounded. Open work only, a month of events, today's food, the
+ * last handful of weigh-ins — a context that grew with the food log would
+ * eventually cost more per question than the answer is worth.
+ */
+// deno-lint-ignore no-explicit-any
+async function gatherContext(admin: any, userId: string, today: string) {
+  const monthOut = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [assignments, events, checklist, completions, entries, targets, meals, weights] =
+    await Promise.all([
+      admin
+        .from('assignments')
+        .select('id, title, due_at, due_has_time, status, effort_minutes, created_at, courses(code, name)')
+        .eq('user_id', userId)
+        .neq('status', 'done')
+        .order('due_at', { ascending: true, nullsFirst: false })
+        .limit(60),
+      admin
+        .from('events')
+        .select('id, title, kind, starts_at, all_day, courses(code, name)')
+        .eq('user_id', userId)
+        .lte('starts_at', monthOut)
+        .gte('starts_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .order('starts_at', { ascending: true })
+        .limit(40),
+      admin
+        .from('checklist_items')
+        .select('id, title, doses_remaining, tracks_doses')
+        .eq('user_id', userId)
+        .eq('active', true)
+        .order('sort_order', { ascending: true }),
+      admin.from('checklist_completions').select('item_id').eq('user_id', userId).eq('local_day', today),
+      admin
+        .from('food_entries')
+        .select('food_items(name, calories, protein_g, carbs_g, fat_g)')
+        .eq('user_id', userId)
+        .eq('local_day', today),
+      admin
+        .from('macro_targets')
+        .select('*')
+        .eq('user_id', userId)
+        .lte('effective_from', today)
+        .order('effective_from', { ascending: false })
+        .limit(1),
+      admin
+        .from('saved_meals')
+        .select('id, name, items')
+        .eq('user_id', userId)
+        .order('last_used_at', { ascending: false, nullsFirst: false })
+        .limit(12),
+      admin
+        .from('bodyweight')
+        .select('local_day, kg')
+        .eq('user_id', userId)
+        .order('local_day', { ascending: false })
+        .limit(5),
+    ]);
+
+  const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
+  const courseOf = (row: { courses?: { code?: string; name?: string } | null }) =>
+    row.courses?.code ?? row.courses?.name ?? null;
+
+  const doneToday = new Set(
+    ((completions.data ?? []) as { item_id: string }[]).map((c) => c.item_id),
+  );
+
+  const items = ((entries.data ?? []) as { food_items: Record<string, unknown>[] | null }[]).flatMap(
+    (e) => e.food_items ?? [],
+  );
+
+  interface Totals { calories: number; protein_g: number; carbs_g: number; fat_g: number }
+
+  const totals = items.reduce<Totals>(
+    (acc, i) => ({
+      calories: acc.calories + num(i.calories),
+      protein_g: acc.protein_g + num(i.protein_g),
+      carbs_g: acc.carbs_g + num(i.carbs_g),
+      fat_g: acc.fat_g + num(i.fat_g),
+    }),
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+  );
+
+  const t = targets.data?.[0];
+
+  return buildContext({
+    today,
+    now: new Date().toLocaleTimeString('en-CA', { timeZone: 'America/Toronto', hour: '2-digit', minute: '2-digit', hour12: false }),
+    // deno-lint-ignore no-explicit-any
+    assignments: ((assignments.data ?? []) as any[]).map((a) => ({
+      id: a.id,
+      title: a.title,
+      due_at: a.due_at,
+      due_has_time: a.due_has_time,
+      status: a.status,
+      effort_minutes: a.effort_minutes,
+      course: courseOf(a),
+      created_at: a.created_at,
+    })),
+    // deno-lint-ignore no-explicit-any
+    events: ((events.data ?? []) as any[]).map((e) => ({
+      id: e.id,
+      title: e.title,
+      kind: e.kind,
+      starts_at: e.starts_at,
+      all_day: e.all_day,
+      course: courseOf(e),
+    })),
+    // deno-lint-ignore no-explicit-any
+    checklist: ((checklist.data ?? []) as any[]).map((c) => ({
+      id: c.id,
+      title: c.title,
+      done_today: doneToday.has(c.id),
+      doses_remaining: c.tracks_doses ? num(c.doses_remaining) : null,
+    })),
+    food: {
+      totals,
+      targets: t
+        ? {
+            calories: [num(t.calories_min), num(t.calories_max)],
+            protein: [num(t.protein_min), num(t.protein_max)],
+            carbs: [num(t.carbs_min), num(t.carbs_max)],
+            fat: [num(t.fat_min), num(t.fat_max)],
+          }
+        : null,
+      items: items.map((i) => ({
+        name: String(i.name ?? ''),
+        calories: num(i.calories),
+        protein_g: num(i.protein_g),
+      })),
+    },
+    // deno-lint-ignore no-explicit-any
+    savedMeals: ((meals.data ?? []) as any[]).map((m) => {
+      // deno-lint-ignore no-explicit-any
+      const mi = (m.items ?? []) as any[];
+      return {
+        id: m.id,
+        name: m.name,
+        calories: mi.reduce((sum, i) => sum + num(i.calories), 0),
+        protein_g: mi.reduce((sum, i) => sum + num(i.protein_g), 0),
+      };
+    }),
+    // deno-lint-ignore no-explicit-any
+    weights: ((weights.data ?? []) as any[]).map((w) => ({ local_day: w.local_day, kg: num(w.kg) })),
+  });
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   const CORS = corsFor(req);
 
@@ -96,6 +271,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     pdf?: { data: string; mimeType: string };
     termFrom?: string;
     termTo?: string;
+    message?: string;
   };
   try {
     body = await req.json();
@@ -195,6 +371,79 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     return json({ ok: true, provider: result.provider, ...validated });
+  }
+
+  /* ----------------------------------------------------------------- chat */
+  if (body.task === 'chat') {
+    const message = (body.message ?? '').trim().slice(0, 2_000);
+    if (!message) return json({ error: 'nothing to say' }, 400);
+
+    const userId = userData.user.id;
+    const today = localDayKey(new Date());
+
+    // The budget check comes before the model call, so standing down costs
+    // nothing. Read rather than incremented here; the increment happens only
+    // if a call is actually made.
+    const { data: usage } = await admin
+      .from('ai_usage')
+      .select('count')
+      .eq('user_id', userId)
+      .eq('local_day', today)
+      .eq('kind', 'chat')
+      .maybeSingle();
+
+    if ((usage?.count ?? 0) >= CHAT_CALLS_PER_DAY) {
+      return json({
+        ok: false,
+        failure: 'quota',
+        reason:
+          'That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow.',
+      });
+    }
+
+    const context = await gatherContext(admin, userId, today);
+
+    const { data: history } = await admin
+      .from('chat_messages')
+      .select('role, content')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(HISTORY_TURNS);
+
+    const priorTurns = ((history ?? []) as { role: string; content: string }[])
+      .reverse()
+      .map((m) => `${m.role === 'user' ? 'They asked' : 'You answered'}: ${m.content}`)
+      .join('\n');
+
+    const input = [
+      'THEIR DATA',
+      context.text,
+      '',
+      priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
+      `THEY NOW ASK: ${message}`,
+    ].join('\n');
+
+    const result = await provider.complete<unknown>({
+      instruction: CHAT_INSTRUCTION,
+      input,
+      schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
+      timeoutMs: 45_000,
+    });
+
+    // Counted after the call is made rather than before, so a failed request
+    // does not spend budget the user never got an answer from.
+    await admin.rpc('record_ai_use', { p_user_id: userId, p_local_day: today, p_kind: 'chat' });
+
+    if (!result.ok) return fail(result.failure, result.message);
+
+    const validated = validateChat(result.value, context.knownIds);
+
+    return json({
+      ok: true,
+      provider: result.provider,
+      ...validated,
+      remaining: Math.max(0, CHAT_CALLS_PER_DAY - ((usage?.count ?? 0) + 1)),
+    });
   }
 
   return json({ error: `unknown task: ${body.task ?? '(none)'}` }, 400);

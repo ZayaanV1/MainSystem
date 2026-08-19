@@ -9,6 +9,7 @@ import { Today } from './routes/Today';
 import { Plan } from './routes/Plan';
 import { Week } from './routes/Week';
 import { Month } from './routes/Month';
+import { Chat } from './routes/Chat';
 import { Diet } from './routes/Diet';
 import { AssignmentEditor } from './routes/AssignmentEditor';
 import { Settings } from './routes/Settings';
@@ -23,7 +24,7 @@ import { Specimen } from './routes/Specimen';
  * linkable from outside — a notification deep link into a specific assignment
  * would be the moment.
  */
-type Screen = 'today' | 'week' | 'month' | 'plan' | 'food' | 'settings';
+type Screen = 'today' | 'week' | 'month' | 'plan' | 'food' | 'ask' | 'settings';
 
 /** Shown before setup has been run, instead of a white screen and a console error. */
 function NotConfigured() {
@@ -118,6 +119,14 @@ function Shell() {
 
       {screen === 'food' && <Diet onBack={() => setScreen('today')} />}
 
+      {screen === 'ask' && (
+        <Chat
+          courses={data?.courses ?? []}
+          onBack={() => setScreen('today')}
+          onChanged={() => setRevision((r) => r + 1)}
+        />
+      )}
+
       {screen === 'plan' && (
         <Plan
           courses={data?.courses ?? []}
@@ -136,6 +145,7 @@ function Shell() {
           onOpenWeek={() => setScreen('week')}
           onOpenMonth={() => setScreen('month')}
           onOpenFood={() => setScreen('food')}
+          onOpenAsk={() => setScreen('ask')}
           onData={setData}
         />
       </div>

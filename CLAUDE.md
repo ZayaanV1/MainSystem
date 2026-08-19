@@ -83,7 +83,7 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **4 — AI leverage. DONE**, 19 Aug 2026. Phases 0 to 3 done 17-19 Aug.
+Phase: **5 — chatbot. DONE**, 19 Aug 2026. Phases 0 to 4 done 17-19 Aug.
 
 ### Phase 2 — digest and survival. DONE, 18 Aug 2026
 
@@ -182,13 +182,52 @@ past its band when one portion landed it squarely in range. The app enforces
 the calorie ceiling, so ignoring the protein one was an inconsistency rather
 than a decision. Overshoot now costs a third of what falling short does.
 
-### Next: Phase 5 — chatbot
+### Phase 5 — chatbot. DONE, 19 Aug 2026
 
-Read access over the user's own data, write actions behind the same
-confirmation step everything else uses, persisted history, and honest "I don't
-know". The LLM module, the validation habit and the confirm-before-write
-pattern all carry over; what is new is data access scoping and conversation
-state.
+**It answers only from a bounded slice of your own data.** Open work, a month
+of events, today's checklist and food, saved meals, recent weigh-ins. Scoping
+is a correctness feature before a privacy one: the model can only be
+confidently wrong about data it was given, so everything left out becomes an
+honest "I don't have that" instead of a guess. Verified — asked for a midterm
+score it was never given, it said so rather than inventing one.
+
+**Three mechanisms carry "never a confidently wrong deadline", none of them
+the prompt.** The model must cite the ids it used; ids it was never given are
+dropped as fabrications; and a proposed action naming an unknown id is refused
+before it can reach a confirmation screen, where it would look exactly as
+legitimate as a real one.
+
+**Write actions are proposals.** Same confirmation step as parsed food and
+extracted syllabus dates. A declined proposal stays in the transcript, because
+deleting it would make the history read as though nothing was offered. Each
+action runs through the same function the rest of the app uses, so a
+chatbot-created assignment is identical to a hand-typed one.
+
+**The shared quota has an explicit policy.** The chatbot and the diet parser
+draw on one free tier, and they are not equally important: logging food is
+something the app exists to do, asking it a question is a convenience. So chat
+calls are counted per local day and the chatbot stands down at
+`CHAT_CALLS_PER_DAY` (default 40) with a sentence saying the rest is kept for
+food, rather than both hitting the wall together mid-meal. The budget is
+self-imposed rather than derived from Google's published limits, which change,
+are per-model and are not visible from here — a number inferred from them
+would be a guess dressed as a policy. Hitting Google's real limit is still
+handled as a quota failure.
+
+That last one produced the phase's real bug, and it is the exact failure the
+spec names. Asked when a lab was due, the first live answer was "2026-08-21 at
+03:59" — the raw UTC timestamp, read out as though it were local. The real
+deadline was Thursday 23:59. Every stored instant is UTC and slicing the ISO
+string is the obvious thing to do and silently moves a deadline a day. The
+context now converts through the same time layer as everything else, with
+tests across a DST boundary and under four host timezones.
+
+### Next: Phase 6 — intelligence
+
+"What now?" as one button and one task; the workload forecast; estimated
+versus actual time with calibration; and deferral surfacing. The last of these
+needs a deferral count that nothing currently records, so it starts with a
+migration rather than a screen.
 
 ### A documented deviation from the colour law
 
@@ -250,6 +289,14 @@ actually reached the database. Worth remembering as a working method.
   ago and is already absent from the count, so recovering a rough week
   silently destroyed the number meant to protect you. Today spends; any other
   day only records.
+- **The chatbot read UTC out as local time.** Asked when a lab was due it
+  answered "2026-08-21 at 03:59", which is the raw stored instant; the real
+  deadline was Thursday 23:59. Every timestamp in the database is UTC and
+  slicing the ISO string is the obvious move, so the context claimed dates
+  were local while handing over UTC. This is precisely the confidently wrong
+  deadline the spec calls worse than no chatbot, and it passed a first live
+  test looking entirely plausible. The context now converts through the same
+  time layer as the rest of the app.
 - **A hardcoded model name retired underneath the app.** `gemini-2.5-flash`
   stopped being issued to new keys, and the 404 surfaced as "could not reach
   the model" — advice to retry, for a fault retrying cannot fix. The model is
