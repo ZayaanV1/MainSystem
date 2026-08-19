@@ -46,7 +46,7 @@ export interface FoodEntry {
   id: string;
   local_day: DayKey;
   logged_at: string;
-  source: 'manual' | 'ai' | 'barcode' | 'photo' | 'saved';
+  source: 'manual' | 'ai' | 'barcode' | 'photo' | 'saved' | 'search';
   raw_text: string | null;
 }
 

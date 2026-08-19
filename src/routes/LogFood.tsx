@@ -5,6 +5,7 @@ import { Sheet } from '../components/Sheet';
 import { logEntry, saveMeal, type FoodEntry, type NewItem } from '../lib/diet';
 import { isBarcode, lookupBarcode, productToItem, type BarcodeProduct } from '../lib/barcode';
 import { parseFood, readImage } from '../lib/parseFood';
+import { foodToItem, searchFoods, type UsdaFood } from '../lib/usda';
 import type { DayKey } from '../lib/time';
 
 /**
@@ -73,6 +74,11 @@ export function LogFood({
   const [source, setSource] = useState<FoodEntry['source']>('manual');
   const [mealName, setMealName] = useState('');
 
+  const [query, setQuery] = useState('');
+  const [matches, setMatches] = useState<UsdaFood[] | null>(null);
+  const [picked, setPicked] = useState<UsdaFood | null>(null);
+  const [pickedGrams, setPickedGrams] = useState('100');
+
   const [code, setCode] = useState('');
   const [scanned, setScanned] = useState<BarcodeProduct | null>(null);
   const [grams, setGrams] = useState('100');
@@ -90,6 +96,10 @@ export function LogFood({
     setCode('');
     setScanned(null);
     setGrams('100');
+    setQuery('');
+    setMatches(null);
+    setPicked(null);
+    setPickedGrams('100');
     setBusy(false);
   }
 
@@ -146,6 +156,40 @@ export function LogFood({
       return;
     }
     await runParse({ image }, 'photo');
+  }
+
+  async function search() {
+    setBusy(true);
+    setProblem(null);
+    setPicked(null);
+
+    const result = await searchFoods(query);
+    setBusy(false);
+
+    if (!result.ok) {
+      setMatches(null);
+      setProblem(result.reason);
+      return;
+    }
+
+    setMatches(result.foods);
+  }
+
+  function acceptPicked() {
+    if (!picked) return;
+    const weight = Number(pickedGrams);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      setProblem('Enter how many grams you had.');
+      return;
+    }
+
+    setItems([{ ...foodToItem(picked, weight), unsure: false }]);
+    setWarnings([]);
+    setRawText(`${picked.description} · USDA ${picked.fdcId}`);
+    setSource('search');
+    setPicked(null);
+    setMatches(null);
+    setStage('confirm');
   }
 
   async function lookUp() {
@@ -275,6 +319,94 @@ export function LogFood({
           </div>
 
           {/*
+            Searching the USDA reference data, which is the right answer for
+            unbranded food: "150 g chicken breast" has a measured value, and
+            asking a language model to recall it is strictly worse than
+            looking it up. Branded products are excluded here because they are
+            barcode territory, below.
+          */}
+          <div className="flex flex-col gap-3 border-t border-ink-600 pt-6">
+            <Field
+              label="Or search a food"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setMatches(null);
+                setPicked(null);
+              }}
+              placeholder="chicken breast raw"
+              hint="Measured reference values from USDA FoodData Central."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && query.trim().length > 1 && !busy) {
+                  e.preventDefault();
+                  void search();
+                }
+              }}
+            />
+
+            <div>
+              <Button
+                type="button"
+                variant="quiet"
+                disabled={query.trim().length < 2 || busy}
+                onClick={() => void search()}
+              >
+                {busy ? 'Searching' : 'Search'}
+              </Button>
+            </div>
+
+            {matches && !picked && (
+              <div className="flex flex-col">
+                {matches.map((food) => (
+                  <button
+                    key={food.fdcId}
+                    type="button"
+                    onClick={() => {
+                      setPicked(food);
+                      setPickedGrams('100');
+                    }}
+                    className="flex flex-col items-start gap-1 border-b border-ink-600 py-3 text-left last:border-b-0"
+                  >
+                    <span className="type-body text-text-hi">{food.description}</span>
+                    <span className="type-note text-text-low">
+                      Per 100 g: {food.per100g.calories} kcal, P {food.per100g.protein_g}, C{' '}
+                      {food.per100g.carbs_g}, F {food.per100g.fat_g}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {picked && (
+              <div className="flex flex-col gap-3 rounded-card border border-ink-600 p-3">
+                <p className="type-body text-text-hi">{picked.description}</p>
+                <p className="type-note text-text-low">
+                  Per 100 g: {picked.per100g.calories} kcal, P {picked.per100g.protein_g}, C{' '}
+                  {picked.per100g.carbs_g}, F {picked.per100g.fat_g}
+                </p>
+
+                <Field
+                  label="How many grams?"
+                  type="number"
+                  inputMode="decimal"
+                  min="1"
+                  value={pickedGrams}
+                  onChange={(e) => setPickedGrams(e.target.value)}
+                />
+
+                <div className="flex flex-wrap gap-3">
+                  <Button type="button" variant="primary" onClick={acceptPicked}>
+                    Use this
+                  </Button>
+                  <Button type="button" variant="quiet" onClick={() => setPicked(null)}>
+                    Pick another
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/*
             Barcodes are typed rather than scanned. iOS Safari has no
             BarcodeDetector, and a camera scanner built on a decoding library
             is a large dependency for a path that already works: the number is
@@ -351,9 +483,7 @@ export function LogFood({
             Nothing is saved until you tap Log it. Change anything that looks wrong.
           </p>
 
-          {rawText && source !== 'manual' && (
-            <p className="type-quote text-text-low">{rawText}</p>
-          )}
+          {rawText && <p className="type-note text-text-low">{rawText}</p>}
 
           <div className="flex flex-col gap-4">
             {items.map((item, index) => (

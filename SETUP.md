@@ -86,16 +86,42 @@ npm run dev
 Push the repo to GitHub, then import it at <https://vercel.com/new>. Framework
 preset Vite; it needs no build configuration.
 
-Add two environment variables in Vercel, copied from your local `.env.local`:
+Add these environment variables in Vercel, copied from your local `.env.local`:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_VAPID_PUBLIC_KEY`
+- `VITE_USDA_API_KEY` — optional, see below
 
 Both Supabase values are public by design. The anon key ships in the browser
 bundle and grants access to nothing on its own — row level security is what
 protects the data, and there are tests proving one account cannot read
 another's rows.
+
+### Optional keys
+
+**Gemini**, for parsing typed food and photos. Without it the parser says so
+and the by-hand path still works. Get a free key at
+<https://aistudio.google.com/apikey>, then:
+
+```bash
+npm run secret GEMINI_API_KEY=your-key
+```
+
+This is a server secret and never reaches the browser. If Google retires the
+model, the app names the replacement in its own error message; set it with
+`npm run secret GEMINI_MODEL=...`.
+
+**USDA FoodData Central**, for the food search. This one works with no key at
+all — it falls back to `DEMO_KEY`, which allows roughly 30 requests an hour
+from one address. A free key at <https://fdc.nal.usda.gov/api-key-signup.html>
+raises that to 1,000. Set it as `VITE_USDA_API_KEY` in `.env.local` and in
+Vercel.
+
+Unlike the Gemini key, this one ships in the browser bundle. That is
+acceptable because it is a rate-limit key rather than a credential: it grants
+access to a public reference database and nothing else, and there is no
+spending attached to it.
 
 Once Vercel gives you a URL, point the backend at it so notification deep
 links work:
