@@ -126,8 +126,8 @@ export function AssignmentRow({
           <span className="type-caption" style={{ color: `var(${urgency.colourVar})` }}>
             {urgency.label}
           </span>
-          {dueLabel && <span className="type-caption text-text-low">{dueLabel}</span>}
-          {course && <span className="type-caption text-text-low">{course.code ?? course.name}</span>}
+          {dueLabel && <span className="action-chip-sm type-caption">{dueLabel}</span>}
+          {course && <span className="action-chip-sm type-caption">{course.code ?? course.name}</span>}
           {showStart && start && (
             <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
           )}

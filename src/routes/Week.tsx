@@ -77,7 +77,7 @@ export function Week({
             {formatDay(today)} to {formatDay(grouping.days[WEEK_DAYS - 1].day)}
           </p>
         </div>
-        <button type="button" onClick={onBack} className="type-label text-text-mid">
+        <button type="button" onClick={onBack} className="action-chip type-label">
           Today
         </button>
       </header>
@@ -194,7 +194,7 @@ function DaySection({
           {isToday ? `Today, ${formatDay(group.day)}` : formatDay(group.day)}
         </h2>
         {minutes > 0 && (
-          <span className="type-caption text-text-low">
+          <span className="action-chip-sm type-caption">
             {minutes >= 60 ? `${Math.round((minutes / 60) * 10) / 10} h` : `${minutes} min`}
           </span>
         )}

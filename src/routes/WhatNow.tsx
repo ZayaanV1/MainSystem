@@ -65,7 +65,7 @@ export function WhatNow({
   return (
     <section className="mb-8 px-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="type-label text-text-mid">I have</span>
+        <span className="action-chip type-label">I have</span>
         {WINDOWS.map((m) => (
           <Chip key={m} selected={minutes === m} onClick={() => setMinutes(minutes === m ? null : m)}>
             {m < 60 ? `${m} min` : `${m / 60} h`}
@@ -83,7 +83,7 @@ export function WhatNow({
             <span className="type-h2 text-text-hi">{picked.title}</span>
             <span className="type-note text-text-low">{choice.because}</span>
             {picked.effort_minutes !== null && (
-              <span className="type-caption text-text-low">
+              <span className="action-chip-sm type-caption">
                 {picked.effort_minutes} min
                 {courses.find((c) => c.id === picked.course_id)
                   ? ` · ${courses.find((c) => c.id === picked.course_id)?.code ?? ''}`

@@ -24,7 +24,7 @@ export function Field({ label, hint, error, className = '', ...rest }: FieldProp
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="type-label text-text-mid">
+      <label htmlFor={id} className="action-chip type-label">
         {label}
       </label>
 

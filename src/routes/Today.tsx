@@ -17,6 +17,7 @@ import { dueOn, recentDays, refillStatus } from '../lib/checklist';
 import { describeHealth, fetchHealth, type NotificationHealth } from '../lib/health';
 import { subscribeOutbox } from '../lib/outbox';
 import { calibration, forecast, stuckTasks } from '../lib/intelligence';
+import { dailySummary } from '../lib/assist';
 import {
   BACKFILL_DAYS,
   capture,
@@ -34,7 +35,7 @@ import {
   type InboxItem,
   type TodayData,
 } from '../lib/planner';
-import { addDays, formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
+import { activeTimezone, addDays, formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 
 /**
  * Today — the default view.
@@ -48,22 +49,8 @@ import { addDays, formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/ti
  * second question.
  */
 export function Today({
-  onOpenSettings,
-  onOpenPlan,
-  onOpenWeek,
-  onOpenMonth,
-  onOpenFood,
-  onOpenAsk,
-  onOpenSearch,
   onData,
 }: {
-  onOpenSettings: () => void;
-  onOpenPlan: () => void;
-  onOpenWeek: () => void;
-  onOpenMonth: () => void;
-  onOpenFood: () => void;
-  onOpenAsk: () => void;
-  onOpenSearch: () => void;
   onData?: (d: TodayData) => void;
 }) {
   const { session } = useAuth();
@@ -188,33 +175,11 @@ export function Today({
             {formatDay(today)} &middot; {zoneAbbrev()}
           </p>
         </div>
-        {/* The rail carries navigation once there is room for it. */}
-        <div className="flex flex-wrap justify-end gap-4 lg:hidden">
-          <button type="button" onClick={onOpenWeek} className="type-label text-text-mid">
-            Week
-          </button>
-          <button type="button" onClick={onOpenMonth} className="type-label text-text-mid">
-            Month
-          </button>
-          <button type="button" onClick={onOpenFood} className="type-label text-text-mid">
-            Food
-          </button>
-          <button type="button" onClick={onOpenSearch} className="type-label text-text-mid">
-            Search
-          </button>
-          <button type="button" onClick={onOpenAsk} className="type-label text-text-mid">
-            Ask
-          </button>
-          <button type="button" onClick={onOpenPlan} className="type-label text-text-mid">
-            Plan
-          </button>
-          <button type="button" onClick={onOpenSettings} className="type-label text-text-mid">
-            Settings
-          </button>
-        </div>
       </header>
 
       <CaptureBox userId={userId} onCaptured={reload} />
+
+      <Briefing dep={data} />
 
       {/*
         Two columns once there is room, split by kind rather than by size: the
@@ -231,7 +196,7 @@ export function Today({
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="type-label text-text-mid"
+              className="action-chip type-label"
             >
               Done
             </button>
@@ -565,6 +530,58 @@ function DayStrip({
  * task that's too vague, too big, or blocked" is the spec's own reading, and
  * it is the difference between a useful flag and rule 3 with extra steps.
  */
+/**
+ * The briefing at the top of the day.
+ *
+ * Prose above a screen that is already a list, which only earns its place by
+ * doing what a list cannot: saying which thing to touch first. "Worth starting
+ * the lab before the laundry" is the whole point; restating the deadlines
+ * underneath would be a worse copy of the screen.
+ *
+ * It renders nothing at all until it has something — no skeleton, no spinner,
+ * no "generating…". The screen below is complete and authoritative on its own,
+ * and a placeholder at the top of it would make a fast screen feel slow while
+ * adding no information.
+ *
+ * Failures are silent for the same reason. If the model is unreachable or out
+ * of quota, the day is still fully readable; an error banner over the top of
+ * it would be the app complaining about its own optional feature.
+ */
+function Briefing({ dep }: { dep: TodayData | null }) {
+  const [text, setText] = useState('');
+
+  /*
+   * Re-asked whenever the day's data reloads — ticking something off should
+   * change the briefing. That is cheap on purpose: the server keys its cache
+   * on a fingerprint of the work itself, so a repeat ask costs a query and no
+   * model call unless something actually moved.
+   *
+   * `live` guards the late reply. Two reloads in quick succession would
+   * otherwise race, and the slower one wins by arriving last.
+   */
+  useEffect(() => {
+    if (!dep) return;
+
+    let live = true;
+    void dailySummary(activeTimezone()).then((r) => {
+      if (live && r.ok) setText(r.summary);
+    });
+    return () => {
+      live = false;
+    };
+  }, [dep]);
+
+  if (!text) return null;
+
+  return (
+    <section className="mb-6 px-4">
+      <p className="type-body rounded-card border border-ink-600 bg-ink-800 px-4 py-3 text-text-mid">
+        {text}
+      </p>
+    </section>
+  );
+}
+
 function Ahead({
   assignments,
   deferrals,
@@ -642,7 +659,7 @@ function HowLong({
           {label(m)}
         </Chip>
       ))}
-      <button type="button" onClick={onDone} className="type-caption text-text-low">
+      <button type="button" onClick={onDone} className="action-chip-sm type-caption">
         Skip
       </button>
     </div>

@@ -20,7 +20,16 @@ import { BREAKDOWN_INSTRUCTION, BREAKDOWN_SCHEMA, validateBreakdown } from '../_
 import { SYLLABUS_INSTRUCTION, SYLLABUS_SCHEMA, validateSyllabus } from '../_shared/syllabus.ts';
 import { CHAT_INSTRUCTION, CHAT_SCHEMA, validateChat } from '../_shared/chat.ts';
 import { buildContext } from '../_shared/context.ts';
-import { localDayKey } from '../_shared/time.ts';
+import {
+  SUMMARY_INSTRUCTION,
+  SUMMARY_SCHEMA,
+  fingerprint,
+  isEmptyDay,
+  validateSummary,
+  type SummaryInput,
+  type SummaryItem,
+} from '../_shared/summary.ts';
+import { addDays, endOfDayUTC, localDayKey, startOfDayUTC } from '../_shared/time.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
 
@@ -238,6 +247,98 @@ async function gatherContext(admin: any, userId: string, today: string) {
   });
 }
 
+/** One line per item, in the shape the instruction expects. */
+function describe(i: SummaryItem): string {
+  const bits = [i.kind !== 'assignment' ? i.kind : '', i.due ?? 'no date',
+    i.minutes ? `${i.minutes} min` : ''].filter(Boolean);
+  return `  - ${i.title} (${bits.join(', ')})`;
+}
+
+/**
+ * The day, in the shape the summary is written from.
+ *
+ * Bounded on purpose: today, the coming week, and whatever is already late.
+ * A summary that reached further would be describing a month in sixty words,
+ * which is how you get prose that is true and useless.
+ */
+// deno-lint-ignore no-explicit-any
+async function gatherSummary(admin: any, userId: string, today: string, tz: string): Promise<SummaryInput> {
+  const weekOut = addDays(today, 7);
+
+  const [assignments, events, checklist, completions] = await Promise.all([
+    admin
+      .from('assignments')
+      .select('title, due_at, effort_minutes')
+      .eq('user_id', userId)
+      .neq('status', 'done')
+      .not('due_at', 'is', null)
+      .lte('due_at', endOfDayUTC(weekOut, tz).toISOString())
+      .order('due_at', { ascending: true })
+      .limit(30),
+    admin
+      .from('events')
+      .select('title, kind, starts_at')
+      .eq('user_id', userId)
+      .gte('starts_at', startOfDayUTC(today, tz).toISOString())
+      .lte('starts_at', endOfDayUTC(weekOut, tz).toISOString())
+      .order('starts_at', { ascending: true })
+      .limit(15),
+    admin
+      .from('checklist_items')
+      .select('id, title')
+      .eq('user_id', userId)
+      .eq('active', true),
+    admin.from('checklist_completions').select('item_id').eq('user_id', userId).eq('local_day', today),
+  ]);
+
+  const dueToday: SummaryItem[] = [];
+  const dueSoon: SummaryItem[] = [];
+  const overdue: SummaryItem[] = [];
+
+  // deno-lint-ignore no-explicit-any
+  for (const a of (assignments.data ?? []) as any[]) {
+    const day = localDayKey(new Date(a.due_at), tz);
+    const item: SummaryItem = {
+      title: a.title,
+      due: day,
+      kind: 'assignment',
+      minutes: a.effort_minutes,
+    };
+    if (day < today) overdue.push(item);
+    else if (day === today) dueToday.push(item);
+    else dueSoon.push(item);
+  }
+
+  // deno-lint-ignore no-explicit-any
+  for (const e of (events.data ?? []) as any[]) {
+    const day = localDayKey(new Date(e.starts_at), tz);
+    const item: SummaryItem = {
+      title: e.title,
+      due: day,
+      kind: e.kind === 'exam' ? 'exam' : e.kind === 'presentation' ? 'presentation' : 'assignment',
+      minutes: null,
+    };
+    if (day === today) dueToday.push(item);
+    else if (day > today) dueSoon.push(item);
+  }
+
+  const done = new Set(((completions.data ?? []) as { item_id: string }[]).map((c) => c.item_id));
+  const chores = ((checklist.data ?? []) as { id: string; title: string }[])
+    .filter((c) => !done.has(c.id))
+    .map((c) => c.title);
+
+  return {
+    today,
+    now: new Date().toLocaleTimeString('en-CA', {
+      timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
+    }),
+    dueToday,
+    dueSoon,
+    overdue,
+    chores,
+  };
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   const CORS = corsFor(req);
 
@@ -272,6 +373,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     termFrom?: string;
     termTo?: string;
     message?: string;
+    timezone?: string;
   };
   try {
     body = await req.json();
@@ -444,6 +546,83 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ...validated,
       remaining: Math.max(0, CHAT_CALLS_PER_DAY - ((usage?.count ?? 0) + 1)),
     });
+  }
+
+  /* -------------------------------------------------------------- summary */
+  if (body.task === 'summary') {
+    const userId = userData.user.id;
+    const tz = (body.timezone ?? 'America/Toronto').trim();
+    const today = localDayKey(new Date(), tz);
+
+    const input = await gatherSummary(admin, userId, today, tz);
+
+    // Nothing to say beats saying nothing well. This also means an empty day
+    // never costs a model call, which matters most for a new account.
+    if (isEmptyDay(input)) {
+      return json({ ok: true, summary: '', empty: true });
+    }
+
+    const print = fingerprint(input);
+
+    const { data: cached } = await admin
+      .from('daily_summaries')
+      .select('body, fingerprint')
+      .eq('user_id', userId)
+      .eq('local_day', today)
+      .maybeSingle();
+
+    // The whole reason the table exists: the app opens many times a day and
+    // the answer only changes when the work does.
+    if (cached?.fingerprint === print && cached.body) {
+      return json({ ok: true, summary: cached.body, cached: true });
+    }
+
+    const lines = [
+      `Local date: ${input.today}. Local time now: ${input.now}.`,
+      '',
+      'DUE TODAY',
+      input.dueToday.length ? input.dueToday.map(describe).join('\n') : '  (nothing)',
+      '',
+      'DUE IN THE NEXT WEEK',
+      input.dueSoon.length ? input.dueSoon.map(describe).join('\n') : '  (nothing)',
+      '',
+      'ALREADY PAST ITS DATE',
+      input.overdue.length ? input.overdue.map(describe).join('\n') : '  (nothing)',
+      '',
+      'STILL TO DO TODAY, RECURRING',
+      input.chores.length ? input.chores.map((c) => `  - ${c}`).join('\n') : '  (nothing)',
+    ].join('\n');
+
+    const result = await provider.complete<unknown>({
+      instruction: SUMMARY_INSTRUCTION,
+      input: lines,
+      schema: SUMMARY_SCHEMA as unknown as Record<string, unknown>,
+      // A little warmth, so the closing suggestion is not the same sentence
+      // every morning.
+      temperature: 0.6,
+      timeoutMs: 30_000,
+    });
+
+    if (!result.ok) {
+      // A stale summary beats none: it was true this morning, and the screen
+      // underneath is authoritative either way.
+      if (cached?.body) return json({ ok: true, summary: cached.body, stale: true });
+      return fail(result.failure, result.message);
+    }
+
+    const validated = validateSummary(result.value, input);
+
+    if (!validated.summary) {
+      if (cached?.body) return json({ ok: true, summary: cached.body, stale: true });
+      return json({ ok: true, summary: '', dropped: validated.warnings });
+    }
+
+    await admin.from('daily_summaries').upsert(
+      { user_id: userId, local_day: today, body: validated.summary, fingerprint: print },
+      { onConflict: 'user_id,local_day' },
+    );
+
+    return json({ ok: true, summary: validated.summary });
   }
 
   return json({ error: `unknown task: ${body.task ?? '(none)'}` }, 400);

@@ -271,6 +271,11 @@
  * more headroom, and a ceiling wide enough for two columns without lines of
  * text growing past the length an eye can track back from.
  */
+/* Height of the phone tab bar. Content clears it; the bar sizes to it. */
+:root {
+  --tab-bar: 3.75rem;
+}
+
 @utility page-frame {
   margin-inline: auto;
   display: flex;
@@ -280,6 +285,9 @@
   flex-direction: column;
   padding-inline: 1rem;
   padding-top: 1.5rem;
+  /* Clears the fixed tab bar, so the last row of a list is not sitting
+     underneath it. Removed at lg, where the rail is beside the content. */
+  padding-bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1rem);
 }
 
 @media (width >= 64rem) {
@@ -287,5 +295,55 @@
     max-width: 72rem;
     padding-inline: 2.5rem;
     padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
   }
+}
+
+/*
+ * An inline action that looks like one.
+ *
+ * The app had twenty-odd buttons rendered as bare coloured text — back links,
+ * "Edit", "Remove", "Done". They worked, and on a dark ground they were
+ * indistinguishable from a label until you happened to tap one. A control
+ * should not have to be discovered.
+ *
+ * Quiet rather than loud: a faint surface and a border, so it reads as
+ * pressable without competing with the primary action on the screen. The
+ * height meets the tap floor, which several of these previously did not.
+ */
+@utility action-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding-inline: 0.75rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--ink-600);
+  background-color: var(--ink-800);
+  color: var(--text-mid);
+  white-space: nowrap;
+}
+
+.action-chip:hover {
+  color: var(--text-hi);
+  border-color: var(--text-low);
+}
+
+/* Smaller sibling, for actions that sit inside a row of content. */
+@utility action-chip-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding-inline: 0.625rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--ink-600);
+  background-color: var(--ink-800);
+  color: var(--text-low);
+  white-space: nowrap;
+}
+
+.action-chip-sm:hover {
+  color: var(--text-hi);
+  border-color: var(--text-low);
 }

@@ -143,7 +143,7 @@ export function SyllabusImport({
       {drafts === null ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <label htmlFor="syllabus" className="type-label text-text-mid">
+            <label htmlFor="syllabus" className="action-chip type-label">
               Paste the syllabus
             </label>
             <textarea
@@ -194,7 +194,7 @@ export function SyllabusImport({
 
           {courses.length > 0 && (
             <div className="flex flex-col gap-3">
-              <span className="type-label text-text-mid">Course</span>
+              <span className="action-chip type-label">Course</span>
               <div className="flex flex-wrap gap-2">
                 {courses.map((c) => (
                   <Chip
@@ -233,7 +233,7 @@ export function SyllabusImport({
                 {d.keep && (
                   <div className="flex flex-wrap items-end gap-3 pl-8">
                     <label className="flex flex-col gap-1">
-                      <span className="type-caption text-text-low">Date</span>
+                      <span className="action-chip-sm type-caption">Date</span>
                       <input
                         type="date"
                         value={d.due_date ?? ''}
@@ -243,7 +243,7 @@ export function SyllabusImport({
                     </label>
 
                     <label className="flex flex-col gap-1">
-                      <span className="type-caption text-text-low">Time</span>
+                      <span className="action-chip-sm type-caption">Time</span>
                       <input
                         type="time"
                         value={d.due_time ?? ''}
@@ -261,7 +261,7 @@ export function SyllabusImport({
                     </div>
 
                     {d.weight_percent !== null && (
-                      <span className="type-caption pb-3 text-text-low">{d.weight_percent}%</span>
+                      <span className="action-chip-sm type-caption">{d.weight_percent}%</span>
                     )}
                   </div>
                 )}

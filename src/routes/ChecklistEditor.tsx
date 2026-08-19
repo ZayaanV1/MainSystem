@@ -140,7 +140,7 @@ export function ChecklistEditor({
         />
 
         <div className="flex flex-col gap-3">
-          <span className="type-label text-text-mid">Repeats</span>
+          <span className="action-chip type-label">Repeats</span>
           <div className="flex flex-wrap gap-2">
             {(['daily', 'weekdays', 'interval'] as const).map((r) => (
               <Chip

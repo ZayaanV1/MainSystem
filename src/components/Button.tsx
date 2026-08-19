@@ -23,7 +23,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const VARIANTS: Record<Variant, string> = {
   primary: 'bg-text-hi text-ink-900 border-transparent',
   secondary: 'bg-ink-700 text-text-hi border-ink-600',
-  quiet: 'bg-transparent text-text-mid border-transparent',
+  // Quiet, not invisible. A fully transparent button on a dark ground is
+  // indistinguishable from a label until you happen to tap it, and a control
+  // should not have to be discovered. This still yields to `primary`.
+  quiet: 'bg-ink-800 text-text-mid border-ink-600',
 };
 
 export function Button({

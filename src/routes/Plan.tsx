@@ -98,8 +98,8 @@ export function Plan({ courses, onBack, onChanged }: {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Plan</h1>
-        <button type="button" onClick={onBack} className="type-label text-text-mid">
+        <h1 className="type-h1 text-text-hi">Courses and syllabus</h1>
+        <button type="button" onClick={onBack} className="action-chip type-label">
           Today
         </button>
       </header>
@@ -334,11 +334,11 @@ function CourseEditor({
               setManaging((v) => !v);
               if (!managing) refreshAll();
             }}
-            className="type-label text-text-mid"
+            className="action-chip type-label"
           >
             {managing ? 'Done' : 'Archive'}
           </button>
-          <button type="button" onClick={() => setOpen((v) => !v)} className="type-label text-text-mid">
+          <button type="button" onClick={() => setOpen((v) => !v)} className="action-chip type-label">
             {open ? 'Cancel' : 'Add'}
           </button>
         </div>
@@ -362,7 +362,7 @@ function CourseEditor({
             >
               <span className={`type-body ${c.archived ? 'text-text-low' : 'text-text-hi'}`}>
                 {c.code ?? c.name}
-                {c.archived && <span className="type-caption text-text-low"> archived</span>}
+                {c.archived && <span className="action-chip-sm type-caption"> archived</span>}
               </span>
               <button
                 type="button"
@@ -372,7 +372,7 @@ function CourseEditor({
                     onChanged();
                   })
                 }
-                className="type-caption text-text-low"
+                className="action-chip-sm type-caption"
               >
                 {c.archived ? 'Restore' : 'Archive'}
               </button>

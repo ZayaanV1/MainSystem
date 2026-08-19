@@ -138,18 +138,18 @@ export function Chat({ courses, onBack, onChanged }: {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Ask</h1>
+        <h1 className="type-h1 text-text-hi">Abood</h1>
         <div className="flex items-baseline gap-4">
           {messages.length > 0 && (
             <button
               type="button"
               onClick={() => void clearChat().then(() => setMessages([]))}
-              className="type-label text-text-mid"
+              className="action-chip type-label"
             >
               Clear
             </button>
           )}
-          <button type="button" onClick={onBack} className="type-label text-text-mid">
+          <button type="button" onClick={onBack} className="action-chip type-label">
             Today
           </button>
         </div>
@@ -212,11 +212,35 @@ export function Chat({ courses, onBack, onChanged }: {
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="What's due this week?"
+          placeholder="Ask Abood anything"
           className="flex-1 rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
         />
-        <Button type="submit" variant="primary" disabled={!draft.trim() || thinking}>
-          Ask
+        {/*
+          An arrow, not the word. It sits at the end of a text field where
+          "send" is the only thing the control could mean, and a glyph reads
+          faster than a word you have to finish reading. The accessible name
+          still says what it does.
+        */}
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!draft.trim() || thinking}
+          aria-label="Send"
+          className="aspect-square px-0"
+        >
+          <svg
+            aria-hidden
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
         </Button>
       </form>
 

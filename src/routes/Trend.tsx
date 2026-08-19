@@ -39,9 +39,9 @@ export function Trend({ onBack }: { onBack: () => void }) {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Trend</h1>
-        <button type="button" onClick={onBack} className="type-label text-text-mid">
-          Food
+        <h1 className="type-h1 text-text-hi">Weight trend</h1>
+        <button type="button" onClick={onBack} className="action-chip type-label">
+          Diet tracker
         </button>
       </header>
 

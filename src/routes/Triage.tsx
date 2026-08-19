@@ -112,7 +112,7 @@ export function Triage({
 
         {courses.length > 0 && (
           <div className="flex flex-col gap-3">
-            <span className="type-label text-text-mid">Course</span>
+            <span className="action-chip type-label">Course</span>
             <div className="flex flex-wrap gap-2">
               {courses.map((c) => (
                 <Chip
@@ -129,7 +129,7 @@ export function Triage({
         )}
 
         <div className="flex flex-col gap-3">
-          <span className="type-label text-text-mid">When</span>
+          <span className="action-chip type-label">When</span>
 
           {/* Shortcuts first. Most triage decisions are "today", "tomorrow" or
               "not yet", and making those one tap is the difference between

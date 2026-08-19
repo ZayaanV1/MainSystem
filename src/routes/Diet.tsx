@@ -83,15 +83,15 @@ export function Diet({ onBack }: { onBack: () => void }) {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Food</h1>
+        <h1 className="type-h1 text-text-hi">Diet tracker</h1>
         <div className="flex items-baseline gap-4">
-          <button type="button" onClick={() => setEditingTargets(true)} className="type-label text-text-mid">
-            Targets
+          <button type="button" onClick={() => setEditingTargets(true)} className="action-chip type-label">
+            Macro targets
           </button>
-          <button type="button" onClick={() => setShowTrend(true)} className="type-label text-text-mid">
-            Trend
+          <button type="button" onClick={() => setShowTrend(true)} className="action-chip type-label">
+            Weight trend
           </button>
-          <button type="button" onClick={onBack} className="type-label text-text-mid lg:hidden">
+          <button type="button" onClick={onBack} className="action-chip type-label lg:hidden">
             Today
           </button>
         </div>
@@ -176,7 +176,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
             <button
               type="button"
               onClick={() => setEditingMeals((v) => !v)}
-              className="type-label text-text-mid"
+              className="action-chip type-label"
             >
               {editingMeals ? 'Done' : 'Edit'}
             </button>
@@ -206,7 +206,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
                   <button
                     type="button"
                     onClick={() => void deleteSavedMeal(meal.id).then(reload)}
-                    className="type-caption text-text-low"
+                    className="action-chip-sm type-caption"
                   >
                     Remove
                   </button>
@@ -265,7 +265,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
                 <Card key={entry.id}>
                   <div className="border-b border-ink-600 px-4 py-3">
                     <div className="flex items-baseline justify-between gap-4">
-                      <span className="type-caption text-text-low">
+                      <span className="action-chip-sm type-caption">
                         {formatTime(new Date(entry.logged_at))}
                         {entry.source !== 'manual' && ` · ${entry.source}`}
                       </span>
@@ -276,7 +276,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
                         <button
                           type="button"
                           onClick={() => void deleteEntry(entry.id).then(reload)}
-                          className="type-caption text-text-low"
+                          className="action-chip-sm type-caption"
                         >
                           Remove
                         </button>
@@ -393,7 +393,7 @@ function MealSuggestions({
             <span className="type-body text-text-hi">
               {fit.meal.name}
               {fit.portion !== 1 && (
-                <span className="type-caption text-text-low"> {fit.portion}x</span>
+                <span className="action-chip-sm type-caption"> {fit.portion}x</span>
               )}
             </span>
             <span className="type-note shrink-0 text-text-low">{fit.why}</span>
@@ -526,7 +526,7 @@ const PORTIONS = [0.5, 1, 1.5, 2] as const;
 function PortionRow({ portion, onChange }: { portion: number; onChange: (p: number) => void }) {
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2 px-4">
-      <span className="type-label text-text-mid">Portion</span>
+      <span className="action-chip type-label">Portion</span>
       {PORTIONS.map((p) => (
         <button
           key={p}
@@ -629,7 +629,7 @@ function WeightRow({
   return (
     <form onSubmit={submit} className="mb-12 flex items-end gap-3 px-4">
       <div className="flex flex-1 flex-col gap-2">
-        <label htmlFor="weight" className="type-label text-text-mid">
+        <label htmlFor="weight" className="action-chip type-label">
           Weight today
         </label>
         <input

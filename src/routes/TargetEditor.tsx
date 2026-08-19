@@ -122,7 +122,7 @@ export function TargetEditor({
             <div key={key} className="flex items-end gap-3">
               <span className="type-label w-20 shrink-0 text-text-mid">{label}</span>
               <label className="flex flex-1 flex-col gap-1">
-                <span className="type-caption text-text-low">Low</span>
+                <span className="action-chip-sm type-caption">Low</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -134,7 +134,7 @@ export function TargetEditor({
                 />
               </label>
               <label className="flex flex-1 flex-col gap-1">
-                <span className="type-caption text-text-low">High</span>
+                <span className="action-chip-sm type-caption">High</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -151,7 +151,7 @@ export function TargetEditor({
         </div>
 
         <label className="flex flex-col gap-2">
-          <span className="type-label text-text-mid">In force from</span>
+          <span className="action-chip type-label">In force from</span>
           <input
             type="date"
             value={from}
@@ -181,7 +181,7 @@ export function TargetEditor({
             <div className="flex flex-col gap-3">
               {history.map((t) => (
                 <div key={t.effective_from} className="flex flex-col gap-1">
-                  <span className="type-label text-text-mid">From {t.effective_from}</span>
+                  <span className="action-chip type-label">From {t.effective_from}</span>
                   <span className="type-note text-text-low">
                     {t.calories.min}-{t.calories.max} kcal · P {t.protein.min}-{t.protein.max} · C{' '}
                     {t.carbs.min}-{t.carbs.max} · F {t.fat.min}-{t.fat.max}

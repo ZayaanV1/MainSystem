@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import type { ReactNode } from 'react';
 
@@ -20,6 +21,14 @@ import type { ReactNode } from 'react';
 export interface NavItem<T extends string> {
   id: T;
   label: string;
+  /**
+   * A shorter form for the phone tab bar.
+   *
+   * The rail has room for "Diet tracker"; a fifth of a phone's width does not,
+   * and a wrapped label knocks every tab out of alignment. Falls back to
+   * `label` where the full name already fits.
+   */
+  short?: string;
   /** Drawn rather than imported: eight glyphs is not worth an icon dependency. */
   icon: ReactNode;
 }
@@ -42,7 +51,118 @@ export function AppShell<T extends string>({
       {/* min-w-0 so a wide child (a long title, a table) shrinks instead of
           pushing the rail off screen. */}
       <div className="min-w-0 flex-1">{children}</div>
+
+      <TabBar current={current} items={items} onNavigate={onNavigate} />
     </div>
+  );
+}
+
+/**
+ * The phone's navigation, pinned to the bottom.
+ *
+ * It was a row of links in the header, which worked while they were bare text
+ * and broke the moment they became real buttons: eight of them wrapped onto
+ * three lines and pushed the actual content 280px down the screen. Rule 1 says
+ * opening the app answers "what do I do right now" in under two seconds, and
+ * that is hard to do from below the fold.
+ *
+ * Five slots, because that is what fits a thumb's reach across a phone without
+ * shrinking targets below the tap floor. The rest live behind More rather than
+ * being squeezed in — a sixth cramped item helps nobody.
+ */
+const PRIMARY = 4;
+
+function TabBar<T extends string>({
+  current,
+  items,
+  onNavigate,
+}: {
+  current: T;
+  items: NavItem<T>[];
+  onNavigate: (id: T) => void;
+}) {
+  const [more, setMore] = useState(false);
+
+  const shown = items.slice(0, PRIMARY);
+  const rest = items.slice(PRIMARY);
+  const inRest = rest.some((i) => i.id === current);
+
+  return (
+    <>
+      {more && (
+        <div
+          className="fixed inset-0 z-40 bg-ink-900/70 lg:hidden"
+          onClick={() => setMore(false)}
+          aria-hidden
+        />
+      )}
+
+      {more && (
+        <div className="fixed inset-x-0 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] z-50 mx-3 overflow-hidden rounded-card border border-ink-600 bg-ink-700 lg:hidden">
+          {rest.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                onNavigate(item.id);
+                setMore(false);
+              }}
+              className={[
+                'flex min-h-[var(--tap)] w-full items-center gap-3 border-b border-ink-600 px-4 text-left last:border-b-0',
+                item.id === current ? 'text-text-hi' : 'text-text-mid',
+              ].join(' ')}
+            >
+              <span aria-hidden className="shrink-0 text-text-low">{item.icon}</span>
+              <span className="type-label">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <nav
+        aria-label="Main"
+        className="fixed inset-x-0 bottom-0 z-50 flex h-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] items-start border-t border-ink-600 bg-ink-800 pb-[env(safe-area-inset-bottom)] lg:hidden"
+      >
+        {shown.map((item) => {
+          const active = item.id === current;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setMore(false);
+                onNavigate(item.id);
+              }}
+              aria-current={active ? 'page' : undefined}
+              className={[
+                'flex h-[var(--tab-bar)] flex-1 flex-col items-center justify-center gap-1',
+                active ? 'text-text-hi' : 'text-text-low',
+              ].join(' ')}
+            >
+              <span aria-hidden>{item.icon}</span>
+              <span className="type-caption">{item.short ?? item.label}</span>
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={() => setMore((v) => !v)}
+          aria-expanded={more}
+          className={[
+            'flex h-[var(--tab-bar)] flex-1 flex-col items-center justify-center gap-1',
+            more || inRest ? 'text-text-hi' : 'text-text-low',
+          ].join(' ')}
+        >
+          <span aria-hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+              <path d="M5 12h.01M12 12h.01M19 12h.01" />
+            </svg>
+          </span>
+          <span className="type-caption">More</span>
+        </button>
+      </nav>
+    </>
   );
 }
 
@@ -59,7 +179,7 @@ function Rail<T extends string>({
 
   return (
     <nav
-      aria-label="Sections"
+      aria-label="Main"
       // Sticky rather than fixed: it scrolls with a short page and pins on a
       // long one, without the content needing a matching margin that would
       // drift out of sync the moment the rail's width changed.

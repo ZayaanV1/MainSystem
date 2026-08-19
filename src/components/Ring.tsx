@@ -255,13 +255,13 @@ export function Ring({
             aria-hidden
             className="type-display text-text-hi"
           />
-          {unit && <span className="type-caption text-text-low">{unit}</span>}
+          {unit && <span className="action-chip-sm type-caption">{unit}</span>}
         </div>
       </div>
 
       <div className="text-center">
         <div className="type-label text-text-hi">{label}</div>
-        {targetLabel && <div className="type-caption text-text-low">{targetLabel}</div>}
+        {targetLabel && <div className="action-chip-sm type-caption">{targetLabel}</div>}
 
         {/* Written, not just drawn. When the value arc nearly fills the ring,
             the band becomes a sliver and "am I in range" stops being readable

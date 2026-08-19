@@ -80,7 +80,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="type-label text-text-mid"
+            className="action-chip type-label"
           >
             Close
           </button>

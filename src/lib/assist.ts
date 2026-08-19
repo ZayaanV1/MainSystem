@@ -132,6 +132,31 @@ export async function askChat(message: string): Promise<ChatResponse | AssistFai
   };
 }
 
+export interface SummaryResponse {
+  ok: true;
+  summary: string;
+  /** True when the day is genuinely empty, which is not a failure. */
+  empty?: boolean;
+}
+
+/**
+ * The briefing shown when the app opens.
+ *
+ * Cached server-side per local day and keyed on the work itself, so opening
+ * the app repeatedly costs nothing. The timezone goes with the request because
+ * only the client knows which account is asking.
+ */
+export async function dailySummary(timezone: string): Promise<SummaryResponse | AssistFailure> {
+  const body = await call({ task: 'summary', timezone });
+  if (body.ok !== true) return failureOf(body);
+
+  return {
+    ok: true,
+    summary: String(body.summary ?? ''),
+    empty: Boolean(body.empty),
+  };
+}
+
 /**
  * Reads a file as base64 for the syllabus request.
  *

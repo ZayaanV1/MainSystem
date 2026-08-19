@@ -513,7 +513,7 @@ export function LogFood({
           )}
 
           <div className="flex items-baseline justify-between border-t border-ink-600 pt-4">
-            <span className="type-label text-text-mid">Total</span>
+            <span className="action-chip type-label">Total</span>
             <span className="type-h2 text-text-hi">{Math.round(total)} kcal</span>
           </div>
 
@@ -569,7 +569,7 @@ function DraftRow({
     key: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'grams',
   ) => (
     <label className="flex flex-1 flex-col gap-1">
-      <span className="type-caption text-text-low">{label}</span>
+      <span className="action-chip-sm type-caption">{label}</span>
       <input
         type="number"
         inputMode="decimal"
@@ -590,7 +590,7 @@ function DraftRow({
     <div className="flex flex-col gap-3 rounded-card border border-ink-600 p-3">
       <div className="flex items-end gap-3">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="type-caption text-text-low">Item</span>
+          <span className="action-chip-sm type-caption">Item</span>
           <input
             value={item.name}
             onChange={(e) => set('name', e.target.value)}
@@ -598,7 +598,7 @@ function DraftRow({
             className="w-full rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi placeholder:text-text-low"
           />
         </label>
-        <button type="button" onClick={onRemove} className="type-caption pb-3 text-text-low">
+        <button type="button" onClick={onRemove} className="action-chip-sm type-caption">
           Remove
         </button>
       </div>

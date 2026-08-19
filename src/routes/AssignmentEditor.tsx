@@ -133,7 +133,7 @@ export function AssignmentEditor({
 
         {courses.length > 0 && (
           <div className="flex flex-col gap-3">
-            <span className="type-label text-text-mid">Course</span>
+            <span className="action-chip type-label">Course</span>
             <div className="flex flex-wrap gap-2">
               {courses.map((c) => (
                 <Chip
@@ -214,7 +214,7 @@ export function AssignmentEditor({
         />
 
         <div className="flex flex-col gap-2">
-          <label htmlFor="notes" className="type-label text-text-mid">
+          <label htmlFor="notes" className="action-chip type-label">
             Notes
           </label>
           <textarea
@@ -335,7 +335,7 @@ function Subtasks({
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="type-label text-text-mid">
+      <span className="action-chip type-label">
         Steps{mine.length > 0 && ` — ${mine.filter((s) => s.done).length} of ${mine.length}`}
       </span>
 
@@ -429,11 +429,11 @@ function Subtasks({
               >
                 <span className="type-body text-text-hi">{step.title}</span>
                 <div className="flex shrink-0 items-baseline gap-3">
-                  <span className="type-caption text-text-low">{step.minutes} min</span>
+                  <span className="action-chip-sm type-caption">{step.minutes} min</span>
                   <button
                     type="button"
                     onClick={() => setSuggested((list) => (list ?? []).filter((_, n) => n !== i))}
-                    className="type-caption text-text-low"
+                    className="action-chip-sm type-caption"
                   >
                     Drop
                   </button>
