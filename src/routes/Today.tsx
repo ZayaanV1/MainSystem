@@ -46,12 +46,14 @@ export function Today({
   onOpenPlan,
   onOpenWeek,
   onOpenMonth,
+  onOpenFood,
   onData,
 }: {
   onOpenSettings: () => void;
   onOpenPlan: () => void;
   onOpenWeek: () => void;
   onOpenMonth: () => void;
+  onOpenFood: () => void;
   onData?: (d: TodayData) => void;
 }) {
   const { session } = useAuth();
@@ -174,6 +176,9 @@ export function Today({
           </button>
           <button type="button" onClick={onOpenMonth} className="type-label text-text-mid">
             Month
+          </button>
+          <button type="button" onClick={onOpenFood} className="type-label text-text-mid">
+            Food
           </button>
           <button type="button" onClick={onOpenPlan} className="type-label text-text-mid">
             Plan

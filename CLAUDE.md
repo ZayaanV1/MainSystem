@@ -155,7 +155,11 @@ actually reached the database. Worth remembering as a working method.
   instance is not fixing the class.
 - **Verbatim text was rendered uppercase.** The captured wording is shown
   during triage so it is not lost, but `type-caption` uppercases — so the
-  thing being preserved was being rewritten on screen.
+  thing being preserved was being rewritten on screen. This then happened a
+  second time, on the food log's `raw_text`, because the first fix swapped one
+  class and left no correct home for small quoted text. There is now a
+  `type-quote` utility: text the app did not author goes there, never in
+  `type-caption`, which exists for machine labels like "ESTIMATED".
 - **The history grid drew a month of completed days as blank**, because
   `loadToday` fetched five days of completions while the grid drew thirty-five.
   A query limit was manufacturing the exact wall rule 3 forbids.
@@ -163,6 +167,14 @@ actually reached the database. Worth remembering as a working method.
   ago and is already absent from the count, so recovering a rough week
   silently destroyed the number meant to protect you. Today spends; any other
   day only records.
+- **A meal silently logged short.** PostgREST rejects a bulk insert whose
+  objects have differing key sets (PGRST102, "All object keys must match"), so
+  a meal where one item matched a barcode and carried `source_ref` and another
+  did not failed as a whole — the entry was written, the items were not, and
+  the day read 758 kcal instead of 1,244 with nothing on screen to say why.
+  Row shaping is now one tested function, `itemRows`, that writes every key on
+  every row including the nulls. Found by seeding a real day and noticing the
+  ring did not match the arithmetic.
 - **The service worker never registered**, for three days, with no error
   anywhere. `cache.addAll` is atomic, so one asset failing to cache killed the
   whole install; the worker never activated and `serviceWorker.ready` hung

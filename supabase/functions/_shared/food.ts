@@ -193,3 +193,50 @@ export function totals(items: { calories: number; protein_g: number; carbs_g: nu
     { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
   );
 }
+
+/** The fields a food item can arrive with, before it becomes a database row. */
+export interface FoodRowInput {
+  name: string;
+  quantity?: number | null;
+  unit?: string | null;
+  grams?: number | null;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  is_estimate?: boolean;
+  source_ref?: string | null;
+}
+
+/**
+ * Shapes items into rows for a bulk insert into `food_items`.
+ *
+ * Every key is written on every row, including the ones that are null. This is
+ * not tidiness: PostgREST rejects a bulk insert whose objects have differing
+ * key sets with PGRST102 "All object keys must match", so a batch where one
+ * item carries a `source_ref` and another does not fails as a whole. A parsed
+ * meal is exactly that shape — the branded item matched a barcode, the rice
+ * did not — so the failure lands on real input rather than on an edge case.
+ *
+ * It lives here rather than inline in the caller so the property is testable,
+ * and so the client and any server-side write agree on one row shape.
+ * Replacing this with a spread of the caller's objects reintroduces the bug
+ * silently: it only fails once two items in one meal differ.
+ */
+export function itemRows(userId: string, entryId: string, items: FoodRowInput[]) {
+  return items.map((i, position) => ({
+    user_id: userId,
+    entry_id: entryId,
+    name: i.name.trim(),
+    quantity: i.quantity ?? null,
+    unit: i.unit ?? null,
+    grams: i.grams ?? null,
+    calories: i.calories,
+    protein_g: i.protein_g,
+    carbs_g: i.carbs_g,
+    fat_g: i.fat_g,
+    is_estimate: i.is_estimate ?? false,
+    source_ref: i.source_ref ?? null,
+    position,
+  }));
+}
