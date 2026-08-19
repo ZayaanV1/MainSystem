@@ -208,6 +208,7 @@ describe('migrations apply', () => {
       'checklist_completions',
       'checklist_items',
       'courses',
+      'deferrals',
       'delivery_log',
       'events',
       'food_entries',

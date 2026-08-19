@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
 import { HISTORY_DAYS } from '../../supabase/functions/_shared/history';
-import { endOfDayUTC, startOfDayUTC, todayKey, wallClockToUTC, type DayKey } from './time';
+import { endOfDayUTC, localDayKey, localHourMinute, startOfDayUTC, todayKey, wallClockToUTC, type DayKey } from './time';
 
 /**
  * Data access for the planner.
@@ -39,6 +39,8 @@ export interface Assignment {
   due_at: string | null;
   due_has_time: boolean;
   effort_minutes: number | null;
+  /** How long it actually took. Null unless volunteered. */
+  actual_minutes: number | null;
   status: 'todo' | 'doing' | 'done';
   notes: string | null;
   start_by_override: DayKey | null;
@@ -84,6 +86,14 @@ export interface TodayData {
   events: PlannerEvent[];
   subtasks: Subtask[];
   /**
+   * How many times each assignment has been pushed, by id.
+   *
+   * Derived by counting rows rather than read from a cached column, which is
+   * the same rule that keeps missed days as absent rows. Only ids that have
+   * actually moved appear.
+   */
+  deferrals: Record<string, number>;
+  /**
    * Work finished today.
    *
    * Fetched only so the app can tell "you cleared it" apart from "there was
@@ -106,7 +116,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
   // but a query limit.
   const window = recentDays(today, Math.max(BACKFILL_DAYS, HISTORY_DAYS));
 
-  const [items, completions, inbox, courses, assignments, events, subtasks, completedToday, settings] =
+  const [items, completions, inbox, courses, assignments, events, subtasks, completedToday, settings, deferralRows] =
     await Promise.all([
     supabase
       .from('checklist_items')
@@ -141,7 +151,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase
       .from('assignments')
       .select(
-        'id, course_id, title, due_at, due_has_time, effort_minutes, status, notes, start_by_override, remind_at',
+        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at',
       )
       .neq('status', 'done')
       .order('due_at', { ascending: true, nullsFirst: false }),
@@ -162,14 +172,23 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase
       .from('assignments')
       .select(
-        'id, course_id, title, due_at, due_has_time, effort_minutes, status, notes, start_by_override',
+        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override',
       )
       .eq('status', 'done')
       .gte('completed_at', startOfDayUTC(today).toISOString())
       .lt('completed_at', endOfDayUTC(today).toISOString()),
 
     supabase.from('app_settings').select('low_battery').limit(1),
+
+    // Every deferral row for open work. Counted here rather than stored, so
+    // the number can never drift from what actually happened.
+    supabase.from('deferrals').select('assignment_id'),
   ]);
+
+  const deferrals: Record<string, number> = {};
+  for (const row of (deferralRows.data ?? []) as { assignment_id: string }[]) {
+    deferrals[row.assignment_id] = (deferrals[row.assignment_id] ?? 0) + 1;
+  }
 
   return {
     items: (items.data ?? []) as ChecklistItem[],
@@ -180,8 +199,31 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     events: (events.data ?? []) as PlannerEvent[],
     subtasks: (subtasks.data ?? []) as Subtask[],
     completedToday: (completedToday.data ?? []) as Assignment[],
+    deferrals,
     lowBattery: Boolean((settings.data ?? [])[0]?.low_battery),
   };
+}
+
+/**
+ * Estimate-versus-actual pairs, for calibration.
+ *
+ * Only finished work that carries both numbers. Everything else is silence
+ * rather than a filled-in guess.
+ */
+export async function loadCalibrationPairs(): Promise<{ estimated: number; actual: number }[]> {
+  const { data } = await supabase
+    .from('assignments')
+    .select('effort_minutes, actual_minutes')
+    .eq('status', 'done')
+    .not('effort_minutes', 'is', null)
+    .not('actual_minutes', 'is', null)
+    .order('completed_at', { ascending: false })
+    .limit(60);
+
+  return ((data ?? []) as { effort_minutes: number; actual_minutes: number }[]).map((r) => ({
+    estimated: Number(r.effort_minutes),
+    actual: Number(r.actual_minutes),
+  }));
 }
 
 /* ------------------------------------------------------------ assignments */
@@ -241,6 +283,56 @@ export async function addEvent(
     all_day: !fields.time,
     notes: fields.notes ?? null,
   });
+}
+
+/**
+ * Pushes a piece of work to a later day, and records that it moved.
+ *
+ * One tap, no friction, no comment — the spec is explicit that deferring must
+ * cost nothing, because a deferral that feels like an admission is one that
+ * gets avoided by simply not opening the app.
+ *
+ * The move is recorded as a row rather than incremented on the assignment.
+ * Six pushes over six months is a task you keep meaning to get to; six in a
+ * week is a task that is blocked, and only dated rows can tell those apart.
+ */
+export async function deferAssignment(
+  userId: string,
+  assignment: Assignment,
+  toDay: DayKey,
+): Promise<void> {
+  const fromDay = assignment.due_at ? localDayKey(new Date(assignment.due_at)) : null;
+
+  // The time of day is preserved. A task due at 09:00 that moves to tomorrow
+  // is still due at 09:00, and silently resetting it to end-of-day would move
+  // the deadline further than the tap asked for.
+  const time = assignment.due_at && assignment.due_has_time
+    ? localHourMinute(new Date(assignment.due_at))
+    : null;
+
+  await enqueue('assignments', 'update', {
+    due_at: time
+      ? wallClockToUTC(toDay, time.hour, time.minute).toISOString()
+      : assignmentDueAt(toDay, null),
+  }, { id: assignment.id });
+
+  await enqueue('deferrals', 'insert', {
+    user_id: userId,
+    assignment_id: assignment.id,
+    from_day: fromDay,
+    to_day: toDay,
+  });
+}
+
+/**
+ * Records how long something actually took.
+ *
+ * Always optional. Asking for it as a required step would put friction on
+ * marking work done, which is the one action that has to stay free, and a
+ * number given under duress is not worth calibrating against.
+ */
+export async function setActualMinutes(id: string, minutes: number | null): Promise<void> {
+  await enqueue('assignments', 'update', { actual_minutes: minutes }, { id });
 }
 
 export async function setAssignmentStatus(

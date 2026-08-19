@@ -83,7 +83,7 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **5 — chatbot. DONE**, 19 Aug 2026. Phases 0 to 4 done 17-19 Aug.
+Phase: **6 — intelligence. DONE**, 19 Aug 2026. Phases 0 to 5 done 17-19 Aug.
 
 ### Phase 2 — digest and survival. DONE, 18 Aug 2026
 
@@ -222,12 +222,45 @@ string is the obvious thing to do and silently moves a deadline a day. The
 context now converts through the same time layer as everything else, with
 tests across a DST boundary and under four host timezones.
 
-### Next: Phase 6 — intelligence
+### Phase 6 — intelligence. DONE, 19 Aug 2026
 
-"What now?" as one button and one task; the workload forecast; estimated
-versus actual time with calibration; and deferral surfacing. The last of these
-needs a deferral count that nothing currently records, so it starts with a
-migration rather than a screen.
+**"What now?" returns one task and says why.** A pick with no reason is
+indistinguishable from a random one and gets treated as one. It asks only how
+long you have, because a second question about energy on the screen built to
+remove decisions would defeat the screen.
+
+**Deferrals are rows, not a column.** The spec wants tasks flagged after six
+moves, and `deferral_count` trips the structural guard that forbids `_count$`.
+The guard was right and the design changed: missed days are already "the
+absence of a row, never a number", and deferrals follow the same rule. It is
+also more useful — six pushes over six months is a task you keep meaning to
+get to, six in a week is one that is blocked, and only dated rows tell those
+apart. The copy diagnoses rather than accuses, which is the spec's own reading.
+
+**Actual time is never demanded.** After finishing something that carried an
+estimate, a row of durations appears and can be ignored. Asking as a required
+step would put friction on marking work done — the one action that has to stay
+free — and a number given to dismiss a prompt is not worth calibrating on.
+Calibration stays silent below five samples and uses the median, so one task
+that ran five times over does not become the rule.
+
+**The forecast counts unestimated work without inventing minutes for it.** A
+total that silently assumed an hour each would be confident and partly built
+on nothing; instead the known total is stated and the unestimated count sits
+beside it.
+
+The bug worth remembering: with a fifteen-minute budget, "what now" offered the
+task that had been deferred seven times. Unestimated work was treated as
+fitting any budget, and the unsized things are disproportionately the vague,
+avoided ones — so the rule that was meant to avoid hiding work ended up
+serving the single most avoided item. Stuck work is now held back unless it is
+all that is left, and work known to fit is preferred over work of unknown size.
+
+### Next: Phase 7 — extras
+
+Mood and energy check-in, doctor-appointment summary export, weekly review
+digest, a subscribable .ics feed, global search, term archiving. None of it is
+load-bearing, which is the point: the app is complete without it.
 
 ### A documented deviation from the colour law
 
@@ -289,6 +322,12 @@ actually reached the database. Worth remembering as a working method.
   ago and is already absent from the count, so recovering a rough week
   silently destroyed the number meant to protect you. Today spends; any other
   day only records.
+- **"What now?" served the most avoided task.** With a fifteen-minute budget
+  it offered the one deferred seven times, because unestimated work was
+  treated as fitting any budget and unsized work is disproportionately the
+  vague, avoided kind. A rule written to avoid hiding work ended up serving
+  the single worst item. Stuck work is held back unless it is all that
+  remains, and work known to fit now beats work of unknown size.
 - **The chatbot read UTC out as local time.** Asked when a lab was due it
   answered "2026-08-21 at 03:59", which is the raw stored instant; the real
   deadline was Thursday 23:59. Every timestamp in the database is UTC and

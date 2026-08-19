@@ -3,7 +3,9 @@ import { AssignmentRow } from '../components/AssignmentRow';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
+import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
+import { WhatNow } from './WhatNow';
 import { ChecklistEditor } from './ChecklistEditor';
 import { AssignmentEditor } from './AssignmentEditor';
 import { Triage } from './Triage';
@@ -14,10 +16,14 @@ import { useAuth } from '../lib/auth';
 import { dueOn, recentDays, refillStatus } from '../lib/checklist';
 import { describeHealth, fetchHealth, type NotificationHealth } from '../lib/health';
 import { subscribeOutbox } from '../lib/outbox';
+import { calibration, forecast, stuckTasks } from '../lib/intelligence';
 import {
   BACKFILL_DAYS,
   capture,
   completionKey,
+  deferAssignment,
+  loadCalibrationPairs,
+  setActualMinutes,
   completionSet,
   loadToday,
   setAssignmentStatus,
@@ -28,7 +34,7 @@ import {
   type InboxItem,
   type TodayData,
 } from '../lib/planner';
-import { formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
+import { addDays, formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 
 /**
  * Today — the default view.
@@ -60,6 +66,8 @@ export function Today({
 }) {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
+  const [askingTime, setAskingTime] = useState<Assignment | null>(null);
+  const [pairs, setPairs] = useState<{ estimated: number; actual: number }[]>([]);
 
   const [data, setData] = useState<TodayData | null>(null);
   const [day, setDay] = useState<DayKey>(todayKey());
@@ -136,6 +144,12 @@ export function Today({
   // Clear optimistic state whenever fresh data lands.
   useEffect(() => {
     setPendingToggles(new Set());
+  }, [data]);
+
+  // Reloaded alongside the day, so recording a time updates the calibration
+  // without a refresh. Cheap: at most sixty rows of two integers.
+  useEffect(() => {
+    void loadCalibrationPairs().then(setPairs);
   }, [data]);
 
   // One root attribute collapses every urgency and macro colour to muted
@@ -322,6 +336,21 @@ export function Today({
         />
       )}
 
+      <WhatNow
+        assignments={data?.assignments ?? []}
+        courses={data?.courses ?? []}
+        deferrals={data?.deferrals ?? {}}
+        onOpen={setOpenAssignment}
+      />
+
+      <Ahead
+        assignments={data?.assignments ?? []}
+        deferrals={data?.deferrals ?? {}}
+        pairs={pairs}
+      />
+
+      {askingTime && <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />}
+
       <section className="mb-8">
         <h2 className="type-h2 mb-3 px-4 text-text-hi">Work</h2>
         {!data?.assignments.length ? (
@@ -340,9 +369,13 @@ export function Today({
                 assignment={a}
                 progress={subtaskProgress(data?.subtasks ?? [], a.id)}
                 course={data.courses.find((c) => c.id === a.course_id)}
-                onToggleDone={() =>
-                  void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done')
-                }
+                onToggleDone={() => {
+                  const finishing = a.status !== 'done';
+                  void setAssignmentStatus(a.id, finishing ? 'done' : 'todo');
+                  // Offered, never demanded. Marking done has to stay free.
+                  setAskingTime(finishing && a.effort_minutes !== null ? a : null);
+                }}
+                onDefer={() => void deferAssignment(userId, a, addDays(todayKey(), 1))}
                 onOpen={() => setOpenAssignment(a)}
               />
             ))}
@@ -493,6 +526,102 @@ function DayStrip({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+
+/**
+ * What is coming, and what is stuck.
+ *
+ * Both are quiet by default. The forecast says nothing about a normal week —
+ * a banner that is always there is a banner that stops being read — and the
+ * stuck notice appears only past the threshold the spec names.
+ *
+ * The stuck copy diagnoses rather than accuses. "That's not laziness; it's a
+ * task that's too vague, too big, or blocked" is the spec's own reading, and
+ * it is the difference between a useful flag and rule 3 with extra steps.
+ */
+function Ahead({
+  assignments,
+  deferrals,
+  pairs,
+}: {
+  assignments: Assignment[];
+  deferrals: Record<string, number>;
+  pairs: { estimated: number; actual: number }[];
+}) {
+  const tasks = assignments.map((a) => ({
+    id: a.id,
+    title: a.title,
+    due_at: a.due_at,
+    effort_minutes: a.effort_minutes,
+    status: a.status,
+    deferrals: deferrals[a.id] ?? 0,
+  }));
+
+  const ahead = forecast(tasks);
+  const stuck = stuckTasks(tasks);
+  const cal = calibration(pairs);
+
+  if (!ahead.warning && stuck.length === 0 && !cal.summary) return null;
+
+  return (
+    <section className="mb-8 flex flex-col gap-3 px-4">
+      {ahead.warning && <p className="type-body text-t-approaching">{ahead.warning}</p>}
+
+      {/* Stated as a fact about the estimates, not about the person. It is
+          shown here because it is the number that makes the forecast above
+          readable: 19 hours of estimates is a different week if they usually
+          run to double. */}
+      {cal.summary && <p className="type-note text-text-low">{cal.summary}</p>}
+
+      {stuck.map(({ task, note }) => (
+        <div key={task.id} className="flex flex-col gap-1">
+          <span className="type-body text-text-hi">{task.title}</span>
+          <span className="type-note text-text-low">{note}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/**
+ * How long it actually took, asked once and never again.
+ *
+ * Appears after finishing something that carried an estimate, and only then.
+ * Ignoring it is a normal outcome with no consequence: calibration simply
+ * waits, which is better than learning from a number given to dismiss a
+ * prompt.
+ */
+function HowLong({
+  assignment,
+  onDone,
+}: {
+  assignment: Assignment;
+  onDone: () => void;
+}) {
+  const estimate = assignment.effort_minutes ?? 60;
+  const options = [...new Set([
+    Math.max(5, Math.round((estimate * 0.5) / 5) * 5),
+    estimate,
+    Math.round((estimate * 1.5) / 5) * 5,
+    estimate * 2,
+  ])].sort((a, b) => a - b);
+
+  const label = (m: number) => (m < 60 ? `${m}m` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h${m % 60}`);
+
+  return (
+    <div className="mb-8 flex flex-wrap items-center gap-2 px-4">
+      <span className="type-note text-text-low">How long did that take?</span>
+      {options.map((m) => (
+        <Chip key={m} onClick={() => void setActualMinutes(assignment.id, m).then(onDone)}>
+          {label(m)}
+        </Chip>
+      ))}
+      <button type="button" onClick={onDone} className="type-caption text-text-low">
+        Skip
+      </button>
     </div>
   );
 }

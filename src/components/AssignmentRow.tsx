@@ -28,6 +28,13 @@ interface AssignmentRowProps {
   now?: Date;
   onToggleDone: () => void;
   onOpen?: () => void;
+  /**
+   * Push this to tomorrow.
+   *
+   * Optional so the row stays usable in views where deferring makes no sense,
+   * such as a past day in the history grid.
+   */
+  onDefer?: () => void;
   /** Steps completed, when the work has been broken down. */
   progress?: { done: number; total: number } | null;
 }
@@ -39,6 +46,7 @@ export function AssignmentRow({
   now,
   onToggleDone,
   onOpen,
+  onDefer,
   progress,
 }: AssignmentRowProps) {
   const due = assignment.due_at ? new Date(assignment.due_at) : null;
@@ -132,6 +140,23 @@ export function AssignmentRow({
           )}
         </span>
       </button>
+
+      {/*
+        One tap, no friction, no comment. The spec is explicit that deferring
+        must cost nothing: a push that feels like an admission is one avoided
+        by not opening the app at all. It is only offered on unfinished work
+        that has a date to move.
+      */}
+      {onDefer && !done && assignment.due_at && (
+        <button
+          type="button"
+          onClick={onDefer}
+          aria-label={`Push "${assignment.title}" to tomorrow`}
+          className="flex min-h-[var(--tap)] shrink-0 items-center px-4 type-caption text-text-low"
+        >
+          Tomorrow
+        </button>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ const task = (o: Partial<Assignment> & { id: string }): Assignment => ({
   due_at: null,
   due_has_time: false,
   effort_minutes: null,
+  actual_minutes: null,
   status: 'todo',
   notes: null,
   start_by_override: null,
