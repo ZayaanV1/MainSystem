@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { drawPath } from '../lib/motion';
 import { EmptyState } from '../components/EmptyState';
 import { loadTrendDays, targetsFor, type MacroBand } from '../lib/diet';
 import { addDays, todayKey } from '../lib/time';
@@ -135,6 +136,17 @@ function formatWeek(weekStart: string): string {
  * in the list below, because colour is never the only signal.
  */
 function Chart({ weeks, calorieTarget }: { weeks: WeekPoint[]; calorieTarget: MacroBand | null }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // Drawn once the geometry exists, and re-drawn when the weeks change, so a
+  // new weigh-in re-runs the line rather than appearing at the end of a static
+  // one. The dependency is the segment shapes, not the array identity.
+  const shape = weeks.map((w) => `${w.weekStart}:${w.kg ?? ''}`).join('|');
+  useEffect(() => {
+    const paths = svgRef.current?.querySelectorAll<SVGPathElement>('path[data-line]');
+    if (paths?.length) drawPath([...paths]);
+  }, [shape]);
+
   const W = 320;
   const H = 160;
   const PAD = { top: 12, right: 8, bottom: 20, left: 8 };
@@ -177,6 +189,7 @@ function Chart({ weeks, calorieTarget }: { weeks: WeekPoint[]; calorieTarget: Ma
 
   return (
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
       className="w-full"
       role="img"
@@ -220,6 +233,7 @@ function Chart({ weeks, calorieTarget }: { weeks: WeekPoint[]; calorieTarget: Ma
       {segments.map((d, i) => (
         <path
           key={i}
+          data-line
           d={d}
           fill="none"
           stroke="var(--m-protein)"

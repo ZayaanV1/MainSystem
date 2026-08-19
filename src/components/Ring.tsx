@@ -17,7 +17,8 @@
  * on rings and nowhere else; urgency colours never appear here.
  */
 
-import { useId } from 'react';
+import { useId, useLayoutEffect, useRef } from 'react';
+import { countUp, pulse } from '../lib/motion';
 import { motion, useReducedMotion } from 'motion/react';
 
 /**
@@ -69,6 +70,39 @@ export function Ring({
   // asked this app too, and a spring that ignores it is the app overruling a
   // system setting it does not own.
   const reduced = useReducedMotion();
+
+  /**
+   * The value counts up on arrival and pulses when it changes afterwards.
+   *
+   * Two different jobs. Counting up on mount gives the number the same sense
+   * of arriving that the arc has, so they read as one object rather than a
+   * drawing with a caption. Pulsing on change is the receipt that a tap
+   * landed — the arc already moves, but on a small change it moves by a few
+   * pixels and the number is what the eye is on.
+   */
+  const valueRef = useRef<HTMLSpanElement>(null);
+  const mounted = useRef(false);
+
+  // Layout effect, not effect: this runs before paint, so the number is
+  // correct in the first frame the user sees. The animation then plays over a
+  // value that was already right — which also means the ring degrades to a
+  // plain correct number anywhere the animation cannot run, rather than to a
+  // blank space.
+  useLayoutEffect(() => {
+    const el = valueRef.current;
+    if (!el) return;
+
+    const fmt = (n: number) => Math.round(n).toLocaleString('en-CA');
+    el.textContent = fmt(value);
+
+    if (!mounted.current) {
+      mounted.current = true;
+      countUp(el, value, { format: fmt });
+      return;
+    }
+
+    pulse(el);
+  }, [value]);
 
   const r = (size - stroke * 2) / 2;
   const c = 2 * Math.PI * r;
@@ -204,9 +238,23 @@ export function Ring({
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="type-display text-text-hi">
-            {Math.round(value).toLocaleString('en-CA')}
-          </span>
+          {/*
+            This text node is owned by the effect above, not by React.
+
+            Rendering the value here as well would look harmless and quietly
+            break the count-up: any re-render of this component mid-animation
+            resets the text to its final value, and Diet re-renders often. The
+            effect writes the correct number synchronously on mount, so there
+            is no frame where it is empty.
+
+            aria-live is off. A number ticking 0 to 2,380 announced digit by
+            digit is unusable; the ring's own aria-label carries the value.
+          */}
+          <span
+            ref={valueRef}
+            aria-hidden
+            className="type-display text-text-hi"
+          />
           {unit && <span className="type-caption text-text-low">{unit}</span>}
         </div>
       </div>
