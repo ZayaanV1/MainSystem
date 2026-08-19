@@ -10,12 +10,15 @@ import {
   deleteEntry,
   deleteSavedMeal,
   loadDay,
+  loadRecentItems,
   logSavedMeal,
+  relogItem,
+  type NewItem,
   type DietDay,
   type FoodItem,
   type MacroBand,
 } from '../lib/diet';
-import { formatTime, todayKey } from '../lib/time';
+import { addDays, formatTime, todayKey } from '../lib/time';
 import { LogFood } from './LogFood';
 import { Trend } from './Trend';
 
@@ -42,12 +45,27 @@ export function Diet({ onBack }: { onBack: () => void }) {
   const [logging, setLogging] = useState(false);
   const [showTrend, setShowTrend] = useState(false);
   const [editingMeals, setEditingMeals] = useState(false);
+  const [recent, setRecent] = useState<NewItem[]>([]);
+
+  /**
+   * The portion the quick-log chips will use.
+   *
+   * Defaults to 1, so the common case stays the one tap the spec asks for.
+   * Anything else costs one extra tap and is visible the whole time rather
+   * than hidden behind a long-press, which is both undiscoverable and easy to
+   * trigger by accident while trying to log breakfast.
+   */
+  const [portion, setPortion] = useState(1);
   const day = todayKey();
 
   const reload = useCallback(() => loadDay(day).then(setData), [day]);
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    void loadRecentItems(day, addDays(day, -14)).then(setRecent);
+  }, [day]);
 
   if (showTrend) return <Trend onBack={() => setShowTrend(false)} />;
   if (!data) return null;
@@ -118,6 +136,10 @@ export function Diet({ onBack }: { onBack: () => void }) {
         </Button>
       </div>
 
+      {(data.savedMeals.length > 0 || recent.length > 0) && (
+        <PortionRow portion={portion} onChange={setPortion} />
+      )}
+
       {data.savedMeals.length > 0 && (
         <section className="mb-8">
           <div className="mb-1 flex items-baseline justify-between gap-4 px-4">
@@ -131,7 +153,11 @@ export function Diet({ onBack }: { onBack: () => void }) {
             </button>
           </div>
           <p className="type-note mb-3 px-4 text-text-low">
-            {editingMeals ? 'Removing a meal leaves what you already logged alone.' : 'One tap logs it again.'}
+            {editingMeals
+              ? 'Removing a meal leaves what you already logged alone.'
+              : portion === 1
+                ? 'One tap logs it again.'
+                : `One tap logs ${portion} of it.`}
           </p>
 
           {/*
@@ -163,13 +189,32 @@ export function Diet({ onBack }: { onBack: () => void }) {
               {data.savedMeals.slice(0, 8).map((meal) => (
                 <Chip
                   key={meal.id}
-                  onClick={() => void logSavedMeal(userId, day, meal).then(reload)}
+                  onClick={() => void logSavedMeal(userId, day, meal, portion).then(reload)}
                 >
                   {meal.name}
                 </Chip>
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {recent.length > 0 && (
+        <section className="mb-8">
+          <h2 className="type-h2 mb-1 px-4 text-text-hi">Logged recently</h2>
+          <p className="type-note mb-3 px-4 text-text-low">
+            From the last two weeks. Today's entries are not repeated here.
+          </p>
+          <div className="flex flex-wrap gap-2 px-4">
+            {recent.map((item) => (
+              <Chip
+                key={item.name}
+                onClick={() => void relogItem(userId, day, item, portion).then(reload)}
+              >
+                {item.name}
+              </Chip>
+            ))}
+          </div>
         </section>
       )}
 
@@ -238,6 +283,40 @@ export function Diet({ onBack }: { onBack: () => void }) {
         onLogged={reload}
       />
     </main>
+  );
+}
+
+/**
+ * How much of a saved meal or a recent item a tap logs.
+ *
+ * Visible rather than hidden, and sticky rather than per-chip: setting it to
+ * a half and then logging three things is a real sequence, and re-selecting
+ * the portion for each would be worse than the friction it saves.
+ *
+ * It resets to 1 on every visit to the screen, because a portion left at 2
+ * from yesterday is a silent way to log twice what you ate.
+ */
+const PORTIONS = [0.5, 1, 1.5, 2] as const;
+
+function PortionRow({ portion, onChange }: { portion: number; onChange: (p: number) => void }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-2 px-4">
+      <span className="type-label text-text-mid">Portion</span>
+      {PORTIONS.map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          aria-pressed={portion === p}
+          className={[
+            'min-h-[var(--tap)] rounded-pill px-4 type-label',
+            portion === p ? 'bg-ink-600 text-text-hi' : 'border border-ink-600 text-text-low',
+          ].join(' ')}
+        >
+          {p === 1 ? '1' : p}
+        </button>
+      ))}
+    </div>
   );
 }
 

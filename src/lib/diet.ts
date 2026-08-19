@@ -196,6 +196,89 @@ export async function saveMeal(userId: string, name: string, items: NewItem[]): 
   return { error: error ? error.message : null };
 }
 
+/**
+ * Distinct items logged recently, most recent first.
+ *
+ * For the one-tap re-log chips. Deduplicated by name so a breakfast eaten
+ * every day appears once rather than filling the row with itself, keeping the
+ * most recent version of its macros — if the same food was logged at two
+ * weights, the last one is the better guess at what "again" means.
+ *
+ * Today is excluded. A chip offering to re-log something already on today's
+ * list is mostly a way to log it twice by accident.
+ */
+export async function loadRecentItems(
+  beforeDay: DayKey,
+  sinceDay: DayKey,
+  limit = 8,
+): Promise<NewItem[]> {
+  const { data } = await supabase
+    .from('food_entries')
+    .select('local_day, logged_at, food_items(name, quantity, unit, grams, calories, protein_g, carbs_g, fat_g, is_estimate, source_ref)')
+    .gte('local_day', sinceDay)
+    .lt('local_day', beforeDay)
+    .order('logged_at', { ascending: false });
+
+  const rows = (data ?? []) as { food_items: Record<string, unknown>[] | null }[];
+  const seen = new Map<string, NewItem>();
+
+  for (const row of rows) {
+    for (const raw of row.food_items ?? []) {
+      const name = String(raw.name ?? '').trim();
+      if (!name) continue;
+
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+
+      seen.set(key, {
+        name,
+        quantity: raw.quantity === null ? null : num(raw.quantity),
+        unit: (raw.unit as string) ?? null,
+        grams: raw.grams === null ? null : num(raw.grams),
+        calories: num(raw.calories),
+        protein_g: num(raw.protein_g),
+        carbs_g: num(raw.carbs_g),
+        fat_g: num(raw.fat_g),
+        is_estimate: Boolean(raw.is_estimate),
+        source_ref: (raw.source_ref as string) ?? null,
+      });
+
+      if (seen.size >= limit) return [...seen.values()];
+    }
+  }
+
+  return [...seen.values()];
+}
+
+/** Logs a single item again, at a portion of what it was. */
+export async function relogItem(
+  userId: string,
+  day: DayKey,
+  item: NewItem,
+  portion = 1,
+): Promise<{ error: string | null }> {
+  return logEntry(userId, day, 'manual', [scaleItem(item, portion)], null);
+}
+
+/**
+ * Scales one item's measured amounts.
+ *
+ * Multiplies what was recorded rather than re-deriving anything, so half a
+ * portion of something weighed once stays exactly half of what was weighed.
+ */
+function scaleItem<T extends NewItem>(item: T, portion: number): T {
+  if (portion === 1) return item;
+  return {
+    ...item,
+    quantity: item.quantity === null || item.quantity === undefined ? null : round(item.quantity * portion),
+    grams: item.grams === null || item.grams === undefined ? null : round(item.grams * portion),
+    calories: round(item.calories * portion),
+    protein_g: round(item.protein_g * portion),
+    carbs_g: round(item.carbs_g * portion),
+    fat_g: round(item.fat_g * portion),
+  };
+}
+
 /** Forgets a saved meal. The entries it already produced are untouched. */
 export async function deleteSavedMeal(id: string): Promise<void> {
   await supabase.from('saved_meals').delete().eq('id', id);
@@ -213,17 +296,13 @@ export async function logSavedMeal(
   meal: SavedMeal,
   portion = 1,
 ): Promise<{ error: string | null }> {
-  const scaled = meal.items.map((i) => ({
-    ...i,
-    quantity: i.quantity === null ? null : round(i.quantity * portion),
-    grams: i.grams === null ? null : round(i.grams * portion),
-    calories: round(i.calories * portion),
-    protein_g: round(i.protein_g * portion),
-    carbs_g: round(i.carbs_g * portion),
-    fat_g: round(i.fat_g * portion),
-  }));
+  const scaled = meal.items.map((i) => scaleItem(i, portion));
 
-  const result = await logEntry(userId, day, 'saved', scaled, meal.name);
+  // The portion is written into the entry's own record of itself, so a half
+  // shake is still legible as a half shake a month later rather than as a
+  // meal whose numbers mysteriously disagree with the saved one.
+  const label = portion === 1 ? meal.name : `${meal.name} · ${portion}x`;
+  const result = await logEntry(userId, day, 'saved', scaled, label);
   if (result.error) return result;
 
   await supabase
