@@ -394,3 +394,23 @@
     animation: none;
   }
 }
+
+/*
+ * A readable measure, applied as a rule rather than a class.
+ *
+ * On the 1152px desktop frame an unconstrained paragraph ran to about 107
+ * characters a line — the eye loses its place tracking back to the start of
+ * the next one. Sixty to seventy-five reads without effort.
+ *
+ * Done here, once, instead of adding a class to each paragraph: the first
+ * attempt was per-element and missed three of them, which is the same
+ * fixing-an-instance-not-the-class mistake this codebase has made before.
+ * A paragraph that genuinely wants the full width can still override it.
+ *
+ * Only above lg. On a phone the frame is already narrower than this.
+ */
+@media (width >= 64rem) {
+  main p {
+    max-width: 62ch;
+  }
+}

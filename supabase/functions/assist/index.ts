@@ -381,7 +381,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: 'expected JSON' }, 400);
   }
 
-  const provider = geminiProvider(env('GEMINI_API_KEY'));
+  /*
+   * The account's own key wins over the shared one.
+   *
+   * Read once per request rather than per task, and never returned to the
+   * client — it goes from this row straight into the provider call. RLS keeps
+   * the row readable only by its owner; the service role reads it here to act
+   * on that owner's behalf and nothing else.
+   */
+  const { data: keyRow } = await admin
+    .from('app_settings')
+    .select('gemini_api_key')
+    .eq('user_id', userData.user.id)
+    .maybeSingle();
+
+  const ownKey = (keyRow?.gemini_api_key as string | null)?.trim() || null;
+  const provider = geminiProvider(ownKey ?? env('GEMINI_API_KEY'));
 
   const fail = (failure: string, detail: string) =>
     json({
@@ -494,7 +509,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .eq('kind', 'chat')
       .maybeSingle();
 
-    if ((usage?.count ?? 0) >= CHAT_CALLS_PER_DAY) {
+    /*
+     * The daily budget exists to stop one account draining a shared free tier
+     * before anyone else can log a meal. An account paying its own way is not
+     * competing with anybody, so the reserve simply does not apply to it.
+     */
+    if (!ownKey && (usage?.count ?? 0) >= CHAT_CALLS_PER_DAY) {
       return json({
         ok: false,
         failure: 'quota',

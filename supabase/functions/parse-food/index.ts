@@ -108,7 +108,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
   }
 
-  const provider = geminiProvider(env('GEMINI_API_KEY'));
+  // Same rule as the assist function: the account's own key wins. Food
+  // logging is the path that must not fail, so it gets the same treatment.
+  const { data: keyRow } = await admin
+    .from('app_settings')
+    .select('gemini_api_key')
+    .eq('user_id', userData.user.id)
+    .maybeSingle();
+
+  const ownKey = (keyRow?.gemini_api_key as string | null)?.trim() || null;
+  const provider = geminiProvider(ownKey ?? env('GEMINI_API_KEY'));
 
   const result = await provider.complete<unknown>({
     instruction: FOOD_INSTRUCTION,

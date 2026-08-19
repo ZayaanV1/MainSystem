@@ -292,6 +292,38 @@ export async function loadAllCourses(): Promise<Course[]> {
   return (data ?? []) as Course[];
 }
 
+/* ------------------------------------------------------------- own key --- */
+
+/**
+ * Whether this account has its own Gemini key, without ever reading it back.
+ *
+ * The key is write-only from the app's point of view. There is no reason to
+ * pull a secret into the browser to render a row that only needs to say
+ * "set" or "not set", and a value that is never fetched cannot leak from a
+ * screenshot, a bug report or a stray log.
+ */
+export async function hasOwnApiKey(): Promise<boolean> {
+  const { data } = await supabase
+    .from('app_settings')
+    .select('gemini_api_key')
+    .limit(1);
+
+  return Boolean((data ?? [])[0]?.gemini_api_key);
+}
+
+/** Sets or clears it. Passing null goes back to the shared key. */
+export async function setOwnApiKey(
+  userId: string,
+  key: string | null,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('app_settings')
+    .update({ gemini_api_key: key && key.trim() ? key.trim() : null })
+    .eq('user_id', userId);
+
+  return { error: error ? error.message : null };
+}
+
 /* -------------------------------------------------------- calendar feed --- */
 
 /**

@@ -8,7 +8,7 @@ import { fetchDeliveryLog, type DeliveryRow } from '../lib/health';
 import { pushStatus, subscribeToPush, type PushStatus } from '../lib/notifications';
 import { subscribeSw, type SwState } from '../lib/sw';
 import { DigestSettings } from './DigestSettings';
-import { calendarFeedUrl } from '../lib/planner';
+import { calendarFeedUrl, hasOwnApiKey, setOwnApiKey } from '../lib/planner';
 import { supabase } from '../lib/supabase';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 
@@ -127,7 +127,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
             </p>
           )}
           {sw.status === 'unsupported' && (
-            <p className="mt-2 type-note text-text-low">
+            <p className="mt-2 max-w-prose type-note text-text-low">
               This browser has no service worker support.
             </p>
           )}
@@ -202,6 +202,8 @@ export function Settings({ onBack }: { onBack: () => void }) {
         )}
       </section>
 
+      <ApiKey userId={userId} />
+
       <CalendarFeed userId={userId} />
 
       <section className="mb-8">
@@ -265,7 +267,7 @@ function CalendarFeed({ userId }: { userId: string }) {
   return (
     <section className="mb-8">
       <h2 className="type-h2 mb-1 px-4 text-text-hi">Calendar feed</h2>
-      <p className="type-note mb-3 px-4 text-text-low">
+      <p className="type-note mb-3 max-w-prose px-4 text-text-low">
         Subscribe to this in any calendar app and your deadlines appear there. Titles and times
         only — never notes.
       </p>
@@ -299,6 +301,99 @@ function CalendarFeed({ userId }: { userId: string }) {
             </div>
           </>
         )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Your own Gemini key.
+ *
+ * Without one, food parsing and Abood draw on a single shared free tier, which
+ * means one heavy account can exhaust food logging for everyone else. Your own
+ * key decouples that completely: your usage is yours, your limits are yours,
+ * and the daily question budget stops applying because you are not competing
+ * with anybody.
+ *
+ * The field is write-only. The app never reads the key back — it only asks
+ * whether one is set — so there is no path by which it reaches a screenshot,
+ * a bug report or a log. Saying that plainly is the point: a key box with no
+ * explanation is a thing people paste into and then worry about.
+ */
+function ApiKey({ userId }: { userId: string }) {
+  const [isSet, setIsSet] = useState<boolean | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void hasOwnApiKey().then(setIsSet);
+  }, []);
+
+  async function save(next: string | null) {
+    setBusy(true);
+    setMessage(null);
+    const { error } = await setOwnApiKey(userId, next);
+    setBusy(false);
+
+    if (error) {
+      setMessage(`Not saved. ${error}`);
+      return;
+    }
+
+    setDraft('');
+    setIsSet(Boolean(next));
+    setMessage(next ? 'Saved. This account now uses your key.' : 'Removed. Back to the shared key.');
+  }
+
+  if (isSet === null) return null;
+
+  return (
+    <section className="mb-8">
+      <h2 className="type-h2 mb-1 px-4 text-text-hi">Your own AI key</h2>
+      <p className="type-note mb-3 max-w-prose px-4 text-text-low">
+        Food parsing and Abood share one free allowance across everyone using this app. Add your
+        own Gemini key and you get your own limits instead, with no daily cap on questions. It is
+        stored for your account only, and the app never reads it back.
+      </p>
+
+      <div className="flex max-w-prose flex-col gap-3 px-4">
+        {isSet ? (
+          <>
+            <p className="type-body text-text-mid">A key is set for this account.</p>
+            <div>
+              <Button variant="quiet" disabled={busy} onClick={() => void save(null)}>
+                Remove it
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <input
+              type="password"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Paste your Gemini API key"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
+            />
+            <p className="type-note text-text-low">
+              A free key comes from aistudio.google.com. Without one, the shared allowance is used.
+            </p>
+            <div>
+              <Button
+                variant="quiet"
+                disabled={busy || !draft.trim()}
+                onClick={() => void save(draft)}
+              >
+                {busy ? 'Saving' : 'Use my key'}
+              </Button>
+            </div>
+          </>
+        )}
+
+        {message && <p className="type-note text-text-mid">{message}</p>}
       </div>
     </section>
   );

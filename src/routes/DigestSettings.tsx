@@ -63,7 +63,7 @@ export function DigestSettings({ onSaved }: { onSaved?: () => void }) {
 
   return (
     <form onSubmit={submit}>
-      <Card className="p-4">
+      <Card className="max-w-prose p-4">
         <div className="flex flex-col gap-6">
           <button
             type="button"
