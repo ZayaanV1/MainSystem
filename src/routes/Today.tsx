@@ -180,7 +180,7 @@ export function Today({
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-160 flex-col px-4 pt-6">
+    <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <div>
           <h1 className="type-h1 text-text-hi">Today</h1>
@@ -188,7 +188,8 @@ export function Today({
             {formatDay(today)} &middot; {zoneAbbrev()}
           </p>
         </div>
-        <div className="flex gap-4">
+        {/* The rail carries navigation once there is room for it. */}
+        <div className="flex flex-wrap justify-end gap-4 lg:hidden">
           <button type="button" onClick={onOpenWeek} className="type-label text-text-mid">
             Week
           </button>
@@ -215,6 +216,14 @@ export function Today({
 
       <CaptureBox userId={userId} onCaptured={reload} />
 
+      {/*
+        Two columns once there is room, split by kind rather than by size: the
+        left is the day's fixed obligations, the right is the work that moves
+        and the things still waiting to be sorted. They stack in that order on
+        a phone, which is the order a morning actually happens in.
+      */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start lg:gap-10">
+        <div className="min-w-0">
       <section className="mb-8">
         <div className="mb-3 flex items-baseline justify-between gap-4 px-4">
           <h2 className="type-h2 text-text-hi">Checklist</h2>
@@ -340,6 +349,9 @@ export function Today({
           onSaved={reload}
         />
       )}
+        </div>
+
+        <div className="min-w-0">
 
       <WhatNow
         assignments={data?.assignments ?? []}
@@ -431,6 +443,9 @@ export function Today({
           </p>
         </footer>
       )}
+        </div>
+      </div>
+
     </main>
   );
 }

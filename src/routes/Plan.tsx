@@ -96,7 +96,7 @@ export function Plan({ courses, onBack, onChanged }: {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-160 flex-col px-4 pt-6">
+    <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="type-h1 text-text-hi">Plan</h1>
         <button type="button" onClick={onBack} className="type-label text-text-mid">

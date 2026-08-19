@@ -258,3 +258,34 @@
   font-weight: 400;
   line-height: 1.4;
 }
+
+/*
+ * The frame every screen sits in.
+ *
+ * One utility rather than a width repeated across eleven routes, because the
+ * first time that width needed to change it had to change in eleven places
+ * and one of them would have been missed.
+ *
+ * Below lg it is the phone column the app was built as. At lg the rail takes
+ * the navigation, so the content can use real width and breathe: more gutter,
+ * more headroom, and a ceiling wide enough for two columns without lines of
+ * text growing past the length an eye can track back from.
+ */
+@utility page-frame {
+  margin-inline: auto;
+  display: flex;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 40rem;
+  flex-direction: column;
+  padding-inline: 1rem;
+  padding-top: 1.5rem;
+}
+
+@media (width >= 64rem) {
+  .page-frame {
+    max-width: 72rem;
+    padding-inline: 2.5rem;
+    padding-top: 2.5rem;
+  }
+}

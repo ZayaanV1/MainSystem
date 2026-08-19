@@ -81,7 +81,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
   const t = data.targets;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-160 flex-col px-4 pt-6">
+    <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="type-h1 text-text-hi">Food</h1>
         <div className="flex items-baseline gap-4">
@@ -91,14 +91,14 @@ export function Diet({ onBack }: { onBack: () => void }) {
           <button type="button" onClick={() => setShowTrend(true)} className="type-label text-text-mid">
             Trend
           </button>
-          <button type="button" onClick={onBack} className="type-label text-text-mid">
+          <button type="button" onClick={onBack} className="type-label text-text-mid lg:hidden">
             Today
           </button>
         </div>
       </header>
 
       {t ? (
-        <section className="mb-8 grid grid-cols-2 gap-6 px-4">
+        <section className="mb-8 grid grid-cols-2 gap-6 px-4 lg:grid-cols-4 lg:gap-8">
           <Ring
             label="Calories"
             onClick={() => setOpenMacro('calories')}
@@ -146,6 +146,14 @@ export function Diet({ onBack }: { onBack: () => void }) {
         </EmptyState>
       )}
 
+      {/*
+        Two columns once there is room. The split is by what you are doing:
+        the left is for putting food in, the right is for reading back what is
+        already there. On a phone they stack in that same order, because
+        logging is the reason the screen gets opened.
+      */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-10">
+        <div>
       <div className="mb-8 px-4">
         <Button variant="primary" onClick={() => setLogging(true)}>
           Log food
@@ -239,6 +247,9 @@ export function Diet({ onBack }: { onBack: () => void }) {
         </section>
       )}
 
+        </div>
+
+        <div>
       <section className="mb-8 flex-1">
         <h2 className="type-h2 mb-3 px-4 text-text-hi">Today</h2>
 
@@ -295,6 +306,8 @@ export function Diet({ onBack }: { onBack: () => void }) {
       </section>
 
       <WeightRow current={data.weightKg} userId={userId} day={day} onSaved={reload} />
+        </div>
+      </div>
 
       <MacroDetail
         macro={openMacro}

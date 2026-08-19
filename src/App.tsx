@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AppShell, Page, type NavItem } from './components/AppShell';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { startOutbox, subscribeOutbox, type OutboxState } from './lib/outbox';
@@ -26,6 +27,30 @@ import { Specimen } from './routes/Specimen';
  * would be the moment.
  */
 type Screen = 'today' | 'week' | 'month' | 'plan' | 'food' | 'ask' | 'search' | 'settings';
+
+/**
+ * The rail's contents.
+ *
+ * Order is by how often a screen is opened, not alphabetically and not by how
+ * much work went into it. Today first because it is the answer to the question
+ * the app exists to answer.
+ */
+const icon = (d: string) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d={d} />
+  </svg>
+);
+
+const NAV: NavItem<Screen>[] = [
+  { id: 'today', label: 'Today', icon: icon('M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0') },
+  { id: 'week', label: 'Week', icon: icon('M3 9h18M8 3v4M16 3v4M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2') },
+  { id: 'month', label: 'Month', icon: icon('M3 10h18M7 3v4M17 3v4M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2M8 14h.01M12 14h.01M16 14h.01') },
+  { id: 'food', label: 'Food', icon: icon('M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8') },
+  { id: 'search', label: 'Search', icon: icon('M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35') },
+  { id: 'ask', label: 'Ask', icon: icon('M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z') },
+  { id: 'plan', label: 'Plan', icon: icon('M4 6h16M4 12h10M4 18h7') },
+  { id: 'settings', label: 'Settings', icon: icon('M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z') },
+];
 
 /** Shown before setup has been run, instead of a white screen and a console error. */
 function NotConfigured() {
@@ -94,57 +119,62 @@ function Shell() {
 
   if (!session) return <SignIn />;
 
+  /** The screen itself. Today is handled separately; see below. */
+  function renderScreen() {
+    const home = () => setScreen('today');
+    const bumped = () => setRevision((r) => r + 1);
+
+    switch (screen) {
+      case 'settings':
+        return <Settings onBack={home} />;
+      case 'week':
+        return (
+          <Week data={data} onBack={home} onOpenAssignment={setOpenAssignment} onChanged={bumped} />
+        );
+      case 'month':
+        return (
+          <Month data={data} onBack={home} onOpenAssignment={setOpenAssignment} onChanged={bumped} />
+        );
+      case 'food':
+        return <Diet onBack={home} />;
+      case 'search':
+        return (
+          <Search
+            onBack={home}
+            onOpenAssignment={(id) => {
+              const found = data?.assignments.find((a) => a.id === id);
+              if (found) setOpenAssignment(found);
+            }}
+          />
+        );
+      case 'ask':
+        return <Chat courses={data?.courses ?? []} onBack={home} onChanged={bumped} />;
+      case 'plan':
+        return <Plan courses={data?.courses ?? []} onBack={home} onChanged={bumped} />;
+      default:
+        return null;
+    }
+  }
+
   return (
-    <>
+    <AppShell current={screen} items={NAV} onNavigate={setScreen}>
       <SyncBanner />
 
-      {screen === 'settings' && <Settings onBack={() => setScreen('today')} />}
+      {/*
+        Keyed by screen, so React unmounts the old one and mounts the new, and
+        the new one animates in.
 
-      {screen === 'week' && (
-        <Week
-          data={data}
-          onBack={() => setScreen('today')}
-          onOpenAssignment={setOpenAssignment}
-          onChanged={() => setRevision((r) => r + 1)}
-        />
-      )}
+        There is no AnimatePresence here and no exit animation, which is a
+        deliberate trade. Wrapping these in AnimatePresence left pages mounted
+        at opacity 0 instead of removing them — with `mode="wait"` it deadlocked
+        after the first exit, and without it the pages simply accumulated. A
+        screen that never unmounts keeps its timers, its subscriptions and its
+        stale data alive behind the one you are looking at, which is a far worse
+        bug than a missing fade on the way out.
 
-      {screen === 'month' && (
-        <Month
-          data={data}
-          onBack={() => setScreen('today')}
-          onOpenAssignment={setOpenAssignment}
-          onChanged={() => setRevision((r) => r + 1)}
-        />
-      )}
-
-      {screen === 'food' && <Diet onBack={() => setScreen('today')} />}
-
-      {screen === 'search' && (
-        <Search
-          onBack={() => setScreen('today')}
-          onOpenAssignment={(id) => {
-            const found = data?.assignments.find((a) => a.id === id);
-            if (found) setOpenAssignment(found);
-          }}
-        />
-      )}
-
-      {screen === 'ask' && (
-        <Chat
-          courses={data?.courses ?? []}
-          onBack={() => setScreen('today')}
-          onChanged={() => setRevision((r) => r + 1)}
-        />
-      )}
-
-      {screen === 'plan' && (
-        <Plan
-          courses={data?.courses ?? []}
-          onBack={() => setScreen('today')}
-          onChanged={() => setRevision((r) => r + 1)}
-        />
-      )}
+        Entering is the half you actually watch. Leaving is a cut.
+      */}
+      {screen !== 'today' && <Page key={screen}>{renderScreen()}</Page>}
 
       {/* Today stays mounted so returning to it is instant and the capture box
           never loses what is half-typed in it. */}
@@ -175,7 +205,7 @@ function Shell() {
           onSaved={() => setRevision((r) => r + 1)}
         />
       )}
-    </>
+    </AppShell>
   );
 }
 

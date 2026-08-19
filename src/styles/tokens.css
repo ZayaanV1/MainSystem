@@ -21,29 +21,51 @@
    ========================================================================= */
 
 :root {
-  /* ---- ground ---------------------------------------------------------- */
-  --ink-900: #15161d; /* app background */
-  --ink-800: #1d1f28; /* card surface */
-  --ink-700: #262935; /* raised surface, sheets */
-  --ink-600: #333747; /* borders, dividers */
+  /* ---- ground ----------------------------------------------------------
+     Deeper and cooler than the first palette. Vivid colour needs somewhere
+     dark to sit: the same stroke reads as neon on #0c0d13 and as a highlighter
+     on #15161d. Every surface step is a real step, so cards and sheets
+     separate without a border doing the work.
+     -------------------------------------------------------------------- */
+  --ink-900: #0b0c12; /* app background */
+  --ink-800: #14161f; /* card surface */
+  --ink-700: #1c1f2b; /* raised surface, sheets */
+  --ink-600: #2a2e3d; /* borders, dividers */
 
-  --text-hi: #e9e9f0;
-  --text-mid: #9da1b4;
-  --text-low: #7c8199; /* see CONTRAST NOTE 1 */
+  --text-hi: #f2f3f8;
+  --text-mid: #a8adc2;
+  --text-low: #858ba3; /* see CONTRAST NOTE 1 */
 
-  /* ---- time: warm, saturation rises with urgency ----------------------- */
-  --t-distant: #6a6f84; /* 15+ days   — mark only, see CONTRAST NOTE 2 */
-  --t-approaching: #c4a46a; /* 6-14 days  */
-  --t-urgent: #e0913f; /* 3-5 days   */
-  --t-critical: #e2703a; /* under 48h  */
-  --t-overdue: #cb6363; /* past due   — see CONTRAST NOTE 3 */
-  --t-done: #6f8f6b; /* quiet, not celebratory */
+  /* ---- time: warm ramp, now genuinely hot at the top -------------------
+     Same structure as before — warmth and chroma both rise with urgency, so
+     the ramp is readable as a ramp rather than five unrelated colours. What
+     changed is the ceiling. "Due in three days" should look like it.
 
-  /* ---- macros: cool, luminous. Ring strokes only. ---------------------- */
-  --m-calories: #7c6bd6;
-  --m-protein: #2fa8a0;
-  --m-carbs: #4a8fd4;
-  --m-fat: #b0619c;
+     Still no pure red at the top. #ff5f7a is a rose: it reads as urgent
+     without the alarm-state quality of #f00, and it stays distinguishable
+     from --t-critical beside it, which pure red would not.
+     -------------------------------------------------------------------- */
+  --t-distant: #737a94; /* 15+ days   — mark only, see CONTRAST NOTE 2 */
+  --t-approaching: #ffc44d; /* 6-14 days  */
+  --t-urgent: #ff9a2e; /* 3-5 days   */
+  --t-critical: #ff6b35; /* under 48h  */
+  --t-overdue: #ff5f7a; /* past due   — see CONTRAST NOTE 3 */
+  --t-done: #35d99a; /* finished, and allowed to look it */
+
+  /* ---- macros: cool, electric. Ring strokes only. ----------------------
+     Each carries a lighter companion used as the far stop of a gradient
+     along the arc, which is what gives a ring depth instead of reading as a
+     flat band of colour. The pair is always the same hue — a gradient that
+     drifts in hue would make two rings ambiguous where they overlap.
+     -------------------------------------------------------------------- */
+  --m-calories: #7a5af8;
+  --m-calories-lit: #a78bfa;
+  --m-protein: #00d9a3;
+  --m-protein-lit: #5eead4;
+  --m-carbs: #2e9bff;
+  --m-carbs-lit: #7cc4ff;
+  --m-fat: #ff4d9d;
+  --m-fat-lit: #ff8fc0;
 
   /* ---- courses: fixed set of 8, desaturated. Marks, never fills. ------- */
   --c-1: #8a9bb8;
@@ -105,16 +127,20 @@
     --text-low: #686c7e;
 
     --t-distant: #5d6274;
-    --t-approaching: #ac905d;
-    --t-urgent: #c58037;
-    --t-critical: #c76333;
-    --t-overdue: #ab4f4f;
-    --t-done: #627e5e;
+    --t-approaching: #b07d00;
+    --t-urgent: #d1660a;
+    --t-critical: #dd4a12;
+    --t-overdue: #d92f55;
+    --t-done: #00996a;
 
-    --m-calories: #6d5ebc;
-    --m-protein: #29948d;
-    --m-carbs: #417ebb;
-    --m-fat: #9b5589;
+    --m-calories: #5b39d9;
+    --m-calories-lit: #7a5af8;
+    --m-protein: #009d76;
+    --m-protein-lit: #00d9a3;
+    --m-carbs: #1372cc;
+    --m-carbs-lit: #2e9bff;
+    --m-fat: #d81b74;
+    --m-fat-lit: #ff4d9d;
 
     --c-1: #7988a2;
     --c-2: #88a288;
@@ -143,16 +169,20 @@
   --text-low: #686c7e;
 
   --t-distant: #5d6274;
-  --t-approaching: #ac905d;
-  --t-urgent: #c58037;
-  --t-critical: #c76333;
-  --t-overdue: #ab4f4f;
-  --t-done: #627e5e;
+  --t-approaching: #b07d00;
+  --t-urgent: #d1660a;
+  --t-critical: #dd4a12;
+  --t-overdue: #d92f55;
+  --t-done: #00996a;
 
-  --m-calories: #6d5ebc;
-  --m-protein: #29948d;
-  --m-carbs: #417ebb;
-  --m-fat: #9b5589;
+  --m-calories: #5b39d9;
+  --m-calories-lit: #7a5af8;
+  --m-protein: #009d76;
+  --m-protein-lit: #00d9a3;
+  --m-carbs: #1372cc;
+  --m-carbs-lit: #2e9bff;
+  --m-fat: #d81b74;
+  --m-fat-lit: #ff4d9d;
 
   --c-1: #7988a2;
   --c-2: #88a288;

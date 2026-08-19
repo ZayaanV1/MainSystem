@@ -53,7 +53,7 @@ export function LowBattery({
   const allEssentialsDone = items.length > 0 && items.every((i) => isDone(i.id));
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-160 flex-col px-4 pt-6">
+    <main className="page-frame">
       <header className="mb-8 px-4">
         <h1 className="type-h1 text-text-hi">Today</h1>
         <p className="type-caption mt-1 text-text-low">{formatDay(today)}</p>

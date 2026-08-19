@@ -17,6 +17,18 @@
  * on rings and nowhere else; urgency colours never appear here.
  */
 
+import { useId } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
+
+/**
+ * Motion is imported for the entrance only.
+ *
+ * The arc itself stays a CSS transition on stroke-dasharray. That transition
+ * is the receipt that an entry landed, it already runs on the compositor, and
+ * handing it to a JS animation loop would spend a frame budget to look
+ * identical. Motion earns its place on the things CSS cannot spring: the
+ * scale-and-settle when a ring first appears.
+ */
 interface RingProps {
   value: number;
   /** Top of the scale. A full circle. For macros, the top of the target band. */
@@ -53,9 +65,19 @@ export function Ring({
   targetLabel,
   onClick,
 }: RingProps) {
+  // Respected everywhere. Someone who has asked the OS for less motion has
+  // asked this app too, and a spring that ignores it is the app overruling a
+  // system setting it does not own.
+  const reduced = useReducedMotion();
+
   const r = (size - stroke * 2) / 2;
   const c = 2 * Math.PI * r;
   const centre = size / 2;
+
+  // One gradient per ring per mount. Two rings sharing an id would silently
+  // paint the second with the first's colours, and the bug looks like a
+  // palette mistake rather than a duplicate identifier.
+  const gradientId = useId().replace(/:/g, '');
 
   const clamp = (n: number) => Math.max(0, Math.min(1, n));
   const frac = clamp(value / max);
@@ -77,10 +99,13 @@ export function Ring({
         : `${Math.round(band.min - value)} to go`
     : undefined;
 
-  const Root = onClick ? 'button' : 'div';
+  const Root = onClick ? motion.button : motion.div;
 
   return (
     <Root
+      initial={reduced ? false : { opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 26 }}
       {...(onClick
         ? {
             type: 'button' as const,
@@ -106,6 +131,19 @@ export function Ring({
                 }`,
               })}
         >
+          <defs>
+            {/*
+              The arc runs base to lighter along its own length, which is what
+              stops a thick stroke reading as a flat band. Both stops are the
+              same hue: a gradient that drifted in hue would make two rings
+              ambiguous where they overlap.
+            */}
+            <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={`var(${colorVar})`} />
+              <stop offset="100%" stopColor={`var(${colorVar}-lit, var(${colorVar}))`} />
+            </linearGradient>
+          </defs>
+
           {/* Rotated so every arc starts at twelve o'clock. */}
           <g transform={`rotate(-90 ${centre} ${centre})`} fill="none">
             <circle
@@ -135,7 +173,7 @@ export function Ring({
               cx={centre}
               cy={centre}
               r={r}
-              stroke={`var(${colorVar})`}
+              stroke={`url(#${gradientId})`}
               strokeWidth={stroke}
               strokeLinecap="round"
               strokeDasharray={`${frac * c} ${c}`}
