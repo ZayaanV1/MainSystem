@@ -19,7 +19,9 @@ import {
   type FoodItem,
   type MacroBand,
   type MacroTargets,
+  type SavedMeal,
 } from '../lib/diet';
+import { remainingToday, suggestMeals } from '../lib/mealfit';
 import { addDays, formatTime, todayKey } from '../lib/time';
 import { LogFood } from './LogFood';
 import { TargetEditor } from './TargetEditor';
@@ -149,6 +151,11 @@ export function Diet({ onBack }: { onBack: () => void }) {
           Log food
         </Button>
       </div>
+
+      <MealSuggestions
+        data={data}
+        onLog={(meal, p) => void logSavedMeal(userId, day, meal, p).then(reload)}
+      />
 
       {(data.savedMeals.length > 0 || recent.length > 0) && (
         <PortionRow portion={portion} onChange={setPortion} />
@@ -312,6 +319,75 @@ export function Diet({ onBack }: { onBack: () => void }) {
         onLogged={reload}
       />
     </main>
+  );
+}
+
+/**
+ * Saved meals that fit what is left of the day.
+ *
+ * The spec's scenario: "At 6pm the app knows I need 62g of protein and 900
+ * calories — surface the saved meals that actually fit."
+ *
+ * It appears only when there is a gap and something that fits it. Once the day
+ * is met it says nothing at all — this answers a question, it does not prompt
+ * eating, and a panel that suggested food after you had eaten enough would be
+ * the app nagging about a body, which is not its job.
+ *
+ * There is no model here. It is subtraction over data already loaded, so it
+ * costs nothing, needs no network, and still works when the shared free-tier
+ * quota is gone — which is exactly when a tired person needs the answer.
+ */
+function MealSuggestions({
+  data,
+  onLog,
+}: {
+  data: DietDay;
+  onLog: (meal: SavedMeal, portion: number) => void;
+}) {
+  const sums = dayTotals(data.items);
+  const remaining = remainingToday(sums, data.targets);
+
+  const calorieCeiling = data.targets
+    ? Math.max(0, data.targets.calories.max - sums.calories)
+    : null;
+  const proteinCeiling = data.targets
+    ? Math.max(0, data.targets.protein.max - sums.protein_g)
+    : null;
+
+  const fits = suggestMeals(data.savedMeals, remaining, {
+    calories: calorieCeiling,
+    protein: proteinCeiling,
+  });
+  if (fits.length === 0) return null;
+
+  return (
+    <section className="mb-8">
+      <h2 className="type-h2 mb-1 px-4 text-text-hi">What fits</h2>
+      <p className="type-note mb-3 px-4 text-text-low">
+        {remaining && remaining.protein_g > 0
+          ? `${Math.round(remaining.protein_g)} g of protein and ${Math.round(remaining.calories).toLocaleString('en-CA')} kcal left.`
+          : `${Math.round(remaining?.calories ?? 0).toLocaleString('en-CA')} kcal left.`}
+      </p>
+
+      <div className="flex flex-col">
+        {fits.map((fit) => (
+          <button
+            key={fit.meal.id}
+            type="button"
+            onClick={() => onLog(fit.meal, fit.portion)}
+            className="flex items-baseline justify-between gap-4 border-b border-ink-600 px-4 py-3 text-left last:border-b-0"
+          >
+            <span className="type-body text-text-hi">
+              {fit.meal.name}
+              {fit.portion !== 1 && (
+                <span className="type-caption text-text-low"> {fit.portion}x</span>
+              )}
+            </span>
+            <span className="type-note shrink-0 text-text-low">{fit.why}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

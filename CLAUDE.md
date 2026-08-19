@@ -83,7 +83,7 @@ Free tiers only, permanently. If something can't be done free, say so rather tha
 
 ## Current status
 
-Phase: **3 — diet tracker. DONE**, 19 Aug 2026. Phases 0 to 2 done 17-18 Aug.
+Phase: **4 — AI leverage. DONE**, 19 Aug 2026. Phases 0 to 3 done 17-19 Aug.
 
 ### Phase 2 — digest and survival. DONE, 18 Aug 2026
 
@@ -152,13 +152,43 @@ Gaps read "not weighed", never zero, and no direction is graded.
   real Gemini vision response came back correctly, low-confidence and all, from
   a generated image. The iOS file picker itself has never been exercised.
 
-### Next: Phase 4 — AI leverage
+### Phase 4 — AI leverage. DONE, 19 Aug 2026
 
-Syllabus import from a PDF, the task-breakdown button, and the protein-gap meal
-suggestion. The first two are the same shape as the food parser — extract,
-validate, confirm before writing — so the LLM module and the confirmation
-pattern both carry over. The third needs nothing new: the macro totals and the
-saved meals are already there.
+**Task breakdown.** One tap turns an assignment into four or five concrete
+first moves. A model asked to do this returns "Research the topic, Write the
+paper, Proofread" by default, which is the original paralysis in three pieces,
+so the validator rejects that rather than trusting the prompt: vague verbs are
+dropped, as is any step that is just the title again. Suggestions append and
+never replace steps typed by hand.
+
+**Syllabus import.** Dates are never calculated. "Week 6" and "TBD" come back
+undated rather than counted forward from a term start the model does not know,
+out-of-term dates are rejected as guessed years, and a malformed date discards
+the date while keeping the deliverable — losing real work is the failure the
+spec warns about, not a missing date. Dated exams become events, so they get
+the T-1 escalation; everything undated becomes dateless work.
+
+**Protein-gap suggestions use no model at all.** It is subtraction over data
+already loaded, which costs nothing, needs no network, and keeps working when
+the shared quota is gone — which is exactly when a tired person needs the
+answer. It appears only when there is a gap and something that fits it, and
+says nothing once the day is met: this answers a question, it does not prompt
+eating.
+
+That last one produced the session's best bug. Weighing protein shortfall
+heavily and ignoring protein's ceiling looked right until it ran against a
+real day and offered 1.5 portions to fill a calorie gap, pushing protein 26 g
+past its band when one portion landed it squarely in range. The app enforces
+the calorie ceiling, so ignoring the protein one was an inconsistency rather
+than a decision. Overshoot now costs a third of what falling short does.
+
+### Next: Phase 5 — chatbot
+
+Read access over the user's own data, write actions behind the same
+confirmation step everything else uses, persisted history, and honest "I don't
+know". The LLM module, the validation habit and the confirm-before-write
+pattern all carry over; what is new is data access scoping and conversation
+state.
 
 ### A documented deviation from the colour law
 
