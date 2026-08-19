@@ -9,6 +9,17 @@ or one set of targets is a leftover, not a decision — fix it rather than
 matching it. The known ones are listed under "Carried over from the single-user
 build" below.
 
+**Built for one, architected for many.** Decided 19 Aug 2026. Today there is
+one real user and production concerns — deliverable email, billing, support,
+abuse handling — are explicitly out of scope. What is NOT deferred is the
+shape of things: no assumption that there is one user may enter the code, the
+schema or the scripts, because the point of deferring the operations work is
+that it can be picked up later without a rewrite.
+
+The practical test for any new work: if a second account signed up tomorrow,
+would this be wrong? If yes, it is wrong now. If it would merely be
+unpolished, that is fine and it can wait.
+
 What has NOT changed is what the app is for: getting academic work and daily
 obligations in order with as little friction as possible. The design rules
 below were written for one person and they survive the move, because low
@@ -164,9 +175,23 @@ every user. None of the below needs re-architecting.
    the default, and it hit Google's daily limit during a single day of
    development, which is the clearest possible argument for the option.
 
-6. **`setup.mjs` provisions a person, not an environment.** It creates the
-   account and seeds that account's data. For a product it should set up the
-   project and nothing else.
+6. ~~**`setup.mjs` provisions a person, not an environment.**~~ DONE 19 Aug.
+   Steps 1-5 and 9 set up a project; 6-8 and 10 provision a person and now run
+   only when `.env.setup` names one. Removing `APP_EMAIL`, `APP_PASSWORD` and
+   `TELEGRAM_BOT_TOKEN` from that file is the entire difference between a
+   personal install and a shared one — no code changes, since sign-up and
+   per-account notification settings already exist.
+
+### Audited 19 Aug and found clean
+
+Recorded so it is not re-derived. Every edge function runs as the service
+role, which bypasses RLS, so a query missing a user filter would cross
+accounts silently — all four were checked and the only unscoped one is the
+scheduler deliberately iterating every user. The single service-role write
+carries a user id from the verified JWT, and `deliver.ts` updates only rows it
+already fetched scoped by user. All twenty foreign keys to `auth.users`
+cascade on delete, so removing an account removes its data. No hardcoded user
+ids anywhere in `src/` or the functions.
 
 ## Current status
 

@@ -52,16 +52,34 @@ function parseEnv(path) {
   return out;
 }
 
+/*
+ * What every deployment needs, whoever ends up using it.
+ *
+ * This is the environment: a project, a schema, secrets, functions and a
+ * schedule. Nothing here is about a particular person.
+ */
 const REQUIRED = [
   'SUPABASE_PROJECT_REF',
   'SUPABASE_DB_PASSWORD',
   'SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'SUPABASE_ACCESS_TOKEN',
-  'TELEGRAM_BOT_TOKEN',
-  'APP_EMAIL',
-  'APP_PASSWORD',
 ];
+
+/*
+ * The personal half, which is optional on purpose.
+ *
+ * While this serves one person it is convenient for setup to also create that
+ * account and wire up their Telegram — so those steps still run, exactly as
+ * before, when the values are present.
+ *
+ * When it serves many, they are simply absent from .env.setup and every step
+ * below skips itself. That is the whole migration: two lines removed from a
+ * config file, no code touched, no script rewritten. Accounts arrive through
+ * sign-up and configure their own notifications in Settings, both of which
+ * already exist.
+ */
+const PERSONAL = ['APP_EMAIL', 'APP_PASSWORD', 'TELEGRAM_BOT_TOKEN'];
 
 if (!existsSync(SETUP_ENV)) {
   die(
@@ -71,6 +89,10 @@ if (!existsSync(SETUP_ENV)) {
 }
 
 const cfg = parseEnv(SETUP_ENV);
+
+/** True when this run should also provision a person, not just a project. */
+const withAccount = PERSONAL.every((k) => Boolean(cfg[k]));
+
 const missing = REQUIRED.filter((k) => !cfg[k]);
 if (missing.length) {
   die(
@@ -171,12 +193,17 @@ supabase(
   [
     'secrets',
     'set',
-    `TELEGRAM_BOT_TOKEN=${cfg.TELEGRAM_BOT_TOKEN}`,
     `VAPID_PUBLIC_KEY=${generated.VAPID_PUBLIC_KEY}`,
     `VAPID_PRIVATE_KEY=${generated.VAPID_PRIVATE_KEY}`,
-    `VAPID_SUBJECT=mailto:${cfg.APP_EMAIL}`,
+    // A contact address is required by the Web Push spec rather than by us.
+    // Falls back to a project one so a deployment with no named owner is
+    // still spec-compliant.
+    `VAPID_SUBJECT=mailto:${cfg.APP_EMAIL || 'noreply@' + REF + '.supabase.co'}`,
     `CRON_SECRET=${generated.CRON_SECRET}`,
     `APP_URL=${cfg.APP_URL || 'http://localhost:5173'}`,
+    // Telegram is a per-person channel, so its token is only set when there
+    // is a person. Web Push needs nothing here and works for everyone.
+    ...(cfg.TELEGRAM_BOT_TOKEN ? [`TELEGRAM_BOT_TOKEN=${cfg.TELEGRAM_BOT_TOKEN}`] : []),
   ],
   { quiet: true },
 );
@@ -216,101 +243,119 @@ const admin = {
   },
 };
 
-step(6, 'Creating your account');
+/* ---------------------------------------------------------- the person ---
+ *
+ * Steps 6 to 8 provision an account and its notification channel. They run
+ * only when .env.setup names one, and are skipped entirely otherwise — a
+ * deployment serving many people gets its accounts from sign-up, and each
+ * configures notifications from Settings.
+ *
+ * Both of those paths already exist, so removing APP_EMAIL, APP_PASSWORD and
+ * TELEGRAM_BOT_TOKEN from the config is the entire difference between a
+ * personal install and a shared one.
+ * ---------------------------------------------------------------------- */
 
-let userId;
-const existing = await admin.call(
-  `/auth/v1/admin/users?filter=${encodeURIComponent(cfg.APP_EMAIL)}`,
-);
-const found = (existing?.users ?? []).find((u) => u.email === cfg.APP_EMAIL);
+let userId = null;
 
-if (found) {
-  userId = found.id;
-  note(`account already exists for ${cfg.APP_EMAIL}`);
+if (!withAccount) {
+  note('no APP_EMAIL in .env.setup, so no account was created — sign up in the app');
 } else {
-  const created = await admin.call('/auth/v1/admin/users', {
-    method: 'POST',
-    body: JSON.stringify({
-      email: cfg.APP_EMAIL,
-      password: cfg.APP_PASSWORD,
-      email_confirm: true,
-    }),
-  });
-  userId = created.id;
-  ok(`account created for ${cfg.APP_EMAIL}, already confirmed`);
-}
+  step(6, 'Creating your account');
 
-/* ------------------------------------------------------------- telegram --- */
-
-step(7, 'Finding your Telegram chat');
-
-const updates = await fetch(
-  `https://api.telegram.org/bot${cfg.TELEGRAM_BOT_TOKEN}/getUpdates`,
-).then((r) => r.json());
-
-if (!updates.ok) {
-  die(
-    `Telegram rejected the bot token: ${updates.description ?? 'unknown error'}`,
-    'Check TELEGRAM_BOT_TOKEN in .env.setup against what @BotFather sent you.',
+  let userId;
+  const existing = await admin.call(
+    `/auth/v1/admin/users?filter=${encodeURIComponent(cfg.APP_EMAIL)}`,
   );
-}
+  const found = (existing?.users ?? []).find((u) => u.email === cfg.APP_EMAIL);
 
-const chat = updates.result
-  ?.map((u) => u.message?.chat ?? u.edited_message?.chat)
-  .filter(Boolean)
-  .pop();
+  if (found) {
+    userId = found.id;
+    note(`account already exists for ${cfg.APP_EMAIL}`);
+  } else {
+    const created = await admin.call('/auth/v1/admin/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: cfg.APP_EMAIL,
+        password: cfg.APP_PASSWORD,
+        email_confirm: true,
+      }),
+    });
+    userId = created.id;
+    ok(`account created for ${cfg.APP_EMAIL}, already confirmed`);
+  }
 
-if (!chat) {
-  die(
-    'Telegram has no messages from you, so there is no chat ID to find.',
-    'Open Telegram, find the bot you just created, send it any message\n' +
-      '(literally "hi" is fine), then run `npm run setup` again.\n\n' +
-      'Everything up to this point is already done, so the re-run is quick.',
+  /* ------------------------------------------------------------- telegram --- */
+
+  step(7, 'Finding your Telegram chat');
+
+  const updates = await fetch(
+    `https://api.telegram.org/bot${cfg.TELEGRAM_BOT_TOKEN}/getUpdates`,
+  ).then((r) => r.json());
+
+  if (!updates.ok) {
+    die(
+      `Telegram rejected the bot token: ${updates.description ?? 'unknown error'}`,
+      'Check TELEGRAM_BOT_TOKEN in .env.setup against what @BotFather sent you.',
+    );
+  }
+
+  const chat = updates.result
+    ?.map((u) => u.message?.chat ?? u.edited_message?.chat)
+    .filter(Boolean)
+    .pop();
+
+  if (!chat) {
+    die(
+      'Telegram has no messages from you, so there is no chat ID to find.',
+      'Open Telegram, find the bot you just created, send it any message\n' +
+        '(literally "hi" is fine), then run `npm run setup` again.\n\n' +
+        'Everything up to this point is already done, so the re-run is quick.',
+    );
+  }
+
+  ok(`chat found: ${chat.first_name ?? chat.title ?? chat.id}`);
+
+  /* ------------------------------------------------------- wire it together - */
+
+  step(8, 'Configuring the delivery channel and schedule');
+
+  const channels = await admin.call(
+    `/rest/v1/notification_channels?user_id=eq.${userId}&kind=eq.telegram&select=id`,
   );
-}
 
-ok(`chat found: ${chat.first_name ?? chat.title ?? chat.id}`);
+  if (channels.length) {
+    await admin.call(`/rest/v1/notification_channels?id=eq.${channels[0].id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        config: { chat_id: String(chat.id) },
+        enabled: true,
+        failed_at: null,
+        failure_reason: null,
+        priority: 10,
+      }),
+    });
+    note('existing Telegram channel updated');
+  } else {
+    await admin.call('/rest/v1/notification_channels', {
+      method: 'POST',
+      body: JSON.stringify({
+        user_id: userId,
+        kind: 'telegram',
+        config: { chat_id: String(chat.id) },
+        priority: 10,
+      }),
+    });
+    ok('Telegram channel created at priority 10');
+  }
 
-/* ------------------------------------------------------- wire it together - */
-
-step(8, 'Configuring the delivery channel and schedule');
-
-const channels = await admin.call(
-  `/rest/v1/notification_channels?user_id=eq.${userId}&kind=eq.telegram&select=id`,
-);
-
-if (channels.length) {
-  await admin.call(`/rest/v1/notification_channels?id=eq.${channels[0].id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      config: { chat_id: String(chat.id) },
-      enabled: true,
-      failed_at: null,
-      failure_reason: null,
-      priority: 10,
-    }),
-  });
-  note('existing Telegram channel updated');
-} else {
-  await admin.call('/rest/v1/notification_channels', {
+  await admin.call('/rest/v1/rpc/setup_dispatch', {
     method: 'POST',
-    body: JSON.stringify({
-      user_id: userId,
-      kind: 'telegram',
-      config: { chat_id: String(chat.id) },
-      priority: 10,
-    }),
+    body: JSON.stringify({ p_url: DISPATCH_URL, p_secret: generated.CRON_SECRET }),
   });
-  ok('Telegram channel created at priority 10');
+  ok('scheduler pointed at the dispatch function');
+
+  /* --------------------------------------------------------------- frontend - */
 }
-
-await admin.call('/rest/v1/rpc/setup_dispatch', {
-  method: 'POST',
-  body: JSON.stringify({ p_url: DISPATCH_URL, p_secret: generated.CRON_SECRET }),
-});
-ok('scheduler pointed at the dispatch function');
-
-/* --------------------------------------------------------------- frontend - */
 
 step(9, 'Writing .env.local for the app');
 
@@ -331,44 +376,48 @@ ok('.env.local written');
 
 /* ------------------------------------------------------------------ prove - */
 
-step(10, 'Sending a test notification to your phone');
+if (!withAccount) {
+  ok('environment ready. Create an account in the app to start using it.');
+} else {
+  step(10, 'Sending a test notification to your phone');
 
-const res = await fetch(DISPATCH_URL, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'x-cron-secret': generated.CRON_SECRET },
-  body: JSON.stringify({}),
-});
-const body = await res.text();
+  const res = await fetch(DISPATCH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-cron-secret': generated.CRON_SECRET },
+    body: JSON.stringify({}),
+  });
+  const body = await res.text();
 
-if (!res.ok) {
-  die(`the dispatch function returned HTTP ${res.status}`, body.slice(0, 600));
+  if (!res.ok) {
+    die(`the dispatch function returned HTTP ${res.status}`, body.slice(0, 600));
+  }
+
+  note('scheduled run executed:');
+  console.log(
+    body
+      .split('\n')
+      .map((l) => `       ${l}`)
+      .join('\n'),
+  );
+
+  console.log(`
+  -------------------------------------------------------------------------------
+  Setup finished.
+
+  The scheduled run above will report "too-early" unless you happen to be inside
+  the 07:00 window. That is correct behaviour, not a failure: it proves the cron
+  path executes and the digest logic is making a real decision.
+
+  To prove delivery end to end right now, send yourself a test:
+
+    npm run test:notify
+
+  Check your phone. If a Telegram message arrives, the whole pipeline works and
+  Phase 0's hard requirement is met.
+
+  Then start the app:
+
+    npm run dev
+  -------------------------------------------------------------------------------
+  `);
 }
-
-note('scheduled run executed:');
-console.log(
-  body
-    .split('\n')
-    .map((l) => `       ${l}`)
-    .join('\n'),
-);
-
-console.log(`
--------------------------------------------------------------------------------
-Setup finished.
-
-The scheduled run above will report "too-early" unless you happen to be inside
-the 07:00 window. That is correct behaviour, not a failure: it proves the cron
-path executes and the digest logic is making a real decision.
-
-To prove delivery end to end right now, send yourself a test:
-
-  npm run test:notify
-
-Check your phone. If a Telegram message arrives, the whole pipeline works and
-Phase 0's hard requirement is met.
-
-Then start the app:
-
-  npm run dev
--------------------------------------------------------------------------------
-`);
