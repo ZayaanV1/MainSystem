@@ -4,6 +4,7 @@ import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
 import { Ring } from '../components/Ring';
+import { Sheet } from '../components/Sheet';
 import { useAuth } from '../lib/auth';
 import {
   dayTotals,
@@ -17,9 +18,11 @@ import {
   type DietDay,
   type FoodItem,
   type MacroBand,
+  type MacroTargets,
 } from '../lib/diet';
 import { addDays, formatTime, todayKey } from '../lib/time';
 import { LogFood } from './LogFood';
+import { TargetEditor } from './TargetEditor';
 import { Trend } from './Trend';
 
 /**
@@ -46,6 +49,8 @@ export function Diet({ onBack }: { onBack: () => void }) {
   const [showTrend, setShowTrend] = useState(false);
   const [editingMeals, setEditingMeals] = useState(false);
   const [recent, setRecent] = useState<NewItem[]>([]);
+  const [editingTargets, setEditingTargets] = useState(false);
+  const [openMacro, setOpenMacro] = useState<MacroKey | null>(null);
 
   /**
    * The portion the quick-log chips will use.
@@ -78,6 +83,9 @@ export function Diet({ onBack }: { onBack: () => void }) {
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="type-h1 text-text-hi">Food</h1>
         <div className="flex items-baseline gap-4">
+          <button type="button" onClick={() => setEditingTargets(true)} className="type-label text-text-mid">
+            Targets
+          </button>
           <button type="button" onClick={() => setShowTrend(true)} className="type-label text-text-mid">
             Trend
           </button>
@@ -91,6 +99,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
         <section className="mb-8 grid grid-cols-2 gap-6 px-4">
           <Ring
             label="Calories"
+            onClick={() => setOpenMacro('calories')}
             value={sums.calories}
             max={t.calories.max}
             band={t.calories}
@@ -100,6 +109,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
           />
           <Ring
             label="Protein"
+            onClick={() => setOpenMacro('protein')}
             value={sums.protein_g}
             max={t.protein.max}
             band={t.protein}
@@ -109,6 +119,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
           />
           <Ring
             label="Carbs"
+            onClick={() => setOpenMacro('carbs')}
             value={sums.carbs_g}
             max={t.carbs.max}
             band={t.carbs}
@@ -118,6 +129,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
           />
           <Ring
             label="Fat"
+            onClick={() => setOpenMacro('fat')}
             value={sums.fat_g}
             max={t.fat.max}
             band={t.fat}
@@ -127,7 +139,9 @@ export function Diet({ onBack }: { onBack: () => void }) {
           />
         </section>
       ) : (
-        <EmptyState>No macro targets set yet.</EmptyState>
+        <EmptyState>
+          <span>No macro targets yet. Set them with Targets, above.</span>
+        </EmptyState>
       )}
 
       <div className="mb-8 px-4">
@@ -275,6 +289,21 @@ export function Diet({ onBack }: { onBack: () => void }) {
 
       <WeightRow current={data.weightKg} userId={userId} day={day} onSaved={reload} />
 
+      <MacroDetail
+        macro={openMacro}
+        items={data.items}
+        targets={data.targets}
+        onClose={() => setOpenMacro(null)}
+      />
+
+      <TargetEditor
+        open={editingTargets}
+        userId={userId}
+        current={data.targets}
+        onClose={() => setEditingTargets(false)}
+        onSaved={reload}
+      />
+
       <LogFood
         open={logging}
         userId={userId}
@@ -283,6 +312,113 @@ export function Diet({ onBack }: { onBack: () => void }) {
         onLogged={reload}
       />
     </main>
+  );
+}
+
+type MacroKey = 'calories' | 'protein' | 'carbs' | 'fat';
+
+const MACRO_FIELD: Record<MacroKey, keyof Pick<FoodItem, 'calories' | 'protein_g' | 'carbs_g' | 'fat_g'>> = {
+  calories: 'calories',
+  protein: 'protein_g',
+  carbs: 'carbs_g',
+  fat: 'fat_g',
+};
+
+const MACRO_LABEL: Record<MacroKey, { name: string; unit: string }> = {
+  calories: { name: 'Calories', unit: 'kcal' },
+  protein: { name: 'Protein', unit: 'g' },
+  carbs: { name: 'Carbs', unit: 'g' },
+  fat: { name: 'Fat', unit: 'g' },
+};
+
+/**
+ * What made a ring the size it is.
+ *
+ * Sorted by contribution rather than by time, because the question a tap on a
+ * ring is asking is "where did this come from", and the answer is almost
+ * always the top two items. Chronological order buries that under whatever
+ * was eaten first.
+ *
+ * Items contributing nothing to this macro are left out — a black coffee has
+ * no business appearing under Protein — but they are counted in the line that
+ * says how many were hidden, so the list never looks like the whole day.
+ */
+function MacroDetail({
+  macro,
+  items,
+  targets,
+  onClose,
+}: {
+  macro: MacroKey | null;
+  items: FoodItem[];
+  targets: MacroTargets | null;
+  onClose: () => void;
+}) {
+  if (!macro) return null;
+
+  const field = MACRO_FIELD[macro];
+  const { name, unit } = MACRO_LABEL[macro];
+  const band = targets?.[macro] ?? null;
+
+  const contributing = items
+    .filter((i) => i[field] > 0)
+    .sort((a, b) => b[field] - a[field]);
+
+  const total = contributing.reduce((n, i) => n + i[field], 0);
+  const hidden = items.length - contributing.length;
+
+  const remaining = band
+    ? total < band.min
+      ? `${Math.round(band.min - total)} ${unit} to reach ${band.min}`
+      : total > band.max
+        ? `${Math.round(total - band.max)} ${unit} over ${band.max}`
+        : `In range, ${Math.round(band.max - total)} ${unit} below the top`
+    : null;
+
+  return (
+    <Sheet open onClose={onClose} title={name}>
+      <div className="flex flex-col gap-6">
+        <div>
+          <p className="type-display text-text-hi">
+            {Math.round(total).toLocaleString('en-CA')} {unit}
+          </p>
+          {band && (
+            <p className="type-note text-text-low">
+              Target {band.min}-{band.max} {unit}
+            </p>
+          )}
+          {remaining && <p className="mt-2 type-body text-text-mid">{remaining}</p>}
+        </div>
+
+        {contributing.length === 0 ? (
+          <p className="type-body text-text-mid">Nothing logged today contributes {name.toLowerCase()}.</p>
+        ) : (
+          <div className="flex flex-col">
+            {contributing.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-baseline justify-between gap-4 border-b border-ink-600 py-3 last:border-b-0"
+              >
+                <span className="type-body text-text-hi">
+                  {item.name}
+                  {item.is_estimate && <span className="type-caption text-t-approaching"> estimated</span>}
+                </span>
+                <span className="type-note shrink-0 text-text-low">
+                  {Math.round(item[field] * 10) / 10} {unit}
+                  {total > 0 && ` · ${Math.round((item[field] / total) * 100)}%`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hidden > 0 && (
+          <p className="type-note text-text-low">
+            {hidden} other {hidden === 1 ? 'item' : 'items'} today contributed no {name.toLowerCase()}.
+          </p>
+        )}
+      </div>
+    </Sheet>
   );
 }
 

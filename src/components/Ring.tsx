@@ -31,6 +31,14 @@ interface RingProps {
   stroke?: number;
   /** Written form of the target, e.g. '160-175 g'. Shown under the value. */
   targetLabel?: string;
+  /**
+   * Makes the ring a button.
+   *
+   * Optional because this component is also the daily-checklist ring, which
+   * is a readout and not a control. A ring that looks tappable everywhere but
+   * only responds in one place is worse than one that never invites the tap.
+   */
+  onClick?: () => void;
 }
 
 export function Ring({
@@ -43,6 +51,7 @@ export function Ring({
   size = 132,
   stroke = 10,
   targetLabel,
+  onClick,
 }: RingProps) {
   const r = (size - stroke * 2) / 2;
   const c = 2 * Math.PI * r;
@@ -68,17 +77,34 @@ export function Ring({
         : `${Math.round(band.min - value)} to go`
     : undefined;
 
+  const Root = onClick ? 'button' : 'div';
+
   return (
-    <div className="flex flex-col items-center gap-2">
+    <Root
+      {...(onClick
+        ? {
+            type: 'button' as const,
+            onClick,
+            // The label already reads the whole state aloud; this says what
+            // the tap will do, which the visual affordance cannot.
+            'aria-label': `${label}: ${readout}${status ? `, ${status}` : ''}. Show what made this up.`,
+          }
+        : {})}
+      className="flex flex-col items-center gap-2"
+    >
       <div className="relative" style={{ width: size, height: size }}>
         <svg
           width={size}
           height={size}
           viewBox={`0 0 ${size} ${size}`}
-          role="img"
-          aria-label={`${label}: ${readout}${targetLabel ? ` of ${targetLabel}` : ''}${
-            status ? `, ${status}` : ''
-          }`}
+          {...(onClick
+            ? { 'aria-hidden': true }
+            : {
+                role: 'img',
+                'aria-label': `${label}: ${readout}${targetLabel ? ` of ${targetLabel}` : ''}${
+                  status ? `, ${status}` : ''
+                }`,
+              })}
         >
           {/* Rotated so every arc starts at twelve o'clock. */}
           <g transform={`rotate(-90 ${centre} ${centre})`} fill="none">
@@ -157,6 +183,6 @@ export function Ring({
             answer, so it is not a separate accommodation. */}
         {status && <div className="type-caption mt-1 text-text-mid">{status}</div>}
       </div>
-    </div>
+    </Root>
   );
 }

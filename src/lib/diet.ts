@@ -96,6 +96,58 @@ export async function targetsFor(day: DayKey): Promise<MacroTargets | null> {
   };
 }
 
+/**
+ * Writes a new version of the macro targets, effective from a day.
+ *
+ * An upsert on (user_id, effective_from) rather than an update, so changing
+ * today's targets twice replaces today's row instead of accumulating two, but
+ * changing them tomorrow leaves today's alone. That is the whole point of the
+ * versioning: last month has to keep meaning what it meant last month.
+ *
+ * Editing a past effective date is deliberately possible — correcting a target
+ * you set wrong is different from rewriting history, and refusing it would
+ * leave no way to fix a typo that has already governed a week.
+ */
+export async function saveTargets(
+  userId: string,
+  effectiveFrom: DayKey,
+  bands: { calories: MacroBand; protein: MacroBand; carbs: MacroBand; fat: MacroBand },
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('macro_targets').upsert(
+    {
+      user_id: userId,
+      effective_from: effectiveFrom,
+      calories_min: bands.calories.min,
+      calories_max: bands.calories.max,
+      protein_min: bands.protein.min,
+      protein_max: bands.protein.max,
+      carbs_min: bands.carbs.min,
+      carbs_max: bands.carbs.max,
+      fat_min: bands.fat.min,
+      fat_max: bands.fat.max,
+    },
+    { onConflict: 'user_id,effective_from' },
+  );
+
+  return { error: error ? error.message : null };
+}
+
+/** Every version, newest first, for the history the editor shows. */
+export async function loadTargetHistory(): Promise<MacroTargets[]> {
+  const { data } = await supabase
+    .from('macro_targets')
+    .select('*')
+    .order('effective_from', { ascending: false });
+
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    effective_from: row.effective_from as DayKey,
+    calories: { min: num(row.calories_min), max: num(row.calories_max) },
+    protein: { min: num(row.protein_min), max: num(row.protein_max) },
+    carbs: { min: num(row.carbs_min), max: num(row.carbs_max) },
+    fat: { min: num(row.fat_min), max: num(row.fat_max) },
+  }));
+}
+
 export async function loadDay(day: DayKey = todayKey()): Promise<DietDay> {
   const [entries, targets, meals, weight] = await Promise.all([
     supabase
