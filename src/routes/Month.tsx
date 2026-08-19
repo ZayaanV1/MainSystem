@@ -144,6 +144,7 @@ export function Month({
           <DayCell
             key={cell.day}
             cell={cell}
+            courseFor={courseFor}
             selected={cell.day === selected}
             onSelect={() => setSelected(cell.day === selected ? null : cell.day)}
           />
@@ -184,14 +185,28 @@ export function Month({
   );
 }
 
+/**
+ * One day.
+ *
+ * Two densities, because a month cell is a different object on a phone and on
+ * a laptop. At 45px there is room for a number and a few dots, and tapping is
+ * how you find out what they are. At 145px that same design wastes the space
+ * and makes you tap to learn something the cell could simply have said.
+ *
+ * So above lg the cell lists what is actually due, and the dots become the
+ * fallback rather than the design. Titles truncate to one line each: the cell
+ * is a summary, and the detail panel below is still where the work gets done.
+ */
 function DayCell({
   cell,
   selected,
   onSelect,
+  courseFor,
 }: {
   cell: MonthCell;
   selected: boolean;
   onSelect: () => void;
+  courseFor: (id: string | null) => Course | undefined;
 }) {
   const weight = load(cell);
   const number = Number(cell.day.slice(8));
@@ -208,20 +223,46 @@ function DayCell({
       aria-label={`${formatDay(cell.day)}, ${description}`}
       className={[
         'flex aspect-square flex-col items-center justify-center gap-1 rounded-card',
-        'min-h-0',
-        selected ? 'bg-ink-600' : cell.isToday ? 'bg-ink-700' : '',
+        'min-h-0 text-left transition-colors',
+        'lg:aspect-auto lg:min-h-28 lg:items-stretch lg:justify-start lg:p-2',
+        selected ? 'bg-ink-600' : cell.isToday ? 'bg-ink-700' : 'lg:bg-ink-800/60 lg:hover:bg-ink-700',
         // Days outside the month stay legible but recede — they are context,
         // not the subject.
         cell.inMonth ? 'text-text-hi' : 'text-text-low',
       ].join(' ')}
     >
-      <span className={`type-label ${cell.isToday ? 'text-text-hi' : ''}`}>{number}</span>
+      <span
+        className={`type-label lg:self-start ${cell.isToday ? 'text-text-hi' : ''}`}
+      >
+        {number}
+      </span>
 
-      {/* Density as dots. Never a number at this size, never colour alone. */}
-      <span className="flex h-1.5 items-center gap-0.5" aria-hidden>
+      {/* Dots below lg, where there is no room for anything else. */}
+      <span className="flex h-1.5 items-center gap-0.5 lg:hidden" aria-hidden>
         {Array.from({ length: weight }, (_, i) => (
           <span key={i} className="h-1 w-1 rounded-pill bg-text-mid" />
         ))}
+      </span>
+
+      {/* The same information, said rather than encoded, once there is space. */}
+      <span className="mt-1 hidden min-w-0 flex-col gap-1 lg:flex" aria-hidden>
+        {[...cell.events, ...cell.assignments].slice(0, 3).map((item) => {
+          const courseId = (item as { course_id: string | null }).course_id;
+          const course = courseFor(courseId);
+          return (
+            <span key={item.id} className="flex min-w-0 items-center gap-1">
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-pill"
+                style={{ backgroundColor: `var(${courseVar(course?.colour_index) ?? '--text-low'})` }}
+              />
+              <span className="truncate type-caption text-text-mid">{item.title}</span>
+            </span>
+          );
+        })}
+
+        {total > 3 && (
+          <span className="type-caption text-text-low">{total - 3} more</span>
+        )}
       </span>
     </button>
   );
