@@ -108,7 +108,9 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
  */
 export async function subscribeToPush(): Promise<{ ok: boolean; error?: string }> {
   if (!VAPID_PUBLIC_KEY) {
-    return { ok: false, error: 'No VAPID key. Run npm run setup.' };
+    // The user cannot fix a missing server key, so it does not ask them to.
+    // It says what is true and stops.
+    return { ok: false, error: 'Push notifications are not available yet.' };
   }
   if (!isStandalone()) {
     return { ok: false, error: 'Add the app to your home screen first. iOS requires it.' };

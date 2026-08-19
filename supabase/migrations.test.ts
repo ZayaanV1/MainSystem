@@ -721,22 +721,29 @@ describe('settings bootstrap and constraints', () => {
     expect(res.rows[0].n).toBe(1);
   });
 
-  it('seeds the digest at 07:00 America/Toronto', async () => {
+  it('seeds the digest at 07:00 with no timezone assumed', async () => {
     const res = await db.query<{
-      timezone: string;
+      timezone: string | null;
       digest_hour: number;
       digest_minute: number;
       assignment_window_days: number;
       event_window_days: number;
     }>(`select timezone, digest_hour, digest_minute, assignment_window_days, event_window_days
           from public.app_settings where user_id = '${USER_A}'`);
+
     expect(res.rows[0]).toMatchObject({
-      timezone: 'America/Toronto',
       digest_hour: 7,
       digest_minute: 0,
       assignment_window_days: 7,
       event_window_days: 14,
     });
+
+    // Null, not a city. This column used to default to America/Toronto, which
+    // was correct for one account and silently placed every later signup in
+    // the wrong zone — and because the value was never empty, the client's
+    // "detect the browser's zone" branch could never run. Nullable is what
+    // makes "nobody has chosen yet" something the schema can say.
+    expect(res.rows[0].timezone).toBeNull();
   });
 
   it('rejects an impossible digest hour', async () => {

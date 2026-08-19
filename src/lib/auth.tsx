@@ -26,6 +26,10 @@ interface AuthState {
   session: Session | null;
   loading: boolean;
   signIn(email: string, password: string): Promise<{ error: string | null }>;
+  signUp(
+    email: string,
+    password: string,
+  ): Promise<{ error: string | null; confirmationSent: boolean; alreadyExists: boolean }>;
   signOut(): Promise<void>;
 }
 
@@ -61,13 +65,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null };
   }, []);
 
+  /**
+   * Creates an account.
+   *
+   * The project requires email confirmation, so a successful call does NOT
+   * produce a session — it produces an email. That distinction is returned
+   * rather than hidden, because a form that appears to succeed and then leaves
+   * you on the sign-in screen reads as a bug.
+   *
+   * Supabase deliberately does not say whether an address is already
+   * registered, to avoid turning signup into a way to enumerate users. It
+   * returns a normal-looking result with an empty identities array instead.
+   * That is detected here and reported honestly as "this address already has
+   * an account" — the person typing it is the one who owns it, and telling
+   * them to check their email for an account they already have would strand
+   * them.
+   */
+  const signUp = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    if (error) return { error: error.message, confirmationSent: false, alreadyExists: false };
+
+    const alreadyExists = (data.user?.identities?.length ?? 0) === 0;
+
+    return {
+      error: null,
+      alreadyExists,
+      // A session here means confirmation is switched off and they are in.
+      confirmationSent: !alreadyExists && !data.session,
+    };
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, []);
 
   const value = useMemo(
-    () => ({ session, loading, signIn, signOut }),
-    [session, loading, signIn, signOut],
+    () => ({ session, loading, signIn, signUp, signOut }),
+    [session, loading, signIn, signUp, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

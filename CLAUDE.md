@@ -119,7 +119,13 @@ itself is already multi-user: RLS is `auth.uid() = user_id` on every table, a
 trigger creates `app_settings` on signup, and the scheduler already iterates
 every user. None of the below needs re-architecting.
 
-1. **Timezone is a module constant.** `_shared/time.ts` exports
+1. ~~**Timezone is a module constant.**~~ DONE 19 Aug. The client wrapper
+   supplies the account's zone as the default; the shared module still takes an
+   explicit zone so the server stays per-request. `app_settings.timezone` is
+   nullable now so "nobody has chosen" is representable, and the client detects
+   and persists the browser's zone on first run.
+
+   ORIGINAL: **Timezone is a module constant.** `_shared/time.ts` exports
    `TZ = 'America/Toronto'`, and every "today", every local-day key and every
    due-date render goes through it. `app_settings.timezone` already exists and
    the digest already reads it — the client does not. A user in Vancouver
@@ -128,14 +134,19 @@ every user. None of the below needs re-architecting.
    it is the confidently-wrong-deadline failure sitting at the foundation.
    `src/routes/Today.tsx` and `src/lib/month.ts` hardcode the zone separately.
 
-2. **There is no way to sign up.** `auth.tsx` only calls
-   `signInWithPassword`; the one existing account was created by `setup.mjs`.
+2. ~~**There is no way to sign up.**~~ DONE 19 Aug. One screen with a mode
+   rather than two pages. Email confirmation is on, so signup produces an email
+   rather than a session, and the screen says so. Supabase does not reveal
+   whether an address is registered — it returns an empty identities array —
+   which is detected and reported honestly rather than stranding someone
+   waiting for an email about an account they already have.
 
-3. **The macro targets are one person's.** Migration 0010 seeds 2,900-3,100
-   kcal and 160-175 g of protein across `auth.users` at migration time. Those
-   are a specific person's lean-bulk numbers, and a new account gets none at
-   all because the seed already ran. Needs a default that is either absent
-   until asked for, or derived from something the user tells us.
+3. **The macro targets are one person's.** Migration 0010 seeded 2,900-3,100
+   kcal and 160-175 g of protein at migration time. Verified 19 Aug that a new
+   account correctly gets NONE, and the diet screen already handles that
+   honestly. What is still undecided is whether it should stay absent until
+   asked for, or be offered during a first run. Absent is the current
+   behaviour and is defensible; it has simply not been chosen.
 
 4. **Nothing onboards.** A fresh account has no courses, no checklist and no
    targets. Every screen has an honest empty state, which is not the same as

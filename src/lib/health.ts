@@ -73,7 +73,10 @@ export async function fetchHealth(): Promise<NotificationHealth> {
  */
 export function describeHealth(h: NotificationHealth): { text: string; warn: boolean } {
   if (h.noChannel) {
-    return { text: 'No notification channel set up. Run setup.', warn: true };
+    // "Run setup" was true when the only user also owned the terminal. To
+    // anyone else it is an instruction they cannot follow, on a screen with no
+    // terminal in it. Point at the thing in the app that actually does it.
+    return { text: 'Notifications are off. Turn them on in Settings.', warn: true };
   }
 
   if (!h.lastDeliveredAt) {

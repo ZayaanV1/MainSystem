@@ -129,18 +129,19 @@ export const BACKFILL_DAYS = 5;
  *
  * Called once from the shell, awaited before the first render.
  */
-export async function adoptAccountTimezone(): Promise<string> {
+export async function adoptAccountTimezone(userId: string): Promise<string> {
   const { data } = await supabase.from('app_settings').select('timezone').limit(1);
 
   const stored = (data ?? [])[0]?.timezone as string | undefined;
 
-  // A brand new account has whatever the column defaults to, which is a city
-  // this app picked rather than one the user did. Where nothing has been
-  // chosen, the browser knows better, and it is written back so the digest —
-  // which runs server-side with no browser to ask — agrees with the app.
+  // Null means nobody has chosen yet. The browser knows better than any city
+  // this app could pick, and the answer is written back rather than merely
+  // used — the scheduler has no browser to ask, and a digest computed in a
+  // different zone from the app is the same wrong-day bug wearing a hat.
   if (!stored) {
     const detected = detectedTimezone();
     setActiveTimezone(detected);
+    await supabase.from('app_settings').update({ timezone: detected }).eq('user_id', userId);
     return detected;
   }
 

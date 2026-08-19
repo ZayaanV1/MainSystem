@@ -214,11 +214,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .from('app_settings')
       .select('user_id, timezone, digest_hour, digest_minute, digest_enabled, assignment_window_days, event_window_days, weekly_review_enabled, weekly_review_weekday');
 
+    /*
+     * A settings row can now have no timezone: the column is nullable so that
+     * "nobody has chosen yet" is representable, and the client fills it in on
+     * first run. This process has no browser to ask, so it falls back to UTC
+     * rather than to a city it invented.
+     *
+     * Normalised once, here, rather than guarded at each use. There are six
+     * places downstream that read this field and the one that forgets is the
+     * bug — and it would be a silent one, since an undefined zone makes Intl
+     * fall back to the SERVER's locale, which is neither the user's nor
+     * obviously wrong in a log.
+     */
+    const rows = ((data ?? []) as SettingsRow[]).map((r) => ({
+      ...r,
+      timezone: r.timezone ?? 'UTC',
+    }));
+
     if (error) return json({ error: error.message }, 500);
 
     const results = [];
 
-    for (const settings of (data ?? []) as SettingsRow[]) {
+    for (const settings of rows) {
       const localDay = localDayKey(now, settings.timezone);
 
       const { count } = await admin
@@ -251,7 +268,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // The weekly review runs on the same pass but is independent of the
     // digest: both can go out on the same morning, and neither failing should
     // stop the other.
-    for (const settings of (data ?? []) as SettingsRow[]) {
+    for (const settings of rows) {
       const localDay = localDayKey(now, settings.timezone);
 
       const { count } = await admin
@@ -279,7 +296,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Escalations and reminders run independently of the digest and of each
     // other: different hours, different idempotency keys, and no reason for
     // one to block another.
-    for (const settings of (data ?? []) as SettingsRow[]) {
+    for (const settings of rows) {
       const escalated = await runEscalations(admin, deps, settings, now);
       if (escalated.length) results.push({ user: settings.user_id, escalations: escalated });
 

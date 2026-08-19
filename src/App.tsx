@@ -116,7 +116,7 @@ function Shell() {
   useEffect(() => {
     if (!session) return;
 
-    void adoptAccountTimezone().finally(() => setZoneReady(true));
+    void adoptAccountTimezone(session.user.id).finally(() => setZoneReady(true));
 
     startOutbox();
 

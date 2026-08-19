@@ -87,7 +87,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
       const raw = (e as Error).message;
       setMessage(
         /load failed|failed to fetch|networkerror/i.test(raw)
-          ? "Couldn't reach the server. If the app's address changed, run npm run set:url with the new one."
+          ? "Couldn't reach the server. Check your connection and try again."
           : `Couldn't send. ${raw}`,
       );
     } finally {
