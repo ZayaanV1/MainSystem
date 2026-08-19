@@ -233,28 +233,15 @@ function Rail<T extends string>({
 /**
  * Wraps a screen so swapping screens is a transition rather than a cut.
  *
- * Deliberately small: a short fade with a few pixels of travel. A screen
- * change happens dozens of times a session, and anything with personality at
- * that frequency becomes a tax on getting anywhere.
+ * A plain element with a CSS animation, deliberately not a Motion component.
+ * The transition fires at the exact moment a full screen is mounting and its
+ * data fetch is starting, and a JS-driven animation competes with both for the
+ * main thread — so it dropped frames precisely at the start, which is the part
+ * you notice. CSS hands it to the compositor instead.
  *
- * The exit is faster than the entrance. Waiting for something to leave is
- * dead time; waiting for something to arrive is the thing you asked for.
+ * The caller's `key` is what makes it re-run: a new key means a new DOM node,
+ * and a fresh node runs its animation from the beginning.
  */
 export function Page({ children }: { children: ReactNode }) {
-  const reduced = useReducedMotion();
-
-  // The caller supplies `key`, which React consumes before it reaches props —
-  // AnimatePresence reads it off the element, so there is nothing to thread
-  // through here and an `id` prop would only be a second thing to keep in step.
-  if (reduced) return <div>{children}</div>;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.2, 0, 0, 1] } }}
-      exit={{ opacity: 0, y: -6, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className="page-enter">{children}</div>;
 }

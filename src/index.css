@@ -347,3 +347,50 @@
   color: var(--text-hi);
   border-color: var(--text-low);
 }
+
+/*
+ * The screen-change transition.
+ *
+ * CSS rather than JS, and that is the whole point. The old version was a
+ * Motion component, which meant the animation's first frames were computed on
+ * the same main thread that was simultaneously mounting a full screen and
+ * kicking off its data fetch — so the transition dropped frames exactly when
+ * it started, which is the part you see.
+ *
+ * A CSS animation on a freshly inserted node is handed to the compositor and
+ * runs whatever the main thread is doing. It cannot be starved by a render.
+ *
+ * Opacity and a couple of pixels, nothing more. This runs on every navigation,
+ * dozens of times a session, and anything with personality at that frequency
+ * becomes a tax on getting anywhere. Short enough that it reads as the screen
+ * being responsive rather than as an effect being played at you.
+ */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility page-enter {
+  animation: page-in 170ms cubic-bezier(0.2, 0, 0, 1) both;
+  /* Promotes the layer before the first frame, so the animation does not pay
+     for its own layer creation on the frame it starts. */
+  will-change: opacity, transform;
+}
+
+/* The promotion is only useful while animating; holding it pins a layer in
+   memory for the life of the screen. */
+.page-enter {
+  animation-fill-mode: both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+}

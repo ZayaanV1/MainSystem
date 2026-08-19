@@ -75,7 +75,20 @@ export function Diet({ onBack }: { onBack: () => void }) {
   }, [day]);
 
   if (showTrend) return <Trend onBack={() => setShowTrend(false)} />;
-  if (!data) return null;
+
+  /*
+   * The header renders before the data arrives.
+   *
+   * Returning null here meant the screen was blank for the ~200ms its fetch
+   * took, so the entrance animation played over nothing and the content
+   * arrived after it had finished — which reads as the transition lagging,
+   * when in fact the transition was already done.
+   *
+   * Four empty rings are honest: they are the shape of the answer, and they
+   * are replaced by the real values rather than by a different layout, so
+   * nothing jumps when the data lands.
+   */
+  if (!data) return <DietSkeleton onBack={onBack} />;
 
   const sums = dayTotals(data.items);
   const t = data.targets;
@@ -542,6 +555,70 @@ function PortionRow({ portion, onChange }: { portion: number; onChange: (p: numb
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * The diet screen before its data arrives.
+ *
+ * Renders the real Ring, not a drawn approximation of one. Hand-matching the
+ * heights got the jump from 110px down to 36 and no further, and every pixel
+ * of that was a number that would drift the next time the ring changed. Using
+ * the component means the layout is identical by construction and cannot come
+ * apart later.
+ *
+ * The values are zero and the whole block is dimmed, so it reads as not-yet
+ * rather than as a genuine empty day — those are different things and only one
+ * of them is true here.
+ */
+function DietSkeleton({ onBack }: { onBack: () => void }) {
+  // A band is passed so the ring renders its status line. Without one that
+  // row is absent, which is where forty of the remaining forty-five pixels
+  // of jump were hiding.
+  const placeholder = [
+    { label: 'Calories', unit: 'kcal', colorVar: '--m-calories' },
+    { label: 'Protein', unit: 'g', colorVar: '--m-protein' },
+    { label: 'Carbs', unit: 'g', colorVar: '--m-carbs' },
+    { label: 'Fat', unit: 'g', colorVar: '--m-fat' },
+  ];
+
+  return (
+    <main className="page-frame">
+      <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
+        <h1 className="type-h1 text-text-hi">Diet tracker</h1>
+        <div className="flex items-baseline gap-4">
+          {/* Real buttons, disabled. Spans measured six pixels taller than the
+              buttons they stand in for, which moved everything below them. */}
+          <button type="button" disabled className="action-chip type-label opacity-40">
+            Macro targets
+          </button>
+          <button type="button" disabled className="action-chip type-label opacity-40">
+            Weight trend
+          </button>
+          <button type="button" onClick={onBack} className="action-chip type-label lg:hidden">
+            Today
+          </button>
+        </div>
+      </header>
+
+      <section
+        aria-hidden
+        className="mb-8 grid grid-cols-2 gap-6 px-4 opacity-40 lg:grid-cols-4 lg:gap-8"
+      >
+        {placeholder.map((p) => (
+          <Ring
+            key={p.label}
+            label={p.label}
+            value={0}
+            max={1}
+            band={{ min: 0, max: 1 }}
+            colorVar={p.colorVar}
+            unit={p.unit}
+            targetLabel="—"
+          />
+        ))}
+      </section>
+    </main>
   );
 }
 
