@@ -75,6 +75,9 @@ export default defineConfig({
 
   test: {
     environment: 'node',
+    // Pins the account timezone; see tests/setup.ts for why that is not the
+    // same thing as pinning the host's.
+    setupFiles: ['./tests/setup.ts'],
     include: [
       'src/**/*.test.ts',
       'src/**/*.test.tsx',

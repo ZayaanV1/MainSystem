@@ -2,7 +2,17 @@ import { supabase } from './supabase';
 import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
 import { HISTORY_DAYS } from '../../supabase/functions/_shared/history';
-import { endOfDayUTC, localDayKey, localHourMinute, startOfDayUTC, todayKey, wallClockToUTC, type DayKey } from './time';
+import {
+  endOfDayUTC,
+  localDayKey,
+  localHourMinute,
+  detectedTimezone,
+  setActiveTimezone,
+  startOfDayUTC,
+  todayKey,
+  wallClockToUTC,
+  type DayKey,
+} from './time';
 
 /**
  * Data access for the planner.
@@ -107,6 +117,36 @@ export interface TodayData {
 
 /** How many days the Today day-strip offers. Bounded on purpose. */
 export const BACKFILL_DAYS = 5;
+
+/**
+ * Reads the account's timezone and points the time layer at it.
+ *
+ * Must finish before anything else loads. Every "today" in the app resolves
+ * through the active zone, and `loadToday` computes its query windows from
+ * `todayKey()` at the top of the function — so setting the zone anywhere
+ * inside that call is already too late for the load it is part of. On a night
+ * either side of midnight, too late means the first screen shows the wrong day.
+ *
+ * Called once from the shell, awaited before the first render.
+ */
+export async function adoptAccountTimezone(): Promise<string> {
+  const { data } = await supabase.from('app_settings').select('timezone').limit(1);
+
+  const stored = (data ?? [])[0]?.timezone as string | undefined;
+
+  // A brand new account has whatever the column defaults to, which is a city
+  // this app picked rather than one the user did. Where nothing has been
+  // chosen, the browser knows better, and it is written back so the digest —
+  // which runs server-side with no browser to ask — agrees with the app.
+  if (!stored) {
+    const detected = detectedTimezone();
+    setActiveTimezone(detected);
+    return detected;
+  }
+
+  setActiveTimezone(stored);
+  return stored;
+}
 
 export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> {
   // Completions are fetched for the full HISTORY window, not the five days the

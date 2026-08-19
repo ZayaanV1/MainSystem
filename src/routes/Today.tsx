@@ -517,8 +517,11 @@ function DayStrip({
       {days.map((d) => {
         const isToday = d === today;
         const isSelected = d === selected;
+        // UTC, because `d` is a calendar date rather than an instant: the
+        // weekday of 2026-08-19 is Wednesday in every timezone, and running it
+        // through one only risks an off-by-one at the boundary.
         const weekday = new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'America/Toronto',
+          timeZone: 'UTC',
           weekday: 'narrow',
         }).format(new Date(`${d}T12:00:00Z`));
 

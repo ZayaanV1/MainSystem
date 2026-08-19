@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { startOutbox, subscribeOutbox, type OutboxState } from './lib/outbox';
 import { refreshSubscription } from './lib/notifications';
-import type { Assignment, TodayData } from './lib/planner';
+import { adoptAccountTimezone, type Assignment, type TodayData } from './lib/planner';
 import { SignIn } from './routes/SignIn';
 import { Today } from './routes/Today';
 import { Plan } from './routes/Plan';
@@ -103,8 +103,20 @@ function Shell() {
   // Bumped to make Today refetch after Plan writes something.
   const [revision, setRevision] = useState(0);
 
+  /**
+   * Whether the account's timezone has been read yet.
+   *
+   * Nothing renders until it has. Every "today" in the app resolves through
+   * the active zone, so a screen painted before it is known is a screen that
+   * computed the wrong day for anyone outside the browser's zone — and on a
+   * night either side of midnight, wrong by a whole day.
+   */
+  const [zoneReady, setZoneReady] = useState(false);
+
   useEffect(() => {
     if (!session) return;
+
+    void adoptAccountTimezone().finally(() => setZoneReady(true));
 
     startOutbox();
 
@@ -118,6 +130,8 @@ function Shell() {
   if (loading) return null;
 
   if (!session) return <SignIn />;
+
+  if (!zoneReady) return null;
 
   /** The screen itself. Today is handled separately; see below. */
   function renderScreen() {

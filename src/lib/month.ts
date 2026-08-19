@@ -47,10 +47,19 @@ export function shiftMonth(day: DayKey, months: number): DayKey {
   return `${ny}-${String(nm).padStart(2, '0')}-01`;
 }
 
-export function monthLabel(day: DayKey, timezone?: string): string {
+/**
+ * A month, named.
+ *
+ * Formatted in UTC on purpose, and it takes no timezone. The input is a
+ * calendar date, not an instant — "2026-08" is August wherever you read it,
+ * and running it through a zone would introduce the possibility of an
+ * off-by-one at a month boundary in exchange for nothing. The noon anchor is
+ * belt and braces on the same point.
+ */
+export function monthLabel(day: DayKey): string {
   const [y, m] = day.split('-').map(Number);
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone ?? 'America/Toronto',
+    timeZone: 'UTC',
     month: 'long',
     year: 'numeric',
   }).format(new Date(Date.UTC(y, m - 1, 15, 12)));
