@@ -2,7 +2,8 @@ import { useRef, useState, type FormEvent } from 'react';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { Sheet } from '../components/Sheet';
-import { logEntry, saveMeal, type NewItem } from '../lib/diet';
+import { logEntry, saveMeal, type FoodEntry, type NewItem } from '../lib/diet';
+import { isBarcode, lookupBarcode, productToItem, type BarcodeProduct } from '../lib/barcode';
 import { parseFood, readImage } from '../lib/parseFood';
 import type { DayKey } from '../lib/time';
 
@@ -69,8 +70,12 @@ export function LogFood({
   const [items, setItems] = useState<DraftItem[]>([]);
   const [warnings, setWarnings] = useState<{ item: string; message: string }[]>([]);
   const [rawText, setRawText] = useState<string | null>(null);
-  const [source, setSource] = useState<'ai' | 'manual' | 'photo'>('manual');
+  const [source, setSource] = useState<FoodEntry['source']>('manual');
   const [mealName, setMealName] = useState('');
+
+  const [code, setCode] = useState('');
+  const [scanned, setScanned] = useState<BarcodeProduct | null>(null);
+  const [grams, setGrams] = useState('100');
 
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -82,6 +87,9 @@ export function LogFood({
     setRawText(null);
     setProblem(null);
     setMealName('');
+    setCode('');
+    setScanned(null);
+    setGrams('100');
     setBusy(false);
   }
 
@@ -90,7 +98,7 @@ export function LogFood({
     onClose();
   }
 
-  async function runParse(input: { text?: string; image?: { data: string; mimeType: string } }, kind: 'ai' | 'photo') {
+  async function runParse(input: { text?: string; image?: { data: string; mimeType: string } }, kind: FoodEntry['source']) {
     setBusy(true);
     setProblem(null);
 
@@ -138,6 +146,39 @@ export function LogFood({
       return;
     }
     await runParse({ image }, 'photo');
+  }
+
+  async function lookUp() {
+    setBusy(true);
+    setProblem(null);
+    const result = await lookupBarcode(code);
+    setBusy(false);
+
+    if (!result.ok) {
+      setProblem(result.reason);
+      return;
+    }
+
+    setScanned(result.product);
+    // A stated serving is a better first guess than 100 g, but it is only a
+    // default: the box on the counter is the thing being weighed.
+    setGrams(String(result.product.servingGrams ?? 100));
+  }
+
+  function acceptScanned() {
+    if (!scanned) return;
+    const weight = Number(grams);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      setProblem('Enter how many grams you had.');
+      return;
+    }
+
+    setItems([{ ...productToItem(scanned, weight), unsure: false }]);
+    setWarnings([]);
+    setRawText(`${scanned.name} · barcode ${scanned.code}`);
+    setSource('barcode');
+    setScanned(null);
+    setStage('confirm');
   }
 
   function startByHand() {
@@ -231,6 +272,71 @@ export function LogFood({
             <Button type="button" variant="quiet" disabled={busy} onClick={() => fileInput.current?.click()}>
               Use a photo
             </Button>
+          </div>
+
+          {/*
+            Barcodes are typed rather than scanned. iOS Safari has no
+            BarcodeDetector, and a camera scanner built on a decoding library
+            is a large dependency for a path that already works: the number is
+            printed under every barcode, and a packet is in your hand when you
+            are logging it.
+
+            The lookup is Open Food Facts, which is free and needs no key.
+          */}
+          <div className="flex flex-col gap-3 border-t border-ink-600 pt-6">
+            <Field
+              label="Or type a barcode"
+              value={code}
+              inputMode="numeric"
+              onChange={(e) => {
+                setCode(e.target.value);
+                setScanned(null);
+              }}
+              placeholder="3017620422003"
+              hint="The digits printed under the barcode. Looked up in Open Food Facts."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && isBarcode(code) && !busy) {
+                  e.preventDefault();
+                  void lookUp();
+                }
+              }}
+            />
+
+            <div>
+              <Button type="button" variant="quiet" disabled={!isBarcode(code) || busy} onClick={() => void lookUp()}>
+                {busy ? 'Looking up' : 'Look it up'}
+              </Button>
+            </div>
+
+            {scanned && (
+              <div className="flex flex-col gap-3 rounded-card border border-ink-600 p-3">
+                <div>
+                  <p className="type-body text-text-hi">{scanned.name}</p>
+                  {scanned.brand && <p className="type-note text-text-low">{scanned.brand}</p>}
+                </div>
+
+                <p className="type-note text-text-low">
+                  Per 100 g: {scanned.per100g.calories} kcal, P {scanned.per100g.protein_g}, C{' '}
+                  {scanned.per100g.carbs_g}, F {scanned.per100g.fat_g}
+                </p>
+
+                <Field
+                  label="How many grams?"
+                  type="number"
+                  inputMode="decimal"
+                  min="1"
+                  value={grams}
+                  onChange={(e) => setGrams(e.target.value)}
+                  hint={scanned.servingGrams ? 'One stated serving, unless you weighed it.' : undefined}
+                />
+
+                <div>
+                  <Button type="button" variant="primary" onClick={acceptScanned}>
+                    Use this
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {problem && (

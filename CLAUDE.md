@@ -123,6 +123,22 @@ since Phase 0.5.
 Two things to settle before building it: which free-tier LLM, and that its
 data-use policy is acceptable for food and medication data.
 
+### A documented deviation from the colour law
+
+The colour law says macro colours appear as **ring strokes only**. The weekly
+trend chart uses `--m-calories` for the calorie bars and target band and
+`--m-protein` for the weight line, which is not a ring stroke.
+
+The reading taken: the law exists to stop the three systems blurring into each
+other — urgency must not colour a ring, macros must not colour a task. A chart
+of macros drawn in macro colours does not blur anything; it is the same system
+in a second shape. Using urgency colours there would have been the actual
+violation, and greyscale would have made two series indistinguishable.
+
+Every value on that screen is also written out in the list below the chart, so
+colour is not the only signal. Say if you want this narrowed to the letter of
+the rule and the chart redrawn.
+
 ### Bugs found by verifying rather than assuming
 
 Each of these was invisible in the UI and only surfaced by reading what

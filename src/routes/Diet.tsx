@@ -8,6 +8,7 @@ import { useAuth } from '../lib/auth';
 import {
   dayTotals,
   deleteEntry,
+  deleteSavedMeal,
   loadDay,
   logSavedMeal,
   type DietDay,
@@ -16,6 +17,7 @@ import {
 } from '../lib/diet';
 import { formatTime, todayKey } from '../lib/time';
 import { LogFood } from './LogFood';
+import { Trend } from './Trend';
 
 /**
  * The food log.
@@ -38,6 +40,8 @@ export function Diet({ onBack }: { onBack: () => void }) {
 
   const [data, setData] = useState<DietDay | null>(null);
   const [logging, setLogging] = useState(false);
+  const [showTrend, setShowTrend] = useState(false);
+  const [editingMeals, setEditingMeals] = useState(false);
   const day = todayKey();
 
   const reload = useCallback(() => loadDay(day).then(setData), [day]);
@@ -45,6 +49,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
     void reload();
   }, [reload]);
 
+  if (showTrend) return <Trend onBack={() => setShowTrend(false)} />;
   if (!data) return null;
 
   const sums = dayTotals(data.items);
@@ -54,9 +59,14 @@ export function Diet({ onBack }: { onBack: () => void }) {
     <main className="mx-auto flex min-h-dvh max-w-160 flex-col px-4 pt-6">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="type-h1 text-text-hi">Food</h1>
-        <button type="button" onClick={onBack} className="type-label text-text-mid">
-          Today
-        </button>
+        <div className="flex items-baseline gap-4">
+          <button type="button" onClick={() => setShowTrend(true)} className="type-label text-text-mid">
+            Trend
+          </button>
+          <button type="button" onClick={onBack} className="type-label text-text-mid">
+            Today
+          </button>
+        </div>
       </header>
 
       {t ? (
@@ -110,18 +120,56 @@ export function Diet({ onBack }: { onBack: () => void }) {
 
       {data.savedMeals.length > 0 && (
         <section className="mb-8">
-          <h2 className="type-h2 mb-1 px-4 text-text-hi">Saved meals</h2>
-          <p className="type-note mb-3 px-4 text-text-low">One tap logs it again.</p>
-          <div className="flex flex-wrap gap-2 px-4">
-            {data.savedMeals.slice(0, 8).map((meal) => (
-              <Chip
-                key={meal.id}
-                onClick={() => void logSavedMeal(userId, day, meal).then(reload)}
-              >
-                {meal.name}
-              </Chip>
-            ))}
+          <div className="mb-1 flex items-baseline justify-between gap-4 px-4">
+            <h2 className="type-h2 text-text-hi">Saved meals</h2>
+            <button
+              type="button"
+              onClick={() => setEditingMeals((v) => !v)}
+              className="type-label text-text-mid"
+            >
+              {editingMeals ? 'Done' : 'Edit'}
+            </button>
           </div>
+          <p className="type-note mb-3 px-4 text-text-low">
+            {editingMeals ? 'Removing a meal leaves what you already logged alone.' : 'One tap logs it again.'}
+          </p>
+
+          {/*
+            Editing is a mode rather than a long-press or a swipe. Both of
+            those hide a destructive action behind a gesture with no label,
+            and the one thing worse than not finding "delete" is finding it by
+            accident while trying to log breakfast.
+          */}
+          {editingMeals ? (
+            <div className="flex flex-col">
+              {data.savedMeals.map((meal) => (
+                <div
+                  key={meal.id}
+                  className="flex items-baseline justify-between gap-4 border-b border-ink-600 px-4 py-3"
+                >
+                  <span className="type-body text-text-hi">{meal.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => void deleteSavedMeal(meal.id).then(reload)}
+                    className="type-caption text-text-low"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2 px-4">
+              {data.savedMeals.slice(0, 8).map((meal) => (
+                <Chip
+                  key={meal.id}
+                  onClick={() => void logSavedMeal(userId, day, meal).then(reload)}
+                >
+                  {meal.name}
+                </Chip>
+              ))}
+            </div>
+          )}
         </section>
       )}
 

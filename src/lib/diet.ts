@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { todayKey, type DayKey } from './time';
+import type { DayPoint } from './trend';
 import { itemRows, totals, type FoodRowInput } from '../../supabase/functions/_shared/food';
 
 /**
@@ -195,6 +196,11 @@ export async function saveMeal(userId: string, name: string, items: NewItem[]): 
   return { error: error ? error.message : null };
 }
 
+/** Forgets a saved meal. The entries it already produced are untouched. */
+export async function deleteSavedMeal(id: string): Promise<void> {
+  await supabase.from('saved_meals').delete().eq('id', id);
+}
+
 /**
  * Re-logs a saved meal, optionally scaled.
  *
@@ -234,6 +240,53 @@ export async function setWeight(userId: string, day: DayKey, kg: number): Promis
   await supabase
     .from('bodyweight')
     .upsert({ user_id: userId, local_day: day, kg }, { onConflict: 'user_id,local_day' });
+}
+
+/**
+ * Daily weight and calories over a window, for the weekly trend.
+ *
+ * Two queries rather than a join: food_items has no local_day of its own, and
+ * pushing the grouping into Postgres would mean a view to maintain for a few
+ * hundred rows. One user, a few thousand rows — this is fast enough and stays
+ * readable.
+ */
+export async function loadTrendDays(fromDay: DayKey, toDay: DayKey): Promise<DayPoint[]> {
+  const [weights, entries] = await Promise.all([
+    supabase
+      .from('bodyweight')
+      .select('local_day, kg')
+      .gte('local_day', fromDay)
+      .lte('local_day', toDay),
+    supabase
+      .from('food_entries')
+      .select('local_day, food_items(calories)')
+      .gte('local_day', fromDay)
+      .lte('local_day', toDay),
+  ]);
+
+  const byDay = new Map<DayKey, DayPoint>();
+  const at = (day: DayKey): DayPoint => {
+    const existing = byDay.get(day);
+    if (existing) return existing;
+    const fresh: DayPoint = { day };
+    byDay.set(day, fresh);
+    return fresh;
+  };
+
+  for (const row of (weights.data ?? []) as { local_day: DayKey; kg: unknown }[]) {
+    at(row.local_day).kg = num(row.kg);
+  }
+
+  for (const row of (entries.data ?? []) as {
+    local_day: DayKey;
+    food_items: { calories: unknown }[] | null;
+  }[]) {
+    const day = at(row.local_day);
+    const sum = (row.food_items ?? []).reduce((n, i) => n + num(i.calories), 0);
+    day.calories = (day.calories ?? 0) + sum;
+  }
+
+  return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
 /** Day totals, rounded once at the end rather than at every addition. */
