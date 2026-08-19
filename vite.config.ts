@@ -61,6 +61,18 @@ export default defineConfig({
     }),
   ],
 
+  /*
+   * The dev server takes whatever port it is given.
+   *
+   * Nothing here depends on a fixed one: auth is email and password with no
+   * OAuth callback to register, and the edge functions accept any localhost
+   * origin rather than one hardcoded port. Pinning 5173 only ever produced a
+   * collision with a server left running from an earlier session.
+   */
+  server: {
+    port: Number(process.env.PORT) || 5173,
+  },
+
   test: {
     environment: 'node',
     include: [
