@@ -27,6 +27,12 @@ export type LlmFailure =
   | 'unconfigured'
   /** Network, timeout, provider outage. */
   | 'unavailable'
+  /**
+   * The configured model does not exist for this key — usually retired.
+   * Separate from 'unavailable' because retrying is useless: it needs a
+   * changed setting, and telling someone to try again would be a lie.
+   */
+  | 'retired'
   /** The provider declined to answer. */
   | 'refused';
 

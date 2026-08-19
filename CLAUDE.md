@@ -167,6 +167,12 @@ actually reached the database. Worth remembering as a working method.
   ago and is already absent from the count, so recovering a rough week
   silently destroyed the number meant to protect you. Today spends; any other
   day only records.
+- **A hardcoded model name retired underneath the app.** `gemini-2.5-flash`
+  stopped being issued to new keys, and the 404 surfaced as "could not reach
+  the model" — advice to retry, for a fault retrying cannot fix. The model is
+  now `GEMINI_MODEL` with a current default, a 404 is classified as `retired`
+  rather than `unavailable`, and the error lists the models the key can
+  actually use so the next name is read rather than guessed.
 - **Prose was rendered in the uppercase caption style, three times.** The
   captured wording on the triage screen, the raw text of a food entry, and
   then every input hint in the app at once, because `Field` put its hint slot

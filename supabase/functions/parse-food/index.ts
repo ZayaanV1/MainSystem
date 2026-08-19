@@ -59,6 +59,9 @@ const FAILURE_COPY: Record<string, string> = {
   malformed: 'The model returned something unreadable. Nothing was saved. Add the items by hand.',
   refused: 'The model declined to read that. Add the items by hand.',
   unavailable: 'Could not reach the model. Add the items by hand, or try again.',
+  // Retrying is useless here, so it is not offered. This one needs a setting
+  // changed, and `detail` carries the model names the key can actually use.
+  retired: 'The configured model is no longer available. Add the items by hand; this needs GEMINI_MODEL set to a current model.',
 };
 
 Deno.serve(async (req: Request): Promise<Response> => {

@@ -20,8 +20,14 @@ const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 /**
  * Flash rather than Pro. Extraction from a short string does not need the
  * larger model, and the free tier's request budget is shared with the chatbot.
+ *
+ * Settable, because Google retires model names on its own schedule and a
+ * hardcoded one turns into a dead parser with no way to fix it but a deploy.
+ * `gemini-2.5-flash` was the original choice and stopped being issued to new
+ * keys; the failure was a 404 reported as "could not reach the model", which
+ * is the least useful thing it could have said.
  */
-const MODEL = 'gemini-2.5-flash';
+const MODEL = Deno.env.get('GEMINI_MODEL') || 'gemini-3.6-flash';
 
 const TIMEOUT_MS = 20_000;
 
@@ -31,7 +37,35 @@ function classify(status: number, body: string): LlmFailure {
   if (/RESOURCE_EXHAUSTED|quota/i.test(body)) return 'quota';
   if (status === 401 || status === 403) return 'unconfigured';
   if (/SAFETY|blocked/i.test(body)) return 'refused';
+  if (status === 404) return 'retired';
+  if (/is no longer available|not found|NOT_FOUND/i.test(body)) return 'retired';
   return 'unavailable';
+}
+
+/**
+ * The models this key may actually call.
+ *
+ * Asked for only when a request 404s, so the dead end reports what would have
+ * worked instead of leaving the name to be guessed. Failure here is silent on
+ * purpose: this runs inside the handling of another error and must not replace
+ * it with a worse one.
+ */
+async function availableModels(apiKey: string): Promise<string[]> {
+  try {
+    const res = await fetch(`${ENDPOINT}?pageSize=100`, {
+      headers: { 'x-goog-api-key': apiKey },
+    });
+    if (!res.ok) return [];
+    const body = (await res.json()) as {
+      models?: { name?: string; supportedGenerationMethods?: string[] }[];
+    };
+    return (body.models ?? [])
+      .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+      .map((m) => (m.name ?? '').replace(/^models\//, ''))
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 export function geminiProvider(apiKey: string): LlmProvider {
@@ -77,12 +111,17 @@ export function geminiProvider(apiKey: string): LlmProvider {
         const raw = await res.text();
 
         if (!res.ok) {
-          return {
-            ok: false,
-            failure: classify(res.status, raw),
-            message: `HTTP ${res.status}: ${raw.slice(0, 300)}`,
-            provider: 'gemini',
-          };
+          const failure = classify(res.status, raw);
+          let message = `HTTP ${res.status}: ${raw.slice(0, 300)}`;
+
+          if (failure === 'retired') {
+            const models = await availableModels(apiKey);
+            message = models.length
+              ? `Model "${MODEL}" is unavailable. This key can use: ${models.slice(0, 12).join(', ')}`
+              : `Model "${MODEL}" is unavailable, and the model list could not be read.`;
+          }
+
+          return { ok: false, failure, message, provider: 'gemini' };
         }
 
         const body = JSON.parse(raw) as {
