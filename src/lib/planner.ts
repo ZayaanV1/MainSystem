@@ -645,6 +645,57 @@ export async function setLowBattery(userId: string, on: boolean): Promise<void> 
 
 /* ---------------------------------------------------------------- courses */
 
+/**
+ * Creates a course and hands the row back.
+ *
+ * Written straight through rather than queued, unlike `addCourse`. Onboarding
+ * needs the id immediately: the syllabus step attaches a whole term's work to
+ * it, and a queued insert returns nothing to attach to.
+ *
+ * The trade is that this one write does not survive being offline. That is the
+ * right way round here — someone completing a first run has just signed in and
+ * very likely just called a model, and if it does fail the course can be added
+ * again from Courses with nothing lost but a moment.
+ */
+export async function createCourse(
+  userId: string,
+  name: string,
+  colourIndex: number,
+  code?: string,
+): Promise<Course | null> {
+  const { data } = await supabase
+    .from('courses')
+    .insert({
+      user_id: userId,
+      name: name.trim(),
+      code: code?.trim() || null,
+      colour_index: colourIndex,
+    })
+    .select('id, name, code, colour_index, archived')
+    .single();
+
+  return (data as Course) ?? null;
+}
+
+/** Marks the first run as done, however it ended. */
+export async function finishOnboarding(userId: string): Promise<void> {
+  await supabase
+    .from('app_settings')
+    .update({ onboarded_at: new Date().toISOString() })
+    .eq('user_id', userId);
+}
+
+/**
+ * Whether the first run still needs to happen.
+ *
+ * Null means it has not. Set on finish OR skip: someone who dismissed it made
+ * a choice, and showing it again next launch would be the app overruling them.
+ */
+export async function needsOnboarding(): Promise<boolean> {
+  const { data } = await supabase.from('app_settings').select('onboarded_at').limit(1);
+  return (data ?? [])[0]?.onboarded_at == null;
+}
+
 export async function addCourse(
   userId: string,
   name: string,

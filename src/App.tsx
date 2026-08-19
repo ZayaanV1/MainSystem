@@ -4,13 +4,19 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { startOutbox, subscribeOutbox, type OutboxState } from './lib/outbox';
 import { refreshSubscription } from './lib/notifications';
-import { adoptAccountTimezone, type Assignment, type TodayData } from './lib/planner';
+import {
+  adoptAccountTimezone,
+  needsOnboarding,
+  type Assignment,
+  type TodayData,
+} from './lib/planner';
 import { SignIn } from './routes/SignIn';
 import { Today } from './routes/Today';
 import { Plan } from './routes/Plan';
 import { Week } from './routes/Week';
 import { Month } from './routes/Month';
 import { Chat } from './routes/Chat';
+import { Onboarding } from './routes/Onboarding';
 import { Search } from './routes/Search';
 import { Diet } from './routes/Diet';
 import { AssignmentEditor } from './routes/AssignmentEditor';
@@ -113,10 +119,19 @@ function Shell() {
    */
   const [zoneReady, setZoneReady] = useState(false);
 
+  /**
+   * Null while unknown, so the app renders neither the planner nor the first
+   * run until it knows which is correct. Flashing an empty Today for a frame
+   * and then replacing it with a welcome screen is a worse first impression
+   * than a beat of nothing.
+   */
+  const [firstRun, setFirstRun] = useState<boolean | null>(null);
+
   useEffect(() => {
     if (!session) return;
 
     void adoptAccountTimezone(session.user.id).finally(() => setZoneReady(true));
+    void needsOnboarding().then(setFirstRun).catch(() => setFirstRun(false));
 
     startOutbox();
 
@@ -131,7 +146,21 @@ function Shell() {
 
   if (!session) return <SignIn />;
 
-  if (!zoneReady) return null;
+  if (!zoneReady || firstRun === null) return null;
+
+  if (firstRun) {
+    return (
+      <Onboarding
+        userId={session.user.id}
+        onDone={() => {
+          setFirstRun(false);
+          // The planner behind it is stale by definition — the first run just
+          // created everything in it.
+          setRevision((r) => r + 1);
+        }}
+      />
+    );
+  }
 
   /** The screen itself. Today is handled separately; see below. */
   function renderScreen() {

@@ -148,13 +148,21 @@ every user. None of the below needs re-architecting.
    asked for, or be offered during a first run. Absent is the current
    behaviour and is defensible; it has simply not been chosen.
 
-4. **Nothing onboards.** A fresh account has no courses, no checklist and no
-   targets. Every screen has an honest empty state, which is not the same as
-   a first run that goes somewhere.
+4. ~~**Nothing onboards.**~~ DONE 19 Aug. Four steps, every one skippable:
+   courses, a pasted syllabus, the daily checklist, done. It asks nothing the
+   app could answer itself — no timezone, no name — and nothing is
+   pre-selected, because a checklist you start by deleting from is worse than
+   an empty one. `onboarded_at` is set on finish OR skip, and 0021 backfills
+   accounts that already hold data, since they are not new whatever the flag
+   says.
 
-5. **One Gemini key serves everyone.** `CHAT_CALLS_PER_DAY` is counted per
-   user in `ai_usage`, but the quota underneath it is global — one heavy user
-   can exhaust food parsing for all of them. See the stack note on free tiers.
+5. ~~**One Gemini key serves everyone.**~~ DONE 19 Aug. An account can supply
+   its own key in Settings, which decouples it from the shared tier entirely;
+   the daily question budget stops applying to anyone using one, since that
+   reserve exists to protect a shared pool. The field is write-only — the app
+   asks whether a key is set and never reads one back. The shared key is still
+   the default, and it hit Google's daily limit during a single day of
+   development, which is the clearest possible argument for the option.
 
 6. **`setup.mjs` provisions a person, not an environment.** It creates the
    account and seeds that account's data. For a product it should set up the

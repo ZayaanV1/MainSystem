@@ -721,6 +721,34 @@ describe('settings bootstrap and constraints', () => {
     expect(res.rows[0].n).toBe(1);
   });
 
+  it('treats an account with data as already set up', async () => {
+    // 0020 added onboarded_at as null for everyone, which is right for new
+    // accounts and wrong for every account that existed before it — they would
+    // be shown a first run for a term they had already entered. The backfill
+    // works from evidence rather than a date, because evidence survives a
+    // restore, a reseed, or migrations applied in a different order.
+    await db.exec(
+      `insert into public.courses (user_id, name, colour_index)
+       values ('${USER_B}', 'Backfill probe', 8)`,
+    );
+    await db.exec(
+      `update public.app_settings s set onboarded_at = coalesce(s.onboarded_at, now())
+        where s.onboarded_at is null
+          and exists (select 1 from public.courses c where c.user_id = s.user_id)`,
+    );
+
+    const res = await db.query<{ onboarded_at: string | null }>(
+      `select onboarded_at from public.app_settings where user_id = '${USER_B}'`,
+    );
+    expect(res.rows[0].onboarded_at).not.toBeNull();
+
+    // Left behind, this row changed the count a later test asserts on. These
+    // tests share one database, so a fixture that is not removed is a failure
+    // reported somewhere else entirely.
+    await db.exec(`delete from public.courses where user_id = '${USER_B}' and name = 'Backfill probe'`);
+    await db.exec(`update public.app_settings set onboarded_at = null where user_id = '${USER_B}'`);
+  });
+
   it('seeds the digest at 07:00 with no timezone assumed', async () => {
     const res = await db.query<{
       timezone: string | null;
