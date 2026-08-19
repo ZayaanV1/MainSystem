@@ -191,6 +191,8 @@ ok('dispatch deployed');
 // simply was not there.
 supabase(['functions', 'deploy', 'parse-food']);
 ok('parse-food deployed');
+supabase(['functions', 'deploy', 'assist']);
+ok('assist deployed');
 
 /* ------------------------------------------------------------- rest api --- */
 

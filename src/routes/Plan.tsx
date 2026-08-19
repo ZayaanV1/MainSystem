@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
+import { SyllabusImport } from './SyllabusImport';
 import { EmptyState } from '../components/EmptyState';
 import { Field } from '../components/Field';
 import { useAuth } from '../lib/auth';
@@ -35,6 +36,7 @@ export function Plan({ courses, onBack, onChanged }: {
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const courseRefs = useMemo(
     () => courses.map((c) => ({ id: c.id, name: c.name, code: c.code })),
@@ -99,9 +101,23 @@ export function Plan({ courses, onBack, onChanged }: {
       <CourseEditor userId={userId} courses={courses} onChanged={onChanged} />
 
       <section className="mb-8">
-        <h2 className="type-h2 mb-1 px-4 text-text-hi">Paste a syllabus</h2>
+        <h2 className="type-h2 mb-1 px-4 text-text-hi">Read a whole syllabus</h2>
         <p className="type-note mb-3 px-4 text-text-low">
-          One deadline per line. Course, date, time and effort are picked out wherever they sit.
+          Paste the whole thing or hand it a PDF. Every deliverable comes back for checking before
+          anything is added.
+        </p>
+        <div className="px-4">
+          <Button variant="primary" onClick={() => setImporting(true)}>
+            Import a syllabus
+          </Button>
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="type-h2 mb-1 px-4 text-text-hi">Type deadlines</h2>
+        <p className="type-note mb-3 px-4 text-text-low">
+          One per line. Course, date, time and effort are picked out wherever they sit. No model
+          involved, so this works offline and never runs out of requests.
         </p>
 
         <div className="px-4">
@@ -156,6 +172,14 @@ export function Plan({ courses, onBack, onChanged }: {
           </div>
         </section>
       )}
+
+      <SyllabusImport
+        open={importing}
+        userId={userId}
+        courses={courses}
+        onClose={() => setImporting(false)}
+        onImported={onChanged}
+      />
     </main>
   );
 }

@@ -206,6 +206,43 @@ export async function addAssignment(
   });
 }
 
+/**
+ * Creates a calendar event.
+ *
+ * An event with no stated time is all-day and starts at the BEGINNING of its
+ * day. An assignment with no time is due at the END of its day, and the two
+ * rules are opposite on purpose: "due Friday" that reads as overdue all Friday
+ * destroys trust in the edge colour, and an exam stored at 23:59 makes the
+ * T-1 escalation fire a day early. Both of those have already happened once.
+ */
+export async function addEvent(
+  userId: string,
+  fields: {
+    title: string;
+    kind: PlannerEvent['kind'];
+    day: DayKey;
+    /** Local wall-clock 'HH:MM', or null for all day. */
+    time: string | null;
+    course_id?: string | null;
+    notes?: string | null;
+  },
+): Promise<void> {
+  const [hour, minute] = fields.time ? fields.time.split(':').map(Number) : [0, 0];
+  const startsAt = fields.time
+    ? wallClockToUTC(fields.day, hour, minute)
+    : startOfDayUTC(fields.day);
+
+  await enqueue('events', 'insert', {
+    user_id: userId,
+    title: fields.title.trim(),
+    kind: fields.kind,
+    course_id: fields.course_id ?? null,
+    starts_at: startsAt.toISOString(),
+    all_day: !fields.time,
+    notes: fields.notes ?? null,
+  });
+}
+
 export async function setAssignmentStatus(
   id: string,
   status: Assignment['status'],

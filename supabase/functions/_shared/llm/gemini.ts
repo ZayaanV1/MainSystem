@@ -29,7 +29,8 @@ const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
  */
 const MODEL = Deno.env.get('GEMINI_MODEL') || 'gemini-3.6-flash';
 
-const TIMEOUT_MS = 20_000;
+/** Enough for a short extraction. Long jobs pass their own. */
+const DEFAULT_TIMEOUT_MS = 20_000;
 
 function classify(status: number, body: string): LlmFailure {
   if (status === 429) return 'quota';
@@ -89,7 +90,7 @@ export function geminiProvider(apiKey: string): LlmProvider {
       }
 
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), request.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
       try {
         const res = await fetch(`${ENDPOINT}/${MODEL}:generateContent`, {
@@ -166,7 +167,9 @@ export function geminiProvider(apiKey: string): LlmProvider {
         return {
           ok: false,
           failure: 'unavailable',
-          message: aborted ? 'The model took too long.' : (e as Error).message,
+          message: aborted
+            ? `The model took longer than ${Math.round((request.timeoutMs ?? DEFAULT_TIMEOUT_MS) / 1000)}s.`
+            : (e as Error).message,
           provider: 'gemini',
         };
       } finally {

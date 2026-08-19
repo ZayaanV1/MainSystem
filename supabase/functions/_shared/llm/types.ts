@@ -55,6 +55,15 @@ export interface LlmRequest {
   schema: Record<string, unknown>;
   /** Low for extraction, higher only where invention is the point. */
   temperature?: number;
+  /**
+   * How long to wait before giving up.
+   *
+   * Per-request because the jobs are not comparable: a line of typed food
+   * comes back in a couple of seconds, and a syllabus PDF is a different
+   * order of work entirely. One timeout tuned for the first silently makes
+   * the second impossible.
+   */
+  timeoutMs?: number;
 }
 
 export interface LlmProvider {

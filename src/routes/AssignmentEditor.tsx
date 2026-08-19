@@ -3,6 +3,7 @@ import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
 import { Sheet } from '../components/Sheet';
+import { breakDownTask } from '../lib/assist';
 import {
   addSubtask,
   courseVar,
@@ -206,6 +207,9 @@ export function AssignmentEditor({
           assignmentId={assignment.id}
           userId={userId}
           subtasks={subtasks}
+          title={fields.title}
+          courseName={courses.find((c) => c.id === fields.course_id)?.name ?? null}
+          notes={fields.notes}
           onChanged={onSaved}
         />
 
@@ -265,14 +269,24 @@ function Subtasks({
   assignmentId,
   userId,
   subtasks,
+  title,
+  courseName,
+  notes,
   onChanged,
 }: {
   assignmentId: string;
   userId: string;
   subtasks: Subtask[];
+  title: string;
+  courseName: string | null;
+  notes: string | null;
   onChanged: () => void;
 }) {
   const [draft, setDraft] = useState('');
+  const [suggested, setSuggested] = useState<{ title: string; minutes: number }[] | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [thinking, setThinking] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   const mine = subtasks
     .filter((s) => s.assignment_id === assignmentId)
     .sort((a, b) => a.position - b.position);
@@ -282,6 +296,40 @@ function Subtasks({
     if (!text) return;
     setDraft('');
     await addSubtask(userId, assignmentId, text, mine.length);
+    onChanged();
+  }
+
+  async function suggest() {
+    setThinking(true);
+    setProblem(null);
+    setSuggested(null);
+
+    const result = await breakDownTask({ title, courseName, notes });
+    setThinking(false);
+
+    if (!result.ok) {
+      setProblem(result.reason);
+      return;
+    }
+
+    setSuggested(result.steps);
+    setWarnings(result.warnings);
+  }
+
+  /**
+   * Accepts the suggestion.
+   *
+   * Written one at a time and appended after whatever is already there, so a
+   * breakdown never silently replaces steps that were typed by hand.
+   */
+  async function keep(steps: { title: string; minutes: number }[]) {
+    let position = mine.length;
+    for (const step of steps) {
+      await addSubtask(userId, assignmentId, step.title, position);
+      position += 1;
+    }
+    setSuggested(null);
+    setWarnings([]);
     onChanged();
   }
 
@@ -348,6 +396,82 @@ function Subtasks({
           Add
         </Button>
       </div>
+
+      {/*
+        The paralysis button. "Write research paper" is the thing you cannot
+        start; four concrete first moves is the thing you can.
+
+        Suggestions are shown and not written, same as everywhere else, and
+        accepting them appends rather than replaces — a breakdown must never
+        quietly delete steps that were typed by hand.
+      */}
+      {suggested === null ? (
+        <div>
+          <Button
+            variant="quiet"
+            onClick={() => void suggest()}
+            disabled={thinking || !title.trim()}
+          >
+            {thinking ? 'Working it out' : 'Break this into first moves'}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 rounded-card border border-ink-600 p-3">
+          <p className="type-note text-text-low">
+            Nothing is added until you keep these. Remove any that are wrong.
+          </p>
+
+          <div className="flex flex-col">
+            {suggested.map((step, i) => (
+              <div
+                key={i}
+                className="flex items-baseline justify-between gap-3 border-b border-ink-600 py-2 last:border-b-0"
+              >
+                <span className="type-body text-text-hi">{step.title}</span>
+                <div className="flex shrink-0 items-baseline gap-3">
+                  <span className="type-caption text-text-low">{step.minutes} min</span>
+                  <button
+                    type="button"
+                    onClick={() => setSuggested((list) => (list ?? []).filter((_, n) => n !== i))}
+                    className="type-caption text-text-low"
+                  >
+                    Drop
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {warnings.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {warnings.map((w, i) => (
+                <p key={i} className="type-note text-t-approaching">
+                  {w}
+                </p>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="primary"
+              onClick={() => void keep(suggested)}
+              disabled={suggested.length === 0}
+            >
+              Keep {suggested.length === 1 ? 'it' : `these ${suggested.length}`}
+            </Button>
+            <Button variant="quiet" onClick={() => { setSuggested(null); setWarnings([]); }}>
+              Discard
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {problem && (
+        <p className="type-body text-t-overdue" role="alert">
+          {problem}
+        </p>
+      )}
     </div>
   );
 }
