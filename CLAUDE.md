@@ -255,11 +255,14 @@ Gaps read "not weighed", never zero, and no direction is graded.
 - **Offline durability on real hardware**, still untested: capture something in
   airplane mode and reopen. The browser used for verification can host neither
   IndexedDB nor a service worker, so this cannot be checked from here.
-- **Camera barcode scanning was not built.** iOS Safari has no
-  `BarcodeDetector`, and a decoding library is a large dependency for a path
-  that already works — the digits are printed under the barcode and the packet
-  is in your hand when you are logging it. Say if you want it for Android or a
-  laptop webcam anyway.
+- ~~**Camera barcode scanning was not built.**~~ BUILT 19 Aug, on request.
+  Two decoders chosen at runtime: `BarcodeDetector` where it exists, which
+  costs nothing, and a 464 KB gzipped WebAssembly build of ZXing everywhere
+  else — iOS Safari still had no `BarcodeDetector` in August 2026. The WASM is
+  dynamically imported so nothing downloads until Scan is tapped, and it is
+  served from our own origin rather than the library's default CDN, which
+  would have put a third-party round trip in the middle of scanning a packet
+  in a shop. Typing the digits stays available throughout.
 - **Photo logging is verified through the API but not through the camera.** A
   real Gemini vision response came back correctly, low-confidence and all, from
   a generated image. The iOS file picker itself has never been exercised.

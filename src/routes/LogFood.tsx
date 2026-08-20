@@ -4,6 +4,8 @@ import { Field } from '../components/Field';
 import { Sheet } from '../components/Sheet';
 import { logEntry, saveMeal, type FoodEntry, type NewItem } from '../lib/diet';
 import { isBarcode, lookupBarcode, productToItem, type BarcodeProduct } from '../lib/barcode';
+import { scanSupport } from '../lib/scanner';
+import { ScanBarcode } from './ScanBarcode';
 import { parseFood, readImage } from '../lib/parseFood';
 import { foodToItem, searchFoods, type UsdaFood } from '../lib/usda';
 import type { DayKey } from '../lib/time';
@@ -79,6 +81,8 @@ export function LogFood({
   const [picked, setPicked] = useState<UsdaFood | null>(null);
   const [pickedGrams, setPickedGrams] = useState('100');
 
+  const [scanning, setScanning] = useState(false);
+
   const [code, setCode] = useState('');
   const [scanned, setScanned] = useState<BarcodeProduct | null>(null);
   const [grams, setGrams] = useState('100');
@@ -94,6 +98,7 @@ export function LogFood({
     setProblem(null);
     setMealName('');
     setCode('');
+    setScanning(false);
     setScanned(null);
     setGrams('100');
     setQuery('');
@@ -193,9 +198,13 @@ export function LogFood({
   }
 
   async function lookUp() {
+    await lookUpCode(code);
+  }
+
+  async function lookUpCode(value: string) {
     setBusy(true);
     setProblem(null);
-    const result = await lookupBarcode(code);
+    const result = await lookupBarcode(value);
     setBusy(false);
 
     if (!result.ok) {
@@ -434,11 +443,36 @@ export function LogFood({
               }}
             />
 
-            <div>
+            <div className="flex flex-wrap items-center gap-3">
               <Button type="button" variant="quiet" disabled={!isBarcode(code) || busy} onClick={() => void lookUp()}>
                 {busy ? 'Looking up' : 'Look it up'}
               </Button>
+
+              {/*
+                Offered only where it can work. A scan button that opens a
+                camera and then cannot decode anything is worse than no button,
+                and typing the digits remains right here either way.
+              */}
+              {scanSupport() !== 'none' && !scanning && (
+                <Button type="button" variant="quiet" disabled={busy} onClick={() => setScanning(true)}>
+                  Scan it
+                </Button>
+              )}
             </div>
+
+            {scanning && (
+              <ScanBarcode
+                onCancel={() => setScanning(false)}
+                onFound={(found) => {
+                  setScanning(false);
+                  setCode(found);
+                  // Straight into the lookup: the scan already confirmed the
+                  // digits twice over, so asking for another tap would be
+                  // asking someone to confirm what they just pointed at.
+                  void lookUpCode(found);
+                }}
+              />
+            )}
 
             {scanned && (
               <div className="flex flex-col gap-3 rounded-card border border-ink-600 p-3">
