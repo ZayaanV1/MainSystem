@@ -70,7 +70,7 @@ export function Onboarding({ userId, onDone }: { userId: string; onDone: () => v
   const next = () => setStep(ORDER[Math.min(ORDER.length - 1, index + 1)]);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-140 flex-col px-6 pb-12 pt-10">
+    <main className="mx-auto flex min-h-svh max-w-140 flex-col px-6 pb-12 pt-10">
       <Progress index={index} total={ORDER.length - 1} />
 
       {/* Keyed so each step is a fresh node and re-runs its entrance. */}

@@ -135,7 +135,9 @@
     /* Rubber-band scrolling reveals the page behind the app in standalone
        mode. Painting the ground colour there keeps it seamless. */
     overscroll-behavior-y: none;
-    min-height: 100dvh;
+    /* svh for the same reason as page-frame: dvh shrinks when the keyboard
+       opens, so anything measured against it reflows while you are typing. */
+    min-height: 100svh;
   }
 
   /* Visible keyboard focus everywhere, never removed. */
@@ -279,7 +281,20 @@
 @utility page-frame {
   margin-inline: auto;
   display: flex;
-  min-height: 100dvh;
+  /*
+   * svh, not dvh.
+   *
+   * `dvh` is the DYNAMIC viewport height: it shrinks when the on-screen
+   * keyboard opens. Pinning a min-height to it means every screen re-lays-out
+   * the moment a field is focused, which on iOS scrolls the focused input and
+   * can dismiss the keyboard that caused the change in the first place.
+   *
+   * `svh` is the small viewport height — the stable floor, unaffected by the
+   * keyboard or by the address bar collapsing. The page is allowed to be
+   * taller; it just stops being measured against a number that moves while
+   * someone is typing.
+   */
+  min-height: 100svh;
   width: 100%;
   max-width: 40rem;
   flex-direction: column;

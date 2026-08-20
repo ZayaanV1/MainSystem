@@ -45,7 +45,7 @@ export function AppShell<T extends string>({
   children: ReactNode;
 }) {
   return (
-    <div className="lg:flex lg:min-h-dvh">
+    <div className="lg:flex lg:min-h-svh">
       <Rail current={current} items={items} onNavigate={onNavigate} />
 
       {/* min-w-0 so a wide child (a long title, a table) shrinks instead of

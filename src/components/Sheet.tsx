@@ -24,6 +24,25 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
   const panel = useRef<HTMLDivElement>(null);
   const restoreFocusTo = useRef<HTMLElement | null>(null);
 
+  /*
+   * `onClose` is read through a ref rather than depended on.
+   *
+   * Every caller passes it as an inline arrow, so its identity changes on each
+   * render of the parent. Listing it as a dependency meant the effect below
+   * tore down and re-ran whenever the parent re-rendered — and since it calls
+   * `panel.focus()`, that pulled focus out of whatever input was being typed
+   * into. On a phone, losing focus dismisses the keyboard: type a character,
+   * the keyboard closes.
+   *
+   * It only bit where the input's state lived in the sheet's PARENT, which is
+   * why it was intermittent rather than universal, and why it was invisible on
+   * a desktop where losing focus costs nothing you can see.
+   */
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!open) return;
 
@@ -31,7 +50,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
     panel.current?.focus();
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') closeRef.current();
     };
     document.addEventListener('keydown', onKey);
 
@@ -45,7 +64,8 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
       document.body.style.overflow = previousOverflow;
       restoreFocusTo.current?.focus();
     };
-  }, [open, onClose]);
+    // Deliberately only `open`. See the ref above.
+  }, [open]);
 
   if (!open) return null;
 

@@ -61,7 +61,7 @@ const NAV: NavItem<Screen>[] = [
 /** Shown before setup has been run, instead of a white screen and a console error. */
 function NotConfigured() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-100 flex-col justify-center px-6">
+    <main className="mx-auto flex min-h-svh max-w-100 flex-col justify-center px-6">
       <h1 className="type-h1 mb-2 text-text-hi">Not set up yet</h1>
       <p className="type-body text-text-mid">
         No Supabase connection is configured. Copy .env.setup.example to .env.setup, fill it in,
