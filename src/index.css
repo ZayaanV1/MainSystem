@@ -657,11 +657,26 @@
 }
 
 /*
- * Atmosphere — phthalo in the air.
+ * Atmosphere — phthalo behind the glass, and nowhere else.
  *
- * The role the second brand colour actually plays: a large, low-saturation
- * wash that never touches a control, and so never has to be told apart from a
- * deadline. It is also what gives glass something to refract.
+ * This exists for one reason: backdrop-filter has nothing to do over a flat
+ * panel. The tab bar is the only glass surface in the app, so the wash is
+ * anchored to the bottom edge, directly behind it, and fades out going up.
+ * Anywhere else it is decoration on a screen that is supposed to answer a
+ * question in under two seconds.
+ *
+ * TWO THINGS THIS GOT WRONG FIRST TIME.
+ *
+ * It had ember in it, at 60% x 80% of the viewport in the bottom-right
+ * corner, which on a desktop screen is not "air" — it is a large orange
+ * cloud. Size is the trap: an opacity low enough to sound subtle is still
+ * loud when it is smeared across half a monitor.
+ *
+ * The deeper error was including ember at all. The palette's whole load-
+ * bearing rule is that ember appears on controls and on nothing else, which
+ * is what lets "the orange thing" mean "the thing to press" without a legend.
+ * Painting it across the background spends that rule on a gradient. Phthalo
+ * is the atmosphere colour precisely because it is NOT the control colour.
  */
 @utility atmosphere {
   position: relative;
@@ -678,12 +693,15 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background:
-      radial-gradient(70% 90% at 12% 8%, var(--accent-2) 0%, transparent 62%),
-      radial-gradient(60% 80% at 88% 92%, var(--accent) 0%, transparent 58%);
-    /* Low enough to read as air rather than as a coloured panel. The glass
-       needs something to refract; the content needs to stay legible over it. */
-    opacity: 0.13;
+    /* Wide and shallow, hugging the bottom edge where the glass actually is.
+       Nothing reaches the upper half of the screen, so no content ever sits
+       on a tinted ground. */
+    background: radial-gradient(
+      140% 42% at 50% 100%,
+      var(--accent-2) 0%,
+      transparent 72%
+    );
+    opacity: 0.16;
   }
 }
 
