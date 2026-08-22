@@ -452,7 +452,7 @@ function CaptureBox({ userId, onCaptured }: { userId: string; onCaptured: () => 
         placeholder="Capture anything"
         autoComplete="off"
         enterKeyHint="done"
-        className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
+        className="prompt-shell w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
       />
     </form>
   );

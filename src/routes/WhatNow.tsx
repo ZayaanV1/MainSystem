@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../components/Button';
+import { useMagnetic } from '../lib/useMagnetic';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { whatNow, type Task } from '../lib/intelligence';
@@ -49,13 +50,22 @@ export function WhatNow({
     deferrals: deferrals[a.id] ?? 0,
   }));
 
+  const magnet = useMagnetic();
+
   const choice = open ? whatNow(tasks, { minutesAvailable: minutes }) : null;
   const picked = choice ? assignments.find((a) => a.id === choice.task.id) ?? null : null;
 
   if (!open) {
     return (
       <div className="mb-8 px-4">
-        <Button variant="primary" onClick={() => setOpen(true)}>
+        {/*
+          The one magnetic control in the app, and the one that earns it: this
+          is the button a stuck person presses, and a control that leans toward
+          the cursor is a control that looks like it wants to be pressed. The
+          offset is capped at 6px inside the hook, so it never moves out from
+          under the pointer.
+        */}
+        <Button variant="primary" className="fx-magnet" {...magnet} onClick={() => setOpen(true)}>
           What now?
         </Button>
       </div>

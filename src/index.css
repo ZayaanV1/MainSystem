@@ -669,14 +669,21 @@
 
   &::before {
     content: '';
-    position: absolute;
+    /* Fixed, not absolute. On a long page an absolute wash scrolls away and
+       the glass at the bottom of the screen ends up refracting nothing; a
+       fixed one stays behind the viewport, which is also one paint instead of
+       one per scroll position. `isolation` does not contain fixed children,
+       so this stays viewport-relative as intended. */
+    position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
     background:
-      radial-gradient(70% 90% at 12% 12%, var(--accent-2) 0%, transparent 62%),
-      radial-gradient(60% 80% at 88% 88%, var(--accent) 0%, transparent 58%);
-    opacity: 0.22;
+      radial-gradient(70% 90% at 12% 8%, var(--accent-2) 0%, transparent 62%),
+      radial-gradient(60% 80% at 88% 92%, var(--accent) 0%, transparent 58%);
+    /* Low enough to read as air rather than as a coloured panel. The glass
+       needs something to refract; the content needs to stay legible over it. */
+    opacity: 0.13;
   }
 }
 

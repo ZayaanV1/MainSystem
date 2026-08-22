@@ -45,7 +45,7 @@ export function AppShell<T extends string>({
   children: ReactNode;
 }) {
   return (
-    <div className="lg:flex lg:min-h-svh">
+    <div className="atmosphere lg:flex lg:min-h-svh">
       <Rail current={current} items={items} onNavigate={onNavigate} />
 
       {/* min-w-0 so a wide child (a long title, a table) shrinks instead of
@@ -98,7 +98,7 @@ function TabBar<T extends string>({
       )}
 
       {more && (
-        <div className="fixed inset-x-0 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] z-50 mx-3 overflow-hidden rounded-card border border-ink-600 bg-ink-700 lg:hidden">
+        <div className="fx-glass fixed inset-x-0 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] z-50 mx-3 overflow-hidden rounded-card border border-ink-600 lg:hidden">
           {rest.map((item) => (
             <button
               key={item.id}
@@ -121,7 +121,12 @@ function TabBar<T extends string>({
 
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-50 flex h-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] items-start border-t border-ink-600 bg-ink-800 pb-[env(safe-area-inset-bottom)] lg:hidden"
+        // Glass, and this is the one place in the app that earns it: the tab
+        // bar is the only surface with content moving underneath it, which is
+        // the whole point of a material that refracts. It is also a single
+        // fixed element, so the backdrop read happens once per frame rather
+        // than once per row.
+        className="fx-glass fixed inset-x-0 bottom-0 z-50 flex h-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] items-start border-t border-ink-600 pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {shown.map((item) => {
           const active = item.id === current;
