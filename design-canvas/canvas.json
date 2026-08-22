@@ -1,0 +1,32 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 120, "w": 390, "h": 800, "title": "Ember — Today (phone)" },
+    { "file": "Details.dc.html", "x": 500, "y": 120, "w": 760, "h": 980, "title": "Ember — the pieces" },
+    { "file": "Voltage.dc.html", "x": 1370, "y": 120, "w": 390, "h": 800, "title": "Alternate: Voltage (lime)" },
+    { "file": "Graphite.dc.html", "x": 1870, "y": 120, "w": 390, "h": 800, "title": "Alternate: Graphite (violet)" }
+  ],
+  "annotations": [
+    {
+      "id": "ember",
+      "x": 0,
+      "y": -110,
+      "w": 860,
+      "text": "Ember — the burnt-orange direction.\n\nThe one rule that makes it work: burnt orange owns filled surfaces only — the primary button, the active nav item, the logo. It is never a status tint. If it were, \"start this\" and \"due in three days\" would be the same colour, and the app would be telling you two different things in one voice.\n\nSo urgency moves off the warm axis onto red-rose (overdue → critical → approaching → done) and keeps a second signal besides hue: a 3px left edge bar plus a written label. Macros stay cool and stay on rings. Three systems, three temperatures, no overlap."
+    },
+    {
+      "id": "alts",
+      "x": 1370,
+      "y": -110,
+      "w": 890,
+      "text": "Two alternates, kept for comparison rather than as candidates.\n\nVoltage is lime on near-black — loud, memorable, and it has the same collision problem in reverse: lime is close enough to the \"done\" green that a primary button starts reading as a completed state.\n\nGraphite is a single violet hue. It is the safest and the least distinctive; it also puts the accent right next to the protein ring's colour.\n\nBoth are here so the burnt-orange call is a choice, not a default."
+    },
+    {
+      "id": "pieces",
+      "x": 500,
+      "y": -110,
+      "w": 760,
+      "text": "Buttons, chips, text blocks and the type ramp in the Ember palette — Sora for headings, Manrope for everything else. Hover and press states are live: move the cursor over the buttons and the rows.\n\nEvery filled surface here is orange; every status is not. That separation is the whole system."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

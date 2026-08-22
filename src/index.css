@@ -68,6 +68,7 @@
   --color-ink-800: var(--ink-800);
   --color-ink-700: var(--ink-700);
   --color-ink-600: var(--ink-600);
+  --color-ink-500: var(--ink-500);
 
   --color-text-hi: var(--text-hi);
   --color-text-mid: var(--text-mid);
@@ -95,6 +96,20 @@
   --color-c-8: var(--c-8);
 
   --color-focus-ring: var(--focus-ring);
+
+  /* Brand. Filled surfaces and atmosphere only — never a status.
+     `accent-2` is the phthalo fill and is too dark to read as text;
+     `accent-2-lit` is the variant that may be. */
+  --color-accent: var(--accent);
+  --color-accent-lit: var(--accent-lit);
+  --color-accent-deep: var(--accent-deep);
+  --color-on-accent: var(--on-accent);
+
+  --color-accent-2: var(--accent-2);
+  --color-accent-2-mid: var(--accent-2-mid);
+  --color-accent-2-deep: var(--accent-2-deep);
+  --color-accent-2-lit: var(--accent-2-lit);
+  --color-on-accent-2: var(--on-accent-2);
 
   --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
@@ -466,5 +481,217 @@
   .step-enter,
   .step-stagger > * {
     animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Kit utilities.
+
+   Styling that belongs to a component in src/components/kit but cannot live
+   in a Tailwind class list: keyframes, and gradients that must be built from
+   tokens rather than written as colour values.
+   ------------------------------------------------------------------------ */
+
+/*
+ * The travelling highlight on ThinkingText.
+ *
+ * Adapted from KokonutUI's AI-loading text. Their version writes the gradient
+ * stops as literal colours; here the stops are --text-low and --text-hi, so
+ * the effect inherits the palette and inverts correctly in light mode without
+ * a second definition. background-clip paints the text itself, so nothing is
+ * drawn behind the glyphs and the line still reads if the clip is unsupported.
+ */
+@keyframes shimmer-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.shimmer-text {
+  background-image: linear-gradient(
+    100deg,
+    var(--text-low) 20%,
+    var(--text-hi) 45%,
+    var(--text-hi) 55%,
+    var(--text-low) 80%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: shimmer-sweep 2.4s linear infinite;
+}
+
+/*
+ * The composer's focus ring.
+ *
+ * A border colour change alone is too quiet on a dark ground at this size, and
+ * an outline would sit outside the rounded corner. This grows the existing
+ * border into a ring using the same token, so the field lights up as one
+ * object rather than gaining a second edge.
+ */
+.prompt-shell {
+  transition:
+    box-shadow var(--dur-fast, 140ms) var(--ease-out),
+    border-color var(--dur-fast, 140ms) var(--ease-out);
+}
+
+.prompt-shell:focus-within {
+  border-color: var(--text-low);
+  box-shadow: 0 0 0 3px var(--ink-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text {
+    /* Complete and honest without the sweep: the text is simply present. */
+    animation: none;
+    background-image: none;
+    color: var(--text-mid);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The interaction system.
+
+   Three treatments, chosen deliberately and ranked by what the browser has to
+   redo on every frame — which on a phone-first PWA is the number that decides
+   where a treatment is allowed to appear.
+
+     fx-depth    transform only        the house default, safe anywhere
+     fx-magnet   transform + pointer   one or two capture actions
+     fx-glass    backdrop read         ONE hero control per screen, never a list
+
+   Hover is desktop-only garnish: on a phone it never fires. So every treatment
+   here carries a PRESS state as well, and the press state is the half that has
+   to work alone. A treatment whose personality lives entirely in the hover is
+   a treatment that does not exist on the device this app is mostly used on.
+   ------------------------------------------------------------------------ */
+
+/*
+ * Depth. Lifts under a cursor, sinks under a finger.
+ *
+ * The default for every control in the app. Transform and box-shadow only, so
+ * it stays on the compositor and can go on a list of forty rows without
+ * costing a frame.
+ */
+@utility fx-depth {
+  transition:
+    transform var(--dur-tap) var(--ease-out),
+    box-shadow var(--dur-tap) var(--ease-out),
+    filter var(--dur-tap) var(--ease-out);
+
+  &:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.06);
+  }
+
+  &:active {
+    transform: translateY(1px) scale(0.99);
+    filter: brightness(0.94);
+    /* Faster on the way down than on the way up: a press should feel like it
+       was received immediately, a release like it settled. */
+    transition-duration: 80ms;
+  }
+
+  &:disabled {
+    transform: none;
+    filter: none;
+  }
+}
+
+/*
+ * Magnetic. Leans toward the pointer, springs back on exit.
+ *
+ * The offset is written by useMagnetic() and capped there, well inside the
+ * control's own padding — a button that runs from the pointer is harder to
+ * click, not more delightful. `.is-tracking` swaps the spring for a short
+ * linear curve so the control follows the cursor instead of lagging behind it.
+ */
+@utility fx-magnet {
+  transition: transform 380ms var(--ease-spring);
+
+  &.is-tracking {
+    transition: transform 120ms linear;
+  }
+}
+
+/*
+ * Glass. Refracts whatever is behind it.
+ *
+ * The expensive one: backdrop-filter re-reads the pixels underneath on every
+ * frame. Worth it on the single action a screen is built around, and nowhere
+ * else — this is the one treatment in the app that can drop frames on the
+ * hardware the app exists to survive on.
+ *
+ * It also only works over something worth refracting. On a flat panel it is a
+ * grey smudge; it needs `atmosphere` behind it.
+ */
+@utility fx-glass {
+  background: color-mix(in srgb, var(--text-hi) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-hi) 17%, transparent);
+  color: var(--text-hi);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  backdrop-filter: blur(14px) saturate(180%);
+  transition:
+    transform 220ms var(--ease-out),
+    background-color 220ms var(--ease-out),
+    border-color 220ms var(--ease-out),
+    -webkit-backdrop-filter 220ms var(--ease-out),
+    backdrop-filter 220ms var(--ease-out);
+
+  &:hover {
+    transform: translateY(-3px);
+    background: color-mix(in srgb, var(--text-hi) 14%, transparent);
+    border-color: color-mix(in srgb, var(--text-hi) 32%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(215%);
+    backdrop-filter: blur(20px) saturate(215%);
+  }
+
+  &:active {
+    transform: translateY(0);
+    transition-duration: 80ms;
+  }
+}
+
+/*
+ * Atmosphere — phthalo in the air.
+ *
+ * The role the second brand colour actually plays: a large, low-saturation
+ * wash that never touches a control, and so never has to be told apart from a
+ * deadline. It is also what gives glass something to refract.
+ */
+@utility atmosphere {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(70% 90% at 12% 12%, var(--accent-2) 0%, transparent 62%),
+      radial-gradient(60% 80% at 88% 88%, var(--accent) 0%, transparent 58%);
+    opacity: 0.22;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-depth,
+  .fx-magnet,
+  .fx-glass {
+    transition-duration: 1ms;
+  }
+
+  /* The press state survives — it is feedback, not decoration, and it is the
+     only one of these that fires on a touch device at all. */
+  .fx-depth:hover,
+  .fx-glass:hover {
+    transform: none;
+    filter: none;
   }
 }

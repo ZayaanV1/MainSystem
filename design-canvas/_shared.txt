@@ -1,0 +1,5 @@
+Palette slots each artboard defines, so directions differ only in colour:
+  --bg      app ground        --surface  card        --raised  sheet
+  --line    borders           --hi/-mid/-low  text
+  --done --approach --urgent --critical --overdue    urgency ramp
+  --cal --cal2 --pro --pro2 --carb --carb2 --fat --fat2   macro pairs

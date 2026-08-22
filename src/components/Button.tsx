@@ -7,9 +7,30 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
  * to take; `secondary` is everything else; `quiet` is for actions that must be
  * available but must not compete — undo, dismiss, "not now".
  *
- * There is no destructive variant, because there is no colour for one. Pure
- * red does not exist in this app, and borrowing --t-overdue for a delete
- * button would put an urgency colour somewhere it means nothing.
+ * COLOUR
+ *
+ * `primary` is ember and nothing else in the app is. That is the whole reason
+ * the palette has a brand colour: "the orange thing" means "the thing to
+ * press" without a legend, on every screen, permanently. It is also why ember
+ * may never state a status — the moment a deadline is orange, the rule stops
+ * being learnable.
+ *
+ * `secondary` is phthalo, the second brand colour. It is deliberately a fill
+ * rather than an outline, because the app has a lot of two-action screens and
+ * an outlined secondary next to a filled primary reads as disabled.
+ *
+ * There is still no destructive variant, because there is still no colour for
+ * one. Pure red does not exist in this app, and borrowing --t-overdue for a
+ * delete button would put an urgency colour somewhere it means nothing.
+ *
+ * MOTION
+ *
+ * Every variant carries `fx-depth`: lifts under a cursor, sinks under a
+ * finger. The press half is the one that matters, because hover does not fire
+ * on a phone and that is where this app is mostly used. Callers that want the
+ * heavier treatments pass them in `className` — `fx-glass` for the single hero
+ * control on a screen with `atmosphere` behind it, `fx-magnet` with
+ * useMagnetic() for a capture action.
  */
 
 type Variant = 'primary' | 'secondary' | 'quiet';
@@ -21,8 +42,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-text-hi text-ink-900 border-transparent',
-  secondary: 'bg-ink-700 text-text-hi border-ink-600',
+  // The gradient runs light to deep down the face, which is what stops a
+  // large flat fill reading as a coloured rectangle. Both stops are the same
+  // hue — a gradient that drifted in hue would make the brand ambiguous.
+  primary:
+    'border-transparent text-on-accent bg-linear-to-b from-accent-lit via-accent to-accent-deep',
+  secondary:
+    'border-transparent text-on-accent-2 bg-linear-to-b from-accent-2-mid via-accent-2 to-accent-2-deep',
   // Quiet, not invisible. A fully transparent button on a dark ground is
   // indistinguishable from a label until you happen to tap it, and a control
   // should not have to be discovered. This still yields to `primary`.
@@ -47,9 +73,10 @@ export function Button({
       {...rest}
       className={[
         'inline-flex items-center justify-center gap-2 rounded-pill border px-5',
-        'type-label transition-colors duration-150 ease-out',
+        'type-label',
         // 44px comes from the base layer; this keeps the label centred in it.
         'min-h-[var(--tap)]',
+        'fx-depth',
         'disabled:opacity-50',
         VARIANTS[variant],
         full ? 'w-full' : '',

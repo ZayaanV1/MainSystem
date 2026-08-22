@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #e2622c; }
+    a:hover { color: #f07a45; }
+    .row { transition: background-color 200ms cubic-bezier(0.2,0,0,1), box-shadow 200ms cubic-bezier(0.2,0,0,1), transform 200ms cubic-bezier(0.2,0,0,1); }
+    .row:hover { background: #221c17; transform: translateX(2px); box-shadow: 0 10px 26px -18px rgba(0,0,0,0.95); }
+    .btn { transition: transform 140ms cubic-bezier(0.2,0,0,1), box-shadow 180ms cubic-bezier(0.2,0,0,1), filter 140ms; }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 12px 26px -10px rgba(226,98,44,0.65); }
+    .btn:active { transform: translateY(0); filter: brightness(0.97); }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 830px; background: #14100d; font-family: 'Manrope', system-ui, sans-serif; padding: 28px 20px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px;">
+
+  <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-family: 'Sora', system-ui, sans-serif; font-weight: 600; font-size: 32px; line-height: 1.05; color: #f7f1ea; letter-spacing: -0.03em;">Today</span>
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: #8a7d71;">Wednesday, 19 August</span>
+    </div>
+    <div style="width: 38px; height: 38px; border-radius: 11px; border: 1px solid #332a23; background: #1c1713; display: flex; align-items: center; justify-content: center;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b3a79b" stroke-width="1.6" stroke-linecap="round">
+        <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1"></path>
+      </svg>
+    </div>
+  </div>
+
+  <div style="border-radius: 14px; border: 1px solid #2b241e; background: linear-gradient(180deg, #1f1915 0%, #1a1511 100%); padding: 16px 18px; display: flex; flex-direction: column; gap: 9px; box-shadow: 0 14px 34px -26px rgba(0,0,0,1);">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="width: 5px; height: 5px; border-radius: 999px; background: #e2622c;"></span>
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: #8a7d71;">Your morning</span>
+    </div>
+    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #d6cabd; text-wrap: pretty;">Assembly lab 2 is due tonight and the physics writeup is already late. Worth clearing the writeup first — it is the shorter of the two.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+      <svg width="70" height="70" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#241e19" stroke-width="7"></circle>
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#8b7bff" stroke-width="7" stroke-linecap="round" stroke-dasharray="130 182" transform="rotate(-90 35 35)"></circle>
+        <text x="35" y="40" text-anchor="middle" font-family="'Sora', sans-serif" font-weight="600" font-size="17" fill="#f7f1ea">2380</text>
+      </svg>
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #8a7d71;">Kcal</span>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+      <svg width="70" height="70" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#241e19" stroke-width="7"></circle>
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#00d9a3" stroke-width="7" stroke-linecap="round" stroke-dasharray="172 182" transform="rotate(-90 35 35)"></circle>
+        <text x="35" y="40" text-anchor="middle" font-family="'Sora', sans-serif" font-weight="600" font-size="17" fill="#f7f1ea">168</text>
+      </svg>
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #8a7d71;">Protein</span>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+      <svg width="70" height="70" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#241e19" stroke-width="7"></circle>
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#3d9bff" stroke-width="7" stroke-linecap="round" stroke-dasharray="116 182" transform="rotate(-90 35 35)"></circle>
+        <text x="35" y="40" text-anchor="middle" font-family="'Sora', sans-serif" font-weight="600" font-size="17" fill="#f7f1ea">255</text>
+      </svg>
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #8a7d71;">Carbs</span>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+      <svg width="70" height="70" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#241e19" stroke-width="7"></circle>
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#c46cff" stroke-width="7" stroke-linecap="round" stroke-dasharray="179 182" transform="rotate(-90 35 35)"></circle>
+        <text x="35" y="40" text-anchor="middle" font-family="'Sora', sans-serif" font-weight="600" font-size="17" fill="#f7f1ea">84</text>
+      </svg>
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #8a7d71;">Fat</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 9px;">
+    <span style="font-family: 'Sora', sans-serif; font-weight: 600; font-size: 18px; color: #f7f1ea; letter-spacing: -0.02em;">Work</span>
+
+    <div class="row" style="display: flex; gap: 13px; align-items: center; border-radius: 12px; border: 1px solid #2b241e; border-left: 3px solid #ff4d6d; background: #1c1713; padding: 14px 16px;">
+      <div style="width: 18px; height: 18px; border-radius: 999px; border: 1.5px solid #3d332b; flex-shrink: 0;"></div>
+      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
+        <span style="font-size: 15px; font-weight: 500; color: #f7f1ea;">Overdue writeup</span>
+        <span style="font-size: 12px; color: #8a7d71;">PHYS 205</span>
+      </div>
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #ff4d6d; white-space: nowrap;">3d late</span>
+    </div>
+
+    <div class="row" style="display: flex; gap: 13px; align-items: center; border-radius: 12px; border: 1px solid #2b241e; border-left: 3px solid #f2465b; background: #1c1713; padding: 14px 16px;">
+      <div style="width: 18px; height: 18px; border-radius: 999px; border: 1.5px solid #3d332b; flex-shrink: 0;"></div>
+      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
+        <span style="font-size: 15px; font-weight: 500; color: #f7f1ea;">Assembly lab 2</span>
+        <span style="font-size: 12px; color: #8a7d71;">COEN 311 · 2.5 h</span>
+      </div>
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #f2465b; white-space: nowrap;">Today</span>
+    </div>
+
+    <div class="row" style="display: flex; gap: 13px; align-items: center; border-radius: 12px; border: 1px solid #2b241e; border-left: 3px solid #d9a441; background: #1c1713; padding: 14px 16px;">
+      <div style="width: 18px; height: 18px; border-radius: 999px; border: 1.5px solid #3d332b; flex-shrink: 0;"></div>
+      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
+        <span style="font-size: 15px; font-weight: 500; color: #f7f1ea;">Problem set 4</span>
+        <span style="font-size: 12px; color: #8a7d71;">MATH 205</span>
+      </div>
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #d9a441; white-space: nowrap;">3 days</span>
+    </div>
+
+    <div class="row" style="display: flex; gap: 13px; align-items: center; border-radius: 12px; border: 1px solid #2b241e; border-left: 3px solid #4fb477; background: #1c1713; padding: 14px 16px; opacity: 0.62;">
+      <div style="width: 18px; height: 18px; border-radius: 999px; background: #4fb477; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#14100d" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
+        <span style="font-size: 15px; font-weight: 500; color: #b3a79b; text-decoration: line-through;">Reading, chapter 4</span>
+        <span style="font-size: 12px; color: #8a7d71;">COEN 244</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 10px; margin-top: 2px;">
+    <button class="btn" style="flex: 1; min-height: 48px; border-radius: 13px; border: 1px solid #c9531f; background: linear-gradient(180deg, #ef7038 0%, #e2622c 55%, #cf5522 100%); color: #14100d; font-family: 'Manrope', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 0 rgba(255,220,190,0.45) inset, 0 10px 22px -12px rgba(226,98,44,0.8);">What now?</button>
+    <button class="btn" style="min-height: 48px; padding: 0 20px; border-radius: 13px; border: 1px solid #3a3028; background: #1f1915; color: #d6cabd; font-family: 'Manrope', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer;">Capture</button>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

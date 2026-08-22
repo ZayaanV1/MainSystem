@@ -2,61 +2,120 @@
    tokens.css — the only file in this app permitted to contain a colour value.
    ============================================================================
 
-   The colour law (docs/design-system.md):
+   The colour law (docs/design-system.md), now with a fourth system:
 
-     Time / urgency   warm earth       edge bars, text, icon tint
-     Macros           cool jewel       ring strokes only
-     Courses          desat. pastel    3px left edge or 6px dot only
+     Brand            ember + phthalo   FILLED SURFACES and atmosphere only
+     Time / urgency   rose ramp         edge bars, text, icon tint
+     Macros           cool jewel        ring strokes only
+     Courses          desat. pastel     3px left edge or 6px dot only
 
-   Macro colours never appear on a task. Urgency colours never appear on a
-   ring. Course colours are never a fill. Colour is never the only signal.
+   The systems are separated by ROLE first and hue second, because hue alone
+   was not enough once the brand became a colour. Brand never states a status.
+   Urgency never fills anything. Macros only ever appear as a ring stroke.
+   Courses are never a fill. Colour is never the only signal.
 
    If a component needs a colour that does not exist here, add it here and say
    why. Do not inline it. Do not write bg-[#hex] in a component. This one rule
    is what keeps a seven-phase build from looking like seven apps.
 
-   Dark is the primary mode and is defined on :root. Light is derived: it
-   inverts the ground and darkens each accent by roughly 12%. Accent HUES are
-   identical between modes — only lightness moves.
+   Dark is the primary mode and is defined on :root. Light is derived: the
+   ground inverts and each accent darkens. Accent HUES are identical between
+   modes — only lightness moves.
+
+   Every value below was measured, not eyeballed. See CONTRAST NOTES at the
+   foot of the file.
    ========================================================================= */
 
 :root {
-  /* ---- ground ----------------------------------------------------------
-     Deeper and cooler than the first palette. Vivid colour needs somewhere
-     dark to sit: the same stroke reads as neon on #0c0d13 and as a highlighter
-     on #15161d. Every surface step is a real step, so cards and sheets
-     separate without a border doing the work.
+  /* ---- ground: warm charcoal -------------------------------------------
+     The neutral is a choice, not an inheritance. A cool near-black under a
+     burnt-orange accent makes the orange look like a warning light; a warm
+     charcoal makes it look like the same material lit from inside. Every
+     surface step is a real step, so cards and sheets separate without a
+     border doing the work.
      -------------------------------------------------------------------- */
-  --ink-900: #0b0c12; /* app background */
-  --ink-800: #14161f; /* card surface */
-  --ink-700: #1c1f2b; /* raised surface, sheets */
-  --ink-600: #2a2e3d; /* borders, dividers */
+  --ink-900: #13100c; /* app background */
+  --ink-800: #1c1713; /* card surface */
+  --ink-700: #251e18; /* raised surface, sheets */
+  --ink-600: #332a22; /* borders, dividers */
+  --ink-500: #473b30; /* border on a focused or hovered surface */
 
-  --text-hi: #f2f3f8;
-  --text-mid: #a8adc2;
-  --text-low: #858ba3; /* see CONTRAST NOTE 1 */
+  --text-hi: #f6efe6; /* the cream. Also the inverted fill. */
+  --text-mid: #c2b4a4;
+  --text-low: #8e8072;
 
-  /* ---- time: warm ramp, now genuinely hot at the top -------------------
-     Same structure as before — warmth and chroma both rise with urgency, so
-     the ramp is readable as a ramp rather than five unrelated colours. What
-     changed is the ceiling. "Due in three days" should look like it.
+  /* ---- brand: ember and phthalo ----------------------------------------
+     FILLED SURFACES ONLY. Neither of these may ever state a status.
 
-     Still no pure red at the top. #ff5f7a is a rose: it reads as urgent
-     without the alarm-state quality of #f00, and it stays distinguishable
-     from --t-critical beside it, which pure red would not.
+     --accent (ember) is the one action a screen is built around. It is the
+     only saturated colour on a control anywhere in the app, which is what
+     makes "the orange thing" mean "the thing to press" without a legend.
+
+     --accent-2 (phthalo green, PG7 blue shade) does the secondary work and
+     the atmosphere — ground washes, the bed behind a glass surface, empty
+     states. It is deliberately the BLUE shade of the pigment rather than the
+     yellow: at 184° it clears the protein ring at 165° by nineteen degrees,
+     which is what keeps the brand out of the macro system without moving a
+     single macro. A yellow-shade phthalo sat five degrees off protein.
+
+     -deep and -mid are gradient stops. -lit is the only variant light enough
+     to be read as TEXT or drawn as a thin mark; the fill itself is far too
+     dark for either.
      -------------------------------------------------------------------- */
-  --t-distant: #737a94; /* 15+ days   — mark only, see CONTRAST NOTE 2 */
-  --t-approaching: #ffc44d; /* 6-14 days  */
-  --t-urgent: #ff9a2e; /* 3-5 days   */
-  --t-critical: #ff6b35; /* under 48h  */
-  --t-overdue: #ff5f7a; /* past due   — see CONTRAST NOTE 3 */
-  --t-done: #35d99a; /* finished, and allowed to look it */
+  --accent: #e2622c;
+  --accent-lit: #f07a45;
+  --accent-deep: #cf5522;
+  --on-accent: #17100b;
 
-  /* ---- macros: cool, electric. Ring strokes only. ----------------------
-     Each carries a lighter companion used as the far stop of a gradient
-     along the arc, which is what gives a ring depth instead of reading as a
-     flat band of colour. The pair is always the same hue — a gradient that
-     drifts in hue would make two rings ambiguous where they overlap.
+  --accent-2: #0c5257;
+  --accent-2-mid: #14757c;
+  --accent-2-deep: #083e43;
+  --accent-2-lit: #1e9aa3;
+  --on-accent-2: #ffffff;
+
+  /* ---- time: one hue, five steps ---------------------------------------
+     Formerly five different hues, which read as five unrelated colours
+     rather than as a ramp. Now a single rose that gains CHROMA as the
+     deadline closes while every step holds the same readability — roughly
+     5.1:1 against the card surface, by construction.
+
+     Chroma rather than lightness, and that was not the first attempt. A ramp
+     that climbs in lightness is a ramp whose quiet end is harder to read than
+     its loud end, which is backwards: "due in two weeks" is not less
+     important to be able to read than "overdue". It is also not achievable —
+     in a narrow rose band above a 4.5:1 floor, raising saturation LOWERS
+     relative luminance, so chroma and lightness cannot both climb. The first
+     draft dipped between approaching and urgent and the palette test caught
+     it.
+
+     --t-distant is deliberately OFF the ramp and colourless. The least
+     urgent state should not be the loudest, and "three weeks away" is not a
+     quiet emergency — it is not an emergency.
+
+     --t-done is the one member that is not rose, because finished is a
+     different kind of thing from urgent rather than a further step of it.
+
+     Still no pure red at the top. #ff3b5c is a rose: it keeps a real blue
+     component, so it reads as urgent without the alarm-state quality of #f00
+     and stays separable from --t-critical beside it, which pure red would
+     not. The light-mode top of the ramp had to be pulled back from #de0025
+     for exactly this reason — the derivation found it first and it is, in
+     practice, red.
+     -------------------------------------------------------------------- */
+  --t-distant: #8a90a8; /* 15+ days  — slate, off-ramp on purpose */
+  --t-approaching: #b6778c; /* 6-14 days */
+  --t-urgent: #cb6c85; /* 3-5 days  */
+  --t-critical: #e45a76; /* under 48h */
+  --t-overdue: #ff3b5c; /* past due  */
+  --t-done: #2ed4a0; /* finished, and allowed to look it */
+
+  /* ---- macros: cool jewel. Ring strokes only. UNCHANGED. ---------------
+     Left exactly as they were, deliberately. The brand moved to clear these;
+     these did not move to accommodate the brand. Each carries a lighter
+     companion used as the far stop of a gradient along the arc, which is
+     what gives a ring depth instead of a flat band of colour. The pair is
+     always the same hue — a gradient that drifts in hue would make two rings
+     ambiguous where they overlap.
      -------------------------------------------------------------------- */
   --m-calories: #7a5af8;
   --m-calories-lit: #a78bfa;
@@ -78,8 +137,8 @@
   --c-8: #8a94b8;
 
   /* ---- focus ----------------------------------------------------------- */
-  /* Deliberately not an urgency or macro colour: focus is a fourth system
-     and must not be mistaken for either. */
+  /* A fifth system, and deliberately none of the other four: focus must not
+     be mistaken for a brand surface, a status or a macro. */
   --focus-ring: #8fa8d8;
 
   /* ============ non-colour tokens ====================================== */
@@ -101,9 +160,13 @@
   /* Motion. Ring fill is the one place motion does real work: the ring
      visibly moving is the receipt that the entry landed. */
   --dur-tap: 150ms;
+  --dur-fast: 140ms;
   --dur-sheet: 250ms;
   --dur-ring: 400ms;
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  /* Overshoots and settles. For a control answering a pointer, where the
+     overshoot is what separates "physical" from "mechanical". */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Minimum tap target */
   --tap: 44px;
@@ -112,26 +175,39 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Light mode. Ground inverts to cool paper; accents darken ~12%; hues hold.
-   Applies when the system asks for light and the user has not forced dark.
+   Light mode. Ground inverts to warm paper rather than cool; accents darken;
+   hues hold. Applies when the system asks for light and the user has not
+   forced dark.
    ------------------------------------------------------------------------ */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
-    --ink-900: #f5f6f8;
+    --ink-900: #f7f3ec;
     --ink-800: #ffffff;
-    --ink-700: #eceef2;
-    --ink-600: #d8dce4;
+    --ink-700: #efe8dd;
+    --ink-600: #ddd3c4;
+    --ink-500: #c4b8a6;
 
-    --text-hi: #1a1c24;
-    --text-mid: #4a4e5e;
-    --text-low: #686c7e;
+    --text-hi: #231d16;
+    --text-mid: #54493d;
+    --text-low: #6f6357;
 
-    --t-distant: #5d6274;
-    --t-approaching: #b07d00;
-    --t-urgent: #d1660a;
-    --t-critical: #dd4a12;
-    --t-overdue: #d92f55;
-    --t-done: #00996a;
+    --accent: #c2521f;
+    --accent-lit: #e2622c;
+    --accent-deep: #a44417;
+    --on-accent: #ffffff;
+
+    --accent-2: #0a464b;
+    --accent-2-mid: #0f6f76;
+    --accent-2-deep: #063438;
+    --accent-2-lit: #0f6f76;
+    --on-accent-2: #ffffff;
+
+    --t-distant: #5c6178;
+    --t-approaching: #9e5972;
+    --t-urgent: #b44a6a;
+    --t-critical: #c83557;
+    --t-overdue: #d5203e;
+    --t-done: #017a58;
 
     --m-calories: #5b39d9;
     --m-calories-lit: #7a5af8;
@@ -159,21 +235,33 @@
 
 /* Explicit user choice wins over the system preference, both directions. */
 :root[data-theme='light'] {
-  --ink-900: #f5f6f8;
+  --ink-900: #f7f3ec;
   --ink-800: #ffffff;
-  --ink-700: #eceef2;
-  --ink-600: #d8dce4;
+  --ink-700: #efe8dd;
+  --ink-600: #ddd3c4;
+  --ink-500: #c4b8a6;
 
-  --text-hi: #1a1c24;
-  --text-mid: #4a4e5e;
-  --text-low: #686c7e;
+  --text-hi: #231d16;
+  --text-mid: #54493d;
+  --text-low: #6f6357;
 
-  --t-distant: #5d6274;
-  --t-approaching: #b07d00;
-  --t-urgent: #d1660a;
-  --t-critical: #dd4a12;
-  --t-overdue: #d92f55;
-  --t-done: #00996a;
+  --accent: #c2521f;
+  --accent-lit: #e2622c;
+  --accent-deep: #a44417;
+  --on-accent: #ffffff;
+
+  --accent-2: #0a464b;
+  --accent-2-mid: #0f6f76;
+  --accent-2-deep: #063438;
+  --accent-2-lit: #0f6f76;
+  --on-accent-2: #ffffff;
+
+  --t-distant: #5c6178;
+  --t-approaching: #9e5972;
+  --t-urgent: #b44a6a;
+  --t-critical: #c83557;
+  --t-overdue: #d5203e;
+  --t-done: #017a58;
 
   --m-calories: #5b39d9;
   --m-calories-lit: #7a5af8;
@@ -206,6 +294,10 @@
    should visibly get quieter. Because urgency colour is only ever read through
    these variables, this single block desaturates the entire interface without
    any component knowing that low-battery mode exists.
+
+   The brand accents deliberately do NOT collapse. On the worst day of the
+   month the one action the screen is offering has to remain findable, and a
+   greyed-out primary button reads as disabled.
    ------------------------------------------------------------------------ */
 :root[data-low-battery='true'] {
   --t-distant: var(--text-low);
@@ -230,21 +322,43 @@
 }
 
 /* ============================================================================
-   CONTRAST NOTES — deviations from docs/design-system.md, and why.
+   CONTRAST NOTES
 
    The design system sets a quality floor of >= 4.5:1 for text and >= 3:1 for
-   UI. Three of its own token values miss that floor. Flagged rather than
-   silently shipped; revert any of them if you disagree.
+   UI marks. Every value in this file was measured against its own ground
+   rather than assumed. Two notes worth keeping:
 
-   1. --text-low was #6a6f84, which is 3.7:1 on --ink-900. It is body metadata,
-      so it needs 4.5. Lightened to #7c8199 (4.7:1). Hue unchanged.
+   1. The whole urgency ramp is now a TEXT colour as well as a mark colour,
+      because every urgency state carries a written label. Three values from
+      the first draft of the rose ramp cleared the 3:1 mark floor and missed
+      the 4.5 text floor — #6e7691 (3.95), #9e5c78 (3.60) and #c94a6e (3.97).
+      All three were lightened until they passed as text. This is why the ramp
+      climbs in lightness as well as chroma: it had to.
 
-   2. --t-distant keeps the original #6a6f84 (3.7:1). It stays a MARK colour
-      only — edge bars and dots, where the 3:1 UI floor applies and it passes.
-      The "distant" text label renders in --text-mid. This is also the right
-      call semantically: the least urgent state should not be the loudest.
+   2. --accent-2 is 2.09:1 on the ground and can never be text or a thin mark.
+      That is not a defect — it is a dark fill carrying white at 8.90:1, and
+      it is the atmosphere colour. --accent-2-lit (#1e9aa3, 5.61:1) exists for
+      the cases where phthalo has to be read rather than sat on: a link, an
+      active nav label, a 3px indicator. Reaching for --accent-2 in those
+      places produces text that is invisible on the ground it sits on.
 
-   3. --t-overdue was #c25a5a, which is 4.3:1 on --ink-900 — just under floor
-      for a label you must be able to read. Lightened to #cb6363 (4.8:1).
-      Still clay rose, still not pure red, hue identical.
+   MEASURED SEPARATION between the brand and the macro rings, which is a
+   requirement rather than a preference — the brand had to clear the macros
+   without any macro moving:
+
+      phthalo vs calories   68 degrees
+      phthalo vs protein    19 degrees   <- the binding constraint
+      phthalo vs carbs      25 degrees
+      phthalo vs fat       149 degrees
+
+   Protein is the tight one and is why --accent-2 is the blue shade of the
+   pigment. A yellow-shade phthalo (#0e5247, 170 degrees) sat five degrees off
+   protein and was rejected for it.
+
+   Ember and --t-overdue are 28 degrees apart, which is closer than any pair
+   above. They are separated by ROLE instead: ember only ever fills a control,
+   overdue only ever draws a 3px edge bar and a written label. Neither can
+   appear in the other's shape, so the two can never be read as the same
+   signal. This is the reason the urgency ramp moved off the warm axis when
+   burnt orange was chosen.
    ========================================================================= */

@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Sans:wght@400;500;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #b6f24a; }
+    a:hover { color: #cdf87e; }
+    .row { transition: background-color 180ms cubic-bezier(0.2,0,0,1), border-color 180ms; }
+    .row:hover { background: #16171f; border-color: #2c2f3d; }
+    .btn { transition: transform 140ms cubic-bezier(0.2,0,0,1), box-shadow 200ms cubic-bezier(0.2,0,0,1); }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px -8px rgba(182,242,74,0.6); }
+    .btn:active { transform: translateY(0); }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 800px; background: #0a0b10; font-family: 'DM Sans', system-ui, sans-serif; padding: 28px 20px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px;">
+
+  <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 800; font-size: 36px; line-height: 1; color: #f4f6fb; letter-spacing: -0.03em;">Today</span>
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #6f748c;">Wed, Aug 19</span>
+    </div>
+    <div style="width: 38px; height: 38px; border-radius: 12px; border: 1px solid #23263180; background: #14161e; display: flex; align-items: center; justify-content: center;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8f96ad" stroke-width="1.6" stroke-linecap="round">
+        <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1"></path>
+      </svg>
+    </div>
+  </div>
+
+  <div style="border-radius: 16px; border: 1px solid #1e212c; background: radial-gradient(120% 100% at 0% 0%, #171a26 0%, #101219 70%); padding: 16px 18px; display: flex; flex-direction: column; gap: 9px;">
+    <div style="display: flex; align-items: center; gap: 7px;">
+      <span style="width: 6px; height: 6px; border-radius: 999px; background: #b6f24a;"></span>
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #b6f24a;">Your morning</span>
+    </div>
+    <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #c3c9da; text-wrap: pretty;">Assembly lab 2 is due tonight and the physics writeup is already late. Worth clearing the writeup first — it is the shorter of the two.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+      <svg width="70" height="70" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#1b1e28" stroke-width="8"></circle>
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#b6f24a" stroke-width="8" stroke-linecap="round" stroke-dasharray="130 182" transform="rotate(-90 35 35)"></circle>
+        <text x="35" y="40" text-anchor="middle" font-family="'Bricolage Grotesque', sans-serif" font-weight="700" font-size="18" fill="#f4f6fb">2380</text>
+      </svg>
+      <span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #6f748c;">Kcal</span>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+      <svg width="70" height="70" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#1b1e28" stroke-width="8"></circle>
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#00e5c7" stroke-width="8" stroke-linecap="round" stroke-dasharray="172 182" transform="rotate(-90 35 35)"></circle>
+        <text x="35" y="40" text-anchor="middle" font-family="'Bricolage Grotesque', sans-serif" font-weight="700" font-size="18" fill="#f4f6fb">168</text>
+      </svg>
+      <span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #6f748c;">Protein</span>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+      <svg width="70" height="70" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#1b1e28" stroke-width="8"></circle>
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#4d8dff" stroke-width="8" stroke-linecap="round" stroke-dasharray="116 182" transform="rotate(-90 35 35)"></circle>
+        <text x="35" y="40" text-anchor="middle" font-family="'Bricolage Grotesque', sans-serif" font-weight="700" font-size="18" fill="#f4f6fb">255</text>
+      </svg>
+      <span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #6f748c;">Carbs</span>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+      <svg width="70" height="70" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#1b1e28" stroke-width="8"></circle>
+        <circle cx="35" cy="35" r="29" fill="none" stroke="#ff4f9a" stroke-width="8" stroke-linecap="round" stroke-dasharray="179 182" transform="rotate(-90 35 35)"></circle>
+        <text x="35" y="40" text-anchor="middle" font-family="'Bricolage Grotesque', sans-serif" font-weight="700" font-size="18" fill="#f4f6fb">84</text>
+      </svg>
+      <span style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #6f748c;">Fat</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 9px;">
+    <span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 20px; color: #f4f6fb; letter-spacing: -0.02em;">Work</span>
+
+    <div class="row" style="display: flex; gap: 13px; align-items: flex-start; border-radius: 14px; border: 1px solid #1e212c; background: #12141c; padding: 14px 16px;">
+      <div style="width: 19px; height: 19px; border-radius: 7px; border: 1.5px solid #333748; margin-top: 2px; flex-shrink: 0;"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+        <span style="font-size: 15px; font-weight: 500; color: #f4f6fb;">Overdue writeup</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+          <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #ff5470; background: #2a1220; padding: 3px 8px; border-radius: 999px;">3 days late</span>
+          <span style="font-size: 11px; color: #6f748c;">PHYS 205</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="display: flex; gap: 13px; align-items: flex-start; border-radius: 14px; border: 1px solid #1e212c; background: #12141c; padding: 14px 16px;">
+      <div style="width: 19px; height: 19px; border-radius: 7px; border: 1.5px solid #333748; margin-top: 2px; flex-shrink: 0;"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+        <span style="font-size: 15px; font-weight: 500; color: #f4f6fb;">Assembly lab 2</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+          <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #ffb020; background: #2a2110; padding: 3px 8px; border-radius: 999px;">Due today</span>
+          <span style="font-size: 11px; color: #6f748c;">COEN 311 · 2.5 h</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="display: flex; gap: 13px; align-items: flex-start; border-radius: 14px; border: 1px solid #1e212c; background: #12141c; padding: 14px 16px;">
+      <div style="width: 19px; height: 19px; border-radius: 7px; border: 1.5px solid #333748; margin-top: 2px; flex-shrink: 0;"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+        <span style="font-size: 15px; font-weight: 500; color: #f4f6fb;">Problem set 4</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+          <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #00e5c7; background: #0d2622; padding: 3px 8px; border-radius: 999px;">3 days</span>
+          <span style="font-size: 11px; color: #6f748c;">MATH 205</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 10px; margin-top: 2px;">
+    <button class="btn" style="flex: 1; min-height: 48px; border-radius: 14px; border: none; background: #b6f24a; color: #0a0b10; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 0 rgba(255,255,255,0.35) inset;">What now?</button>
+    <button class="btn" style="min-height: 48px; padding: 0 20px; border-radius: 14px; border: 1px solid #262a37; background: #14161e; color: #c3c9da; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer;">Capture</button>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
