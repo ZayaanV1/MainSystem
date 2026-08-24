@@ -136,6 +136,30 @@
   --c-7: #a0a88a;
   --c-8: #8a94b8;
 
+
+  /* ---- translucent surfaces -------------------------------------------
+     Written as rgba rather than derived with color-mix, and that is not a
+     style preference.
+
+     Lightning CSS compiles every color-mix into TWO rules: an opaque fallback
+     for engines that lack it, then the real value. The fallback it picks is
+     the base colour at full strength — so `--text-hi` at 8% fell back to
+     SOLID CREAM. On iOS Safari 16.0 and 16.1, which shipped before color-mix,
+     the glass tab bar rendered as a solid cream slab with cream text on it.
+     Unreadable, and invisible from any browser new enough to run the real
+     value. Found by reading the compiled bundle rather than the source.
+
+     Glass has to stay translucent — an opaque fill would leave backdrop-filter
+     with nothing to refract — so these are real alpha values, which every
+     engine has understood for twenty years.
+     -------------------------------------------------------------------- */
+  --glass-fill: rgb(246 239 230 / 0.08);
+  --glass-edge: rgb(246 239 230 / 0.17);
+  --glass-fill-hover: rgb(246 239 230 / 0.14);
+  --glass-edge-hover: rgb(246 239 230 / 0.32);
+  --tag-surface: rgb(246 239 230 / 0.06);
+  --selection: rgb(226 98 44 / 0.34);
+
   /* ---- focus ----------------------------------------------------------- */
   /* A fifth system, and deliberately none of the other four: focus must not
      be mistaken for a brand surface, a status or a macro. */
@@ -227,6 +251,16 @@
     --c-7: #8d9479;
     --c-8: #7982a2;
 
+
+    /* Inverted: a cream veil over paper is invisible, so light mode tints
+       with the ink instead. */
+    --glass-fill: rgb(35 29 22 / 0.06);
+    --glass-edge: rgb(35 29 22 / 0.14);
+    --glass-fill-hover: rgb(35 29 22 / 0.10);
+    --glass-edge-hover: rgb(35 29 22 / 0.24);
+    --tag-surface: rgb(35 29 22 / 0.05);
+    --selection: rgb(194 82 31 / 0.28);
+
     --focus-ring: #4a6da8;
 
     color-scheme: light;
@@ -280,6 +314,16 @@
   --c-6: #a28888;
   --c-7: #8d9479;
   --c-8: #7982a2;
+
+
+  /* Inverted: a cream veil over paper is invisible, so light mode tints
+     with the ink instead. */
+  --glass-fill: rgb(35 29 22 / 0.06);
+  --glass-edge: rgb(35 29 22 / 0.14);
+  --glass-fill-hover: rgb(35 29 22 / 0.10);
+  --glass-edge-hover: rgb(35 29 22 / 0.24);
+  --tag-surface: rgb(35 29 22 / 0.05);
+  --selection: rgb(194 82 31 / 0.28);
 
   --focus-ring: #4a6da8;
 

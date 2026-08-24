@@ -169,7 +169,7 @@
   /* Selection was the operating system's blue, on a burnt-orange palette.
      This is the single most common place a considered palette leaks. */
   ::selection {
-    background: color-mix(in srgb, var(--accent) 34%, transparent);
+    background: var(--selection);
     color: var(--text-hi);
   }
 
@@ -728,8 +728,8 @@
  * grey smudge; it needs `atmosphere` behind it.
  */
 @utility fx-glass {
-  background: color-mix(in srgb, var(--text-hi) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text-hi) 17%, transparent);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-edge);
   color: var(--text-hi);
   -webkit-backdrop-filter: blur(14px) saturate(180%);
   backdrop-filter: blur(14px) saturate(180%);
@@ -742,8 +742,8 @@
 
   &:hover {
     transform: translateY(-3px);
-    background: color-mix(in srgb, var(--text-hi) 14%, transparent);
-    border-color: color-mix(in srgb, var(--text-hi) 32%, transparent);
+    background: var(--glass-fill-hover);
+    border-color: var(--glass-edge-hover);
     -webkit-backdrop-filter: blur(20px) saturate(215%);
     backdrop-filter: blur(20px) saturate(215%);
   }
@@ -946,7 +946,7 @@
   padding-inline: 0.5rem;
   padding-block: 0.125rem;
   border-radius: var(--radius-pill);
-  background-color: color-mix(in srgb, var(--text-hi) 6%, transparent);
+  background-color: var(--tag-surface);
   color: var(--text-low);
   white-space: nowrap;
 }
