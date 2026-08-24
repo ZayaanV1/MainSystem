@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppShell, Page, type NavItem } from './components/AppShell';
+import { withTransition, directionBetween } from './lib/transition';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { startOutbox, subscribeOutbox, type OutboxState } from './lib/outbox';
@@ -104,6 +105,24 @@ function SyncBanner() {
 function Shell() {
   const { session, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>('today');
+
+  /**
+   * Screen changes run inside a view transition, travelling in the direction
+   * you moved along the nav.
+   *
+   * The order is taken from NAV itself rather than written out again — a
+   * second list would drift the first time an item moved, and the symptom
+   * would be a screen sliding the wrong way, which reads as a glitch rather
+   * than as a stale constant.
+   */
+  const navigate = useCallback(
+    (next: Screen) => {
+      if (next === screen) return;
+      const order = NAV.map((item) => item.id);
+      withTransition(() => setScreen(next), directionBetween(order, screen, next));
+    },
+    [screen],
+  );
   const [data, setData] = useState<TodayData | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
   // Bumped to make Today refetch after Plan writes something.
@@ -200,7 +219,7 @@ function Shell() {
   }
 
   return (
-    <AppShell current={screen} items={NAV} onNavigate={setScreen}>
+    <AppShell current={screen} items={NAV} onNavigate={navigate}>
       <SyncBanner />
 
       {/*

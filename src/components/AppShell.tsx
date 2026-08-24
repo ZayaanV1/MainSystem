@@ -126,7 +126,7 @@ function TabBar<T extends string>({
         // the whole point of a material that refracts. It is also a single
         // fixed element, so the backdrop read happens once per frame rather
         // than once per row.
-        className="fx-glass fixed inset-x-0 bottom-0 z-50 flex h-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] items-start border-t border-ink-600 pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="vt-chrome fx-glass fixed inset-x-0 bottom-0 z-50 flex h-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] items-start border-t border-ink-600 pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {shown.map((item) => {
           const active = item.id === current;
@@ -188,7 +188,7 @@ function Rail<T extends string>({
       // Sticky rather than fixed: it scrolls with a short page and pins on a
       // long one, without the content needing a matching margin that would
       // drift out of sync the moment the rail's width changed.
-      className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-1 border-r border-ink-600 bg-ink-800 px-3 py-6 lg:flex"
+      className="vt-chrome sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-1 border-r border-ink-600 bg-ink-800 px-3 py-6 lg:flex"
     >
       <div className="mb-6 px-3">
         <span className="type-h2 text-text-hi">Planner</span>

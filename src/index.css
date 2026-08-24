@@ -4,31 +4,33 @@
 /* ============================================================================
    Fonts — self-hosted latin subsets. No runtime request to Google.
 
-   Space Grotesk for headings and every numeral: its squared figures are what
-   make this read as an instrument panel rather than a to-do list.
-   Public Sans for body and UI. There is no third family.
+   Schibsted Grotesk for headings and every numeral. A warm editorial
+   grotesque drawn for news: more contrast between thick and thin than a
+   geometric face, a real two-storey a and g, and it belongs to the same world
+   as burnt orange, cream and bound books. It replaced Space Grotesk, which is
+   capable and is also one of a handful of faces that read as a default rather
+   than a decision.
+
+   It ships as ONE variable file covering 400-700, so the swap removed two
+   font requests rather than adding any.
+
+   Public Sans for body and UI. Kept deliberately: at 16px in a dense planner
+   the body face wants a large x-height and no personality of its own, which
+   is exactly what it was drawn for. There is no third family.
    ========================================================================= */
 
 @font-face {
-  font-family: 'Space Grotesk';
+  font-family: 'Schibsted Grotesk';
   font-style: normal;
-  font-weight: 500;
+  /* The whole range from one file. */
+  font-weight: 400 700;
   font-display: swap;
-  src: url('/fonts/SpaceGrotesk-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Space Grotesk';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/SpaceGrotesk-600.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Space Grotesk';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/SpaceGrotesk-700.woff2') format('woff2');
+  /* `format('woff2')`, not 'woff2-variations'. The -variations form is
+     deprecated syntax that some engines do not recognise, and an unrecognised
+     format string makes the whole @font-face rule inert — the face simply
+     never loads and the fallback renders with no error anywhere. The weight
+     RANGE above is what declares this variable, not the format string. */
+  src: url('/fonts/SchibstedGrotesk-var.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Public Sans';
@@ -111,7 +113,7 @@
   --color-accent-2-lit: var(--accent-2-lit);
   --color-on-accent-2: var(--on-accent-2);
 
-  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
 
   /* 4px scale. Tailwind's default spacing ramp is replaced, not extended, so
@@ -153,6 +155,89 @@
     /* svh for the same reason as page-frame: dvh shrinks when the keyboard
        opens, so anything measured against it reflows while you are typing. */
     min-height: 100svh;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     The craft layer.
+
+     Every declaration below replaces a browser default that was showing
+     through a designed palette. None of them is noticed when present; all of
+     them are noticed when absent, which is the definition of this kind of
+     work. Audited 24 Aug: fifteen of these were unset.
+     ───────────────────────────────────────────────────────────────────── */
+
+  /* Selection was the operating system's blue, on a burnt-orange palette.
+     This is the single most common place a considered palette leaks. */
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 34%, transparent);
+    color: var(--text-hi);
+  }
+
+  /* A white caret in an ember field is a small lie about the palette. */
+  input,
+  textarea {
+    caret-color: var(--accent);
+  }
+
+  /* Native checkboxes, radios and progress bars render in the browser's own
+     blue unless told otherwise. The daily checklist is full of them. */
+  input[type='checkbox'],
+  input[type='radio'],
+  progress {
+    accent-color: var(--accent);
+  }
+
+  /* Scrollbars. Firefox and WebKit need entirely separate instructions,
+     which is why this is nearly always left at the default grey. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink-500) transparent;
+    /* iOS paints a grey box over anything tappable. fx-depth already gives a
+       real press state, so the default is pure noise on top of it. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--ink-500);
+    border-radius: var(--r-pill);
+    /* The transparent border insets the thumb without shrinking the track's
+       hit area — it looks thin and stays easy to grab. */
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-low);
+    background-clip: content-box;
+  }
+
+  /* Removes the 300ms delay browsers hold on every tap while they wait to see
+     whether it was a double-tap-to-zoom. Capture has to feel instant. */
+  button,
+  a[href],
+  input,
+  label,
+  summary,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+
+  /* Windows High Contrast discards background colours entirely, so a control
+     defined only by its fill becomes invisible. Borders survive. */
+  @media (forced-colors: active) {
+    button,
+    [role='button'],
+    input,
+    select,
+    textarea {
+      border: 1px solid currentColor;
+    }
   }
 
   /* Visible keyboard focus everywhere, never removed. */
@@ -212,68 +297,81 @@
    Type scale. Six sizes, no others.
    ========================================================================= */
 
+/* ---------------------------------------------------------------------------
+   The type scale.
+
+   Two things here that a list of font-sizes does not have.
+
+   FLUID. Every heading interpolates between a phone and a monitor rather than
+   being frozen at one size. A 32px display that is right on a 390px screen is
+   undersized on a 1440px one, and the usual fix — a breakpoint that jumps the
+   size — is visible as a jump.
+
+   TRACKED PER SIZE, and tightening as size grows. Letterfit that reads
+   correctly at 12px is visibly loose at 40px; this is optical compensation,
+   and its absence is the single most common tell in a type scale. Three of
+   these sizes previously carried no tracking at all.
+   ------------------------------------------------------------------------ */
+
 @utility type-display {
   font-family: var(--font-display);
-  font-size: 32px;
+  font-size: clamp(1.75rem, 1.35rem + 2vw, 2.5rem);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  letter-spacing: -0.028em;
+  line-height: 1.04;
+  /* Headings break on meaning rather than on whatever fits, which is what
+     stops a title dropping one word onto its own line. */
+  text-wrap: balance;
 }
 
 @utility type-h1 {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: clamp(1.3125rem, 1.15rem + 0.8vw, 1.6875rem);
   font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  letter-spacing: -0.021em;
+  line-height: 1.16;
+  text-wrap: balance;
 }
 
 @utility type-h2 {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: clamp(1.03125rem, 0.98rem + 0.26vw, 1.1875rem);
   font-weight: 600;
-  line-height: 1.3;
+  letter-spacing: -0.014em;
+  line-height: 1.28;
+  text-wrap: balance;
 }
 
 @utility type-body {
-  font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 400;
-  line-height: 1.5;
+  letter-spacing: -0.006em;
+  line-height: 1.55;
+  /* Stops a paragraph orphaning its last word. Cheaper than balance and
+     correct for running text, where balance would fight the measure. */
+  text-wrap: pretty;
 }
 
 @utility type-label {
-  font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
-  line-height: 1.4;
+  letter-spacing: -0.002em;
+  line-height: 1.42;
 }
 
 @utility type-caption {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.075em;
   line-height: 1.3;
   text-transform: uppercase;
 }
 
-/*
- * Small text read as a sentence rather than scanned as a label: input hints,
- * validation messages, a line of explanation under a heading, and anything
- * quoted back that the app did not author.
- *
- * Deliberately not type-caption. The design system reserves that for "urgency
- * labels, metadata (uppercase)", and uppercasing prose both shouts and breaks
- * the sentence-case copy rule — "150G CHICKEN BREAST AND A SCOOP OF WHEY" is
- * not what was typed, and "ROUGH IS FINE" is not the tone the app wants on a
- * bad day.
- */
 @utility type-note {
-  font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 0.78125rem;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.5;
+  text-wrap: pretty;
 }
 
 /*
@@ -719,4 +817,107 @@
     transform: none;
     filter: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   View transitions.
+
+   The browser snapshots the page either side of a screen change and animates
+   between the two as compositor layers. This replaces the entrance-only fade
+   the app settled for after AnimatePresence left dead screens mounted at
+   opacity zero — screens now leave as well as arrive, and nothing has to stay
+   mounted for them to do it.
+
+   Direction comes from `data-transition` on the root, written by
+   withTransition(). Moving right along the nav pushes the old screen left;
+   moving back pulls it right; anything with no place in the nav order fades.
+   ------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    /* Both halves are driven explicitly below. The default cross-fade would
+       otherwise run underneath and muddy the slide. */
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  /* Forward: the old screen leaves to the left, the new arrives from the right. */
+  html[data-transition='forward']::view-transition-old(root) {
+    animation: vt-out-left 260ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  html[data-transition='forward']::view-transition-new(root) {
+    animation: vt-in-right 340ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+
+  /* Back reverses it exactly, so the pair reads as one movement retraced. */
+  html[data-transition='back']::view-transition-old(root) {
+    animation: vt-out-right 260ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  html[data-transition='back']::view-transition-new(root) {
+    animation: vt-in-left 340ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+
+  /* No place in the nav order, so no direction to claim. */
+  html[data-transition='none']::view-transition-old(root),
+  html[data-transition='fade']::view-transition-old(root) {
+    animation: vt-fade-out 180ms ease both;
+  }
+  html[data-transition='none']::view-transition-new(root),
+  html[data-transition='fade']::view-transition-new(root) {
+    animation: vt-fade-in 260ms ease both;
+  }
+}
+
+/*
+ * The distance is small on purpose. A screen that travels its own full width
+ * spends 300ms telling you it moved; 4% reads as the same gesture and gets out
+ * of the way. The old half also leaves faster than the new half arrives, so
+ * the incoming screen is never waiting behind an empty frame.
+ */
+@keyframes vt-out-left {
+  to { opacity: 0; transform: translateX(-4%); }
+}
+@keyframes vt-in-right {
+  from { opacity: 0; transform: translateX(4%); }
+}
+@keyframes vt-out-right {
+  to { opacity: 0; transform: translateX(4%); }
+}
+@keyframes vt-in-left {
+  from { opacity: 0; transform: translateX(-4%); }
+}
+@keyframes vt-fade-out {
+  to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+}
+
+/*
+ * Under reduced motion the transition still runs, as a plain cross-fade with
+ * no travel. Cutting instantly between two full screens is its own kind of
+ * jarring, and a fade carries no vestibular motion — this is the case the
+ * preference is actually about.
+ */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root) {
+    animation: vt-fade-out 120ms linear both;
+  }
+  ::view-transition-new(root) {
+    animation: vt-fade-in 120ms linear both;
+  }
+}
+
+/*
+ * The tab bar and the desktop rail are excluded from the page snapshot and
+ * given their own names, so they hold still while the content moves under
+ * them. Chrome that slides with its own content reads as the whole window
+ * moving, which is the opposite of what a tab bar is for.
+ */
+.vt-chrome {
+  view-transition-name: chrome;
+}
+::view-transition-group(chrome) {
+  animation-duration: 0ms;
 }

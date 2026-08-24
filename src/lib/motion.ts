@@ -115,3 +115,49 @@ export function pulse(el: HTMLElement) {
     ease: EASE,
   });
 }
+
+/**
+ * Draws a tick on, once, at the moment something is marked done.
+ *
+ * This is feedback, not celebration. The distinction matters here because the
+ * spec bans praise that ACCUMULATES — streak counters, "best week yet", the
+ * things that become losable and then become the reason not to open the app.
+ * Warmth in the moment is explicitly allowed, and a mark that appears
+ * instantly is indistinguishable from a mark that was already there. The draw
+ * is what makes it read as "you just did that".
+ *
+ * The box overshoots and settles while the tick draws over it, so the two read
+ * as one gesture rather than as two effects that happened to fire together.
+ *
+ * Nothing runs on the way back. Un-ticking clears the mark with no animation,
+ * because an undo that performs is an undo that feels like a penalty, and
+ * changing your mind must stay free.
+ */
+export function drawTick(path: SVGPathElement, box?: HTMLElement) {
+  if (reduced()) {
+    utils.set(path, { strokeDashoffset: 0 });
+    return;
+  }
+
+  const length = path.getTotalLength();
+  utils.set(path, { strokeDasharray: length, strokeDashoffset: length });
+
+  if (box) {
+    animate(box, {
+      scale: [0.72, 1.12, 1],
+      duration: 380,
+      // Overshoot lives in the keyframes rather than in the easing, so the
+      // settle is a real deceleration instead of a bounce curve fighting it.
+      ease: EASE,
+    });
+  }
+
+  return animate(path, {
+    strokeDashoffset: 0,
+    duration: 300,
+    // Starts a beat after the box begins to grow, so the mark lands INTO a
+    // shape that is already there rather than racing it.
+    delay: 90,
+    ease: EASE,
+  });
+}
