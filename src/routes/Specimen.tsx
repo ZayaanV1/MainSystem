@@ -112,7 +112,7 @@ export function Specimen() {
                 style={{ backgroundColor: `var(${u.v})` }}
               />
               <span className="type-label flex-1 text-text-hi">{u.label}</span>
-              <span className="action-chip-sm type-caption">{u.window}</span>
+              <span className="tag type-caption">{u.window}</span>
             </div>
           ))}
         </Card>

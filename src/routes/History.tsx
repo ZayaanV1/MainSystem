@@ -115,7 +115,7 @@ export function History({
 
         {selected && (
           <div className="flex flex-col gap-3">
-            <span className="action-chip type-label">
+            <span className="tag type-label">
               {selected === today ? `Today, ${formatDay(selected)}` : formatDay(selected)}
             </span>
 
@@ -160,7 +160,8 @@ function DayCell({
       aria-pressed={selected}
       aria-label={describeDay(day, formatDay(day.day))}
       className={[
-        'flex aspect-square flex-1 items-center justify-center rounded-[4px]',
+        'fx-depth',
+          'flex aspect-square flex-1 items-center justify-center rounded-[4px]',
         'min-h-0',
         FILL[day.fill],
         // Today gets an outline rather than a fill, so "where am I" never

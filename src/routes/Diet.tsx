@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
@@ -98,15 +99,15 @@ export function Diet({ onBack }: { onBack: () => void }) {
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="type-h1 text-text-hi">Diet tracker</h1>
         <div className="flex items-baseline gap-4">
-          <button type="button" onClick={() => setEditingTargets(true)} className="action-chip type-label">
+          <Button variant="quiet" onClick={() => setEditingTargets(true)}>
             Macro targets
-          </button>
-          <button type="button" onClick={() => setShowTrend(true)} className="action-chip type-label">
+          </Button>
+          <Button variant="quiet" onClick={() => setShowTrend(true)}>
             Weight trend
-          </button>
-          <button type="button" onClick={onBack} className="action-chip type-label lg:hidden">
+          </Button>
+          <Button variant="quiet" className="lg:hidden" onClick={onBack}>
             Today
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -186,13 +187,10 @@ export function Diet({ onBack }: { onBack: () => void }) {
         <section className="mb-8">
           <div className="mb-1 flex items-baseline justify-between gap-4 px-4">
             <h2 className="type-h2 text-text-hi">Saved meals</h2>
-            <button
-              type="button"
-              onClick={() => setEditingMeals((v) => !v)}
-              className="action-chip type-label"
-            >
+            <Button variant="quiet"
+              onClick={() => setEditingMeals((v) => !v)}>
               {editingMeals ? 'Done' : 'Edit'}
-            </button>
+            </Button>
           </div>
           <p className="type-note mb-3 px-4 text-text-low">
             {editingMeals
@@ -216,13 +214,10 @@ export function Diet({ onBack }: { onBack: () => void }) {
                   className="flex items-baseline justify-between gap-4 border-b border-ink-600 px-4 py-3"
                 >
                   <span className="type-body text-text-hi">{meal.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => void deleteSavedMeal(meal.id).then(reload)}
-                    className="action-chip-sm type-caption"
-                  >
+                  <Button variant="quiet" size="sm"
+                    onClick={() => void deleteSavedMeal(meal.id).then(reload)}>
                     Remove
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -278,7 +273,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
                 <Card key={entry.id}>
                   <div className="border-b border-ink-600 px-4 py-3">
                     <div className="flex items-baseline justify-between gap-4">
-                      <span className="action-chip-sm type-caption">
+                      <span className="tag type-caption">
                         {formatTime(new Date(entry.logged_at))}
                         {entry.source !== 'manual' && ` · ${entry.source}`}
                       </span>
@@ -286,13 +281,10 @@ export function Diet({ onBack }: { onBack: () => void }) {
                         <span className="type-caption text-text-mid">
                           {Math.round(entryTotals.calories)} kcal
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => void deleteEntry(entry.id).then(reload)}
-                          className="action-chip-sm type-caption"
-                        >
+                        <Button variant="quiet" size="sm"
+                          onClick={() => void deleteEntry(entry.id).then(reload)}>
                           Remove
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
@@ -397,20 +389,17 @@ function MealSuggestions({
 
       <div className="flex flex-col">
         {fits.map((fit) => (
-          <button
+          <Pressable align="baseline" className="justify-between gap-4 border-b border-ink-600 px-4 py-3 last:border-b-0"
             key={fit.meal.id}
-            type="button"
-            onClick={() => onLog(fit.meal, fit.portion)}
-            className="flex items-baseline justify-between gap-4 border-b border-ink-600 px-4 py-3 text-left last:border-b-0"
-          >
+            onClick={() => onLog(fit.meal, fit.portion)}>
             <span className="type-body text-text-hi">
               {fit.meal.name}
               {fit.portion !== 1 && (
-                <span className="action-chip-sm type-caption"> {fit.portion}x</span>
+                <span className="tag type-caption"> {fit.portion}x</span>
               )}
             </span>
             <span className="type-note shrink-0 text-text-low">{fit.why}</span>
-          </button>
+          </Pressable>
         ))}
       </div>
     </section>
@@ -539,7 +528,7 @@ const PORTIONS = [0.5, 1, 1.5, 2] as const;
 function PortionRow({ portion, onChange }: { portion: number; onChange: (p: number) => void }) {
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2 px-4">
-      <span className="action-chip type-label">Portion</span>
+      <span className="tag type-label">Portion</span>
       {PORTIONS.map((p) => (
         <button
           key={p}
@@ -547,7 +536,8 @@ function PortionRow({ portion, onChange }: { portion: number; onChange: (p: numb
           onClick={() => onChange(p)}
           aria-pressed={portion === p}
           className={[
-            'min-h-[var(--tap)] rounded-pill px-4 type-label',
+            'fx-depth',
+          'min-h-[var(--tap)] rounded-pill px-4 type-label',
             portion === p ? 'bg-ink-600 text-text-hi' : 'border border-ink-600 text-text-low',
           ].join(' ')}
         >
@@ -589,15 +579,15 @@ function DietSkeleton({ onBack }: { onBack: () => void }) {
         <div className="flex items-baseline gap-4">
           {/* Real buttons, disabled. Spans measured six pixels taller than the
               buttons they stand in for, which moved everything below them. */}
-          <button type="button" disabled className="action-chip type-label opacity-40">
+          <Button variant="quiet" className="opacity-40" disabled>
             Macro targets
-          </button>
-          <button type="button" disabled className="action-chip type-label opacity-40">
+          </Button>
+          <Button variant="quiet" className="opacity-40" disabled>
             Weight trend
-          </button>
-          <button type="button" onClick={onBack} className="action-chip type-label lg:hidden">
+          </Button>
+          <Button variant="quiet" className="lg:hidden" onClick={onBack}>
             Today
-          </button>
+          </Button>
         </div>
       </header>
 

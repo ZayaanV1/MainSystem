@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { Pressable } from '../components/Pressable';
+import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
 import { search } from '../lib/search';
 import type { SearchHit } from '../lib/searchRank';
@@ -73,9 +75,9 @@ export function Search({
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="type-h1 text-text-hi">Search</h1>
-        <button type="button" onClick={onBack} className="action-chip type-label">
+        <Button variant="quiet" onClick={onBack}>
           Today
-        </button>
+        </Button>
       </header>
 
       <div className="mb-6 px-4">
@@ -101,19 +103,16 @@ export function Search({
               <h2 className="type-h2 mb-2 px-4 text-text-hi">{KIND_LABEL[kind]}</h2>
               <div className="flex flex-col">
                 {items.map((h) => (
-                  <button
+                  <Pressable align="baseline" className="justify-between gap-4 border-b border-ink-600 px-4 py-3 last:border-b-0"
                     key={`${h.kind}:${h.id}`}
-                    type="button"
-                    onClick={() => h.kind === 'assignment' && onOpenAssignment(h.id)}
-                    className="flex items-baseline justify-between gap-4 border-b border-ink-600 px-4 py-3 text-left last:border-b-0"
-                  >
+                    onClick={() => h.kind === 'assignment' && onOpenAssignment(h.id)}>
                     <span className={`type-body ${h.done ? 'text-text-low' : 'text-text-hi'}`}>
                       {h.title}
                     </span>
                     <span className="type-note shrink-0 text-text-low">
                       {[h.detail, h.day ? formatDay(h.day) : null].filter(Boolean).join(' · ')}
                     </span>
-                  </button>
+                  </Pressable>
                 ))}
               </div>
             </section>

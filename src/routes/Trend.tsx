@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '../components/Button';
 import { drawPath } from '../lib/motion';
 import { EmptyState } from '../components/EmptyState';
 import { loadTrendDays, targetsFor, type MacroBand } from '../lib/diet';
@@ -40,9 +41,9 @@ export function Trend({ onBack }: { onBack: () => void }) {
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="type-h1 text-text-hi">Weight trend</h1>
-        <button type="button" onClick={onBack} className="action-chip type-label">
+        <Button variant="quiet" onClick={onBack}>
           Diet tracker
-        </button>
+        </Button>
       </header>
 
       {weighed.length === 0 ? (

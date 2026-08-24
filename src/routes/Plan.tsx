@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
+import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
@@ -99,9 +100,9 @@ export function Plan({ courses, onBack, onChanged }: {
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="type-h1 text-text-hi">Courses and syllabus</h1>
-        <button type="button" onClick={onBack} className="action-chip type-label">
+        <Button variant="quiet" onClick={onBack}>
           Today
-        </button>
+        </Button>
       </header>
 
       <CourseEditor userId={userId} courses={courses} onChanged={onChanged} />
@@ -205,13 +206,10 @@ function PreviewRow({
 
   return (
     <div className="border-b border-ink-600 px-4 py-3 last:border-b-0">
-      <button
-        type="button"
+      <Pressable align="start" className="gap-3"
         onClick={onToggle}
         disabled={!row.usable}
-        aria-pressed={!excluded}
-        className="flex w-full items-start gap-3 text-left"
-      >
+        aria-pressed={!excluded}>
         <span
           aria-hidden
           className={[
@@ -274,7 +272,7 @@ function PreviewRow({
             </span>
           )}
         </span>
-      </button>
+      </Pressable>
     </div>
   );
 }
@@ -328,19 +326,16 @@ function CourseEditor({
       <div className="mb-3 flex items-baseline justify-between gap-4 px-4">
         <h2 className="type-h2 text-text-hi">Courses</h2>
         <div className="flex items-baseline gap-4">
-          <button
-            type="button"
+          <Button variant="quiet"
             onClick={() => {
               setManaging((v) => !v);
               if (!managing) refreshAll();
-            }}
-            className="action-chip type-label"
-          >
+            }}>
             {managing ? 'Done' : 'Archive'}
-          </button>
-          <button type="button" onClick={() => setOpen((v) => !v)} className="action-chip type-label">
+          </Button>
+          <Button variant="quiet" onClick={() => setOpen((v) => !v)}>
             {open ? 'Cancel' : 'Add'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -362,20 +357,17 @@ function CourseEditor({
             >
               <span className={`type-body ${c.archived ? 'text-text-low' : 'text-text-hi'}`}>
                 {c.code ?? c.name}
-                {c.archived && <span className="action-chip-sm type-caption"> archived</span>}
+                {c.archived && <span className="tag type-caption"> archived</span>}
               </span>
-              <button
-                type="button"
+              <Button variant="quiet" size="sm"
                 onClick={() =>
                   void setCourseArchived(c.id, !c.archived).then(() => {
                     refreshAll();
                     onChanged();
                   })
-                }
-                className="action-chip-sm type-caption"
-              >
+                }>
                 {c.archived ? 'Restore' : 'Archive'}
-              </button>
+              </Button>
             </div>
           ))}
         </div>

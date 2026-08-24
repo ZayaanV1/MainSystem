@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
@@ -140,7 +141,7 @@ export function ChecklistEditor({
         />
 
         <div className="flex flex-col gap-3">
-          <span className="action-chip type-label">Repeats</span>
+          <span className="tag type-label">Repeats</span>
           <div className="flex flex-wrap gap-2">
             {(['daily', 'weekdays', 'interval'] as const).map((r) => (
               <Chip
@@ -165,7 +166,8 @@ export function ChecklistEditor({
                     ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i]
                   }
                   className={[
-                    'flex h-11 w-11 items-center justify-center rounded-pill type-label',
+                    'fx-depth',
+          'flex h-11 w-11 items-center justify-center rounded-pill type-label',
                     (fields.weekdays ?? []).includes(n)
                       ? 'bg-ink-600 text-text-hi'
                       : 'border border-ink-600 text-text-low',
@@ -199,12 +201,9 @@ export function ChecklistEditor({
         />
 
         <div className="flex flex-col gap-2">
-          <button
-            type="button"
+          <Pressable className="gap-3"
             onClick={() => set('essential', !fields.essential)}
-            aria-pressed={fields.essential}
-            className="flex items-center gap-3 text-left"
-          >
+            aria-pressed={fields.essential}>
             <span
               aria-hidden
               className={[
@@ -213,19 +212,16 @@ export function ChecklistEditor({
               ].join(' ')}
             />
             <span className="type-label text-text-hi">Keep on a bad day</span>
-          </button>
+          </Pressable>
           <p className="type-note text-text-low">
             Low-battery mode shows only these. Everything else is hidden until you turn it off.
           </p>
         </div>
 
         <div className="flex flex-col gap-3">
-          <button
-            type="button"
+          <Pressable className="gap-3"
             onClick={() => set('tracks_doses', !fields.tracks_doses)}
-            aria-pressed={fields.tracks_doses}
-            className="flex items-center gap-3 text-left"
-          >
+            aria-pressed={fields.tracks_doses}>
             <span
               aria-hidden
               className={[
@@ -234,7 +230,7 @@ export function ChecklistEditor({
               ].join(' ')}
             />
             <span className="type-label text-text-hi">Count doses</span>
-          </button>
+          </Pressable>
 
           {fields.tracks_doses && (
             <div className="flex flex-col gap-4">

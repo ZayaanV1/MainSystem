@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
@@ -133,7 +134,7 @@ export function AssignmentEditor({
 
         {courses.length > 0 && (
           <div className="flex flex-col gap-3">
-            <span className="action-chip type-label">Course</span>
+            <span className="tag type-label">Course</span>
             <div className="flex flex-wrap gap-2">
               {courses.map((c) => (
                 <Chip
@@ -186,7 +187,7 @@ export function AssignmentEditor({
               onClick={() =>
                 set('remind_at', fromLocalInput(`${fields.due_day}T16:00`))
               }
-              className="self-start type-caption text-text-mid"
+              className="fx-depth self-start type-caption text-text-mid"
             >
               Use 4 p.m. on the due date
             </button>
@@ -335,7 +336,7 @@ function Subtasks({
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="action-chip type-label">
+      <span className="tag type-label">
         Steps{mine.length > 0 && ` — ${mine.filter((s) => s.done).length} of ${mine.length}`}
       </span>
 
@@ -343,13 +344,10 @@ function Subtasks({
         <div className="overflow-hidden rounded-card bg-ink-800">
           {mine.map((s) => (
             <div key={s.id} className="flex items-center border-b border-ink-600 last:border-b-0">
-              <button
-                type="button"
+              <Pressable className="flex-1 gap-3 px-4"
                 onClick={() => void setSubtaskDone(s.id, !s.done).then(onChanged)}
                 aria-pressed={s.done}
-                aria-label={s.done ? `Mark "${s.title}" not done` : `Mark "${s.title}" done`}
-                className="flex min-h-[var(--tap)] flex-1 items-center gap-3 px-4 text-left"
-              >
+                aria-label={s.done ? `Mark "${s.title}" not done` : `Mark "${s.title}" done`}>
                 <span
                   aria-hidden
                   className={[
@@ -360,7 +358,7 @@ function Subtasks({
                 <span className={`type-body ${s.done ? 'text-text-low' : 'text-text-hi'}`}>
                   {s.title}
                 </span>
-              </button>
+              </Pressable>
 
               <button
                 type="button"
@@ -368,7 +366,7 @@ function Subtasks({
                 aria-label={`Remove "${s.title}"`}
                 // Sized to its label rather than a fixed 44px box: 'Remove' is wider
                 // than that and was being clipped. Height still meets the tap floor.
-                className="flex min-h-[var(--tap)] shrink-0 items-center px-4 type-caption text-text-low"
+                className="fx-depth flex min-h-[var(--tap)] shrink-0 items-center px-4 type-caption text-text-low"
               >
                 Remove
               </button>
@@ -429,14 +427,11 @@ function Subtasks({
               >
                 <span className="type-body text-text-hi">{step.title}</span>
                 <div className="flex shrink-0 items-baseline gap-3">
-                  <span className="action-chip-sm type-caption">{step.minutes} min</span>
-                  <button
-                    type="button"
-                    onClick={() => setSuggested((list) => (list ?? []).filter((_, n) => n !== i))}
-                    className="action-chip-sm type-caption"
-                  >
+                  <span className="tag type-caption">{step.minutes} min</span>
+                  <Button variant="quiet" size="sm"
+                    onClick={() => setSuggested((list) => (list ?? []).filter((_, n) => n !== i))}>
                     Drop
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}

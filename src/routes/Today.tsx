@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Pressable } from '../components/Pressable';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -193,13 +194,10 @@ export function Today({
         <div className="mb-3 flex items-baseline justify-between gap-4 px-4">
           <h2 className="type-h2 text-text-hi">Checklist</h2>
           {editing ? (
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="action-chip type-label"
-            >
+            <Button variant="quiet"
+              onClick={() => setEditing(false)}>
               Done
-            </button>
+            </Button>
           ) : (
             <DayStrip today={today} selected={day} onSelect={setDay} />
           )}
@@ -379,14 +377,11 @@ export function Today({
         ) : (
           <Card>
             {data.inbox.map((entry) => (
-              <button
+              <Pressable className="border-b border-ink-600 px-4 py-3 last:border-b-0"
                 key={entry.id}
-                type="button"
-                onClick={() => setTriaging(entry)}
-                className="flex min-h-[var(--tap)] w-full items-center border-b border-ink-600 px-4 py-3 text-left last:border-b-0"
-              >
+                onClick={() => setTriaging(entry)}>
                 <span className="type-body text-text-hi">{entry.body}</span>
-              </button>
+              </Pressable>
             ))}
           </Card>
         )}
@@ -498,7 +493,8 @@ function DayStrip({
             aria-pressed={isSelected}
             aria-label={isToday ? `Today, ${formatDay(d)}` : formatDay(d)}
             className={[
-              'flex h-9 w-9 flex-col items-center justify-center rounded-pill type-caption',
+              'fx-depth',
+          'flex h-9 w-9 flex-col items-center justify-center rounded-pill type-caption',
               'min-h-0',
               isSelected ? 'bg-ink-600 text-text-hi' : 'text-text-low',
             ].join(' ')}
@@ -659,9 +655,9 @@ function HowLong({
           {label(m)}
         </Chip>
       ))}
-      <button type="button" onClick={onDone} className="action-chip-sm type-caption">
+      <Button variant="quiet" size="sm" onClick={onDone}>
         Skip
-      </button>
+      </Button>
     </div>
   );
 }

@@ -153,3 +153,56 @@ describe('prose is not rendered in the uppercase caption style', () => {
     expect(offenders, 'use type-note for prose; type-caption is for labels').toEqual([]);
   });
 });
+
+/**
+ * Fixing an instance is not fixing the class.
+ *
+ * On 24 Aug the routes held 46 hand-written <button> elements. They had
+ * already drifted — some rows were `items-center` and some `items-baseline`,
+ * some had `w-full` and some did not, so a few list rows were quietly
+ * narrower than the list they sat in, and none of them shared the press or
+ * focus treatment that Button had gained. Twenty-nine <span> elements were
+ * also wearing the ACTION style, so labels that did nothing looked exactly as
+ * pressable as the controls beside them.
+ *
+ * Both were swept. These assertions are what stop the sweep being a one-off.
+ */
+describe('routes build from the kit rather than from raw markup', () => {
+  const ROUTES = sourceFiles('src/routes', ['.tsx']).filter(
+    // The specimen page exists to render the primitives in isolation, so it
+    // is the one file allowed to reach past them.
+    (f) => !f.endsWith('Specimen.tsx'),
+  );
+
+  it('finds routes to check at all', () => {
+    expect(ROUTES.length).toBeGreaterThan(15);
+  });
+
+  it('never puts the action style on a <span>', () => {
+    // action-chip carries a 44px floor, a border and a raised surface. On
+    // something that cannot be pressed, all three are a lie. `tag` is the
+    // honest form. A <label htmlFor> is genuinely interactive and may keep it.
+    const offenders: string[] = [];
+    for (const file of ROUTES) {
+      const source = readFileSync(file, 'utf8');
+      const spans = /<span\b[^<>]*className="[^"]*action-chip[^"]*"[^<>]*>/g;
+      for (const m of source.matchAll(spans)) {
+        offenders.push(`${file}: ${m[0].slice(0, 70)}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('routes no new action-chip button around the Button component', () => {
+    // The pattern this sweep removed. A raw <button className="action-chip">
+    // is a Button variant="quiet" that has opted out of the press treatment,
+    // the focus ring and the disabled state without saying so.
+    const offenders: string[] = [];
+    for (const file of ROUTES) {
+      const source = readFileSync(file, 'utf8');
+      const tags = /<button\b[\s\S]{0,400}?className="[^"]*action-chip[^"]*"/g;
+      for (const m of source.matchAll(tags)) offenders.push(`${file}: ${m[0].slice(0, 60)}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+});

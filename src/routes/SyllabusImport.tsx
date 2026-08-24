@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Sheet } from '../components/Sheet';
@@ -194,7 +195,7 @@ export function SyllabusImport({
 
           {courses.length > 0 && (
             <div className="flex flex-col gap-3">
-              <span className="action-chip type-label">Course</span>
+              <span className="tag type-label">Course</span>
               <div className="flex flex-wrap gap-2">
                 {courses.map((c) => (
                   <Chip
@@ -212,12 +213,9 @@ export function SyllabusImport({
           <div className="flex flex-col gap-3">
             {drafts.map((d, i) => (
               <div key={i} className="flex flex-col gap-2 rounded-card border border-ink-600 p-3">
-                <button
-                  type="button"
+                <Pressable align="start" className="gap-3"
                   onClick={() => edit(i, { keep: !d.keep })}
-                  aria-pressed={d.keep}
-                  className="flex items-start gap-3 text-left"
-                >
+                  aria-pressed={d.keep}>
                   <span
                     aria-hidden
                     className={[
@@ -228,12 +226,12 @@ export function SyllabusImport({
                   <span className={`type-body ${d.keep ? 'text-text-hi' : 'text-text-low'}`}>
                     {d.title}
                   </span>
-                </button>
+                </Pressable>
 
                 {d.keep && (
                   <div className="flex flex-wrap items-end gap-3 pl-8">
                     <label className="flex flex-col gap-1">
-                      <span className="action-chip-sm type-caption">Date</span>
+                      <span className="tag type-caption">Date</span>
                       <input
                         type="date"
                         value={d.due_date ?? ''}
@@ -243,7 +241,7 @@ export function SyllabusImport({
                     </label>
 
                     <label className="flex flex-col gap-1">
-                      <span className="action-chip-sm type-caption">Time</span>
+                      <span className="tag type-caption">Time</span>
                       <input
                         type="time"
                         value={d.due_time ?? ''}
@@ -261,7 +259,7 @@ export function SyllabusImport({
                     </div>
 
                     {d.weight_percent !== null && (
-                      <span className="action-chip-sm type-caption">{d.weight_percent}%</span>
+                      <span className="tag type-caption">{d.weight_percent}%</span>
                     )}
                   </div>
                 )}

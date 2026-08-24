@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
@@ -77,9 +78,9 @@ export function Week({
             {formatDay(today)} to {formatDay(grouping.days[WEEK_DAYS - 1].day)}
           </p>
         </div>
-        <button type="button" onClick={onBack} className="action-chip type-label">
+        <Button variant="quiet" onClick={onBack}>
           Today
-        </button>
+        </Button>
       </header>
 
       {courses.length > 0 && (
@@ -194,7 +195,7 @@ function DaySection({
           {isToday ? `Today, ${formatDay(group.day)}` : formatDay(group.day)}
         </h2>
         {minutes > 0 && (
-          <span className="action-chip-sm type-caption">
+          <span className="tag type-caption">
             {minutes >= 60 ? `${Math.round((minutes / 60) * 10) / 10} h` : `${minutes} min`}
           </span>
         )}

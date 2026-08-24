@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { Sheet } from '../components/Sheet';
@@ -367,21 +368,18 @@ export function LogFood({
             {matches && !picked && (
               <div className="flex flex-col">
                 {matches.map((food) => (
-                  <button
+                  <Pressable align="start" className="flex-col gap-1 border-b border-ink-600 py-3 last:border-b-0"
                     key={food.fdcId}
-                    type="button"
                     onClick={() => {
                       setPicked(food);
                       setPickedGrams('100');
-                    }}
-                    className="flex flex-col items-start gap-1 border-b border-ink-600 py-3 text-left last:border-b-0"
-                  >
+                    }}>
                     <span className="type-body text-text-hi">{food.description}</span>
                     <span className="type-note text-text-low">
                       Per 100 g: {food.per100g.calories} kcal, P {food.per100g.protein_g}, C{' '}
                       {food.per100g.carbs_g}, F {food.per100g.fat_g}
                     </span>
-                  </button>
+                  </Pressable>
                 ))}
               </div>
             )}
@@ -547,7 +545,7 @@ export function LogFood({
           )}
 
           <div className="flex items-baseline justify-between border-t border-ink-600 pt-4">
-            <span className="action-chip type-label">Total</span>
+            <span className="tag type-label">Total</span>
             <span className="type-h2 text-text-hi">{Math.round(total)} kcal</span>
           </div>
 
@@ -603,7 +601,7 @@ function DraftRow({
     key: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'grams',
   ) => (
     <label className="flex flex-1 flex-col gap-1">
-      <span className="action-chip-sm type-caption">{label}</span>
+      <span className="tag type-caption">{label}</span>
       <input
         type="number"
         inputMode="decimal"
@@ -624,7 +622,7 @@ function DraftRow({
     <div className="flex flex-col gap-3 rounded-card border border-ink-600 p-3">
       <div className="flex items-end gap-3">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="action-chip-sm type-caption">Item</span>
+          <span className="tag type-caption">Item</span>
           <input
             value={item.name}
             onChange={(e) => set('name', e.target.value)}
@@ -632,9 +630,9 @@ function DraftRow({
             className="w-full rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi placeholder:text-text-low"
           />
         </label>
-        <button type="button" onClick={onRemove} className="action-chip-sm type-caption">
+        <Button variant="quiet" size="sm" onClick={onRemove}>
           Remove
-        </button>
+        </Button>
       </div>
 
       <div className="flex gap-2">
@@ -648,12 +646,9 @@ function DraftRow({
         {numberField('Fat', 'fat_g')}
       </div>
 
-      <button
-        type="button"
+      <Pressable className="gap-3"
         onClick={() => set('unsure', !item.unsure)}
-        aria-pressed={item.unsure}
-        className="flex items-center gap-3 text-left"
-      >
+        aria-pressed={item.unsure}>
         <span
           aria-hidden
           className={[
@@ -662,7 +657,7 @@ function DraftRow({
           ].join(' ')}
         />
         <span className="type-caption text-text-mid">Estimated</span>
-      </button>
+      </Pressable>
     </div>
   );
 }

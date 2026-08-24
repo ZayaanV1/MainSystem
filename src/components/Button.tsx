@@ -35,8 +35,16 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 type Variant = 'primary' | 'secondary' | 'quiet';
 
+/**
+ * `sm` is not a smaller button — it is a smaller LABEL on a control that keeps
+ * the full 44px tap target. Shrinking the target to match the text is how a
+ * dense screen becomes unusable with a thumb, and this app has several.
+ */
+type Size = 'md' | 'sm';
+
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
+  size?: Size;
   full?: boolean;
   children: ReactNode;
 }
@@ -55,8 +63,15 @@ const VARIANTS: Record<Variant, string> = {
   quiet: 'bg-ink-800 text-text-mid border-ink-600',
 };
 
+const SIZES: Record<Size, string> = {
+  md: 'px-5 type-label',
+  // Caption type, pill padding, and the same min-height as everything else.
+  sm: 'px-3 type-caption',
+};
+
 export function Button({
   variant = 'secondary',
+  size = 'md',
   full = false,
   className = '',
   type = 'button',
@@ -72,8 +87,8 @@ export function Button({
       type={type}
       {...rest}
       className={[
-        'inline-flex items-center justify-center gap-2 rounded-pill border px-5',
-        'type-label',
+        'inline-flex items-center justify-center gap-2 rounded-pill border',
+        SIZES[size],
         // 44px comes from the base layer; this keeps the label centred in it.
         'min-h-[var(--tap)]',
         'fx-depth',

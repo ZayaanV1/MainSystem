@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { useMagnetic } from '../lib/useMagnetic';
 import { Card } from '../components/Card';
@@ -75,7 +76,7 @@ export function WhatNow({
   return (
     <section className="mb-8 px-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="action-chip type-label">I have</span>
+        <span className="tag type-label">I have</span>
         {WINDOWS.map((m) => (
           <Chip key={m} selected={minutes === m} onClick={() => setMinutes(minutes === m ? null : m)}>
             {m < 60 ? `${m} min` : `${m / 60} h`}
@@ -85,22 +86,19 @@ export function WhatNow({
 
       {choice && picked ? (
         <Card>
-          <button
-            type="button"
-            onClick={() => onOpen(picked)}
-            className="flex w-full flex-col items-start gap-2 px-4 py-4 text-left"
-          >
+          <Pressable align="start" className="flex-col gap-2 px-4 py-4"
+            onClick={() => onOpen(picked)}>
             <span className="type-h2 text-text-hi">{picked.title}</span>
             <span className="type-note text-text-low">{choice.because}</span>
             {picked.effort_minutes !== null && (
-              <span className="action-chip-sm type-caption">
+              <span className="tag type-caption">
                 {picked.effort_minutes} min
                 {courses.find((c) => c.id === picked.course_id)
                   ? ` · ${courses.find((c) => c.id === picked.course_id)?.code ?? ''}`
                   : ''}
               </span>
             )}
-          </button>
+          </Pressable>
         </Card>
       ) : (
         <p className="type-body text-text-mid">Nothing open.</p>

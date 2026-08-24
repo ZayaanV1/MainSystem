@@ -141,17 +141,14 @@ export function Chat({ courses, onBack, onChanged }: {
         <h1 className="type-h1 text-text-hi">Abood</h1>
         <div className="flex items-baseline gap-4">
           {messages.length > 0 && (
-            <button
-              type="button"
-              onClick={() => void clearChat().then(() => setMessages([]))}
-              className="action-chip type-label"
-            >
+            <Button variant="quiet"
+              onClick={() => void clearChat().then(() => setMessages([]))}>
               Clear
-            </button>
+            </Button>
           )}
-          <button type="button" onClick={onBack} className="action-chip type-label">
+          <Button variant="quiet" onClick={onBack}>
             Today
-          </button>
+          </Button>
         </div>
       </header>
 

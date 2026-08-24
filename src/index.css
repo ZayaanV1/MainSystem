@@ -921,3 +921,32 @@
 ::view-transition-group(chrome) {
   animation-duration: 0ms;
 }
+
+/* ---------------------------------------------------------------------------
+   tag — a label that is NOT a control.
+
+   Found by the button sweep on 24 Aug: twenty-nine <span> and <label>
+   elements were wearing `action-chip`, which is the ACTION style — a 44px
+   minimum height, a pill radius, a border and a raised surface. On a span
+   that does nothing, every one of those signals is a lie. "Portion", "Total",
+   "Course" and "Item" all looked exactly as pressable as the buttons beside
+   them, which is the same class of defect as the buttons that silently
+   submitted forms: the element did not do what it looked like.
+
+   This is the honest form. Same typographic role, none of the affordance: no
+   border, no tap-height floor, no raised surface. It reads as a label because
+   it is one.
+
+   Interactive <label htmlFor> elements deliberately keep `action-chip` —
+   clicking one focuses its input, so there the affordance is truthful.
+   ------------------------------------------------------------------------ */
+@utility tag {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 0.5rem;
+  padding-block: 0.125rem;
+  border-radius: var(--radius-pill);
+  background-color: color-mix(in srgb, var(--text-hi) 6%, transparent);
+  color: var(--text-low);
+  white-space: nowrap;
+}

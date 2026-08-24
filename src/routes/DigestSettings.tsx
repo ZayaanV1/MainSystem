@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
@@ -65,12 +66,9 @@ export function DigestSettings({ onSaved }: { onSaved?: () => void }) {
     <form onSubmit={submit}>
       <Card className="max-w-prose p-4">
         <div className="flex flex-col gap-6">
-          <button
-            type="button"
+          <Pressable className="gap-3"
             onClick={() => set('digest_enabled', !fields.digest_enabled)}
-            aria-pressed={fields.digest_enabled}
-            className="flex items-center gap-3 text-left"
-          >
+            aria-pressed={fields.digest_enabled}>
             <span
               aria-hidden
               className={[
@@ -79,7 +77,7 @@ export function DigestSettings({ onSaved }: { onSaved?: () => void }) {
               ].join(' ')}
             />
             <span className="type-label text-text-hi">Send a morning digest</span>
-          </button>
+          </Pressable>
 
           {fields.digest_enabled && (
             <>
@@ -128,12 +126,9 @@ export function DigestSettings({ onSaved }: { onSaved?: () => void }) {
             feature is worth.
           */}
           <div className="flex flex-col gap-3 border-t border-ink-600 pt-6">
-            <button
-              type="button"
+            <Pressable className="gap-3"
               onClick={() => set('weekly_review_enabled', !fields.weekly_review_enabled)}
-              aria-pressed={fields.weekly_review_enabled}
-              className="flex items-center gap-3 text-left"
-            >
+              aria-pressed={fields.weekly_review_enabled}>
               <span
                 aria-hidden
                 className={[
@@ -142,7 +137,7 @@ export function DigestSettings({ onSaved }: { onSaved?: () => void }) {
                 ].join(' ')}
               />
               <span className="type-label text-text-hi">Weekly review</span>
-            </button>
+            </Pressable>
             <p className="type-note text-text-low">
               What you finished, what is due next, and anything that has been sitting. Sent at the
               same time as the digest.

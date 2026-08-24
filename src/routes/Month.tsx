@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
@@ -88,9 +89,9 @@ export function Month({
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="type-h1 text-text-hi">Month</h1>
-        <button type="button" onClick={onBack} className="action-chip type-label">
+        <Button variant="quiet" onClick={onBack}>
           Today
-        </button>
+        </Button>
       </header>
 
       <div className="mb-4 flex items-center justify-between gap-4 px-4">
@@ -98,7 +99,7 @@ export function Month({
           type="button"
           onClick={() => step(-1)}
           aria-label="Previous month"
-          className="type-label px-2 text-text-mid"
+          className="fx-depth type-label px-2 text-text-mid"
         >
           Back
         </button>
@@ -107,7 +108,7 @@ export function Month({
           type="button"
           onClick={() => step(1)}
           aria-label="Next month"
-          className="type-label px-2 text-text-mid"
+          className="fx-depth type-label px-2 text-text-mid"
         >
           Next
         </button>
@@ -222,7 +223,8 @@ function DayCell({
       aria-pressed={selected}
       aria-label={`${formatDay(cell.day)}, ${description}`}
       className={[
-        'flex aspect-square flex-col items-center justify-center gap-1 rounded-card',
+        'fx-depth',
+          'flex aspect-square flex-col items-center justify-center gap-1 rounded-card',
         'min-h-0 text-left transition-colors',
         'lg:aspect-auto lg:min-h-28 lg:items-stretch lg:justify-start lg:p-2',
         selected ? 'bg-ink-600' : cell.isToday ? 'bg-ink-700' : 'lg:bg-ink-800/60 lg:hover:bg-ink-700',
