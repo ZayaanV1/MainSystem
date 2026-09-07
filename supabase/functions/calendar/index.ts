@@ -138,9 +138,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ...CORS,
       'content-type': 'text/calendar; charset=utf-8',
       'content-disposition': 'inline; filename="planner.ics"',
-      // Clients poll often; a short cache spares the function without making
-      // a new deadline take long to appear.
-      'cache-control': 'public, max-age=900',
+      /*
+       * `private`, not `public`. This body is one account's deadlines,
+       * authorised solely by a token in the query string. A `public` directive
+       * invites any shared cache to store it — harmless today, because
+       * Supabase functions sit behind no query-normalising CDN, and a
+       * cross-user leak the day one is introduced. The word costs nothing and
+       * the failure mode is silent.
+       */
+      'cache-control': 'private, max-age=900',
     },
   });
 });

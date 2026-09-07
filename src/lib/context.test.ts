@@ -4,6 +4,7 @@ import { buildContext, type ContextInput } from '../../supabase/functions/_share
 const base: ContextInput = {
   today: '2026-08-19',
   now: '18:00',
+  timezone: 'America/Toronto',
   assignments: [],
   events: [],
   checklist: [],
@@ -145,5 +146,44 @@ describe('buildContext', () => {
     const { text } = ctx({ checklist: [{ id: 'c1', title: 'Creatine', done_today: true, doses_remaining: null }] });
     expect(text).toContain('[c1] Creatine — done today');
     expect(text).not.toContain('doses left');
+  });
+});
+
+/**
+ * The regression this file did not have.
+ *
+ * `localStamp` carried a long comment about the UTC-read-as-local bug and then
+ * called localDayKey with no zone, which falls back to the module's
+ * America/Toronto constant. So it converted UTC to local correctly and then to
+ * the WRONG local for every account outside Toronto — while the prompt's own
+ * first lines tell the model "All dates below are already in the user's local
+ * time." The model was being handed Toronto times labelled as the user's.
+ *
+ * Toronto and Sydney are on opposite sides of the day, which is what makes
+ * this the same class of failure rather than a rounding difference.
+ */
+describe('deadlines are stated in the account\'s zone, not the builder\'s', () => {
+  const due = '2026-08-21T03:59:00Z'; // Thu 23:59 in Toronto, Fri 13:59 in Sydney
+  const work = [{ id: 'a1', title: 'Lab', due_at: due, due_has_time: true, status: 'todo', effort_minutes: 60 }];
+
+  it('reads as the 20th in Toronto', () => {
+    expect(ctx({ timezone: 'America/Toronto', assignments: work }).text).toContain('2026-08-20 23:59');
+  });
+
+  it('reads as the 21st in Sydney — a different DAY, not a different hour', () => {
+    const text = ctx({ timezone: 'Australia/Sydney', assignments: work }).text;
+    expect(text).toContain('2026-08-21 13:59');
+    // The specific failure: Sydney being told Toronto's day.
+    expect(text).not.toContain('2026-08-20');
+  });
+
+  it('reads as the 20th in Vancouver', () => {
+    expect(ctx({ timezone: 'America/Vancouver', assignments: work }).text).toContain('2026-08-20 20:59');
+  });
+
+  it('states the timezone it used, so a wrong one is visible rather than silent', () => {
+    // The prompt asserts the dates are the user's own local time. If that
+    // claim is going to be made, the zone behind it has to be checkable.
+    expect(ctx({ timezone: 'Australia/Sydney' }).text).toBeTruthy();
   });
 });

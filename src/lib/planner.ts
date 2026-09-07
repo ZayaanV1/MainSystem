@@ -88,6 +88,24 @@ export interface PlannerEvent {
 }
 
 export interface TodayData {
+  /**
+   * Which of the ten queries came back as an error.
+   *
+   * This exists because the alternative is worse than an error screen. Every
+   * read below used to end in `data ?? []`, and Supabase returns
+   * `{ data: null, error }` on failure — so a dropped connection, a 5xx, a
+   * rate limit and an RLS denial all arrived as an empty array. Today then
+   * rendered "Nothing due.", which is a real and correct-looking code path.
+   *
+   * The app was confidently telling people their day was clear when it had
+   * simply failed to look. That is the confidently-wrong-deadline failure the
+   * spec calls worse than having no chatbot at all, sitting on the one screen
+   * rule 1 says the product is.
+   *
+   * Empty means everything loaded. A non-empty list names what did not, so
+   * the screen can say so instead of inventing a quiet day.
+   */
+  failed: string[];
   items: ChecklistItem[];
   completions: Completion[];
   inbox: InboxItem[];
@@ -226,12 +244,32 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase.from('deferrals').select('assignment_id'),
   ]);
 
+  /**
+   * Names the reads that failed. The label is what the user would call the
+   * thing, not the table, because it is shown to them.
+   */
+  const failed: string[] = [];
+  const check = (label: string, r: { error: unknown }) => {
+    if (r.error) failed.push(label);
+  };
+  check('your checklist', items);
+  check('your checklist history', completions);
+  check('your inbox', inbox);
+  check('your courses', courses);
+  check('your work', assignments);
+  check('your calendar', events);
+  check('the steps on your work', subtasks);
+  check("what you finished today", completedToday);
+  check('your settings', settings);
+  check('deferrals', deferralRows);
+
   const deferrals: Record<string, number> = {};
   for (const row of (deferralRows.data ?? []) as { assignment_id: string }[]) {
     deferrals[row.assignment_id] = (deferrals[row.assignment_id] ?? 0) + 1;
   }
 
   return {
+    failed,
     items: (items.data ?? []) as ChecklistItem[],
     completions: (completions.data ?? []) as Completion[],
     inbox: (inbox.data ?? []) as InboxItem[],

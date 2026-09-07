@@ -17,6 +17,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { geminiProvider } from '../_shared/llm/gemini.ts';
 import { FOOD_INSTRUCTION, FOOD_SCHEMA, validateParse } from '../_shared/food.ts';
+import { checkBudget, recordUse, standDownMessage } from '../_shared/budget.ts';
+import { localDayKey } from '../_shared/time.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
 
@@ -119,6 +121,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const ownKey = (keyRow?.gemini_api_key as string | null)?.trim() || null;
   const provider = geminiProvider(ownKey ?? env('GEMINI_API_KEY'));
 
+  /*
+   * The budget this path never had. It was the only unmetered route on a
+   * shared key while the chatbot stood down "to keep the rest for food" — so
+   * the reserve protected a pool that food logging could drain unopposed.
+   *
+   * The zone comes from the account rather than the server, because a "day"
+   * here has to be the same day the rest of the app means. Falling back to
+   * UTC would reset somebody's budget in the middle of their evening.
+   */
+  const { data: zoneRow } = await admin
+    .from('app_settings')
+    .select('timezone')
+    .eq('user_id', userData.user.id)
+    .maybeSingle();
+  const zone = (zoneRow?.timezone as string | null) ?? 'UTC';
+  const localDay = localDayKey(new Date(), zone);
+
+  const budget = await checkBudget(admin, userData.user.id, 'food', localDay, Boolean(ownKey));
+  if (!budget.allowed) {
+    return json({
+      ok: false,
+      failure: 'quota',
+      // Every path into food logging has a by-hand alternative, and saying so
+      // is the difference between a limit and a dead end.
+      reason: standDownMessage('food'),
+    });
+  }
+
   const result = await provider.complete<unknown>({
     instruction: FOOD_INSTRUCTION,
     input: text || 'Identify the food in this photo and estimate its nutrition.',
@@ -135,6 +165,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       detail: result.message.slice(0, 300),
     });
   }
+
+  // Counted only now, after the model was actually reached. Billing an
+  // account for a refused call compounds: the user who hits the wall keeps
+  // being charged for hitting it.
+  await recordUse(admin, userData.user.id, 'food', localDay, Boolean(ownKey));
 
   // Validated a second time on our side. The provider guarantees shape; this
   // guarantees sense, and nothing has been written yet either way.

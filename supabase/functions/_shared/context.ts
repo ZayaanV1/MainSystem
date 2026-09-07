@@ -21,6 +21,12 @@ import { daysBetween, localDayKey, localHourMinute, type DayKey } from './time.t
 export interface ContextInput {
   today: DayKey;
   now: string;
+  /**
+   * The account's zone. Required, with no default, deliberately — a default
+   * here is what produced the bug: every stamp silently resolved to Toronto
+   * while the prompt asserted the dates were the user's own local time.
+   */
+  timezone: string;
   assignments: {
     id: string;
     title: string;
@@ -61,14 +67,24 @@ const n = (v: number) => Math.round(v * 10) / 10;
  * deadline the spec says is worse than no chatbot, and it got past a first
  * live test looking entirely plausible.
  */
-function localStamp(iso: string, withTime: boolean): string {
+function localStamp(iso: string, withTime: boolean, tz: string): string {
   const instant = new Date(iso);
   if (Number.isNaN(instant.getTime())) return 'unknown time';
 
-  const day = localDayKey(instant);
+  /*
+   * The zone is a required argument, not a default. This function already had
+   * the comment above explaining the UTC-read-as-local bug and it still called
+   * localDayKey(instant) with no zone — which falls back to the module's
+   * America/Toronto constant. So the fix converted UTC to local correctly and
+   * then converted it to the WRONG local for every account outside Toronto,
+   * while line 88 of this file told the model the dates were already the
+   * user's own. In Sydney that is a fourteen-hour error, which crosses the day
+   * boundary and reproduces exactly the bug this comment warns about.
+   */
+  const day = localDayKey(instant, tz);
   if (!withTime) return day;
 
-  const { hour, minute } = localHourMinute(instant);
+  const { hour, minute } = localHourMinute(instant, tz);
   return `${day} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
@@ -94,7 +110,7 @@ export function buildContext(input: ContextInput): BuiltContext {
   } else {
     for (const a of input.assignments) {
       knownIds.add(a.id);
-      const due = a.due_at ? `due ${localStamp(a.due_at, a.due_has_time)}` : 'no date';
+      const due = a.due_at ? `due ${localStamp(a.due_at, a.due_has_time, input.timezone)}` : 'no date';
       // How long it has been sitting there. "What have I been putting off" is
       // a question the spec names explicitly, and without this the only
       // honest answer is that the data does not say — which is true, and
@@ -119,7 +135,7 @@ export function buildContext(input: ContextInput): BuiltContext {
   } else {
     for (const e of input.events) {
       knownIds.add(e.id);
-      const when = localStamp(e.starts_at, !e.all_day);
+      const when = localStamp(e.starts_at, !e.all_day, input.timezone);
       lines.push(`  [${e.id}] ${e.title} — ${e.kind}, ${when}${e.course ? `, course ${e.course}` : ''}`);
     }
   }

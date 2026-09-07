@@ -59,6 +59,8 @@ export interface SavedMeal {
 }
 
 export interface DietDay {
+  /** Reads that failed. Empty means the day below is complete. */
+  failed: string[];
   day: DayKey;
   entries: FoodEntry[];
   items: FoodItem[];
@@ -163,6 +165,17 @@ export async function loadDay(day: DayKey = todayKey()): Promise<DietDay> {
     supabase.from('bodyweight').select('kg').eq('local_day', day).limit(1),
   ]);
 
+  /**
+   * Same rule as loadToday: an empty day and a day that failed to load are
+   * different facts, and rendering them identically means the rings read zero
+   * when the truth is unknown. On a screen whose entire job is a number, a
+   * confident zero is the worst possible wrong answer.
+   */
+  const failed: string[] = [];
+  if (entries.error) failed.push("today's food");
+  if (meals.error) failed.push('your saved meals');
+  if (weight.error) failed.push("today's weight");
+
   const rows = (entries.data ?? []) as (FoodEntry & { food_items: Record<string, unknown>[] })[];
 
   const items: FoodItem[] = rows.flatMap((e) =>
@@ -184,6 +197,7 @@ export async function loadDay(day: DayKey = todayKey()): Promise<DietDay> {
   );
 
   return {
+    failed,
     day,
     entries: rows.map(({ food_items: _ignored, ...e }) => e),
     items,

@@ -30,6 +30,7 @@ import {
   type SummaryItem,
 } from '../_shared/summary.ts';
 import { addDays, endOfDayUTC, localDayKey, startOfDayUTC } from '../_shared/time.ts';
+import { checkBudget, recordUse, standDownMessage, type AiKind } from '../_shared/budget.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
 
@@ -106,7 +107,7 @@ const FAILURE_COPY: Record<string, string> = {
  * eventually cost more per question than the answer is worth.
  */
 // deno-lint-ignore no-explicit-any
-async function gatherContext(admin: any, userId: string, today: string) {
+async function gatherContext(admin: any, userId: string, today: string, tz: string) {
   const monthOut = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
 
   const [assignments, events, checklist, completions, entries, targets, meals, weights] =
@@ -187,7 +188,15 @@ async function gatherContext(admin: any, userId: string, today: string) {
 
   return buildContext({
     today,
-    now: new Date().toLocaleTimeString('en-CA', { timeZone: 'America/Toronto', hour: '2-digit', minute: '2-digit', hour12: false }),
+    timezone: tz,
+    // Was a hardcoded 'America/Toronto' literal, inside the one function whose
+    // entire job is not being confidently wrong about a time.
+    now: new Date().toLocaleTimeString('en-CA', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }),
     // deno-lint-ignore no-explicit-any
     assignments: ((assignments.data ?? []) as any[]).map((a) => ({
       id: a.id,
@@ -339,6 +348,21 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
   };
 }
 
+/**
+ * The budget guard the three non-chat model paths never had.
+ *
+ * Returns a payload rather than a Response so it carries no dependency on
+ * where `json` sits in this file. `chat` keeps its own inline check because it
+ * reports `remaining` to the client for the "N questions left" footer; these
+ * three only need a yes or no.
+ */
+// deno-lint-ignore no-explicit-any
+async function overBudget(admin: any, userId: string, kind: AiKind, day: string, ownKey: boolean) {
+  const verdict = await checkBudget(admin, userId, kind, day, ownKey);
+  if (verdict.allowed) return null;
+  return { ok: false as const, failure: 'quota' as const, reason: standDownMessage(kind) };
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   const CORS = corsFor(req);
 
@@ -391,11 +415,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
    */
   const { data: keyRow } = await admin
     .from('app_settings')
-    .select('gemini_api_key')
+    .select('gemini_api_key, timezone')
     .eq('user_id', userData.user.id)
     .maybeSingle();
 
   const ownKey = (keyRow?.gemini_api_key as string | null)?.trim() || null;
+
+  /*
+   * Read from the ACCOUNT, not the request body. Only the summary task ever
+   * sent a timezone, so trusting the body left chat on the module default —
+   * and that default is 'America/Toronto', the single-user constant this
+   * project believes it removed. UTC is the honest stand-in when nobody has
+   * chosen, because inventing Toronto is the bug being fixed.
+   */
+  const accountTz = ((keyRow?.timezone as string | null) ?? 'UTC').trim() || 'UTC';
   const provider = geminiProvider(ownKey ?? env('GEMINI_API_KEY'));
 
   const fail = (failure: string, detail: string) =>
@@ -419,6 +452,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .filter(Boolean)
       .join('\n');
 
+    const denied = await overBudget(admin, userData.user.id, 'breakdown', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    if (denied) return json(denied);
+
     const result = await provider.complete<unknown>({
       instruction: BREAKDOWN_INSTRUCTION,
       input: context,
@@ -430,6 +466,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
 
     if (!result.ok) return fail(result.failure, result.message);
+
+    // Counted only after the model was actually reached — billing a
+    // refused call charges the user for hitting the wall.
+    await recordUse(admin, userData.user.id, 'breakdown', localDayKey(new Date(), accountTz), Boolean(ownKey));
 
     const validated = validateBreakdown(result.value, title);
 
@@ -461,6 +501,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    const denied = await overBudget(admin, userData.user.id, 'syllabus', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    if (denied) return json(denied);
+
     const result = await provider.complete<unknown>({
       instruction: SYLLABUS_INSTRUCTION,
       input: text || 'Extract every graded deliverable from this syllabus.',
@@ -472,6 +515,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
 
     if (!result.ok) return fail(result.failure, result.message);
+
+    // Counted only after the model was actually reached — billing a
+    // refused call charges the user for hitting the wall.
+    await recordUse(admin, userData.user.id, 'syllabus', localDayKey(new Date(), accountTz), Boolean(ownKey));
 
     const bounds =
       body.termFrom && body.termTo ? { from: body.termFrom, to: body.termTo } : undefined;
@@ -496,7 +543,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!message) return json({ error: 'nothing to say' }, 400);
 
     const userId = userData.user.id;
-    const today = localDayKey(new Date());
+    const today = localDayKey(new Date(), accountTz);
 
     // The budget check comes before the model call, so standing down costs
     // nothing. Read rather than incremented here; the increment happens only
@@ -523,7 +570,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    const context = await gatherContext(admin, userId, today);
+    const context = await gatherContext(admin, userId, today, accountTz);
 
     const { data: history } = await admin
       .from('chat_messages')
@@ -571,7 +618,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   /* -------------------------------------------------------------- summary */
   if (body.task === 'summary') {
     const userId = userData.user.id;
-    const tz = (body.timezone ?? 'America/Toronto').trim();
+    const tz = (body.timezone ?? accountTz).trim();
     const today = localDayKey(new Date(), tz);
 
     const input = await gatherSummary(admin, userId, today, tz);
@@ -613,6 +660,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       input.chores.length ? input.chores.map((c) => `  - ${c}`).join('\n') : '  (nothing)',
     ].join('\n');
 
+    const denied = await overBudget(admin, userData.user.id, 'summary', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    if (denied) return json(denied);
+
     const result = await provider.complete<unknown>({
       instruction: SUMMARY_INSTRUCTION,
       input: lines,
@@ -629,6 +679,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (cached?.body) return json({ ok: true, summary: cached.body, stale: true });
       return fail(result.failure, result.message);
     }
+
+    // Counted only after the model was actually reached — billing a
+    // refused call charges the user for hitting the wall.
+    await recordUse(admin, userData.user.id, 'summary', localDayKey(new Date(), accountTz), Boolean(ownKey));
 
     const validated = validateSummary(result.value, input);
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
+import { LoadFailure } from '../components/LoadFailure';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
@@ -64,9 +65,19 @@ export function Diet({ onBack }: { onBack: () => void }) {
    * trigger by accident while trying to log breakfast.
    */
   const [portion, setPortion] = useState(1);
+  const [retrying, setRetrying] = useState(false);
   const day = todayKey();
 
   const reload = useCallback(() => loadDay(day).then(setData), [day]);
+
+  const retry = useCallback(async () => {
+    setRetrying(true);
+    try {
+      await reload();
+    } finally {
+      setRetrying(false);
+    }
+  }, [reload]);
   useEffect(() => {
     void reload();
   }, [reload]);
@@ -110,6 +121,13 @@ export function Diet({ onBack }: { onBack: () => void }) {
           </Button>
         </div>
       </header>
+
+      {/*
+        Above the rings, because it changes what they mean. A ring reading zero
+        because nothing was logged and a ring reading zero because the query
+        failed look identical, and on this screen the number IS the content.
+      */}
+      <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />
 
       {t ? (
         <section className="mb-8 grid grid-cols-2 gap-6 px-4 lg:grid-cols-4 lg:gap-8">

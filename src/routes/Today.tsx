@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Pressable } from '../components/Pressable';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Button } from '../components/Button';
+import { LoadFailure } from '../components/LoadFailure';
 import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
 import { Chip } from '../components/Chip';
@@ -68,6 +69,7 @@ export function Today({
   const [editing, setEditing] = useState(false);
   const [editorFor, setEditorFor] = useState<{ item: ChecklistItem | null } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const today = todayKey();
   const reload = useCallback(
@@ -78,6 +80,20 @@ export function Today({
       }),
     [today, onData],
   );
+
+  /**
+   * Retry is separate from reload so the button can show that it is working.
+   * Without it a failed retry looks identical to a tap that did nothing, and
+   * the user cannot tell whether the app is trying.
+   */
+  const retry = useCallback(async () => {
+    setRetrying(true);
+    try {
+      await reload();
+    } finally {
+      setRetrying(false);
+    }
+  }, [reload]);
 
   useEffect(() => {
     void reload();
@@ -177,6 +193,12 @@ export function Today({
           </p>
         </div>
       </header>
+
+      {/*
+        Sits above everything, because it changes what the rest of the screen
+        MEANS. A reader who misses this reads a partial day as a whole one.
+      */}
+      {data && <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />}
 
       <CaptureBox userId={userId} onCaptured={reload} />
 
