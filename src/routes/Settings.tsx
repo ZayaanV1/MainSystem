@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { applyTheme, readTheme, writeTheme, type ThemeChoice } from '../lib/theme';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../lib/auth';
 import { exportCsv, exportJson } from '../lib/export';
@@ -206,6 +207,8 @@ export function Settings({ onBack }: { onBack: () => void }) {
 
       <CalendarFeed userId={userId} />
 
+      <Appearance />
+
       <section className="mb-8">
         <h2 className="type-h2 mb-3 px-4 text-text-hi">Your data</h2>
         <Card className="p-4">
@@ -395,6 +398,68 @@ function ApiKey({ userId }: { userId: string }) {
 
         {message && <p className="type-note text-text-mid">{message}</p>}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Appearance.
+ *
+ * Three options, not a switch, because "System" is a real state rather than
+ * the absence of a choice — a phone that dims at sunset should keep doing
+ * that, and a two-way toggle silently freezes whatever the OS happened to be
+ * saying the first time this screen was opened.
+ *
+ * The preference is per-device and lives in localStorage rather than the
+ * account. The same person wants dark on a phone at night and light on a
+ * laptop at noon, and syncing it would make one change when the other did.
+ */
+function Appearance() {
+  const [choice, setChoice] = useState<ThemeChoice>(() => readTheme());
+
+  // Keeps this control honest if the theme is changed from somewhere else in
+  // the same session — the system listener in main.tsx, for one.
+  useEffect(() => {
+    applyTheme(choice);
+  }, [choice]);
+
+  const options: { value: ThemeChoice; label: string; hint: string }[] = [
+    { value: 'system', label: 'System', hint: 'Follows your device' },
+    { value: 'light', label: 'Light', hint: 'Always light' },
+    { value: 'dark', label: 'Dark', hint: 'Always dark' },
+  ];
+
+  return (
+    <section className="mb-8">
+      <h2 className="type-h2 mb-3 px-4 text-text-hi">Appearance</h2>
+      <Card className="p-4">
+        <div role="radiogroup" aria-label="Theme" className="flex flex-wrap gap-2">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={choice === o.value}
+              onClick={() => {
+                setChoice(o.value);
+                writeTheme(o.value);
+              }}
+              className={[
+                'fx-depth min-h-[var(--tap)] rounded-pill border px-4 type-label',
+                choice === o.value
+                  ? 'border-transparent bg-accent text-on-accent'
+                  : 'border-ink-600 bg-ink-800 text-text-mid',
+              ].join(' ')}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="type-note mt-3 text-text-low">
+          {options.find((o) => o.value === choice)?.hint}. This is remembered on
+          this device only.
+        </p>
+      </Card>
     </section>
   );
 }

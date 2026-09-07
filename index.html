@@ -16,7 +16,10 @@
 
     <!-- Matches --ink-900, so the status bar and the app agree and there is no
          white flash on launch. -->
-    <meta name="theme-color" content="#15161D" />
+    <!-- Overwritten before paint by the inline script below, which is the
+         only way to avoid a flash of the wrong palette. The value here is the
+         dark ink-900, matching the default. -->
+    <meta name="theme-color" content="#13100c" />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -46,6 +49,33 @@
       type="font/woff2"
       crossorigin
     />
+
+    <!--
+      Theme, applied before the first paint.
+
+      This has to be a blocking inline script and not a React effect: an effect
+      runs AFTER paint, so a light-mode user would see a full frame of the dark
+      palette on every load. Kept deliberately tiny and duplicated from
+      src/lib/theme.ts rather than imported, because importing it would mean
+      waiting for the bundle — which is the thing being avoided.
+    -->
+    <script>
+      (function () {
+        try {
+          var c = localStorage.getItem('planner.theme');
+          if (c === 'light' || c === 'dark') {
+            document.documentElement.setAttribute('data-theme', c);
+          }
+          var dark =
+            c === 'dark' ||
+            (c !== 'light' && !window.matchMedia('(prefers-color-scheme: light)').matches);
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', dark ? '#13100c' : '#f7f3ec');
+        } catch (e) {
+          /* storage unavailable — the media query still decides */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

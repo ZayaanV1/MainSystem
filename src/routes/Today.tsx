@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Pressable } from '../components/Pressable';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Button } from '../components/Button';
+import { SkeletonList } from '../components/Skeleton';
 import { LoadFailure } from '../components/LoadFailure';
 import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
@@ -355,7 +356,17 @@ export function Today({
 
       <section className="mb-8">
         <h2 className="type-h2 mb-3 px-4 text-text-hi">Work</h2>
-        {!data?.assignments.length ? (
+        {/*
+          `data === null` is checked FIRST and separately, because
+          `!data?.assignments.length` is also true while the fetch is still in
+          flight — so this branch rendered "Nothing due." on every single app
+          open, for the whole duration of the load, before any error was
+          involved. Loading and empty are different facts and this screen is
+          the one place the difference matters most.
+        */}
+        {data === null ? (
+          <SkeletonList rows={3} />
+        ) : !data.assignments.length ? (
           workCleared ? (
             <p className="px-4 py-8 type-body text-t-done">
               That's all the work due today, done.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { AppShell, Page, type NavItem } from './components/AppShell';
 import { withTransition, directionBetween } from './lib/transition';
 import { AuthProvider, useAuth } from './lib/auth';
@@ -11,18 +11,35 @@ import {
   type Assignment,
   type TodayData,
 } from './lib/planner';
+/*
+ * Split by route.
+ *
+ * The whole app used to be one 736 KB chunk — 217 KB gzipped — so opening
+ * Today downloaded and parsed the chatbot, the syllabus importer, the barcode
+ * scanner's UI, the trend charts and every screen nobody had asked for. Rule 1
+ * gives Today two seconds on whatever phone is in someone's hand, and most of
+ * that budget was being spent before a single deadline rendered.
+ *
+ * Three things stay eager on purpose. Today is the default screen and must not
+ * wait on a network round trip for its own code. SignIn and Onboarding are the
+ * first thing a new session sees, and a chunk fetch there is a blank screen at
+ * the worst possible moment — the one CLAUDE.md calls the most important
+ * screen in the build.
+ */
 import { SignIn } from './routes/SignIn';
 import { Today } from './routes/Today';
-import { Plan } from './routes/Plan';
-import { Week } from './routes/Week';
-import { Month } from './routes/Month';
-import { Chat } from './routes/Chat';
+
+const Plan = lazy(() => import('./routes/Plan').then((m) => ({ default: m.Plan })));
+const Week = lazy(() => import('./routes/Week').then((m) => ({ default: m.Week })));
+const Month = lazy(() => import('./routes/Month').then((m) => ({ default: m.Month })));
+const Chat = lazy(() => import('./routes/Chat').then((m) => ({ default: m.Chat })));
+const Search = lazy(() => import('./routes/Search').then((m) => ({ default: m.Search })));
+const Diet = lazy(() => import('./routes/Diet').then((m) => ({ default: m.Diet })));
+const AssignmentEditor = lazy(() => import('./routes/AssignmentEditor').then((m) => ({ default: m.AssignmentEditor })));
+const Settings = lazy(() => import('./routes/Settings').then((m) => ({ default: m.Settings })));
+const Specimen = lazy(() => import('./routes/Specimen').then((m) => ({ default: m.Specimen })));
+
 import { Onboarding } from './routes/Onboarding';
-import { Search } from './routes/Search';
-import { Diet } from './routes/Diet';
-import { AssignmentEditor } from './routes/AssignmentEditor';
-import { Settings } from './routes/Settings';
-import { Specimen } from './routes/Specimen';
 
 /**
  * Routing is a piece of state rather than a dependency.
@@ -236,7 +253,17 @@ function Shell() {
 
         Entering is the half you actually watch. Leaving is a cut.
       */}
-      {screen !== 'today' && <Page key={screen}>{renderScreen()}</Page>}
+      {screen !== 'today' && (
+        <Page key={screen}>
+          {/*
+            The fallback is deliberately blank. A screen change is already
+            inside a view transition, and a spinner appearing for 80ms in the
+            middle of that animation reads as a glitch rather than as loading.
+            The old screen stays painted until the new one is ready.
+          */}
+          <Suspense fallback={null}>{renderScreen()}</Suspense>
+        </Page>
+      )}
 
       {/* Today stays mounted so returning to it is instant and the capture box
           never loses what is half-typed in it. */}

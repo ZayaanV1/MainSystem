@@ -950,3 +950,31 @@
   color: var(--text-low);
   white-space: nowrap;
 }
+
+/*
+ * The skeleton pulse.
+ *
+ * 1.6s rather than the 1s most libraries default to. A fast pulse on a screen
+ * opened twenty times a day reads as urgency, and waiting for a list to load
+ * is the opposite of an urgent moment.
+ *
+ * Animating background-color rather than opacity, because opacity on a parent
+ * would fade the border with it and the row would appear to breathe rather
+ * than the block inside it.
+ */
+@keyframes skeleton-pulse {
+  0%, 100% { background-color: var(--ink-700); }
+  50% { background-color: var(--ink-600); }
+}
+
+.skeleton {
+  background-color: var(--ink-700);
+  animation: skeleton-pulse 1.6s var(--ease-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    /* Still visibly a placeholder, just not moving. */
+    animation: none;
+  }
+}

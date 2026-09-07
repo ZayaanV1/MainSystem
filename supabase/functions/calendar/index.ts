@@ -45,6 +45,45 @@ const CORS = {
   'Access-Control-Max-Age': '86400',
 };
 
+/**
+ * A brake on token guessing, and an honest account of what it is worth.
+ *
+ * The token is 32 random bytes, so brute force is not the threat — the threat
+ * is that every wrong guess of the right LENGTH costs a database round trip
+ * on a free tier, and an attacker can spend that budget for nothing.
+ *
+ * This is per-instance memory, which means it is a speed bump rather than a
+ * wall: edge instances are ephemeral and there may be several. It still blunts
+ * a sustained scan from one source, costs no storage, and adds no write to a
+ * read-only endpoint. A durable counter would mean a write per request, which
+ * spends the resource it is trying to protect.
+ *
+ * Only FAILURES are counted. A calendar client polling a valid feed every
+ * fifteen minutes must never be throttled.
+ */
+const MISSES = new Map<string, { n: number; until: number }>();
+const MISS_WINDOW_MS = 60_000;
+const MISS_LIMIT = 20;
+
+function tooManyMisses(ip: string): boolean {
+  const now = Date.now();
+  const seen = MISSES.get(ip);
+  if (!seen || now > seen.until) return false;
+  return seen.n >= MISS_LIMIT;
+}
+
+function noteMiss(ip: string): void {
+  const now = Date.now();
+  const seen = MISSES.get(ip);
+  if (!seen || now > seen.until) MISSES.set(ip, { n: 1, until: now + MISS_WINDOW_MS });
+  else seen.n += 1;
+
+  // Bounded, so a spray of forged IPs cannot grow this without limit.
+  if (MISSES.size > 5_000) {
+    for (const [k, v] of MISSES) if (now > v.until) MISSES.delete(k);
+  }
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
@@ -54,8 +93,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const token = new URL(req.url).searchParams.get('token') ?? '';
 
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+    req.headers.get('cf-connecting-ip') ??
+    'unknown';
+
+  /*
+   * Deliberately the SAME bare 404 as a wrong token. A distinct 429 would tell
+   * a scanner that it had found the rate limiter, which is one more bit than
+   * this endpoint should ever give away — the whole design of the miss path is
+   * that it is not an oracle.
+   */
+  if (tooManyMisses(ip)) return new Response('Not found', { status: 404, headers: CORS });
+
   // A short token is not a real one; rejected before touching the database.
-  if (token.length < 20) return new Response('Not found', { status: 404, headers: CORS });
+  if (token.length < 20) {
+    noteMiss(ip);
+    return new Response('Not found', { status: 404, headers: CORS });
+  }
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -68,7 +123,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .maybeSingle();
 
   // Deliberately identical to the short-token response.
-  if (!settings) return new Response('Not found', { status: 404, headers: CORS });
+  if (!settings) {
+    noteMiss(ip);
+    return new Response('Not found', { status: 404, headers: CORS });
+  }
 
   const userId = settings.user_id as string;
   const timezone = (settings.timezone as string) ?? 'America/Toronto';
