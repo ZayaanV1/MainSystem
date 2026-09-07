@@ -65,6 +65,8 @@ function fromAssignment(a: Assignment): AssignmentFields {
     effort_minutes: a.effort_minutes,
     notes: a.notes,
     remind_at: a.remind_at,
+    weight_percent: a.weight_percent,
+    grade_percent: a.grade_percent,
   };
 }
 
@@ -203,6 +205,38 @@ export function AssignmentEditor({
           onChange={(e) => set('effort_minutes', Number(e.target.value) || null)}
           hint={start ? `Start by ${formatDay(start)}` : 'Used to work out when to start.'}
         />
+
+        {/*
+          Two numbers, deliberately side by side and deliberately both
+          optional. The weight usually arrives from the syllabus and the grade
+          arrives weeks later, so a screen that demanded either would be
+          demanding a fact the user does not have yet — which rule 2 forbids at
+          capture and which is no better here.
+        */}
+        <div className="grid grid-cols-2 gap-3">
+          <Field
+            label="Worth"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={100}
+            step="0.5"
+            value={fields.weight_percent ?? ''}
+            onChange={(e) => set('weight_percent', Number(e.target.value) || null)}
+            hint="% of the course grade"
+          />
+          <Field
+            label="Scored"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={100}
+            step="0.5"
+            value={fields.grade_percent ?? ''}
+            onChange={(e) => set('grade_percent', Number(e.target.value) || null)}
+            hint="% you got, once marked"
+          />
+        </div>
 
         <Subtasks
           assignmentId={assignment.id}

@@ -50,6 +50,8 @@ export function Triage({
     effort_minutes: null,
     notes: null,
     remind_at: null,
+    weight_percent: null,
+    grade_percent: null,
   });
   const [busy, setBusy] = useState(false);
 

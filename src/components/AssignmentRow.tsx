@@ -128,6 +128,23 @@ export function AssignmentRow({
           </span>
           {dueLabel && <span className="action-chip-sm type-caption">{dueLabel}</span>}
           {course && <span className="action-chip-sm type-caption">{course.code ?? course.name}</span>}
+          {/*
+            What it is worth, when that is known. A tag rather than an
+            action-chip, because it is a label and not a control — and stated
+            as a share of the course rather than a bare number, since "30"
+            beside a due date reads as minutes.
+          */}
+          {typeof assignment.weight_percent === 'number' && (
+            <span className="tag type-caption">{assignment.weight_percent}% of grade</span>
+          )}
+          {/*
+            A recorded mark. Never coloured by how good it is: a red 52 and a
+            green 91 would be the app grading the person, which is the line
+            this feature does not cross.
+          */}
+          {typeof assignment.grade_percent === 'number' && (
+            <span className="tag type-caption">scored {assignment.grade_percent}%</span>
+          )}
           {showStart && start && (
             <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
           )}

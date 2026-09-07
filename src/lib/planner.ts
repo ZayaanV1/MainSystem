@@ -55,6 +55,15 @@ export interface Assignment {
   notes: string | null;
   start_by_override: DayKey | null;
   remind_at: string | null;
+  /**
+   * Share of the final course grade, 0-100, or null when unknown.
+   *
+   * The syllabus importer has always extracted this and always thrown it away
+   * — into a free-text note for events, and nowhere at all for assignments.
+   */
+  weight_percent: number | null;
+  /** What this assessment actually scored, 0-100. Entered by hand. */
+  grade_percent: number | null;
 }
 
 /** Course colour tokens, by the index stored on the row. */
@@ -210,7 +219,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase
       .from('assignments')
       .select(
-        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at',
+        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at, weight_percent, grade_percent',
       )
       .neq('status', 'done')
       .order('due_at', { ascending: true, nullsFirst: false }),
@@ -231,7 +240,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase
       .from('assignments')
       .select(
-        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override',
+        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, weight_percent, grade_percent',
       )
       .eq('status', 'done')
       .gte('completed_at', startOfDayUTC(today).toISOString())
@@ -390,6 +399,8 @@ export async function addAssignment(
     due_at?: string | null;
     due_has_time?: boolean;
     effort_minutes?: number | null;
+    /** Share of the final course grade. The syllabus importer supplies this. */
+    weight_percent?: number | null;
   },
 ): Promise<void> {
   await enqueue('assignments', 'insert', {
@@ -399,6 +410,7 @@ export async function addAssignment(
     due_at: fields.due_at ?? null,
     due_has_time: fields.due_has_time ?? false,
     effort_minutes: fields.effort_minutes ?? null,
+    weight_percent: fields.weight_percent ?? null,
   });
 }
 
@@ -861,6 +873,8 @@ export interface AssignmentFields {
   due_time: string | null;
   effort_minutes: number | null;
   notes: string | null;
+  weight_percent: number | null;
+  grade_percent: number | null;
 }
 
 /**
@@ -891,6 +905,8 @@ export async function updateAssignment(id: string, fields: AssignmentFields): Pr
       effort_minutes: fields.effort_minutes,
       notes: fields.notes?.trim() || null,
       remind_at: fields.remind_at,
+      weight_percent: fields.weight_percent,
+      grade_percent: fields.grade_percent,
     },
     { id },
   );
@@ -906,4 +922,28 @@ export async function updateAssignment(id: string, fields: AssignmentFields): Pr
  */
 export async function deleteAssignment(id: string): Promise<void> {
   await enqueue('assignments', 'delete', {}, { id });
+}
+
+/**
+ * Every piece of work that carries a weight, for the course rollup.
+ *
+ * Deliberately fetches DONE work as well. The whole point of the rollup is
+ * what has already been decided, and filtering to open work would report a
+ * course as almost entirely unmarked the moment its assessments were ticked
+ * off — which is precisely backwards.
+ *
+ * Archived courses are included too. Last term's record is the one thing a
+ * planner must not quietly discard, and a grade summary that vanished at the
+ * end of term would be discarding exactly the part worth keeping.
+ */
+export async function loadWeightedWork(): Promise<{ rows: Assignment[]; failed: boolean }> {
+  const { data, error } = await supabase
+    .from('assignments')
+    .select(
+      'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at, weight_percent, grade_percent',
+    )
+    .not('weight_percent', 'is', null)
+    .order('weight_percent', { ascending: false });
+
+  return { rows: (data ?? []) as Assignment[], failed: Boolean(error) };
 }

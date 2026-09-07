@@ -119,6 +119,8 @@ export function SyllabusImport({
           day: item.due_date as string,
           time: item.due_time,
           course_id: courseId,
+          // An event carries no weight column of its own; the note stays the
+          // honest place for it until events gain one.
           notes: item.weight_percent ? `${item.weight_percent}% of the grade` : null,
         });
       } else {
@@ -127,6 +129,11 @@ export function SyllabusImport({
           course_id: courseId,
           due_at: assignmentDueAt(item.due_date, item.due_time),
           due_has_time: Boolean(item.due_time),
+          // Was discarded entirely on this branch — the event branch at least
+          // flattened it into a note, assignments dropped it on the floor. The
+          // model was being paid to read "worth 30%" and the answer was thrown
+          // away at the last step.
+          weight_percent: item.weight_percent,
         });
       }
     }

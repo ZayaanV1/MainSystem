@@ -1,7 +1,8 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { courseGrades, gradeSummary } from '../lib/grades';
 import { Chip } from '../components/Chip';
 import { SyllabusImport } from './SyllabusImport';
 import { EmptyState } from '../components/EmptyState';
@@ -13,7 +14,9 @@ import {
   addCourse,
   courseVar,
   loadAllCourses,
+  loadWeightedWork,
   setCourseArchived,
+  type Assignment,
   type Course,
 } from '../lib/planner';
 import { formatDay } from '../lib/time';
@@ -106,6 +109,12 @@ export function Plan({ courses, onBack, onChanged }: {
       </header>
 
       <CourseEditor userId={userId} courses={courses} onChanged={onChanged} />
+
+      {/*
+        Above the importer on purpose. Once a syllabus has been read this is
+        the answer it produced, and it is the reason to read another one.
+      */}
+      <Grades courses={courses} />
 
       <section className="mb-8">
         <h2 className="type-h2 mb-1 px-4 text-text-hi">Read a whole syllabus</h2>
@@ -404,6 +413,82 @@ function CourseEditor({
           </Button>
         </form>
       )}
+    </section>
+  );
+}
+
+/**
+ * What each course is made of.
+ *
+ * Subtraction only — banked points, weight still to be marked, how many items
+ * are outstanding. No projection, no running average, no verdict. The library
+ * this calls documents why at length; the short version is that the moment
+ * this derives a judgement it becomes a scoreboard, and a scoreboard is a
+ * reason to stop opening the app after a bad first assessment.
+ *
+ * Renders nothing at all when no work carries a weight, which is most courses
+ * until a syllabus has been imported. A block reading "0% of 0%" would be
+ * worse than silence.
+ */
+function Grades({ courses }: { courses: Course[] }) {
+  const [rows, setRows] = useState<Assignment[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const load = useCallback(async () => {
+    const r = await loadWeightedWork();
+    setRows(r.rows);
+    setFailed(r.failed);
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Loading and "nothing weighted" are different facts; neither is an error.
+  if (rows === null) return null;
+  if (failed) {
+    return (
+      <section className="mb-8">
+        <h2 className="type-h2 mb-3 px-4 text-text-hi">Grades</h2>
+        <p className="px-4 type-note text-text-mid">
+          Couldn&rsquo;t load what your work is worth. Nothing has been lost.
+        </p>
+      </section>
+    );
+  }
+
+  const byCourse = courses
+    .map((c) => ({ course: c, grades: courseGrades(rows.filter((r) => r.course_id === c.id)) }))
+    .filter((x) => !x.grades.empty);
+
+  if (byCourse.length === 0) return null;
+
+  return (
+    <section className="mb-8">
+      <h2 className="type-h2 mb-3 px-4 text-text-hi">Grades</h2>
+      <Card>
+        {byCourse.map(({ course, grades }) => (
+          <div
+            key={course.id}
+            className="flex flex-col gap-1 border-b border-ink-600 px-4 py-3 last:border-b-0"
+          >
+            <span className="flex items-center gap-2">
+              {/* Course colour stays a 6px dot, never a fill. */}
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 shrink-0 rounded-pill"
+                style={{ backgroundColor: `var(${courseVar(course.colour_index)})` }}
+              />
+              <span className="type-label text-text-hi">{course.code ?? course.name}</span>
+            </span>
+            <span className="type-note text-text-mid">{gradeSummary(grades)}</span>
+          </div>
+        ))}
+      </Card>
+      <p className="mt-2 px-4 type-note text-text-low">
+        Points already decided, and what is still outstanding. Nothing here is a
+        prediction.
+      </p>
     </section>
   );
 }
