@@ -1,4 +1,5 @@
 import { Button } from './Button';
+import { ageLabel } from '../lib/readcache';
 
 /**
  * LoadFailure — the state the app was missing entirely.
@@ -24,6 +25,30 @@ import { Button } from './Button';
  * apologise, and does not blame the reader's connection when it does not know
  * that is the cause.
  */
+
+/**
+ * Shown when the day on screen came from the offline cache.
+ *
+ * Deliberately not an error and deliberately not silent. Serving a cached day
+ * as though it were live is a quiet lie about how current the deadlines are —
+ * and on a planner, "how current" is most of what the screen means. Saying
+ * when it was last seen lets the reader decide whether that is good enough.
+ */
+export function CachedNotice({ at, onRetry }: { at: number; onRetry: () => void }) {
+  return (
+    <div
+      role="status"
+      className="mx-4 mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-ink-600 bg-ink-800 px-4 py-3"
+    >
+      <p className="type-note flex-1 text-text-mid">
+        Offline. This is your day as it was {ageLabel(at)}.
+      </p>
+      <Button variant="quiet" size="sm" onClick={onRetry}>
+        Retry
+      </Button>
+    </div>
+  );
+}
 
 interface LoadFailureProps {
   /** What did not load, in the user's words. Empty renders nothing. */

@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { clearCache } from './readcache';
 
 /**
  * Auth.
@@ -97,6 +98,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    /*
+     * The read cache is dropped BEFORE the session ends, not after.
+     *
+     * A cache that outlived its session would show one account's day to
+     * whoever signed in next on the same device — a data-crossing bug wearing
+     * the costume of a performance feature, and exactly the kind that survives
+     * review because the feature it hides inside is benign.
+     *
+     * Awaited, and first: signing out then clearing would leave a window where
+     * a fast second sign-in reads the previous account's day.
+     */
+    await clearCache();
     await supabase.auth.signOut();
   }, []);
 

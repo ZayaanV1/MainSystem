@@ -3,6 +3,7 @@ import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
 import { HISTORY_DAYS } from '../../supabase/functions/_shared/history';
 import { missingDays } from '../../supabase/functions/_shared/series';
+import { getCache, putCache } from './readcache';
 import {
   endOfDayUTC,
   localDayKey,
@@ -116,6 +117,13 @@ export interface TodayData {
    * the screen can say so instead of inventing a quiet day.
    */
   failed: string[];
+  /**
+   * Set when this came from the offline cache, so the screen can say so.
+   *
+   * Null on a live load. A cached day presented as a live one is a quiet lie
+   * about how current the deadlines are.
+   */
+  cachedAt: number | null;
   items: ChecklistItem[];
   completions: Completion[];
   inbox: InboxItem[];
@@ -278,7 +286,20 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     deferrals[row.assignment_id] = (deferrals[row.assignment_id] ?? 0) + 1;
   }
 
-  return {
+  /*
+   * A total failure is the offline case, and the honest answer there is the
+   * day you last saw rather than a blank screen. A PARTIAL failure is not:
+   * mixing fresh rows with cached ones would produce a day that never existed,
+   * so the banner names what is missing and the rest stands.
+   *
+   * `failed.length === 10` rather than `> 0` for exactly that reason.
+   */
+  if (failed.length === 10) {
+    const hit = await getCache<TodayData>(`today:${today}`);
+    if (hit) return { ...hit.value, failed: [], cachedAt: hit.at };
+  }
+
+  const result: TodayData = {
     failed,
     items: (items.data ?? []) as ChecklistItem[],
     completions: (completions.data ?? []) as Completion[],
@@ -290,7 +311,14 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     completedToday: (completedToday.data ?? []) as Assignment[],
     deferrals,
     lowBattery: Boolean((settings.data ?? [])[0]?.low_battery),
+    cachedAt: null,
   };
+
+  // Only a complete day is worth keeping. Caching a partial one would mean a
+  // later offline open served a day with a section silently missing from it.
+  if (failed.length === 0) void putCache(`today:${today}`, result);
+
+  return result;
 }
 
 /**

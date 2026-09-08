@@ -3,7 +3,7 @@ import { Pressable } from '../components/Pressable';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Button } from '../components/Button';
 import { SkeletonList } from '../components/Skeleton';
-import { LoadFailure } from '../components/LoadFailure';
+import { CachedNotice, LoadFailure } from '../components/LoadFailure';
 import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
 import { Chip } from '../components/Chip';
@@ -199,6 +199,9 @@ export function Today({
         Sits above everything, because it changes what the rest of the screen
         MEANS. A reader who misses this reads a partial day as a whole one.
       */}
+      {data?.cachedAt != null && (
+        <CachedNotice at={data.cachedAt} onRetry={() => void retry()} />
+      )}
       {data && <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />}
 
       <CaptureBox userId={userId} onCaptured={reload} />
