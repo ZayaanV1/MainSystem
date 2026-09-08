@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { Field } from '../components/Field';
 import { applyTheme, readTheme, writeTheme, type ThemeChoice } from '../lib/theme';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../lib/auth';
@@ -9,7 +10,8 @@ import { fetchDeliveryLog, type DeliveryRow } from '../lib/health';
 import { pushStatus, subscribeToPush, type PushStatus } from '../lib/notifications';
 import { subscribeSw, type SwState } from '../lib/sw';
 import { DigestSettings } from './DigestSettings';
-import { calendarFeedUrl, hasOwnApiKey, setOwnApiKey } from '../lib/planner';
+import {
+  deleteAccount, calendarFeedUrl, hasOwnApiKey, setOwnApiKey } from '../lib/planner';
 import { supabase } from '../lib/supabase';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 
@@ -221,6 +223,8 @@ export function Settings({ onBack }: { onBack: () => void }) {
           </div>
         </Card>
       </section>
+
+      <DeleteAccount />
 
       <section className="mb-12">
         <Button variant="quiet" onClick={() => void signOut()}>
@@ -459,6 +463,91 @@ function Appearance() {
           {options.find((o) => o.value === choice)?.hint}. This is remembered on
           this device only.
         </p>
+      </Card>
+    </section>
+  );
+}
+
+/**
+ * Leaving for good.
+ *
+ * Typed confirmation rather than a second button. "Delete" then "Delete for
+ * good" is right for one assignment, where the cost of a mistake is one row
+ * you can retype; it is not enough for a term of coursework, a food diary and
+ * a weight history that no export can bring back once it is gone. Typing the
+ * word is a deliberate speed bump, and it is the only place in this app that
+ * has one.
+ *
+ * The export buttons sit directly above this on purpose. The last thing
+ * offered before leaving should be the copy you get to keep.
+ */
+function DeleteAccount() {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const confirmed = typed.trim().toLowerCase() === 'delete';
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    const result = await deleteAccount();
+    setBusy(false);
+    // On success the session ends and the app returns to sign-in on its own;
+    // there is deliberately no success message, because there is no longer an
+    // account for one to be shown to.
+    if (result.error) setError(result.error);
+  }
+
+  return (
+    <section className="mb-12">
+      <h2 className="type-h2 mb-3 px-4 text-text-hi">Delete this account</h2>
+      <Card className="p-4">
+        {!open ? (
+          <>
+            <p className="type-body mb-4 text-text-mid">
+              Removes your account and everything in it — coursework, food, weight,
+              settings. This cannot be undone, and an export taken afterwards is not
+              possible.
+            </p>
+            <Button variant="quiet" onClick={() => setOpen(true)}>
+              Delete account
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="type-body mb-3 text-text-mid">
+              Type <span className="tag type-caption">delete</span> to confirm.
+            </p>
+            <Field
+              label="Confirm"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              autoComplete="off"
+            />
+            {error && (
+              <p role="alert" className="mt-3 type-note text-t-critical">
+                {error} Your account was not deleted.
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button variant="quiet" disabled={!confirmed || busy} onClick={() => void run()}>
+                {busy ? 'Deleting' : 'Delete everything'}
+              </Button>
+              <Button
+                variant="quiet"
+                onClick={() => {
+                  setOpen(false);
+                  setTyped('');
+                  setError(null);
+                }}
+              >
+                Keep my account
+              </Button>
+            </div>
+          </>
+        )}
       </Card>
     </section>
   );

@@ -3,7 +3,7 @@ import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
 import { HISTORY_DAYS } from '../../supabase/functions/_shared/history';
 import { missingDays } from '../../supabase/functions/_shared/series';
-import { getCache, putCache } from './readcache';
+import { clearCache, getCache, putCache } from './readcache';
 import {
   endOfDayUTC,
   localDayKey,
@@ -1105,4 +1105,28 @@ export interface SeriesFields {
   due_time: string | null;
   effort_minutes: number | null;
   weight_percent: number | null;
+}
+
+/**
+ * Deletes this account and everything in it.
+ *
+ * Irreversible, and there is no soft-delete hiding behind it — the twenty-one
+ * foreign keys to auth.users cascade, so the row going means the data goes.
+ * A planner that claims to delete and quietly retains is worse than one that
+ * cannot delete at all, because the claim is the thing people rely on.
+ *
+ * The cache is cleared first for the same reason it is on sign-out: a device
+ * still holding the last-seen day of a deleted account is exactly the copy
+ * this action promised to remove.
+ */
+export async function deleteAccount(): Promise<{ error: string | null }> {
+  await clearCache();
+
+  const { error } = await supabase.rpc('delete_own_account');
+  if (error) return { error: error.message };
+
+  // The session now references a user that no longer exists. Ending it locally
+  // stops the app from spending the next minute retrying queries as a ghost.
+  await supabase.auth.signOut();
+  return { error: null };
 }
