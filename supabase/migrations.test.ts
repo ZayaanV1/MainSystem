@@ -202,6 +202,7 @@ describe('migrations apply', () => {
     expect(res.rows.map((r) => r.tablename)).toEqual([
       'ai_usage',
       'app_settings',
+      'assignment_series',
       'assignments',
       'bodyweight',
       'chat_messages',

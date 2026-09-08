@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { RepeatingWork } from './RepeatingWork';
 import { courseGrades, gradeSummary } from '../lib/grades';
 import { Chip } from '../components/Chip';
 import { SyllabusImport } from './SyllabusImport';
@@ -47,6 +48,7 @@ export function Plan({ courses, onBack, onChanged }: {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [repeating, setRepeating] = useState(false);
 
   const courseRefs = useMemo(
     () => courses.map((c) => ({ id: c.id, name: c.name, code: c.code })),
@@ -115,6 +117,25 @@ export function Plan({ courses, onBack, onChanged }: {
         the answer it produced, and it is the reason to read another one.
       */}
       <Grades courses={courses} />
+
+      {/*
+        Above the syllabus importer, because it is the cheaper of the two ways
+        in. A weekly lab does not need a document — it needs one sentence and a
+        weekday, and making someone paste a syllabus to express "every Tuesday"
+        is friction where there need be none.
+      */}
+      <section className="mb-8">
+        <h2 className="type-h2 mb-1 px-4 text-text-hi">Something every week</h2>
+        <p className="type-note mb-3 px-4 text-text-low">
+          A weekly lab, a Tuesday tutorial, a biweekly problem set. Set the
+          pattern once and every one gets its own date.
+        </p>
+        <div className="px-4">
+          <Button variant="secondary" onClick={() => setRepeating(true)}>
+            Add repeating work
+          </Button>
+        </div>
+      </section>
 
       <section className="mb-8">
         <h2 className="type-h2 mb-1 px-4 text-text-hi">Read a whole syllabus</h2>
@@ -196,6 +217,14 @@ export function Plan({ courses, onBack, onChanged }: {
         onClose={() => setImporting(false)}
         onImported={onChanged}
       />
+      <RepeatingWork
+        open={repeating}
+        onClose={() => setRepeating(false)}
+        userId={userId}
+        courses={courses}
+        onCreated={onChanged}
+      />
+
     </main>
   );
 }

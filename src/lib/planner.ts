@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
 import { HISTORY_DAYS } from '../../supabase/functions/_shared/history';
+import { missingDays } from '../../supabase/functions/_shared/series';
 import {
   endOfDayUTC,
   localDayKey,
@@ -946,4 +947,134 @@ export async function loadWeightedWork(): Promise<{ rows: Assignment[]; failed: 
     .order('weight_percent', { ascending: false });
 
   return { rows: (data ?? []) as Assignment[], failed: Boolean(error) };
+}
+
+/* ============================================================================
+   Recurring coursework.
+   ========================================================================= */
+
+export type { AssignmentSeries } from '../../supabase/functions/_shared/series';
+
+/**
+ * Creates a series and materialises its instances in one go.
+ *
+ * The instances are real assignment rows. Each carries its own status, weight
+ * and grade from the moment it exists, so ticking off week three has no effect
+ * on week four and marking one does not mark the rest.
+ *
+ * Not routed through the offline outbox, deliberately. The outbox exists so a
+ * single capture survives a tunnel; this writes a parent row and up to two
+ * hundred children that all reference its id, and replaying that correctly
+ * from a queue means ordering guarantees the outbox does not offer. A series
+ * is also never created in a hurry — it is a start-of-term action at a desk.
+ * Failing loudly here is better than half a term of labs appearing later in
+ * the wrong order.
+ */
+export async function createSeries(
+  userId: string,
+  fields: Omit<SeriesFields, 'id'>,
+): Promise<{ created: number; error: string | null }> {
+  const { data, error } = await supabase
+    .from('assignment_series')
+    .insert({
+      user_id: userId,
+      title: fields.title.trim(),
+      course_id: fields.course_id,
+      recurrence: fields.recurrence,
+      weekdays: fields.recurrence === 'weekdays' ? fields.weekdays : null,
+      interval_days: fields.recurrence === 'interval' ? fields.interval_days : null,
+      anchor_day: fields.anchor_day,
+      until_day: fields.until_day,
+      due_time: fields.due_time,
+      effort_minutes: fields.effort_minutes,
+      weight_percent: fields.weight_percent,
+    })
+    .select('*')
+    .single();
+
+  if (error || !data) return { created: 0, error: error?.message ?? 'Could not save the pattern.' };
+
+  return generateInstances(userId, data as unknown as AssignmentSeriesRow);
+}
+
+interface AssignmentSeriesRow {
+  id: string;
+  title: string;
+  course_id: string | null;
+  recurrence: 'weekdays' | 'interval';
+  weekdays: number[] | null;
+  interval_days: number | null;
+  anchor_day: DayKey;
+  until_day: DayKey;
+  due_time: string | null;
+  effort_minutes: number | null;
+  weight_percent: number | null;
+  active: boolean;
+}
+
+/**
+ * Writes the rows a series is missing.
+ *
+ * Idempotent, because `missingDays` compares against what already exists —
+ * including instances that are already DONE. Filtering to open work would
+ * regenerate every lab the moment it was ticked off, which is the worst
+ * failure this feature could have: an app that keeps handing back finished
+ * work.
+ */
+export async function generateInstances(
+  userId: string,
+  row: AssignmentSeriesRow,
+): Promise<{ created: number; error: string | null }> {
+  const existing = await supabase
+    .from('assignments')
+    .select('due_at')
+    .eq('series_id', row.id);
+
+  if (existing.error) return { created: 0, error: existing.error.message };
+
+  const have = ((existing.data ?? []) as { due_at: string | null }[])
+    .map((r) => (r.due_at ? localDayKey(new Date(r.due_at)) : null))
+    .filter((d): d is DayKey => d !== null);
+
+  const days = missingDays(row, have);
+  if (days.length === 0) return { created: 0, error: null };
+
+  /*
+   * Every row carries every key, including the nulls. PostgREST rejects a bulk
+   * insert whose objects have differing key sets (PGRST102, "All object keys
+   * must match") — the bug that once made a meal log 758 kcal instead of
+   * 1,244, silently. It has since arrived twice more in places with no guard,
+   * so this is written uniformly on purpose rather than by spreading optional
+   * fields.
+   */
+  const rows = days.map((day) => ({
+    user_id: userId,
+    series_id: row.id,
+    title: row.title,
+    course_id: row.course_id,
+    due_at: assignmentDueAt(day, row.due_time),
+    due_has_time: Boolean(row.due_time),
+    effort_minutes: row.effort_minutes,
+    weight_percent: row.weight_percent,
+    grade_percent: null,
+    notes: null,
+    start_by_override: null,
+    remind_at: null,
+  }));
+
+  const { error } = await supabase.from('assignments').insert(rows);
+  return { created: error ? 0 : rows.length, error: error?.message ?? null };
+}
+
+export interface SeriesFields {
+  title: string;
+  course_id: string | null;
+  recurrence: 'weekdays' | 'interval';
+  weekdays: number[];
+  interval_days: number | null;
+  anchor_day: DayKey;
+  until_day: DayKey;
+  due_time: string | null;
+  effort_minutes: number | null;
+  weight_percent: number | null;
 }
