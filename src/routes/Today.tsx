@@ -39,6 +39,7 @@ import {
   type TodayData,
 } from '../lib/planner';
 import { activeTimezone, addDays, formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
+import { announce } from '../lib/announce';
 
 /**
  * Today — the default view.
@@ -145,6 +146,8 @@ export function Today({
     const next = !isDone(itemId);
 
     setPendingToggles((p) => new Set(p).add(key));
+    const label = items.find((i) => i.id === itemId)?.title ?? 'Item';
+    announce(next ? `${label} ticked` : `${label} unticked`);
     await setCompletion(userId, itemId, day, next, today);
   }
 
@@ -388,10 +391,17 @@ export function Today({
                 onToggleDone={() => {
                   const finishing = a.status !== 'done';
                   void setAssignmentStatus(a.id, finishing ? 'done' : 'todo');
+                  // Optimistic writes are conveyed entirely by pixels moving,
+                  // which is silent. The title is included because after a
+                  // swipe the row may already be gone from the list.
+                  announce(finishing ? `${a.title} marked done` : `${a.title} reopened`);
                   // Offered, never demanded. Marking done has to stay free.
                   setAskingTime(finishing && a.effort_minutes !== null ? a : null);
                 }}
-                onDefer={() => void deferAssignment(userId, a, addDays(todayKey(), 1))}
+                onDefer={() => {
+                  void deferAssignment(userId, a, addDays(todayKey(), 1));
+                  announce(`${a.title} moved to tomorrow`);
+                }}
                 onOpen={() => setOpenAssignment(a)}
               />
             ))}

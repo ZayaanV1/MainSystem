@@ -36,11 +36,14 @@ export function Week({
   onBack,
   onOpenAssignment,
   onChanged,
+  onPlan,
 }: {
   data: TodayData | null;
   onBack: () => void;
   onOpenAssignment: (a: Assignment) => void;
   onChanged: () => void;
+  /** Takes you where work is added. Used only by the empty state. */
+  onPlan: () => void;
 }) {
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
 
@@ -101,7 +104,25 @@ export function Week({
         </div>
       )}
 
-      {nothingAtAll && <EmptyState>Nothing due in the next seven days.</EmptyState>}
+      {nothingAtAll && (
+        <EmptyState
+          /*
+            An invitation, which the copy rules allow — but only because this
+            is the SETUP case. An empty week early in a term almost always
+            means nothing has been entered yet, not that the week is genuinely
+            clear, and the two are indistinguishable from here.
+            Today's "Nothing due." deliberately gets no action: an empty day is
+            a good state, and offering to fill it would be the app nagging.
+          */
+          action={
+            <Button variant="quiet" size="sm" onClick={onPlan}>
+              Add work or a syllabus
+            </Button>
+          }
+        >
+          Nothing due in the next seven days.
+        </EmptyState>
+      )}
 
       {grouping.overdue.length > 0 && (
         <section className="mb-8">

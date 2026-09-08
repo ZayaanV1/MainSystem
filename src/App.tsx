@@ -208,7 +208,13 @@ function Shell() {
         return <Settings onBack={home} />;
       case 'week':
         return (
-          <Week data={data} onBack={home} onOpenAssignment={setOpenAssignment} onChanged={bumped} />
+          <Week
+            data={data}
+            onBack={home}
+            onOpenAssignment={setOpenAssignment}
+            onChanged={bumped}
+            onPlan={() => navigate('plan')}
+          />
         );
       case 'month':
         return (
