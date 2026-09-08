@@ -250,8 +250,19 @@ Gaps read "not weighed", never zero, and no direction is graded.
 
 ### Open, carried into Phase 4
 
-- **The Web Push soak.** Still wants five clean 07:00 digests.
-- **The free-tier pause.** Confirm around 24 Aug the project is awake.
+- ~~**The Web Push soak.**~~ PASSED, 8 Sep 2026. Digests arrive daily on the
+  phone. Web Push is now priority 10 and Telegram 20 in the live account, and
+  `setup.mjs` creates Telegram at 20 so a fresh install matches.
+
+  This is a bigger deal than a channel reordering. Telegram needs a bot token
+  per person, which a second account will never have — so until the soak
+  passed, notifications did not really exist for anyone but the developer, and
+  the whole digest feature was single-user in practice while claiming not to
+  be. It is now the one delivery path that works for a stranger.
+- ~~**The free-tier pause.**~~ NOT REAL. The project has been continuously
+  awake through 8 Sep with no intervention, well past the 24 Aug check and the
+  seven-day theory that prompted it. Verified incidentally: edge functions
+  deployed and migrations applied on demand weeks later.
 - **Offline durability on real hardware**, still untested: capture something in
   airplane mode and reopen. The browser used for verification can host neither
   IndexedDB nor a service worker, so this cannot be checked from here.
@@ -417,6 +428,51 @@ for one fact is how a fact ends up with two answers. And a seed script hit
 PGRST102 again — one row with `completed_at`, two without — which is the same
 class `itemRows` exists to prevent, arriving in a place with no guard.
 
+### Post-launch hardening — Sep 2026
+
+An outside-eyes review on 7 Sep, run against the rule "verify, do not trust
+this document". It found things this file confidently marked DONE.
+
+**Three defects that were actively lying to the user.**
+
+- **The chatbot told everyone Toronto's time and called it theirs.**
+  `_shared/context.ts` carried a long comment about the UTC-read-as-local bug
+  and then called `localDayKey(instant)` with no zone, falling back to the
+  module constant item 1 above claims was removed. `assist/index.ts` had a
+  hardcoded `'America/Toronto'` literal as well. Meanwhile `buildContext`'s
+  second line tells the model "All dates below are already in the user's local
+  time". Fourteen hours wrong in Sydney, which crosses the day boundary. The
+  zone now comes from `app_settings`; `ContextInput.timezone` is required with
+  no default, because a default is what caused it.
+- **A failed read looked like a clear day.** Ten queries in `loadToday`, every
+  one ending `data ?? []`, `.error` read on none. Worse: `!data?.assignments
+  .length` is also true while loading, so Today rendered "Nothing due." on
+  EVERY open before any error was involved. Loading, failed, empty and full are
+  four distinguishable states now.
+- **The AI budget protected nothing.** One of five model paths metered. Chat
+  stood down at 40 saying the rest was "kept for food" while food parsing had
+  no guard at all. All five metered through `_shared/budget.ts`.
+
+**Shipped since.** Grades (`weight_percent` was being extracted, validated and
+then thrown away — into a note for events, nowhere at all for assignments) ·
+recurring coursework as materialised series · offline read cache · account
+deletion · light mode, which the tokens had supported for weeks with nothing
+in the app ever setting `data-theme` · route splitting, 217 KB to 136 KB gzip
+· skeletons · swipe · pull to refresh · hotkeys · `aria-live` on optimistic
+writes, of which the app had exactly one region.
+
+**The method held up again.** Every one of the three defects was invisible in
+the UI and obvious the moment something was measured or read back. The glass
+tab bar rendering as a solid cream slab on iOS 16 was found by reading the
+COMPILED bundle rather than the source — Lightning CSS emits an opaque
+fallback for every `color-mix`, and the fallback is the base colour at full
+strength.
+
+**Two claims in the review itself were wrong**, which is worth recording as
+its own lesson: it reported that data export did not exist and that
+`EmptyState` had no action slot. Both existed. A grep for the wrong identifier
+is indistinguishable from an absence.
+
 ### A documented deviation from the colour law
 
 The colour law says macro colours appear as **ring strokes only**. The weekly
@@ -538,13 +594,20 @@ The gate is met. A scheduled server job delivered a real notification to the pho
 **Still open from Phase 0**, neither of which blocks Phase 1:
 
 - **Not deployed.** `APP_URL` is still `http://localhost:5173`, so notification deep links are dead on the phone. Deployment is also a hard prerequisite for the Web Push soak — iOS only permits push for a PWA installed to the home screen over HTTPS.
-- **The 7-day pause theory is untested.** Confirm around 24 Aug that the project is still awake.
+- ~~**The 7-day pause theory is untested.**~~ Disproved by simply continuing to
+  use the project. Awake throughout, no pause ever observed.
 
 Deliberate Phase 0 scope decisions, so they are not mistaken for gaps:
 
 - **No feature tables.** Assignments, events, courses and the checklist are Phase 1. The digest builder correctly returns the empty digest ("Nothing due.") — which is a real specified code path, not a placeholder, and it is the branch hardest to notice being broken.
 - **The offline outbox is the mechanism only**, exercised on one write type. Phase 1 routes its writes through it unchanged.
-- **Web Push is written and unit-tested but unproven.** It is priority 20, below Telegram at 10. Promote it to 10 only after the 5-day soak; if it drops two days, leave Telegram primary and move on.
+- ~~**Web Push is written and unit-tested but unproven.**~~ PROVEN, 8 Sep 2026.
+  The rule set here in advance was "promote it to 10 only after the 5-day
+  soak", and the soak passed, so it was promoted. Telegram sits at 20.
+
+  Worth keeping the shape of this decision: the criterion was written down
+  BEFORE the evidence existed, which is why the promotion took one command
+  rather than an argument about whether it felt reliable enough.
 
 Three tokens deviate from `docs/design-system.md` to satisfy its own contrast floor. Each is documented inline in `tokens.css` with its measurement. Revert if you disagree.
 

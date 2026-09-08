@@ -331,21 +331,37 @@ if (!withAccount) {
         enabled: true,
         failed_at: null,
         failure_reason: null,
-        priority: 10,
+        priority: 20,
       }),
     });
-    note('existing Telegram channel updated');
+    note('existing Telegram channel updated at priority 20');
   } else {
     await admin.call('/rest/v1/notification_channels', {
       method: 'POST',
       body: JSON.stringify({
         user_id: userId,
         kind: 'telegram',
+        /*
+         * Priority 20, BELOW Web Push at 10, and that is a change of default
+         * rather than a tweak.
+         *
+         * Phase 0 set the rule in advance: Web Push ships at 20 behind
+         * Telegram at 10, and is promoted only after five clean mornings.
+         * The soak passed on 8 Sep 2026 — daily digests arriving on a real
+         * phone — so the promotion is owed.
+         *
+         * It matters more than the ordering suggests. Telegram needs a bot
+         * token per person, which is not something a second account will ever
+         * have, so for anyone who is not the developer Telegram is not a
+         * fallback at all. Leaving it primary in the installer would mean a
+         * fresh install ordered its channels around a channel most accounts
+         * cannot use.
+         */
         config: { chat_id: String(chat.id) },
-        priority: 10,
+        priority: 20,
       }),
     });
-    ok('Telegram channel created at priority 10');
+    ok('Telegram channel created at priority 20, behind Web Push');
   }
 
   await admin.call('/rest/v1/rpc/setup_dispatch', {
