@@ -1,6 +1,7 @@
 import { startBy, startByIsDue, urgencyFor, type Thresholds } from '../lib/urgency';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 import type { Assignment, Course } from '../lib/planner';
+import { useSwipe } from '../lib/useSwipe';
 import { courseVar } from '../lib/planner';
 
 /**
@@ -65,8 +66,47 @@ export function AssignmentRow({
       : formatDay(localDayKey(due))
     : null;
 
+  /*
+   * Swipe left to defer, right to complete. Touch only — a desktop user has
+   * the buttons, and swipe on a trackpad competes with two-finger back
+   * navigation, an argument this app would lose by having the page leave.
+   */
+  const swipe = useSwipe({
+    onLeft: onDefer,
+    onRight: onToggleDone,
+  });
+
   return (
-    <div className="flex items-stretch gap-3 border-b border-ink-600 last:border-b-0">
+    <div className="relative overflow-hidden border-b border-ink-600 last:border-b-0">
+      {/*
+        What the gesture will do, revealed underneath the row as it moves.
+        Both sit behind the content and are never announced — the row's own
+        buttons already carry the accessible names, and a screen reader user
+        is not swiping.
+      */}
+      {swipe.dx !== 0 && (
+        <span
+          aria-hidden
+          className={[
+            'absolute inset-y-0 flex items-center px-4 type-caption',
+            swipe.dx > 0 ? 'left-0 text-t-done' : 'right-0 text-text-mid',
+            swipe.armed ? 'opacity-100' : 'opacity-50',
+          ].join(' ')}
+        >
+          {swipe.dx > 0 ? (done ? 'Reopen' : 'Done') : 'Tomorrow'}
+        </span>
+      )}
+
+      <div
+        {...swipe.handlers}
+        className="flex items-stretch gap-3 bg-ink-900"
+        style={{
+          transform: `translate3d(${swipe.dx}px, 0, 0)`,
+          // No transition while the finger is down: the row must track the
+          // finger exactly, and easing it makes the gesture feel like lag.
+          transition: swipe.dx === 0 ? 'transform 220ms var(--ease-out)' : 'none',
+        }}
+      >
       {/* Urgency, as a bar. Never the only signal — the label below repeats it. */}
       <span
         aria-hidden
@@ -174,6 +214,7 @@ export function AssignmentRow({
           Tomorrow
         </button>
       )}
+      </div>
     </div>
   );
 }
