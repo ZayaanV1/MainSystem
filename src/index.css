@@ -393,6 +393,9 @@
 
 @utility page-frame {
   margin-inline: auto;
+  /* A positioning context for the pull-to-refresh indicator, which sits just
+     above the frame and would otherwise anchor to the viewport. */
+  position: relative;
   display: flex;
   /*
    * svh, not dvh.

@@ -40,6 +40,7 @@ import {
 } from '../lib/planner';
 import { activeTimezone, addDays, formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 import { announce } from '../lib/announce';
+import { usePullToRefresh } from '../lib/usePullToRefresh';
 
 /**
  * Today — the default view.
@@ -88,6 +89,14 @@ export function Today({
    * Without it a failed retry looks identical to a tap that did nothing, and
    * the user cannot tell whether the app is trying.
    */
+  /*
+    Installed to a home screen there is no address bar and so no reload button.
+    Without this the only way to force fresh data is to force-quit, which is
+    what people actually do — and it costs them the offline cache and anything
+    half-typed in the capture box.
+  */
+  const pull = usePullToRefresh(reload);
+
   const retry = useCallback(async () => {
     setRetrying(true);
     try {
@@ -188,7 +197,30 @@ export function Today({
   }
 
   return (
-    <main className="page-frame">
+    <main
+      className="page-frame"
+      style={{
+        transform: pull.pull > 0 ? `translate3d(0, ${pull.pull}px, 0)` : undefined,
+        transition: pull.pull === 0 ? 'transform 260ms var(--ease-out)' : 'none',
+      }}
+    >
+      {/*
+        Only rendered while the gesture is live, so it never occupies space or
+        gets read out at rest. aria-hidden because the reload it triggers is
+        already announced by the content changing underneath it.
+      */}
+      {(pull.pull > 0 || pull.refreshing) && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-8 flex justify-center"
+        >
+          <span
+            className={`type-caption ${pull.armed || pull.refreshing ? 'text-accent-2-lit' : 'text-text-low'}`}
+          >
+            {pull.refreshing ? 'Refreshing' : pull.armed ? 'Release to refresh' : 'Pull to refresh'}
+          </span>
+        </div>
+      )}
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <div>
           <h1 className="type-h1 text-text-hi">Today</h1>

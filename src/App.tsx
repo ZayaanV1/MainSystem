@@ -40,6 +40,7 @@ const Settings = lazy(() => import('./routes/Settings').then((m) => ({ default: 
 const Specimen = lazy(() => import('./routes/Specimen').then((m) => ({ default: m.Specimen })));
 
 import { Onboarding } from './routes/Onboarding';
+import { useHotkeys } from './lib/useHotkeys';
 
 /**
  * Routing is a piece of state rather than a dependency.
@@ -140,6 +141,20 @@ function Shell() {
     },
     [screen],
   );
+
+  /*
+    Search is a nav item you click, which on a laptop removes most of the point
+    of search. cmd/ctrl+K and a bare "/" both reach it; neither fires while you
+    are typing, because a shortcut that eats a keystroke mid-sentence is worse
+    than no shortcut — and "/" is exactly what someone typing a date presses.
+  */
+  useHotkeys({
+    onSearch: () => navigate('search'),
+    onEscape: () => {
+      if (openAssignment) setOpenAssignment(null);
+      else if (screen !== 'today') navigate('today');
+    },
+  });
   const [data, setData] = useState<TodayData | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
   // Bumped to make Today refetch after Plan writes something.
