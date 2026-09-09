@@ -304,3 +304,73 @@ describe('stuckTasks', () => {
     expect(stuckTasks([task({ id: 'a' })])).toEqual([]);
   });
 });
+
+describe('what now, once the syllabus has said what things are worth', () => {
+  const at = (d: string) => `${d}T16:00:00.000Z`;
+  const NOW = new Date('2026-09-09T12:00:00Z');
+
+  const task = (o: Partial<Task> & { id: string }): Task => ({
+    title: o.id,
+    due_at: null,
+    effort_minutes: null,
+    status: 'todo',
+    ...o,
+  });
+
+  it('prefers the heavier item when two are due the same day', () => {
+    // The distinction the app could not make until weight was stored: a 30%
+    // midterm and a 2% quiz due the same afternoon are not the same task.
+    const choice = whatNow(
+      [
+        task({ id: 'quiz', due_at: at('2026-09-11'), weight_percent: 2 }),
+        task({ id: 'midterm', due_at: at('2026-09-11'), weight_percent: 30 }),
+      ],
+      { now: NOW },
+    );
+    expect(choice?.task.id).toBe('midterm');
+  });
+
+  it('never lets weight outrank a deadline', () => {
+    // The trap this function exists to avoid. The heaviest item is usually the
+    // biggest and most daunting, so leading with it on the screen built to
+    // remove decisions is how the button stops getting pressed.
+    const choice = whatNow(
+      [
+        task({ id: 'final', due_at: at('2026-12-01'), weight_percent: 50 }),
+        task({ id: 'lab', due_at: at('2026-09-10'), weight_percent: 3 }),
+      ],
+      { now: NOW },
+    );
+    expect(choice?.task.id).toBe('lab');
+  });
+
+  it('treats unweighted work as average, not as worthless', () => {
+    // "No weight recorded" and "worth nothing" are different facts. Reading
+    // the first as the second would bury everything whose syllabus has not
+    // been imported — which early in a term is nearly everything.
+    const choice = whatNow(
+      [
+        task({ id: 'unknown', due_at: at('2026-09-11') }),
+        task({ id: 'tiny', due_at: at('2026-09-11'), weight_percent: 2 }),
+      ],
+      { now: NOW },
+    );
+    expect(choice?.task.id).toBe('unknown');
+  });
+
+  it('mentions the weight only when it is big enough to be the reason', () => {
+    const heavy = whatNow([task({ id: 'm', due_at: at('2026-09-09'), weight_percent: 30 })], { now: NOW });
+    expect(heavy?.because).toContain('30% of the grade');
+
+    // Appending "worth 2%" to everything would turn the one sentence this
+    // screen exists to produce into boilerplate, and would be quietly
+    // discouraging about the small things.
+    const light = whatNow([task({ id: 'q', due_at: at('2026-09-09'), weight_percent: 2 })], { now: NOW });
+    expect(light?.because).not.toContain('%');
+  });
+
+  it('still says nothing about weight when there is none', () => {
+    const choice = whatNow([task({ id: 'x', due_at: at('2026-09-09') })], { now: NOW });
+    expect(choice?.because).toBe('This is due today.');
+  });
+});

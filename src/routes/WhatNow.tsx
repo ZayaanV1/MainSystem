@@ -49,6 +49,9 @@ export function WhatNow({
     effort_minutes: a.effort_minutes,
     status: a.status,
     deferrals: deferrals[a.id] ?? 0,
+    // Without this the tie-break in whatNow can never fire, and the ranking
+    // silently ignores everything the syllabus importer worked out.
+    weight_percent: a.weight_percent,
   }));
 
   const magnet = useMagnetic();

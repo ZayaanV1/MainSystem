@@ -17,6 +17,12 @@ export interface Task {
   status: string;
   /** How many times this has been pushed. Derived from rows, never cached. */
   deferrals?: number;
+  /**
+   * Share of the final course grade, when the syllabus said so.
+   *
+   * A tie-breaker and never a primary sort. See the note in whatNow.
+   */
+  weight_percent?: number | null;
 }
 
 /* ------------------------------------------------------------- what now --- */
@@ -51,6 +57,25 @@ export interface Choice {
  * smallest thing there is — because the honest answer to "I have twenty
  * minutes and everything is big" is a small piece of something, not a
  * three-hour block that will not get started.
+ *
+ * WEIGHT BREAKS TIES, AND ONLY TIES.
+ *
+ * Now that the syllabus importer keeps what an assessment is worth, this can
+ * finally distinguish a 30% midterm from a 2% quiz due the same afternoon.
+ * That distinction only applies when the dates are ALREADY EQUAL — weight
+ * never outranks a deadline.
+ *
+ * Sorting by weight first would rebuild the trap this function exists to
+ * avoid. The heaviest item is usually the biggest and the most daunting, which
+ * makes it the one most likely to be avoided; leading with it on the screen
+ * built to remove decisions is how the button stops getting pressed. It is
+ * also how a planner starts implying that the small things do not matter,
+ * which is false and is the beginning of keeping score.
+ *
+ * Unweighted work sorts as if it were average rather than as zero. "No weight
+ * recorded" and "worth nothing" are different facts, and treating the first as
+ * the second would systematically bury everything whose syllabus has not been
+ * imported.
  */
 export function whatNow(
   tasks: Task[],
@@ -71,9 +96,24 @@ export function whatNow(
   const onlyStuckLeft = fresh.length === 0;
 
   const dueRank = (t: Task) => (t.due_at ? new Date(t.due_at).getTime() : Number.MAX_SAFE_INTEGER);
+
+  /*
+   * Unweighted work ranks as average, not as zero. Zero would bury every task
+   * whose syllabus has not been imported, which is most of them early on.
+   */
+  const AVERAGE_WEIGHT = 10;
+  const weightRank = (t: Task) =>
+    typeof t.weight_percent === 'number' ? t.weight_percent : AVERAGE_WEIGHT;
+
   const bySoonestThenSmallest = (a: Task, b: Task) => {
     const d = dueRank(a) - dueRank(b);
     if (d !== 0) return d;
+
+    // Same deadline: the heavier one first. This is the only place weight is
+    // consulted, and it cannot move anything past an earlier date.
+    const w = weightRank(b) - weightRank(a);
+    if (w !== 0) return w;
+
     return (a.effort_minutes ?? Infinity) - (b.effort_minutes ?? Infinity);
   };
 
@@ -118,13 +158,22 @@ export function whatNow(
 }
 
 function reasonFor(task: Task, now: Date, budget: number | null): string {
+  /*
+   * The weight is mentioned only when it is large enough to be the actual
+   * reason. Appending "worth 2% of the grade" to everything would turn the one
+   * sentence this screen exists to produce into boilerplate, and it would also
+   * be quietly discouraging about the small things.
+   */
+  const heavy = typeof task.weight_percent === 'number' && task.weight_percent >= 15;
+  const worth = heavy ? ` It is worth ${task.weight_percent}% of the grade.` : '';
+
   if (task.due_at) {
     const days = daysBetween(localDayKey(now), localDayKey(new Date(task.due_at)));
-    if (days < 0) return 'This is past its date.';
-    if (days === 0) return 'This is due today.';
-    if (days === 1) return 'This is due tomorrow.';
-    if (days <= 7) return `This is due in ${days} days, the soonest of anything open.`;
-    return `This is the next thing with a date, ${days} days out.`;
+    if (days < 0) return `This is past its date.${worth}`;
+    if (days === 0) return `This is due today.${worth}`;
+    if (days === 1) return `This is due tomorrow.${worth}`;
+    if (days <= 7) return `This is due in ${days} days, the soonest of anything open.${worth}`;
+    return `This is the next thing with a date, ${days} days out.${worth}`;
   }
 
   if (budget !== null && task.effort_minutes !== null) {
