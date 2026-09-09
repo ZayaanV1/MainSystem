@@ -3,6 +3,7 @@ import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { RepeatingWork } from './RepeatingWork';
+import { CalendarImport } from './CalendarImport';
 import { courseGrades, gradeSummary } from '../lib/grades';
 import { Chip } from '../components/Chip';
 import { SyllabusImport } from './SyllabusImport';
@@ -49,6 +50,7 @@ export function Plan({ courses, onBack, onChanged }: {
   const [result, setResult] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [repeating, setRepeating] = useState(false);
+  const [importingCalendar, setImportingCalendar] = useState(false);
 
   const courseRefs = useMemo(
     () => courses.map((c) => ({ id: c.id, name: c.name, code: c.code })),
@@ -133,6 +135,20 @@ export function Plan({ courses, onBack, onChanged }: {
         <div className="px-4">
           <Button variant="secondary" onClick={() => setRepeating(true)}>
             Add repeating work
+          </Button>
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="type-h2 mb-1 px-4 text-text-hi">Bring in your timetable</h2>
+        <p className="type-note mb-3 px-4 text-text-low">
+          Paste your university&rsquo;s calendar file and every lecture, tutorial
+          and lab lands on the right day. A weekly class becomes one entry here
+          and a term of events in the app.
+        </p>
+        <div className="px-4">
+          <Button variant="secondary" onClick={() => setImportingCalendar(true)}>
+            Import a timetable
           </Button>
         </div>
       </section>
@@ -223,6 +239,14 @@ export function Plan({ courses, onBack, onChanged }: {
         userId={userId}
         courses={courses}
         onCreated={onChanged}
+      />
+
+      <CalendarImport
+        open={importingCalendar}
+        onClose={() => setImportingCalendar(false)}
+        userId={userId}
+        courses={courses}
+        onImported={onChanged}
       />
 
     </main>
