@@ -95,7 +95,7 @@ export function Sheet({ open, onClose, title, children, dock = false }: SheetPro
       ].join(' ')}
     >
       <div
-        className="absolute inset-0 bg-ink-900/70"
+        className="absolute inset-0 bg-ink-900/70 motion-safe:animate-[scrim-in_250ms_cubic-bezier(0.2,0,0,1)]"
         onClick={onClose}
         aria-hidden
       />
@@ -118,7 +118,17 @@ export function Sheet({ open, onClose, title, children, dock = false }: SheetPro
           // history grid and a long editor both exceed a phone easily.
           'max-h-[90dvh] overflow-y-auto overscroll-contain',
           'rounded-t-sheet',
-          'motion-safe:animate-[sheet-in_250ms_cubic-bezier(0.2,0,0,1)]',
+          /*
+            Two entrances, because there are two geometries.
+            A bottom sheet rises; a docked panel arrives from the edge it is
+            anchored to. Running one animation for both meant the desktop
+            panel slid up the full height of the window and stopped against
+            the right-hand edge — travelling from somewhere it does not live,
+            past everything it was opened from.
+          */
+          dock
+            ? 'motion-safe:animate-[sheet-in_250ms_cubic-bezier(0.2,0,0,1)] motion-safe:lg:animate-[panel-in_220ms_cubic-bezier(0.2,0,0,1)]'
+            : 'motion-safe:animate-[sheet-in_250ms_cubic-bezier(0.2,0,0,1)]',
           // The sheet sits above the home indicator on an installed PWA.
           'pb-[calc(var(--sp-8)+env(safe-area-inset-bottom))]',
         ].join(' ')}

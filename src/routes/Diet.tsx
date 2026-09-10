@@ -129,48 +129,81 @@ export function Diet({ onBack }: { onBack: () => void }) {
       */}
       <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />
 
+      {/*
+        Calories leads; the three macros support it.
+
+        This was four identical rings in one grid, which said they were four
+        peer readings of four unrelated things. They are not. Calories is the
+        aggregate — it is arithmetic over the other three — and the macros are
+        its components. A layout that ranks them equally makes you do the
+        ranking yourself every time you look, on the screen most likely to be
+        opened one-handed halfway through eating.
+
+        So calories gets the larger ring and its own column, and the three it
+        is made of sit beside it at the size they actually need. Nothing about
+        the colour system moves: each ring still carries its own macro token,
+        still only as a stroke, still with the written value beneath it.
+      */}
       {t ? (
-        <section className="mb-8 grid grid-cols-2 gap-6 px-4 lg:grid-cols-4 lg:gap-8">
-          <Ring
-            label="Calories"
-            onClick={() => setOpenMacro('calories')}
-            value={sums.calories}
-            max={t.calories.max}
-            band={t.calories}
-            colorVar="--m-calories"
-            unit="kcal"
-            targetLabel={bandLabel(t.calories)}
-          />
-          <Ring
-            label="Protein"
-            onClick={() => setOpenMacro('protein')}
-            value={sums.protein_g}
-            max={t.protein.max}
-            band={t.protein}
-            colorVar="--m-protein"
-            unit="g"
-            targetLabel={bandLabel(t.protein, 'g')}
-          />
-          <Ring
-            label="Carbs"
-            onClick={() => setOpenMacro('carbs')}
-            value={sums.carbs_g}
-            max={t.carbs.max}
-            band={t.carbs}
-            colorVar="--m-carbs"
-            unit="g"
-            targetLabel={bandLabel(t.carbs, 'g')}
-          />
-          <Ring
-            label="Fat"
-            onClick={() => setOpenMacro('fat')}
-            value={sums.fat_g}
-            max={t.fat.max}
-            band={t.fat}
-            colorVar="--m-fat"
-            unit="g"
-            targetLabel={bandLabel(t.fat, 'g')}
-          />
+        <section className="mb-8 px-4 lg:flex lg:items-center lg:gap-10">
+          <div className="mb-6 flex justify-center lg:mb-0 lg:shrink-0">
+            <Ring
+              label="Calories"
+              onClick={() => setOpenMacro('calories')}
+              value={sums.calories}
+              max={t.calories.max}
+              band={t.calories}
+              colorVar="--m-calories"
+              unit="kcal"
+              targetLabel={bandLabel(t.calories)}
+              size={188}
+              stroke={13}
+            />
+          </div>
+
+          {/*
+            Three across at every width. They are siblings of each other even
+            though they are not siblings of the ring beside them, and breaking
+            to two-and-one would invent a grouping that does not exist.
+          */}
+          <div className="grid flex-1 grid-cols-3 gap-3 sm:gap-6">
+            <Ring
+              label="Protein"
+              onClick={() => setOpenMacro('protein')}
+              value={sums.protein_g}
+              max={t.protein.max}
+              band={t.protein}
+              colorVar="--m-protein"
+              unit="g"
+              targetLabel={bandLabel(t.protein, 'g')}
+              size={108}
+              stroke={9}
+            />
+            <Ring
+              label="Carbs"
+              onClick={() => setOpenMacro('carbs')}
+              value={sums.carbs_g}
+              max={t.carbs.max}
+              band={t.carbs}
+              colorVar="--m-carbs"
+              unit="g"
+              targetLabel={bandLabel(t.carbs, 'g')}
+              size={108}
+              stroke={9}
+            />
+            <Ring
+              label="Fat"
+              onClick={() => setOpenMacro('fat')}
+              value={sums.fat_g}
+              max={t.fat.max}
+              band={t.fat}
+              colorVar="--m-fat"
+              unit="g"
+              targetLabel={bandLabel(t.fat, 'g')}
+              size={108}
+              stroke={9}
+            />
+          </div>
         </section>
       ) : (
         <EmptyState>

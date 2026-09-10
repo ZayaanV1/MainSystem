@@ -290,12 +290,65 @@
 /* The only keyframe in the app. There is no ambient or looping animation
    anywhere — it exists solely so a sheet arrives from the direction it is
    anchored to rather than appearing on top of you. */
+/*
+ * A sheet rising from the bottom edge. The phone case, and the default.
+ *
+ * The scale and the fade are not garnish. A pure translate arrives at full
+ * size the entire way up, which reads as a panel being pushed rather than one
+ * coming toward you; starting fractionally short and settling gives it a
+ * direction in depth as well as on the screen.
+ */
 @keyframes sheet-in {
   from {
-    transform: translateY(100%);
+    opacity: 0;
+    transform: translateY(100%) scale(0.985);
   }
   to {
-    transform: translateY(0);
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/*
+ * A panel arriving at the right-hand edge. The docked, desktop case.
+ *
+ * This exists because the docked sheet was animating with `sheet-in` — it
+ * slid up from the bottom of the window and stopped against the right edge,
+ * which is not where it came from and not where it lives. Sheet.tsx already
+ * argued the point about geometry, dropping the rounded top corners on the
+ * docked variant because they "read as 'this rose from below' and would be a
+ * lie here", and then rose from below anyway. The corners were fixed and the
+ * motion was not.
+ *
+ * No scale on this one. A full-height column against an edge has no far side
+ * to come toward you from; scaling it just makes the edge it is anchored to
+ * appear to move.
+ */
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(4%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/*
+ * The scrim.
+ *
+ * It was appearing at full strength on the first frame while the sheet was
+ * still travelling, so the page went dark before anything had arrived to
+ * explain why. Fading it over the sheet's own duration ties the two together:
+ * the room dims as the panel enters rather than in front of it.
+ */
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

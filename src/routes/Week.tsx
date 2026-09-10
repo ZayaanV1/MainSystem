@@ -160,11 +160,12 @@ export function Week({
         </section>
       )}
 
-      {grouping.days.map((group) => (
+      {grouping.days.map((group, i) => (
         <DaySection
           key={group.day}
           group={group}
           isToday={group.day === today}
+          isLast={i === grouping.days.length - 1}
           courseFor={courseFor}
           progressFor={progressFor}
           onToggle={toggle}
@@ -212,6 +213,7 @@ export function Week({
 function DaySection({
   group,
   isToday,
+  isLast,
   courseFor,
   progressFor,
   onToggle,
@@ -219,6 +221,8 @@ function DaySection({
 }: {
   group: DayGroup;
   isToday: boolean;
+  /** The rail stops here rather than running on into nothing. */
+  isLast: boolean;
   courseFor: (id: string | null) => Course | undefined;
   progressFor: (id: string) => { done: number; total: number } | null;
   onToggle: (a: Assignment) => void;
@@ -228,39 +232,129 @@ function DaySection({
   const minutes = effortMinutes(group);
 
   return (
-    <section className="mb-6">
-      <div className="mb-2 flex items-baseline justify-between gap-4 px-4">
-        <h2 className={`type-label ${isToday ? 'text-text-hi' : 'text-text-mid'}`}>
-          {isToday ? `Today, ${formatDay(group.day)}` : formatDay(group.day)}
-        </h2>
-        {minutes > 0 && (
-          <span className="tag type-caption">
-            {minutes >= 60 ? `${Math.round((minutes / 60) * 10) / 10} h` : `${minutes} min`}
+    /*
+      A day on a spine, not a section on a stack.
+    
+      Week was seven identical heading-plus-card blocks. That tells you what
+      is due and hides the thing a list is worst at conveying: that Thursday
+      has six hours in it and Friday has none. The forecast bar chart above
+      says it numerically; down here the week should be legible as a shape
+      while you are actually reading the items.
+    
+      The spine does that. Every day occupies the rail whether or not it has
+      anything on it, so an empty Friday is a visible gap in a continuous line
+      rather than a section that simply is not there — and the eye gets the
+      week's rhythm for free while reading it in order.
+    */
+    <section className="relative flex gap-3 px-4">
+      <div className="relative flex w-10 shrink-0 flex-col items-center">
+        {/*
+          The rail, drawn first and absolutely positioned so it runs the FULL
+          height of the day — including behind the date above it.
+
+          It was a flex child sitting below the date, which meant it started
+          again under each marker and left a gap the height of a label and a
+          number between every pair of days. Seven short strokes rather than
+          one line, which is the opposite of the point: the rail exists to
+          stitch the days into a single week.
+
+          `-top-3`/`-bottom-0` overshoot the section by the parent's gap so
+          consecutive days meet with no seam.
+        */}
+        <span
+          aria-hidden
+          className={[
+            'absolute -top-3 left-1/2 w-px -translate-x-1/2 bg-ink-600',
+            // The last day ends the week, so the rail ends with it. Running
+            // on past the final marker draws a line to a day that is not in
+            // the window — a stub pointing at nothing, which reads as the
+            // list having been cut off rather than having finished.
+            isLast ? 'h-12' : 'bottom-0',
+          ].join(' ')}
+        />
+
+        {/*
+          The marker sits ON the rail and carries the page's own background,
+          so it cuts the line rather than crossing it. That is what makes the
+          date read as a station on the week rather than a label beside it.
+        */}
+        <span className="relative flex flex-col items-center bg-ink-900 pb-2">
+          <span
+            className={`type-caption leading-none ${isToday ? 'text-text-mid' : 'text-text-low'}`}
+          >
+            {weekdayShort(group.day)}
           </span>
-        )}
+
+          {/*
+            Today is a filled ember disc. That is the brand as a FILLED
+            SURFACE, which is the one thing the colour law permits it to be —
+            it states no status, and the urgency ramp is untouched and still
+            doing that job on the rows themselves.
+          */}
+          <span
+            className={[
+              'mt-1 grid size-7 place-items-center rounded-pill type-label leading-none',
+              isToday ? 'bg-accent text-on-accent' : 'text-text-mid',
+            ].join(' ')}
+          >
+            {Number(group.day.slice(8, 10))}
+          </span>
+        </span>
       </div>
 
-      {empty ? (
-        <p className="px-4 type-caption text-text-low">—</p>
-      ) : (
-        <Card>
-          {group.events.map((e) => (
-            <EventRow key={e.id} event={e} course={courseFor(e.course_id)} />
-          ))}
-          {group.assignments.map((a) => (
-            <AssignmentRow
-              key={a.id}
-              assignment={a}
-              progress={progressFor(a.id)}
-              course={courseFor(a.course_id)}
-              onToggleDone={() => onToggle(a)}
-              onOpen={() => onOpen(a)}
-            />
-          ))}
-        </Card>
-      )}
+      <div className="min-w-0 flex-1 pb-6">
+        {/*
+          The date is on the rail now, so this row carries only the day's
+          load. The heading keeps the full date as its accessible text,
+          because a screen reader gets no spine.
+        */}
+        <h2 className="sr-only">
+          {isToday ? `Today, ${formatDay(group.day)}` : formatDay(group.day)}
+        </h2>
+
+        {empty ? (
+          /* A rule at the marker's own height rather than an em dash.
+             "Nothing on this day" is a gap in the week, and a gap is better
+             drawn than written — it also keeps the rail's rhythm even. */
+          <div aria-hidden className="flex h-14 items-center">
+            <div className="h-px w-full bg-ink-600/50" />
+          </div>
+        ) : (
+          <>
+            {minutes > 0 && (
+              <div className="mb-1 flex justify-end">
+                <span className="tag type-caption">
+                  {minutes >= 60 ? `${Math.round((minutes / 60) * 10) / 10} h` : `${minutes} min`}
+                </span>
+              </div>
+            )}
+            <Card>
+              {group.events.map((e) => (
+                <EventRow key={e.id} event={e} course={courseFor(e.course_id)} />
+              ))}
+              {group.assignments.map((a) => (
+                <AssignmentRow
+                  key={a.id}
+                  assignment={a}
+                  progress={progressFor(a.id)}
+                  course={courseFor(a.course_id)}
+                  onToggleDone={() => onToggle(a)}
+                  onOpen={() => onOpen(a)}
+                />
+              ))}
+            </Card>
+          </>
+        )}
+      </div>
     </section>
   );
+}
+
+/** Three-letter weekday for a local day key. Noon UTC, so no zone can shift it. */
+const WEEKDAY_SHORT = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+function weekdayShort(day: string): string {
+  return WEEKDAY_SHORT[new Date(`${day}T12:00:00Z`).getUTCDay()];
 }
 
 /**
