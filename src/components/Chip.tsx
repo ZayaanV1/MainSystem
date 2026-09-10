@@ -30,7 +30,9 @@ export function Chip({
   const classes = [
     'inline-flex items-center gap-2 rounded-pill border px-3 py-2 type-label',
     selected ? 'border-text-mid bg-ink-700 text-text-hi' : 'border-ink-600 text-text-mid',
-    onClick ? 'transition-colors duration-150 ease-out' : '',
+    // Only when it is actually a control. A decorative chip that lifted under
+    // the cursor would be claiming to do something.
+    onClick ? 'fx-depth min-h-[var(--tap)]' : '',
     className,
   ].join(' ');
 

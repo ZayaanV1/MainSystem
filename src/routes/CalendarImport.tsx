@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { Pressable } from '../components/Pressable';
 import { Sheet } from '../components/Sheet';
 import { addEvent, type Course } from '../lib/planner';
 import { parseIcs, type ParsedEvent } from '../../supabase/functions/_shared/icsparse';
@@ -165,9 +166,9 @@ export function CalendarImport({ open, onClose, userId, courses, onImported }: C
                   {parsed.events.map((e, i) => {
                     const off = excluded.has(i);
                     return (
-                      <button
+                      <Pressable
                         key={`${e.uid ?? e.summary}-${i}`}
-                        type="button"
+                        align="start"
                         onClick={() =>
                           setExcluded((s) => {
                             const next = new Set(s);
@@ -176,7 +177,7 @@ export function CalendarImport({ open, onClose, userId, courses, onImported }: C
                             return next;
                           })
                         }
-                        className={`fx-depth flex w-full flex-col items-start gap-1 border-b border-ink-600 px-4 py-3 text-left last:border-b-0 ${
+                        className={`flex-col gap-1 border-b border-ink-600 px-4 py-3 last:border-b-0 ${
                           off ? 'opacity-40' : ''
                         }`}
                       >
@@ -192,7 +193,7 @@ export function CalendarImport({ open, onClose, userId, courses, onImported }: C
                           {e.location && <span className="tag type-caption">{e.location}</span>}
                           {off && <span className="tag type-caption">skipped</span>}
                         </span>
-                      </button>
+                      </Pressable>
                     );
                   })}
                 </Card>

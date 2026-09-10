@@ -95,23 +95,13 @@ export function Month({
       </header>
 
       <div className="mb-4 flex items-center justify-between gap-4 px-4">
-        <button
-          type="button"
-          onClick={() => step(-1)}
-          aria-label="Previous month"
-          className="fx-depth type-label px-2 text-text-mid"
-        >
+        <Button variant="quiet" size="sm" onClick={() => step(-1)} aria-label="Previous month">
           Back
-        </button>
+        </Button>
         <span className="type-h2 text-text-hi">{monthLabel(anchor)}</span>
-        <button
-          type="button"
-          onClick={() => step(1)}
-          aria-label="Next month"
-          className="fx-depth type-label px-2 text-text-mid"
-        >
+        <Button variant="quiet" size="sm" onClick={() => step(1)} aria-label="Next month">
           Next
-        </button>
+        </Button>
       </div>
 
       {courses.length > 0 && (

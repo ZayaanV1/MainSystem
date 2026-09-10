@@ -185,15 +185,14 @@ export function AssignmentEditor({
           />
 
           {fields.due_day && !fields.remind_at && (
-            <button
-              type="button"
-              onClick={() =>
-                set('remind_at', fromLocalInput(`${fields.due_day}T16:00`))
-              }
-              className="fx-depth self-start type-caption text-text-mid"
+            <Button
+              variant="quiet"
+              size="sm"
+              className="self-start"
+              onClick={() => set('remind_at', fromLocalInput(`${fields.due_day}T16:00`))}
             >
               Use 4 p.m. on the due date
-            </button>
+            </Button>
           )}
         </div>
 
@@ -409,8 +408,12 @@ function Subtasks({
                 type="button"
                 onClick={() => void deleteSubtask(s.id).then(onChanged)}
                 aria-label={`Remove "${s.title}"`}
-                // Sized to its label rather than a fixed 44px box: 'Remove' is wider
-                // than that and was being clipped. Height still meets the tap floor.
+                // Deliberately NOT the Button primitive. Sized to its label
+                // rather than a fixed box: 'Remove' is wider than 44px and was
+                // being clipped. Routing it through Button would mean passing
+                // classes that undo Button's own padding and border, which is
+                // a primitive being fought rather than used. Height still meets
+                // the tap floor and it carries fx-depth like everything else.
                 className="fx-depth flex min-h-[var(--tap)] shrink-0 items-center px-4 type-caption text-text-low"
               >
                 Remove

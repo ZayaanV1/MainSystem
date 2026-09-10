@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
 import { applyTheme, readTheme, writeTheme, type ThemeChoice } from '../lib/theme';
 import { EmptyState } from '../components/EmptyState';
@@ -439,24 +440,18 @@ function Appearance() {
       <Card className="p-4">
         <div role="radiogroup" aria-label="Theme" className="flex flex-wrap gap-2">
           {options.map((o) => (
-            <button
+            <Chip
               key={o.value}
-              type="button"
               role="radio"
               aria-checked={choice === o.value}
+              selected={choice === o.value}
               onClick={() => {
                 setChoice(o.value);
                 writeTheme(o.value);
               }}
-              className={[
-                'fx-depth min-h-[var(--tap)] rounded-pill border px-4 type-label',
-                choice === o.value
-                  ? 'border-transparent bg-accent text-on-accent'
-                  : 'border-ink-600 bg-ink-800 text-text-mid',
-              ].join(' ')}
             >
               {o.label}
-            </button>
+            </Chip>
           ))}
         </div>
         <p className="type-note mt-3 text-text-low">

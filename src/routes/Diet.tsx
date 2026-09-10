@@ -548,19 +548,9 @@ function PortionRow({ portion, onChange }: { portion: number; onChange: (p: numb
     <div className="mb-6 flex flex-wrap items-center gap-2 px-4">
       <span className="tag type-label">Portion</span>
       {PORTIONS.map((p) => (
-        <button
-          key={p}
-          type="button"
-          onClick={() => onChange(p)}
-          aria-pressed={portion === p}
-          className={[
-            'fx-depth',
-          'min-h-[var(--tap)] rounded-pill px-4 type-label',
-            portion === p ? 'bg-ink-600 text-text-hi' : 'border border-ink-600 text-text-low',
-          ].join(' ')}
-        >
+        <Chip key={p} selected={portion === p} aria-pressed={portion === p} onClick={() => onChange(p)}>
           {p === 1 ? '1' : p}
-        </button>
+        </Chip>
       ))}
     </div>
   );
