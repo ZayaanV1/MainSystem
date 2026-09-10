@@ -126,7 +126,8 @@ export function AssignmentEditor({
   const start: DayKey | null = startBy(previewDue, fields.effort_minutes);
 
   return (
-    <Sheet open={open} onClose={onClose} title="Edit work">
+    <Sheet
+      dock open={open} onClose={onClose} title="Edit work">
       <form onSubmit={submit} className="flex flex-col gap-6">
         <Field
           label="Title"

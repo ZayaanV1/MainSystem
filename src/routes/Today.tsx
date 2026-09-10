@@ -377,18 +377,30 @@ export function Today({
 
         <div className="min-w-0">
 
-      <WhatNow
-        assignments={data?.assignments ?? []}
-        courses={data?.courses ?? []}
-        deferrals={data?.deferrals ?? {}}
-        onOpen={setOpenAssignment}
-      />
+      {/*
+        Two mounts, one on each side of the breakpoint, rather than one that
+        changes behaviour. A single component switching between button and
+        panel at lg would have to remount to do it, which throws away the
+        chosen time budget mid-resize.
+      */}
+      <div className="lg:hidden">
+        <WhatNow
+          assignments={data?.assignments ?? []}
+          courses={data?.courses ?? []}
+          deferrals={data?.deferrals ?? {}}
+          onOpen={setOpenAssignment}
+        />
+      </div>
+      <div className="hidden lg:block">
+        <WhatNow
+          alwaysOpen
+          assignments={data?.assignments ?? []}
+          courses={data?.courses ?? []}
+          deferrals={data?.deferrals ?? {}}
+          onOpen={setOpenAssignment}
+        />
+      </div>
 
-      <Ahead
-        assignments={data?.assignments ?? []}
-        deferrals={data?.deferrals ?? {}}
-        pairs={pairs}
-      />
 
       {askingTime && <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />}
 
@@ -456,6 +468,18 @@ export function Today({
           that problem.
         */}
         <div className="min-w-0">
+      {/*
+        Forecast, calibration and stuck work. Already computed since Phase 6
+        and already rendered — but in the middle column, under the work list,
+        where it competed with the thing it is context FOR. Here it sits beside
+        the day instead of below it.
+      */}
+      <Ahead
+        assignments={data?.assignments ?? []}
+        deferrals={data?.deferrals ?? {}}
+        pairs={pairs}
+      />
+
       <section className="mb-8 flex-1">
         <h2 className="type-h2 mb-1 px-4 text-text-hi">Inbox</h2>
         {Boolean(data?.inbox.length) && (
@@ -687,6 +711,7 @@ function Ahead({
     effort_minutes: a.effort_minutes,
     status: a.status,
     deferrals: deferrals[a.id] ?? 0,
+    weight_percent: a.weight_percent,
   }));
 
   const ahead = forecast(tasks);

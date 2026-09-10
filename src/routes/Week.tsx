@@ -15,6 +15,7 @@ import {
 } from '../lib/planner';
 import { formatDay, formatTime, todayKey } from '../lib/time';
 import { effortMinutes, groupWeek, type DayGroup } from '../lib/week';
+import { WeekShape } from '../components/WeekShape';
 
 /**
  * Week — seven days at a glance.
@@ -49,6 +50,21 @@ export function Week({
 
   const today = todayKey();
   const courses = data?.courses ?? [];
+
+  /*
+   * The forecast has been computed since Phase 6 and drawn nowhere. Week has
+   * always been a list of items grouped under headings, which says what is due
+   * and cannot say that Thursday has six hours in it and Friday has none.
+   */
+  const shapeTasks = (data?.assignments ?? []).map((a) => ({
+    id: a.id,
+    title: a.title,
+    due_at: a.due_at,
+    effort_minutes: a.effort_minutes,
+    status: a.status,
+    deferrals: data?.deferrals[a.id] ?? 0,
+    weight_percent: a.weight_percent,
+  }));
 
   const grouping = useMemo(() => {
     const keep = <T extends { course_id: string | null }>(rows: T[]) =>
@@ -85,6 +101,8 @@ export function Week({
           Today
         </Button>
       </header>
+
+      <WeekShape tasks={shapeTasks} from={today} />
 
       {courses.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2 px-4">

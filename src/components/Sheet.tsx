@@ -18,9 +18,26 @@ interface SheetProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  /**
+   * On a wide screen, dock to the right instead of covering the page.
+   *
+   * A bottom sheet is right on a phone, where there is one column and the
+   * thing you opened IS the screen. On a desktop it covers a list you were
+   * just reading in order to show you one row of it — so you lose the context
+   * you opened it from, and closing is the only way to get it back.
+   *
+   * Docked, the list stays visible and the detail sits beside it. That is what
+   * makes opening a piece of work cheap enough to do repeatedly, which is most
+   * of what a planner is for.
+   *
+   * Still modal, still focus-trapped, still Escape-to-close. Only the geometry
+   * changes — a docked panel that stopped being modal would be a third
+   * behaviour to learn at a breakpoint nobody chose to cross.
+   */
+  dock?: boolean;
 }
 
-export function Sheet({ open, onClose, title, children }: SheetProps) {
+export function Sheet({ open, onClose, title, children, dock = false }: SheetProps) {
   const panel = useRef<HTMLDivElement>(null);
   const restoreFocusTo = useRef<HTMLElement | null>(null);
 
@@ -70,7 +87,13 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div
+      className={[
+        'fixed inset-0 z-50 flex justify-center',
+        // Bottom on a phone; right-hand edge, full height, once docked.
+        dock ? 'items-end lg:items-stretch lg:justify-end' : 'items-end',
+      ].join(' ')}
+    >
       <div
         className="absolute inset-0 bg-ink-900/70"
         onClick={onClose}
@@ -85,6 +108,12 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         tabIndex={-1}
         className={[
           'relative w-full max-w-160 bg-ink-700 px-6 pb-8 pt-6',
+          // Docked: a column against the right edge rather than a slab across
+          // the bottom. The border replaces the rounded top corners, which
+          // read as "this rose from below" and would be a lie here.
+          dock
+            ? 'lg:h-full lg:max-w-[34rem] lg:rounded-none lg:border-l lg:border-ink-600'
+            : '',
           // A sheet taller than the screen must scroll, not overflow. The
           // history grid and a long editor both exceed a phone easily.
           'max-h-[90dvh] overflow-y-auto overscroll-contain',

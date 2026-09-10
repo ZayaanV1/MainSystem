@@ -1008,3 +1008,42 @@
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Desktop density.
+
+   Every measurement in this app was chosen for a thumb: 44px tap targets,
+   12px row padding, generous line-height. All correct on a phone, and all
+   wrong on a laptop, where the pointer is precise and the constraint is how
+   much you can see at once rather than how accurately you can hit it.
+
+   WHAT THIS DOES NOT DO: shrink text. The type scale is fluid and already
+   sized for reading, and smaller body text on a bigger screen is the wrong
+   trade — you would be paying in legibility for information the space could
+   have given you for free. What shrinks is the SPACE AROUND things: row
+   padding, section gaps, the tap floor.
+
+   The 44px floor drops to 36px for pointer devices only, guarded by
+   `pointer: fine`. A touchscreen laptop keeps the full target, because the
+   floor exists for fingers and a wide screen is not evidence of a mouse.
+   ------------------------------------------------------------------------ */
+
+@media (width >= 64rem) and (pointer: fine) {
+  /* The tap floor becomes a pointer floor. Still comfortably clickable, and
+     it is what buys back roughly a fifth of the vertical space in a list. */
+  :root {
+    --tap: 36px;
+  }
+
+  /* Sections stop being spaced for a scrolling thumb. */
+  main section {
+    margin-bottom: 1.5rem;
+  }
+
+  /* Rows in a card. The horizontal padding stays: it is what separates the
+     content from the card edge, and tightening it makes a list look crowded
+     rather than dense. */
+  main .py-3 {
+    padding-block: 0.5rem;
+  }
+}

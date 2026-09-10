@@ -32,11 +32,26 @@ export function WhatNow({
   courses,
   deferrals,
   onOpen,
+  alwaysOpen = false,
 }: {
   assignments: Assignment[];
   courses: Course[];
   deferrals: Record<string, number>;
   onOpen: (a: Assignment) => void;
+  /**
+   * Answered without being asked.
+   *
+   * On a phone this stays a button, because the screen has one column and a
+   * permanently expanded panel would push the day below the fold — which is
+   * the opposite of what rule 1 asks for.
+   *
+   * On a desktop there are three columns and the panel costs nothing, so it
+   * is simply answered. This is the app's response to the hardest problem in
+   * the category — initiation in front of a list — and making someone press a
+   * button to receive it means they have to first decide to ask, which is the
+   * same decision they were stuck on.
+   */
+  alwaysOpen?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [minutes, setMinutes] = useState<number | null>(null);
@@ -57,10 +72,11 @@ export function WhatNow({
 
   const magnet = useMagnetic();
 
-  const choice = open ? whatNow(tasks, { minutesAvailable: minutes }) : null;
+  const showing = open || alwaysOpen;
+  const choice = showing ? whatNow(tasks, { minutesAvailable: minutes }) : null;
   const picked = choice ? assignments.find((a) => a.id === choice.task.id) ?? null : null;
 
-  if (!open) {
+  if (!showing) {
     return (
       <div className="mb-8 px-4">
         {/*
@@ -126,9 +142,11 @@ export function WhatNow({
             Start on it
           </Button>
         )}
-        <Button variant="quiet" onClick={() => setOpen(false)}>
-          Close
-        </Button>
+        {!alwaysOpen && (
+          <Button variant="quiet" onClick={() => setOpen(false)}>
+            Close
+          </Button>
+        )}
       </div>
     </section>
   );

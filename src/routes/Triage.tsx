@@ -92,7 +92,8 @@ export function Triage({
   const start = startBy(previewDue, fields.effort_minutes);
 
   return (
-    <Sheet open onClose={onClose} title="Sort this out">
+    <Sheet
+      dock open onClose={onClose} title="Sort this out">
       <form onSubmit={submit} className="flex flex-col gap-6">
         <Field
           label="What is it"
