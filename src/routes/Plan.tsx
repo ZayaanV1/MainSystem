@@ -3,6 +3,7 @@ import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { RepeatingWork } from './RepeatingWork';
+import { SeriesList } from './SeriesList';
 import { CalendarImport } from './CalendarImport';
 import { courseGrades, gradeSummary } from '../lib/grades';
 import { Chip } from '../components/Chip';
@@ -10,7 +11,7 @@ import { SyllabusImport } from './SyllabusImport';
 import { EmptyState } from '../components/EmptyState';
 import { Field } from '../components/Field';
 import { useAuth } from '../lib/auth';
-import { dueTimestamp, parseBulk, summarise, type ParsedRow } from '../lib/bulk';
+import { dueTimestamp, looksFarOff, parseBulk, summarise, type ParsedRow } from '../lib/bulk';
 import { enqueue } from '../lib/outbox';
 import {
   addCourse,
@@ -50,6 +51,7 @@ export function Plan({ courses, onBack, onChanged }: {
   const [result, setResult] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [repeating, setRepeating] = useState(false);
+  const [seriesKey, setSeriesKey] = useState(0);
   const [importingCalendar, setImportingCalendar] = useState(false);
 
   const courseRefs = useMemo(
@@ -137,6 +139,19 @@ export function Plan({ courses, onBack, onChanged }: {
             Add repeating work
           </Button>
         </div>
+
+        {/*
+          The patterns that already exist. Creating one writes up to two
+          hundred rows, and until this list existed there was no way to see,
+          end or extend a pattern afterwards — the series table was written to
+          and never read.
+        */}
+        <SeriesList
+          userId={userId}
+          courses={courses}
+          refreshKey={seriesKey}
+          onChanged={onChanged}
+        />
       </section>
 
       <section className="mb-8">
@@ -238,7 +253,10 @@ export function Plan({ courses, onBack, onChanged }: {
         onClose={() => setRepeating(false)}
         userId={userId}
         courses={courses}
-        onCreated={onChanged}
+        onCreated={() => {
+          setSeriesKey((n) => n + 1);
+          onChanged();
+        }}
       />
 
       <CalendarImport
@@ -331,6 +349,25 @@ function PreviewRow({
           {row.warnings.length > 0 && (
             <span className="mt-1 block type-caption text-t-approaching">
               {row.warnings.join(' · ')}
+            </span>
+          )}
+
+          {/*
+            A date more than a year out, called out separately and more
+            loudly than the parser's own guesses.
+
+            `looksFarOff` was written for this and had never been called, so
+            the one date error the warnings above cannot catch went through
+            silently: a year that was TYPED rather than assumed. "Essay
+            3/15/2027" parses perfectly, raises nothing, and lands a deadline
+            eighteen months out — and the syllabus importer's term check does
+            not cover this path, because a pasted list has no term. It is a
+            sentence rather than a label because it is asking for a decision,
+            and type-caption is for machine labels only.
+          */}
+          {row.usable && looksFarOff(row) && (
+            <span className="mt-1 block type-note text-t-urgent">
+              That is more than a year away. Check the year.
             </span>
           )}
         </span>

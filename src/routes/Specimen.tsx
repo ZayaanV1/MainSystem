@@ -7,6 +7,8 @@ import { EmptyState } from '../components/EmptyState';
 import { Field } from '../components/Field';
 import { Ring } from '../components/Ring';
 import { Sheet } from '../components/Sheet';
+import { PromptInput } from '../components/kit/PromptInput';
+import { ThinkingText } from '../components/kit/ThinkingText';
 
 /**
  * The design system specimen. Development only — reached at /?specimen.
@@ -32,6 +34,7 @@ export function Specimen() {
   const [lowBattery, setLowBattery] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [checked, setChecked] = useState<Record<string, boolean>>({ meds: true });
+  const [prompt, setPrompt] = useState('');
 
   const root = document.documentElement;
   root.setAttribute('data-theme', light ? 'light' : 'dark');
@@ -178,6 +181,44 @@ export function Specimen() {
         <Card>
           <EmptyState>Capture anything here. Sort it later.</EmptyState>
         </Card>
+      </Section>
+
+      {/*
+        The two model-facing controls.
+
+        They were built, styled — their CSS is in index.css — and then wired
+        into nothing for weeks, which is precisely the drift this page exists
+        to catch. A primitive that never appears here is one nobody checks.
+      */}
+      <Section title="PromptInput — the composer">
+        <div className="flex flex-col gap-4 px-4">
+          <PromptInput
+            value={prompt}
+            onChange={setPrompt}
+            onSubmit={() => setPrompt('')}
+            label="Specimen composer"
+          />
+          <PromptInput
+            value="A question already being answered"
+            onChange={() => {}}
+            onSubmit={() => {}}
+            busy
+            label="Specimen composer, busy"
+          />
+          <PromptInput
+            value=""
+            onChange={() => {}}
+            onSubmit={() => {}}
+            disabledReason="That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow."
+            label="Specimen composer, spent"
+          />
+        </div>
+      </Section>
+
+      <Section title="ThinkingText — waiting on a model">
+        <div className="px-4">
+          <ThinkingText />
+        </div>
       </Section>
 
       <Section title="Type scale">

@@ -473,6 +473,68 @@ its own lesson: it reported that data export did not exist and that
 `EmptyState` had no action slot. Both existed. A grep for the wrong identifier
 is indistinguishable from an absence.
 
+### Reachability — Sep 2026
+
+A sweep for the failure mode this file already records four separate instances
+of: **a mechanism that exists, works, and is never reached.** It is worth
+naming as a class rather than a run of bad luck, because it is invisible from
+both ends — whoever wrote the mechanism can see it working, and whoever opens
+the app sees a feature that is simply not there. Nothing fails, and the types
+are all correct.
+
+**`assignment_series` was a write-only table.** `createSeries` inserted a row
+and nothing ever read one back. The schema had already been written as though
+the missing screen existed: the table comment describes turning a series off,
+there is a partial index `where active` serving a query nobody had written,
+and `missingDays` documents itself as idempotent so it can run "whenever a
+series is created or edited" — when nothing edited. The practical cost was the
+largest in the app, because repeating work is the highest-leverage capture and
+the hardest to undo: one tap makes up to two hundred rows, and correcting a
+wrong weekday or a changed term end meant deleting them by hand. There is now
+a list under "Something every week" that can end, restart, re-date, top up and
+delete a pattern.
+
+Deleting offers to remove the instances, and the scope is narrow on purpose:
+unfinished work due today or later, never anything finished and never anything
+past. Finished work is the record of a term, and past unfinished work is what
+rule 3 says stays neutrally visible and back-fillable rather than tidied away.
+
+**The generator's cap was invisible.** `MAX_INSTANCES` truncates silently, so
+a pattern running past it produced a preview whose last date was not the end
+date asked for — in a preview whose entire justification is that you can check
+it before anything is written. It now says so, and the gap it leaves is
+reported in the list and fillable on request rather than topped up silently,
+because a screen that writes twenty rows because it was opened is rule 6's
+exact prohibition.
+
+**`looksFarOff` had never been called.** It was written to catch the one date
+error the paste warnings cannot: a year that was TYPED rather than assumed.
+"Essay 3/15/2027" parses cleanly, raises nothing, and lands a deadline
+eighteen months out — and the syllabus importer's term check does not cover
+that path, because a pasted list has no term.
+
+**`PromptInput` and `ThinkingText` were built, styled and wired to nothing.**
+Their CSS was already shipping in `index.css`. Chat used a hand-rolled
+single-line `<input>` instead, so a question long enough to be worth asking
+scrolled sideways out of view and could not contain a line break. Both are now
+in Chat and, more importantly, on the specimen page — a primitive that never
+appears there is one nobody checks, which is how they sat unused. `assist.ts`
+was also dropping the server's `failure` classification and keeping only the
+sentence, so "you have used today's questions" and "the model is unreachable"
+arrived identically above a composer that stayed enabled for both.
+
+**`ActivityRings` was deleted rather than wired.** Nothing rendered it, and the
+slot it was written for does not exist: Diet already draws four `Ring`s in a
+grid, which is the four-at-a-glance reading, and putting it on Today would
+have meant new queries on the one screen rule 1 puts a two-second budget on.
+Manufacturing a slot to justify existing code is how redundancy enters.
+
+`tests/reachable.test.ts` now guards both shapes structurally — a component
+nothing renders, and a table the app writes and never reads. Each was verified
+to FAIL against a deliberately planted violation before being committed, and
+the table guard was checked against the pre-fix `planner.ts`, where it names
+`assignment_series` and nothing else.
+
 ### A documented deviation from the colour law
 
 The colour law says macro colours appear as **ring strokes only**. The weekly

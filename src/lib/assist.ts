@@ -25,6 +25,20 @@ export interface SyllabusResponse {
 export interface AssistFailure {
   ok: false;
   reason: string;
+  /**
+   * The machine-readable cause, when the server sent one.
+   *
+   * The functions have always classified their failures — 'quota', 'retired',
+   * 'unconfigured' — and this wrapper threw the classification away and kept
+   * only the sentence. That left every caller re-deriving intent from prose or
+   * not distinguishing at all, so "you have used today's questions" and "the
+   * model is unreachable" arrived as the same red line above a composer that
+   * stayed enabled for both.
+   *
+   * Optional because a network failure or a missing session is generated here
+   * and carries no server classification.
+   */
+  failure?: string;
 }
 
 async function call(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -62,6 +76,7 @@ async function call(payload: Record<string, unknown>): Promise<Record<string, un
 
 const failureOf = (body: Record<string, unknown>): AssistFailure => ({
   ok: false,
+  failure: typeof body.failure === 'string' ? body.failure : undefined,
   reason:
     typeof body.reason === 'string'
       ? body.reason

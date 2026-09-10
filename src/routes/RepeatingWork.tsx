@@ -4,7 +4,7 @@ import { Card } from '../components/Card';
 import { Field } from '../components/Field';
 import { Sheet } from '../components/Sheet';
 import { createSeries, type Course, type SeriesFields } from '../lib/planner';
-import { seriesDays, describeSeries } from '../../supabase/functions/_shared/series';
+import { seriesDays, describeSeries, MAX_INSTANCES } from '../../supabase/functions/_shared/series';
 import { todayKey, formatDay } from '../lib/time';
 
 /**
@@ -81,6 +81,15 @@ export function RepeatingWork({ open, onClose, userId, courses, onCreated }: Rep
   );
 
   const ready = fields.title.trim().length > 0 && days.length > 0;
+
+  /*
+   * The generator stops at MAX_INSTANCES, so a pattern that would run past it
+   * comes back truncated — and the preview would then show a last date that is
+   * not the end date asked for, silently. The preview's entire justification
+   * is that you can check it before anything is written, which a preview that
+   * quietly misreports its own range does not survive.
+   */
+  const truncated = days.length >= MAX_INSTANCES;
 
   async function save() {
     setSaving(true);
@@ -234,6 +243,13 @@ export function RepeatingWork({ open, onClose, userId, courses, onCreated }: Rep
                 {formatDay(days[0])}
                 {days.length > 1 && ` to ${formatDay(days[days.length - 1])}`}
               </span>
+              {truncated && (
+                <span className="type-note text-t-urgent">
+                  That is the most this can make at once, so it stops short of{' '}
+                  {formatDay(fields.until_day)}. Narrow the pattern or bring the
+                  end date in — or add the rest later from the list of patterns.
+                </span>
+              )}
               <div className="flex flex-wrap gap-1">
                 {days.slice(0, 12).map((d) => (
                   <span key={d} className="tag type-caption">

@@ -1037,7 +1037,7 @@ export async function createSeries(
   return generateInstances(userId, data as unknown as AssignmentSeriesRow);
 }
 
-interface AssignmentSeriesRow {
+export interface AssignmentSeriesRow {
   id: string;
   title: string;
   course_id: string | null;
@@ -1117,6 +1117,212 @@ export interface SeriesFields {
   due_time: string | null;
   effort_minutes: number | null;
   weight_percent: number | null;
+}
+
+/* ----------------------------------------------------------------------------
+   Managing a series after it exists.
+
+   `assignment_series` was write-only until now: `createSeries` inserted a row
+   and nothing ever read one back. That left the schema making promises the app
+   could not keep — the table comment says "turning a series off stops future
+   generation and touches nothing already generated", and there was no way to
+   turn one off; there is a partial index `where active` serving a query that
+   did not exist; and `missingDays` documents itself as idempotent so it can
+   run "whenever a series is created or edited", when nothing edited.
+
+   The practical cost was the largest of them. A term gets extended, a lab
+   moves from Tuesday to Thursday, a course is dropped — and the only remedy
+   was deleting twelve assignments by hand, which is worse than the friction
+   the feature was built to remove.
+   ------------------------------------------------------------------------- */
+
+/** A series plus what actually exists on the calendar because of it. */
+export interface SeriesSummary {
+  series: AssignmentSeriesRow;
+  /** Instances that exist, whatever their state. */
+  total: number;
+  /** Of those, the ones already ticked off. */
+  done: number;
+  /**
+   * Days the pattern names that carry no instance.
+   *
+   * Normally zero. Non-zero means either an instance was deleted by hand, or
+   * the pattern was widened, or generation hit MAX_INSTANCES — the last of
+   * which is otherwise completely invisible.
+   */
+  missing: DayKey[];
+}
+
+/**
+ * Every series for this account, with the state of its instances.
+ *
+ * Two queries rather than one per series: the instances come back in a single
+ * read filtered to `series_id not null` and are grouped here. A per-series
+ * query would be N+1 on a screen that exists to show all of them at once.
+ */
+export async function loadSeries(
+  userId: string,
+): Promise<{ items: SeriesSummary[]; error: string | null }> {
+  const [seriesRes, instanceRes] = await Promise.all([
+    supabase
+      .from('assignment_series')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('assignments')
+      .select('series_id, due_at, status')
+      .eq('user_id', userId)
+      .not('series_id', 'is', null),
+  ]);
+
+  if (seriesRes.error) return { items: [], error: seriesRes.error.message };
+  if (instanceRes.error) return { items: [], error: instanceRes.error.message };
+
+  const rows = (seriesRes.data ?? []) as unknown as AssignmentSeriesRow[];
+  const instances = (instanceRes.data ?? []) as unknown as {
+    series_id: string;
+    due_at: string | null;
+    status: string;
+  }[];
+
+  const byseries = new Map<string, { days: DayKey[]; total: number; done: number }>();
+  for (const i of instances) {
+    const bucket = byseries.get(i.series_id) ?? { days: [], total: 0, done: 0 };
+    // Days feed the gap calculation; the count is of rows, so an instance
+    // whose date was cleared by hand still counts as existing.
+    if (i.due_at) bucket.days.push(localDayKey(new Date(i.due_at)));
+    bucket.total += 1;
+    if (i.status === 'done') bucket.done += 1;
+    byseries.set(i.series_id, bucket);
+  }
+
+  return {
+    items: rows.map((series) => {
+      const bucket = byseries.get(series.id) ?? { days: [], total: 0, done: 0 };
+      return {
+        series,
+        total: bucket.total,
+        done: bucket.done,
+        // An inactive series names no days, so it can never report a gap.
+        missing: series.active ? missingDays(series, bucket.days) : [],
+      };
+    }),
+    error: null,
+  };
+}
+
+/**
+ * Stops or restarts future generation. Never touches an existing instance.
+ *
+ * The same shape as archiving a course, and for the same reason: last term's
+ * record is the one thing a planner must not quietly discard. Turning a series
+ * off is a statement about what happens next, not a retraction of what already
+ * happened.
+ */
+export async function setSeriesActive(
+  id: string,
+  active: boolean,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('assignment_series').update({ active }).eq('id', id);
+  return { error: error?.message ?? null };
+}
+
+/**
+ * Moves the end of a series and writes whatever that adds.
+ *
+ * Only ever forward in effect. Pulling `until_day` back stops future
+ * generation from that date but leaves instances already on the calendar,
+ * because silently deleting dated work is the failure rule 5 names — removing
+ * them is a separate, explicit action below.
+ *
+ * This is the first caller that exercises `missingDays`'s idempotency against
+ * a real table. Re-running it adds nothing.
+ */
+export async function extendSeries(
+  userId: string,
+  id: string,
+  untilDay: DayKey,
+): Promise<{ created: number; error: string | null }> {
+  const { data, error } = await supabase
+    .from('assignment_series')
+    .update({ until_day: untilDay })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error || !data) return { created: 0, error: error?.message ?? 'Could not change the date.' };
+
+  const row = data as unknown as AssignmentSeriesRow;
+  if (!row.active) return { created: 0, error: null };
+
+  return generateInstances(userId, row);
+}
+
+/**
+ * Creates the instances a series is missing, on request.
+ *
+ * Deliberately NOT run automatically on load. Rule 6 says nothing is written
+ * until it is confirmed, and a screen that silently added twenty rows because
+ * it happened to be opened would be exactly the kind of write that makes an
+ * app untrustworthy — the more so because the usual cause of a gap is a
+ * pattern that hit MAX_INSTANCES, where the number involved is large.
+ */
+export async function fillSeriesGaps(
+  userId: string,
+  id: string,
+): Promise<{ created: number; error: string | null }> {
+  const { data, error } = await supabase
+    .from('assignment_series')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return { created: 0, error: error?.message ?? 'Could not read the pattern.' };
+
+  return generateInstances(userId, data as unknown as AssignmentSeriesRow);
+}
+
+/**
+ * Removes a series, and optionally the work it has not finished.
+ *
+ * WHAT `alsoRemoveUnfinished` WILL AND WILL NOT TOUCH
+ *
+ * It deletes instances that are BOTH not done AND due today or later. Nothing
+ * else, ever. Finished work is a record of a term and deleting it would be the
+ * quiet discard the archiving rule forbids; and past unfinished work is the
+ * evidence of what was missed, which rule 3 says must stay neutrally visible
+ * and back-fillable rather than being tidied away.
+ *
+ * The default is to keep everything: the foreign key is `on delete set null`,
+ * so a plain delete orphans the instances and they carry on as ordinary
+ * assignments. That is the safe direction, and it is why the choice is offered
+ * rather than assumed.
+ */
+export async function deleteSeries(
+  userId: string,
+  id: string,
+  alsoRemoveUnfinished: boolean,
+): Promise<{ removed: number; error: string | null }> {
+  let removed = 0;
+
+  if (alsoRemoveUnfinished) {
+    const from = startOfDayUTC(todayKey()).toISOString();
+    const { data, error } = await supabase
+      .from('assignments')
+      .delete()
+      .eq('user_id', userId)
+      .eq('series_id', id)
+      .neq('status', 'done')
+      .gte('due_at', from)
+      .select('id');
+
+    if (error) return { removed: 0, error: error.message };
+    removed = (data ?? []).length;
+  }
+
+  const { error } = await supabase.from('assignment_series').delete().eq('id', id);
+  return { removed, error: error?.message ?? null };
 }
 
 /**

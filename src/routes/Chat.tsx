@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '../components/Button';
+import { PromptInput } from '../components/kit/PromptInput';
+import { ThinkingText } from '../components/kit/ThinkingText';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../lib/auth';
 import { askChat } from '../lib/assist';
@@ -35,6 +37,17 @@ export function Chat({ courses, onBack, onChanged }: {
   const [thinking, setThinking] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
+  /*
+   * Set when the daily question budget is gone.
+   *
+   * Two ways to learn it, and both were being discarded. The server classifies
+   * the refusal as `failure: 'quota'`, which the client wrapper dropped; and a
+   * successful answer reports how many questions are left, which reaching zero
+   * makes certain. Either way the composer should stop accepting a question it
+   * already knows cannot be sent — leaving it enabled invites typing a
+   * paragraph and being refused after.
+   */
+  const [spent, setSpent] = useState<string | null>(null);
   const [doing, setDoing] = useState<string | null>(null);
 
   const bottom = useRef<HTMLDivElement>(null);
@@ -47,10 +60,9 @@ export function Chat({ courses, onBack, onChanged }: {
     bottom.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, thinking]);
 
-  async function send(e: FormEvent) {
-    e.preventDefault();
+  async function send() {
     const text = draft.trim();
-    if (!text || thinking) return;
+    if (!text || thinking || spent) return;
 
     setDraft('');
     setProblem(null);
@@ -64,6 +76,7 @@ export function Chat({ courses, onBack, onChanged }: {
 
     if (!result.ok) {
       setProblem(result.reason);
+      if (result.failure === 'quota') setSpent(result.reason);
 
       // The failure is persisted as a reply rather than left as a transient
       // banner. Otherwise a reload shows the question sitting there with no
@@ -74,6 +87,11 @@ export function Chat({ courses, onBack, onChanged }: {
     }
 
     setRemaining(result.remaining);
+    if (result.remaining <= 0) {
+      setSpent(
+        'That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow.',
+      );
+    }
 
     const theirs = await saveMessage(userId, {
       role: 'assistant',
@@ -195,7 +213,19 @@ export function Chat({ courses, onBack, onChanged }: {
           </div>
         ))}
 
-        {thinking && <p className="type-note self-start text-text-low">Looking…</p>}
+        {/*
+          A line that describes the work, rather than a spinner. The three
+          lines are literal — the model really is reading the week, then
+          deciding what matters, then writing — and they rotate slowly enough
+          to be read. Under reduced motion the sweep stops and the sentence
+          simply sits there, which is a complete pending state on its own.
+        */}
+        {thinking && (
+          <ThinkingText
+            className="self-start"
+            lines={['Reading your week', 'Working out what matters', 'Writing it up']}
+          />
+        )}
         {problem && (
           <p className="type-body text-t-overdue" role="alert">
             {problem}
@@ -205,43 +235,27 @@ export function Chat({ courses, onBack, onChanged }: {
         <div ref={bottom} />
       </div>
 
-      <form onSubmit={send} className="sticky bottom-0 mb-6 flex gap-2 bg-ink-900 px-4 pt-2">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Ask Abood anything"
-          className="flex-1 rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
-        />
-        {/*
-          An arrow, not the word. It sits at the end of a text field where
-          "send" is the only thing the control could mean, and a glyph reads
-          faster than a word you have to finish reading. The accessible name
-          still says what it does.
-        */}
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={!draft.trim() || thinking}
-          aria-label="Send"
-          className="aspect-square px-0"
-        >
-          <svg
-            aria-hidden
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M5 12h14M13 6l6 6-6 6" />
-          </svg>
-        </Button>
-      </form>
+      {/*
+        The composer.
 
-      {remaining !== null && remaining <= 10 && (
+        It was a single-line <input>, which is the wrong control for this: a
+        question long enough to be worth asking scrolled sideways out of view
+        while it was being typed, and there was no way to put a line break in
+        one. PromptInput grows with the text, sends on Enter and breaks the
+        line on Shift+Enter, and refuses to send mid-IME-composition.
+      */}
+      <div className="sticky bottom-0 mb-6 bg-ink-900 px-4 pt-2">
+        <PromptInput
+          value={draft}
+          onChange={setDraft}
+          onSubmit={() => void send()}
+          busy={thinking}
+          disabledReason={spent ?? undefined}
+          label="Ask Abood"
+        />
+      </div>
+
+      {remaining !== null && remaining > 0 && remaining <= 10 && (
         <p className="mb-6 px-4 type-note text-text-low">
           {remaining} more questions today. The rest of the daily model budget is kept for logging
           food.
