@@ -6,6 +6,7 @@ import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { whatNow, type Task } from '../lib/intelligence';
 import type { Assignment, Course } from '../lib/planner';
+import { startSession } from '../lib/focus';
 
 /**
  * One button, one task.
@@ -108,6 +109,23 @@ export function WhatNow({
       )}
 
       <div className="mt-3 flex flex-wrap gap-3">
+        {/*
+          Started from here on purpose: this is the exact moment a decision
+          becomes work, and it is the only place in the app where the app
+          already knows what you are about to do. Asking again on another
+          screen would be asking a question that was just answered.
+        */}
+        {picked && (
+          <Button
+            variant="primary"
+            onClick={() => {
+              startSession(picked.id, picked.title);
+              setOpen(false);
+            }}
+          >
+            Start on it
+          </Button>
+        )}
         <Button variant="quiet" onClick={() => setOpen(false)}>
           Close
         </Button>

@@ -52,6 +52,7 @@ export function Triage({
     remind_at: null,
     weight_percent: null,
     grade_percent: null,
+    link: null,
   });
   const [busy, setBusy] = useState(false);
 

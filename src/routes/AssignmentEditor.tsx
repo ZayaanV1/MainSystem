@@ -67,6 +67,7 @@ function fromAssignment(a: Assignment): AssignmentFields {
     remind_at: a.remind_at,
     weight_percent: a.weight_percent,
     grade_percent: a.grade_percent,
+    link: a.link,
   };
 }
 
@@ -213,6 +214,16 @@ export function AssignmentEditor({
           demanding a fact the user does not have yet — which rule 2 forbids at
           capture and which is no better here.
         */}
+        <Field
+          label="Where it lives"
+          type="url"
+          inputMode="url"
+          value={fields.link ?? ''}
+          onChange={(e) => set('link', e.target.value || null)}
+          placeholder="moodle.example.edu/mod/assign/…"
+          hint="The submission page, the brief, the doc. Optional."
+        />
+
         <div className="grid grid-cols-2 gap-3">
           <Field
             label="Worth"

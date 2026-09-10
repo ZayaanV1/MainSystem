@@ -185,6 +185,26 @@ export function AssignmentRow({
           {typeof assignment.grade_percent === 'number' && (
             <span className="tag type-caption">scored {assignment.grade_percent}%</span>
           )}
+          {/*
+            An anchor rather than a button, so it behaves like a link: long
+            press, open in a new tab, copy address. rel="noreferrer" because
+            the destination is a third party the app does not control and has
+            no reason to hand a referrer to.
+
+            stopPropagation keeps a tap on the link from also opening the
+            editor — the row is a tap target and this sits inside it.
+          */}
+          {assignment.link && (
+            <a
+              href={assignment.link}
+              target="_blank"
+              rel="noreferrer noopener"
+              onClick={(e) => e.stopPropagation()}
+              className="tag type-caption underline decoration-dotted underline-offset-2"
+            >
+              Open
+            </a>
+          )}
           {showStart && start && (
             <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
           )}

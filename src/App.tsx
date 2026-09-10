@@ -41,6 +41,8 @@ const Specimen = lazy(() => import('./routes/Specimen').then((m) => ({ default: 
 
 import { Onboarding } from './routes/Onboarding';
 import { useHotkeys } from './lib/useHotkeys';
+import { FocusBar } from './components/FocusBar';
+import { FocusResult } from './components/FocusResult';
 
 /**
  * Routing is a piece of state rather than a dependency.
@@ -157,6 +159,18 @@ function Shell() {
   });
   const [data, setData] = useState<TodayData | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
+  /**
+   * A finished timer, waiting to be offered.
+   *
+   * Offered, never written. Rule 2 keeps marking work done free, and a timer
+   * that silently recorded what it measured would make starting one a
+   * commitment rather than a convenience.
+   */
+  const [finishedFocus, setFinishedFocus] = useState<{
+    assignmentId: string;
+    title: string;
+    minutes: number;
+  } | null>(null);
   // Bumped to make Today refetch after Plan writes something.
   const [revision, setRevision] = useState(0);
 
@@ -261,6 +275,18 @@ function Shell() {
       <SyncBanner />
 
       {/*
+        Above every screen, because a timer you have to navigate back to is a
+        timer you forget is running — and a forgotten one records a wrong
+        number into the calibration median, which is worse than recording
+        nothing.
+      */}
+      <FocusBar
+        onFinish={(assignmentId, title, minutes) =>
+          setFinishedFocus({ assignmentId, title, minutes })
+        }
+      />
+
+      {/*
         Keyed by screen, so React unmounts the old one and mounts the new, and
         the new one animates in.
 
@@ -308,6 +334,16 @@ function Shell() {
           onSaved={() => setRevision((r) => r + 1)}
         />
       )}
+      {finishedFocus && (
+        <FocusResult
+          {...finishedFocus}
+          onDone={() => {
+            setFinishedFocus(null);
+            setRevision((r) => r + 1);
+          }}
+        />
+      )}
+
     </AppShell>
   );
 }

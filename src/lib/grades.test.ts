@@ -15,6 +15,7 @@ const work = (o: Partial<Assignment> & { id: string }): Assignment => ({
   remind_at: null,
   weight_percent: null,
   grade_percent: null,
+  link: null,
   ...o,
 });
 

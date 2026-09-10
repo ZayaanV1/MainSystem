@@ -4,6 +4,8 @@ import { recentDays, type ChecklistItem } from './checklist';
 import { HISTORY_DAYS } from '../../supabase/functions/_shared/history';
 import { missingDays } from '../../supabase/functions/_shared/series';
 import { clearCache, getCache, putCache } from './readcache';
+import { normaliseLink } from './link';
+export { normaliseLink } from './link';
 import {
   endOfDayUTC,
   localDayKey,
@@ -66,6 +68,14 @@ export interface Assignment {
   weight_percent: number | null;
   /** What this assessment actually scored, 0-100. Entered by hand. */
   grade_percent: number | null;
+  /**
+   * Where the work actually lives — a submission page, a brief, a shared doc.
+   *
+   * http(s) only, enforced by a database constraint rather than only here,
+   * because the chatbot and the syllabus importer also create assignments and
+   * a rule that lives in one caller is a rule the next caller forgets.
+   */
+  link: string | null;
 }
 
 /** Course colour tokens, by the index stored on the row. */
@@ -228,7 +238,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase
       .from('assignments')
       .select(
-        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at, weight_percent, grade_percent',
+        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at, weight_percent, grade_percent, link',
       )
       .neq('status', 'done')
       .order('due_at', { ascending: true, nullsFirst: false }),
@@ -249,7 +259,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase
       .from('assignments')
       .select(
-        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, weight_percent, grade_percent',
+        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, weight_percent, grade_percent, link',
       )
       .eq('status', 'done')
       .gte('completed_at', startOfDayUTC(today).toISOString())
@@ -904,6 +914,7 @@ export interface AssignmentFields {
   notes: string | null;
   weight_percent: number | null;
   grade_percent: number | null;
+  link: string | null;
 }
 
 /**
@@ -936,6 +947,7 @@ export async function updateAssignment(id: string, fields: AssignmentFields): Pr
       remind_at: fields.remind_at,
       weight_percent: fields.weight_percent,
       grade_percent: fields.grade_percent,
+      link: normaliseLink(fields.link),
     },
     { id },
   );
@@ -969,7 +981,7 @@ export async function loadWeightedWork(): Promise<{ rows: Assignment[]; failed: 
   const { data, error } = await supabase
     .from('assignments')
     .select(
-      'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at, weight_percent, grade_percent',
+      'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at, weight_percent, grade_percent, link',
     )
     .not('weight_percent', 'is', null)
     .order('weight_percent', { ascending: false });
@@ -1130,3 +1142,5 @@ export async function deleteAccount(): Promise<{ error: string | null }> {
   await supabase.auth.signOut();
   return { error: null };
 }
+
+
