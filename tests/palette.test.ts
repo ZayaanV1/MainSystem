@@ -187,3 +187,75 @@ describe('every colour that carries text can be read', () => {
     expect(contrast(token('accent-2-lit'), token('ink-900'))).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+/**
+ * The atmosphere is composited UNDER text, so it is part of the contrast sum.
+ *
+ * This is the one contrast question the rest of this file cannot ask. Every
+ * other assertion measures a token against the ground the palette was
+ * designed on. The atmosphere washes are fixed to the viewport and the page
+ * scrolls over them, so any text sitting directly on the ground — a caption,
+ * an empty state, the date under the masthead — is actually read against
+ * ground PLUS wash.
+ *
+ * That gap shipped a real regression the moment the washes were introduced:
+ * ember at 0.16 and phthalo at 0.50 looked considerably better than what is
+ * there now and dropped --text-low to 4.12:1 and 3.64:1. Both under the 4.5
+ * floor, in the corners of the screen, and invisible to every guard in this
+ * file because no token had changed — only what a token was drawn on top of.
+ */
+describe('the atmosphere does not eat the contrast floor', () => {
+  /** A wash token: `--atmo-x: rgb(r g b / a);`, from the dark :root block. */
+  function wash(name: string): { rgb: string; alpha: number } {
+    const m = new RegExp(
+      `^\\s*--${name}:\\s*rgb\\(\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*/\\s*([0-9.]+)\\s*\\)`,
+      'm',
+    ).exec(TOKENS);
+    if (!m) throw new Error(`token --${name} not found, or is not rgb(r g b / a)`);
+    const hex =
+      '#' + [m[1], m[2], m[3]].map((v) => Number(v).toString(16).padStart(2, '0')).join('');
+    return { rgb: hex, alpha: Number(m[4]) };
+  }
+
+  /** `over` composited on `under` at `alpha`, as the compositor would do it. */
+  function composite(over: string, under: string, alpha: number): string {
+    const a = rgb(over).map((v) => v * 255);
+    const b = rgb(under).map((v) => v * 255);
+    return (
+      '#' +
+      a
+        .map((v, i) =>
+          Math.round(v * alpha + b[i] * (1 - alpha))
+            .toString(16)
+            .padStart(2, '0'),
+        )
+        .join('')
+    );
+  }
+
+  it('finds the wash tokens at all', () => {
+    // Guards the guard: a renamed token must fail loudly, not silently pass.
+    expect(wash('atmo-ember').alpha).toBeGreaterThan(0);
+    expect(wash('atmo-phthalo').alpha).toBeGreaterThan(0);
+  });
+
+  it('keeps the weakest text above 4.5:1 over either wash', () => {
+    // --text-low is the binding case: it is the closest thing in the system
+    // to the floor before anything is composited over the ground at all.
+    const text = token('text-low');
+    const ground = token('ink-900');
+
+    for (const name of ['atmo-ember', 'atmo-phthalo'] as const) {
+      const w = wash(name);
+      const washed = composite(w.rgb, ground, w.alpha);
+      const ratio = contrast(text, washed);
+
+      expect(
+        ratio,
+        `--${name} at ${w.alpha} puts --text-low at ${ratio.toFixed(2)}:1 on the washed ` +
+          `ground, under the 4.5 floor. Lower the alpha — this is a contrast ` +
+          `regression, not a taste call.`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});

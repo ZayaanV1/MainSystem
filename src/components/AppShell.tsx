@@ -98,7 +98,7 @@ function TabBar<T extends string>({
       )}
 
       {more && (
-        <div className="fx-glass fixed inset-x-0 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] z-50 mx-3 overflow-hidden rounded-card border border-ink-600 lg:hidden">
+        <div className="fx-glass fixed inset-x-3 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom)+var(--sp-6))] z-50 overflow-hidden rounded-sheet border border-ink-600 shadow-lg lg:hidden">
           {rest.map((item) => (
             <button
               key={item.id}
@@ -126,7 +126,20 @@ function TabBar<T extends string>({
         // the whole point of a material that refracts. It is also a single
         // fixed element, so the backdrop read happens once per frame rather
         // than once per row.
-        className="vt-chrome fx-glass fixed inset-x-0 bottom-0 z-50 flex h-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] items-start border-t border-ink-600 pb-[env(safe-area-inset-bottom)] lg:hidden"
+        // Floating, not welded to the bottom edge.
+        //
+        // It was an edge-to-edge slab with a 1px top border, which is the
+        // shape every mobile web app has because it is the shape you get by
+        // default. Detaching it costs 12px of screen and changes what the
+        // glass is for: pinned to the edge it refracts the very bottom of the
+        // page, which is usually nothing; floating, content passes UNDER it
+        // on both sides, so the material is doing the thing it exists to do
+        // every time you scroll.
+        //
+        // It also lets the bar carry a real shadow. A slab flush with the
+        // viewport cannot cast one — there is nothing beneath it to cast onto
+        // — so the only depth cue available was the border.
+        className="vt-chrome fx-glass fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+var(--sp-3))] z-50 flex h-[var(--tab-bar)] items-stretch overflow-hidden rounded-pill border border-ink-600 shadow-lg lg:hidden"
       >
         {shown.map((item) => {
           const active = item.id === current;

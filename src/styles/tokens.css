@@ -216,6 +216,50 @@
      under a neutral card. */
   --shadow-ember: 0 10px 28px -10px rgb(226 98 44 / 0.45);
 
+  /* ---- atmosphere ------------------------------------------------------
+     The two lights behind the app, weighted independently.
+
+     They started as one gradient stack under a single opacity, and that was
+     wrong in both directions at once: at a strength where the ember bloom
+     was not shouting, the phthalo pool had disappeared entirely. They are
+     different colours doing different jobs at different distances, so they
+     need different alphas rather than one multiplier.
+
+     EMBER is deliberately the weaker of the two, and the number is low on
+     purpose. It reads as a light source high and right. Above roughly 0.20
+     it stops being a source and becomes an orange smear across the corner,
+     and — the reason that actually matters — it starts competing with the
+     primary button, which is the one thing in the entire palette the brand
+     colour exists to win.
+
+     PHTHALO is the stronger of the two because it is much darker to begin
+     with: at 2.09:1 against the ground it needs real alpha to register at
+     all. It hugs the bottom edge, where the glass tab bar floats, because
+     refraction needs something underneath it to refract.
+
+     BOTH CEILINGS ARE MEASURED, NOT CHOSEN. The wash is fixed to the
+     viewport and the page scrolls over it, so any text sitting directly on
+     the ground — a caption, an empty state — is read against ground PLUS
+     wash rather than against the ground the palette was measured on. The
+     first draft of this had ember at 0.16 and phthalo at 0.50, which looked
+     considerably better and dropped --text-low from 4.95:1 to 4.12 and 3.64
+     respectively. Both under the 4.5 floor, in the corners of the screen,
+     at night, which is when this app is actually open.
+
+     So each is set to the largest alpha that still clears 4.5:1 for
+     --text-low, the weakest text colour in the system:
+
+        dark    ember 0.09   phthalo 0.20
+        light   ember 0.07   phthalo 0.095  -> rounded to 0.09
+
+     Raising either is a contrast regression, not a taste call. The palette
+     test cannot catch this one, because the violation is not in a token —
+     it is in what a token is composited over.
+     -------------------------------------------------------------------- */
+  --atmo-ember: rgb(226 98 44 / 0.09);
+  --atmo-phthalo: rgb(12 82 87 / 0.2);
+  --grain-strength: 0.035;
+
   /* Motion. Ring fill is the one place motion does real work: the ring
      visibly moving is the receipt that the entry landed. */
   --dur-tap: 150ms;
@@ -298,6 +342,13 @@
 
     --focus-ring: #4a6da8;
 
+    /* Paper takes far less of both. A wash that reads as lit on charcoal
+       reads as a stain on cream, and grain that reads as texture on a dark
+       ground reads as a dirty screen on a light one. */
+    --atmo-ember: rgb(194 82 31 / 0.07);
+    --atmo-phthalo: rgb(10 70 75 / 0.09);
+    --grain-strength: 0.018;
+
     color-scheme: light;
   }
 }
@@ -361,6 +412,13 @@
   --selection: rgb(194 82 31 / 0.28);
 
   --focus-ring: #4a6da8;
+
+  /* Paper takes far less of both. A wash that reads as lit on charcoal
+     reads as a stain on cream, and grain that reads as texture on a dark
+     ground reads as a dirty screen on a light one. */
+  --atmo-ember: rgb(194 82 31 / 0.07);
+  --atmo-phthalo: rgb(10 70 75 / 0.09);
+  --grain-strength: 0.018;
 
   color-scheme: light;
 }

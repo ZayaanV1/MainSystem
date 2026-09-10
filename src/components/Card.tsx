@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 
 /**
  * Card.
@@ -28,7 +28,7 @@ const ELEVATION: Record<Elevation, string> = {
   hero: 'rounded-hero border border-ink-600 bg-ink-800 shadow-lg',
 };
 
-interface CardProps extends HTMLAttributes<HTMLDivElement> {
+interface CardProps extends ComponentProps<'div'> {
   /** A course token name, e.g. '--c-3'. Renders as the left edge. */
   courseVar?: string;
   /** @default 'flat' */

@@ -330,6 +330,54 @@
   text-wrap: balance;
 }
 
+/*
+ * The masthead voice. One screen uses it: the top of Today.
+ *
+ * type-display tops out at 2.5rem, which is the right ceiling for a heading
+ * that sits above content it belongs to. This is not that — it is the first
+ * thing on the first screen, with nothing above it, and at 2.5rem it read as
+ * a slightly large heading rather than as a masthead. The extra size is what
+ * makes it register before the eye has decided to read.
+ *
+ * The tracking goes to -0.04em, which is the floor the craft rules set and
+ * the correct value at this size: optical letterfit tightens as type grows,
+ * and a display line set at body tracking is the loosest-looking thing on a
+ * page. Line-height drops below 1 for the same reason — descenders and
+ * ascenders at this size leave more air than the design wants.
+ */
+@utility type-masthead {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 1.5rem + 3.6vw, 3.75rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.96;
+  text-wrap: balance;
+}
+
+/*
+ * The hairline under the masthead.
+ *
+ * Ember, at low alpha, fading to nothing on the right. It is the only place
+ * in the app where the brand appears as a rule rather than as a fill, and it
+ * earns the exception by doing structural work: it closes the masthead
+ * without the full-width divider that would cut the page in half.
+ *
+ * The fade is the whole point. A rule that stops at a hard edge draws
+ * attention to where it stops; one that dissolves reads as the end of the
+ * heading rather than as a line someone drew.
+ */
+@utility masthead-rule {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) 12%,
+    transparent 62%
+  );
+  opacity: 0.5;
+}
+
 @utility type-h1 {
   font-family: var(--font-display);
   font-size: clamp(1.3125rem, 1.15rem + 0.8vw, 1.6875rem);
@@ -440,7 +488,10 @@
   padding-top: 1.5rem;
   /* Clears the fixed tab bar, so the last row of a list is not sitting
      underneath it. Removed at lg, where the rail is beside the content. */
-  padding-bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1rem);
+  /* Clearance for the tab bar, which now floats 12px off the bottom edge
+     rather than sitting on it — so the page needs that gap back plus the
+     same breathing room it had before. */
+  padding-bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1.75rem);
 }
 
 @media (width >= 64rem) {
@@ -816,26 +867,72 @@
   position: relative;
   isolation: isolate;
 
+  /*
+   * The environment the app sits in, in three layers.
+   *
+   * This was one shallow phthalo wash hugging the bottom edge at 16%, which
+   * existed to give the glass tab bar something to refract and did exactly
+   * that and nothing more. The rest of the screen was flat #13100c — and a
+   * flat dark ground is the single most reliable tell that an interface was
+   * assembled rather than built. Real dark interfaces are lit: they have a
+   * source, a falloff, and a surface that is not mathematically uniform.
+   *
+   * So: an ember bloom high and right, where a light source would be; the
+   * phthalo pool still low, where the glass needs it; and a fine grain over
+   * both. Two washes rather than one because a single-hue ground reads as a
+   * tint applied to a screenshot, while two that meet in the middle read as
+   * a room. They are far enough apart in hue (ember 20 degrees, phthalo 184)
+   * that neither muddies the other where they overlap.
+   *
+   * All three are FIXED and pointer-events: none, so the whole environment
+   * is one paint that never re-runs on scroll and never intercepts a tap.
+   */
   &::before {
     content: '';
-    /* Fixed, not absolute. On a long page an absolute wash scrolls away and
-       the glass at the bottom of the screen ends up refracting nothing; a
-       fixed one stays behind the viewport, which is also one paint instead of
-       one per scroll position. `isolation` does not contain fixed children,
-       so this stays viewport-relative as intended. */
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      /* Ember, high right. Small and weak — a source, not a fog. The alpha
+         lives in the token so this wash can be tuned without touching the
+         one below it, which needs roughly three times as much to register. */
+      radial-gradient(
+        54% 40% at 92% 0%,
+        var(--atmo-ember) 0%,
+        transparent 70%
+      ),
+      /* Phthalo, low and wide, hugging the bottom edge — which is where the
+         glass tab bar floats, and glass with nothing under it is a smudge. */
+      radial-gradient(
+        150% 48% at 50% 102%,
+        var(--atmo-phthalo) 0%,
+        transparent 76%
+      );
+  }
+
+  /*
+   * Grain.
+   *
+   * The layer that does the most per byte. Fractal noise at very low opacity
+   * breaks up the banding a large radial gradient produces on an 8-bit
+   * display, and it gives every flat surface a texture the eye reads as
+   * material rather than as a fill. It is greyscale, so it holds no colour
+   * of its own and cannot violate the colour law; it tints nothing, it only
+   * roughens.
+   *
+   * Generated inline as an SVG data URI rather than shipped as a PNG: it is
+   * under 300 bytes, it needs no network round trip, and it scales to any
+   * DPR without a second asset.
+   */
+  &::after {
+    content: '';
     position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    /* Wide and shallow, hugging the bottom edge where the glass actually is.
-       Nothing reaches the upper half of the screen, so no content ever sits
-       on a tinted ground. */
-    background: radial-gradient(
-      140% 42% at 50% 100%,
-      var(--accent-2) 0%,
-      transparent 72%
-    );
-    opacity: 0.16;
+    opacity: var(--grain-strength);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 }
 

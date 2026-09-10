@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { Pressable } from '../components/Pressable';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Button } from '../components/Button';
@@ -40,6 +47,7 @@ import {
 } from '../lib/planner';
 import { activeTimezone, addDays, formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 import { announce } from '../lib/announce';
+import { revealList } from '../lib/motion';
 import { usePullToRefresh } from '../lib/usePullToRefresh';
 
 /**
@@ -114,6 +122,37 @@ export function Today({
   // The dose counter is maintained by a database trigger, so once queued
   // writes have drained the real numbers have to be re-read rather than
   // guessed at locally.
+  /*
+   * The work list's entrance.
+   *
+   * `revealList` has existed in motion.ts since the animation vocabulary was
+   * written and nothing had ever called it — the app's one authored list
+   * animation, shipped and unreachable, which is the same shape as the model
+   * list and the series table before them.
+   *
+   * This is the right place for it and close to the only one. The craft rule
+   * is one authored moment per screen rather than an entrance on every
+   * section, and on Today the moment that carries meaning is the work
+   * arriving: the list is the answer to the question the screen exists to
+   * ask. The checklist above it and the inbox below it stay still, so the eye
+   * is led to the answer rather than to the page assembling itself.
+   *
+   * Keyed on the ids, not on `data`, so a reload that changes nothing does
+   * not replay it — an entrance that fires again every time something is
+   * ticked off would be an animation happening AT you.
+   */
+  const workList = useRef<HTMLDivElement>(null);
+  const workIds = (data?.assignments ?? []).map((a) => a.id).join(',');
+  // Layout effect, not effect: the animation's own from-value is opacity 0,
+  // and applying that after paint means the row renders visible for one frame
+  // and is then hidden to be faded back in. A flash on the screen whose whole
+  // job is to be readable in two seconds.
+  useLayoutEffect(() => {
+    const root = workList.current;
+    if (!root || !workIds) return;
+    revealList(Array.from(root.children) as HTMLElement[]);
+  }, [workIds]);
+
   const wasBusy = useRef(false);
   useEffect(
     () =>
@@ -221,13 +260,35 @@ export function Today({
           </span>
         </div>
       )}
-      <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <div>
-          <h1 className="type-h1 text-text-hi">Today</h1>
-          <p className="type-caption mt-1 text-text-low">
-            {formatDay(today)} &middot; {zoneAbbrev()}
-          </p>
-        </div>
+      {/*
+        The masthead.
+
+        This was the word "Today" at h1 and a grey caption under it, which is
+        a label for a screen rather than the top of one. The screen already
+        knows it is today — the tab is lit, the content is today's. What it
+        was not saying is WHICH day, at a size that registers before you have
+        decided to read anything, and that is the one piece of orientation a
+        planner opens with.
+
+        So the weekday carries the type now, at display weight with real
+        negative tracking, and the date sits under it. "Today" survives as the
+        accessible name because the landmark still has to announce what screen
+        this is, and because rule 1 is about answering that in two seconds.
+
+        The hairline is ember at low alpha, fading out to the right. It is
+        the only place in the app the brand appears as a rule rather than a
+        fill, and it is doing structural work — it separates the masthead from
+        the day without a full-width divider, which would cut the page in two.
+      */}
+      <header className="mb-6 px-4">
+        <h1 className="sr-only">Today</h1>
+        <p aria-hidden className="type-masthead text-text-hi">
+          {weekdayName(today)}
+        </p>
+        <p className="mt-1 type-caption text-text-low">
+          {formatDay(today)} &middot; {zoneAbbrev()}
+        </p>
+        <div aria-hidden className="masthead-rule mt-4" />
       </header>
 
       {/*
@@ -425,7 +486,7 @@ export function Today({
             <EmptyState>Nothing due.</EmptyState>
           )
         ) : (
-          <Card>
+          <Card ref={workList}>
             {data.assignments.map((a) => (
               <AssignmentRow
                 key={a.id}
@@ -660,6 +721,27 @@ function DayStrip({
  * of quota, the day is still fully readable; an error banner over the top of
  * it would be the app complaining about its own optional feature.
  */
+/**
+ * The weekday a local day key falls on.
+ *
+ * Parsed at noon UTC rather than midnight, which is the same trick the week
+ * view uses: a DayKey is a calendar date with no zone, and midnight is the
+ * one instant a zone offset can push into the previous day.
+ */
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+
+function weekdayName(day: DayKey): string {
+  return WEEKDAY_NAMES[new Date(`${day}T12:00:00Z`).getUTCDay()];
+}
+
 function Briefing({ dep }: { dep: TodayData | null }) {
   const [text, setText] = useState('');
 
