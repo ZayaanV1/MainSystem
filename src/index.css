@@ -412,6 +412,22 @@
    */
   min-height: 100svh;
   width: 100%;
+
+  /*
+   * 40rem is a phone column, and until now it was the width on every screen.
+   * With the 15rem rail that left 49% of a 16" laptop empty and 66% of a 27"
+   * monitor — while the two-column grid on Today was squeezed into 640px, so
+   * the app managed to look sparse and cramped at the same time.
+   *
+   * This is not a cosmetic fix. Rule 1 promises the app answers "what do I do
+   * right now" with no navigation, and on a desktop that promise was quietly
+   * false: the checklist, the work and the inbox stacked into one narrow
+   * column, so you scrolled past your own day to find out whether anything was
+   * due. Giving the columns room is what makes the rule true on a laptop.
+   *
+   * Running prose stays capped at 62ch by a rule further down, so widening the
+   * frame widens the LAYOUT and never the line length.
+   */
   max-width: 40rem;
   flex-direction: column;
   padding-inline: 1rem;
@@ -543,6 +559,17 @@
 @media (width >= 64rem) {
   main p {
     max-width: 62ch;
+  }
+
+  /* Room for the columns that were already there and had none. */
+  .page-frame {
+    max-width: 64rem;
+  }
+}
+
+@media (width >= 90rem) {
+  .page-frame {
+    max-width: 78rem;
   }
 }
 

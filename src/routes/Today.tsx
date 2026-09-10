@@ -249,7 +249,7 @@ export function Today({
         and the things still waiting to be sorted. They stack in that order on
         a phone, which is the order a morning actually happens in.
       */}
-      <div className="lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start lg:gap-10">
+      <div className="lg:grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.3fr)] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,0.95fr)] xl:gap-10">
         <div className="min-w-0">
       <section className="mb-8">
         <div className="mb-3 flex items-baseline justify-between gap-4 px-4">
@@ -441,6 +441,21 @@ export function Today({
         )}
       </section>
 
+
+        </div>
+
+        {/*
+          The third column exists only where there is room for it. Below xl it
+          closes up and the inbox returns to the bottom of the middle column,
+          which is the order a phone should read in.
+
+          It is here at all because out of sight is out of mind: an inbox
+          stacked under the work list is an inbox nobody scrolls to, so
+          anything captured and not triaged the same day effectively stops
+          existing. On a laptop there was 848px of margin to spend on exactly
+          that problem.
+        */}
+        <div className="min-w-0">
       <section className="mb-8 flex-1">
         <h2 className="type-h2 mb-1 px-4 text-text-hi">Inbox</h2>
         {Boolean(data?.inbox.length) && (
