@@ -3,6 +3,7 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
+import { hasOwnGroqKey, setOwnGroqKey } from '../lib/planner';
 import { applyTheme, readTheme, writeTheme, type ThemeChoice } from '../lib/theme';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../lib/auth';
@@ -207,6 +208,8 @@ export function Settings({ onBack }: { onBack: () => void }) {
       </section>
 
       <ApiKey userId={userId} />
+
+      <GroqKey userId={userId} />
 
       <CalendarFeed userId={userId} />
 
@@ -543,6 +546,87 @@ function DeleteAccount() {
             </div>
           </>
         )}
+      </Card>
+    </section>
+  );
+}
+
+/**
+ * A Groq key for the chatbot.
+ *
+ * Deliberately its own section rather than a second field inside the Gemini
+ * one, because they do different jobs and saying so prevents the obvious wrong
+ * assumption. Groq's chat models take no images, so photo food logging stays
+ * on Gemini no matter what is set here — and a single "AI key" field would
+ * imply otherwise and quietly break photographs.
+ *
+ * Write-only, like the other. The app asks whether a key is set and never
+ * reads one back.
+ */
+function GroqKey({ userId }: { userId: string }) {
+  const [isSet, setIsSet] = useState<boolean | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void hasOwnGroqKey().then(setIsSet);
+  }, []);
+
+  async function save(next: string | null) {
+    setBusy(true);
+    setMessage(null);
+    const { error } = await setOwnGroqKey(userId, next);
+    setBusy(false);
+    if (error) {
+      setMessage(error);
+      return;
+    }
+    setDraft('');
+    setIsSet(Boolean(next));
+    setMessage(next ? 'Saved. Abood will use it from the next question.' : 'Removed.');
+  }
+
+  return (
+    <section className="mb-8">
+      <h2 className="type-h2 mb-3 px-4 text-text-hi">Abood&rsquo;s model</h2>
+      <Card className="p-4">
+        <p className="type-body mb-3 text-text-mid">
+          A Groq key runs the chatbot on your own account, so the shared daily
+          question limit stops applying to you. Free keys are available at
+          console.groq.com.
+        </p>
+        <p className="type-note mb-4 text-text-low">
+          Food photos keep using Gemini either way — Groq&rsquo;s chat models
+          don&rsquo;t accept images.
+        </p>
+
+        <Field
+          label={isSet ? 'Replace the key' : 'Groq API key'}
+          type="password"
+          autoComplete="off"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={isSet ? 'A key is set' : 'gsk_…'}
+          hint="Stored write-only. The app never shows it back."
+        />
+
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button
+            variant="secondary"
+            disabled={!draft.trim() || busy}
+            onClick={() => void save(draft)}
+          >
+            {busy ? 'Saving' : 'Save'}
+          </Button>
+          {isSet && (
+            <Button variant="quiet" disabled={busy} onClick={() => void save(null)}>
+              Remove
+            </Button>
+          )}
+        </div>
+
+        {message && <p className="mt-3 type-note text-text-mid">{message}</p>}
       </Card>
     </section>
   );

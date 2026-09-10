@@ -31,6 +31,7 @@ import {
 } from '../_shared/summary.ts';
 import { addDays, endOfDayUTC, localDayKey, startOfDayUTC } from '../_shared/time.ts';
 import { checkBudget, recordUse, standDownMessage, type AiKind } from '../_shared/budget.ts';
+import { groqProvider } from '../_shared/llm/groq.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
 
@@ -415,7 +416,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
    */
   const { data: keyRow } = await admin
     .from('app_settings')
-    .select('gemini_api_key, timezone')
+    .select('gemini_api_key, groq_api_key, timezone')
     .eq('user_id', userData.user.id)
     .maybeSingle();
 
@@ -430,6 +431,30 @@ Deno.serve(async (req: Request): Promise<Response> => {
    */
   const accountTz = ((keyRow?.timezone as string | null) ?? 'UTC').trim() || 'UTC';
   const provider = geminiProvider(ownKey ?? env('GEMINI_API_KEY'));
+
+  /*
+   * The chatbot may run somewhere else entirely.
+   *
+   * Chosen per TASK rather than globally, because the providers are not
+   * interchangeable: Groq's chat models are text-only, and the diet parser
+   * sends photographs of plates and of nutrition labels. A global switch would
+   * quietly break photo logging the moment a Groq key was pasted — and break
+   * it by answering confidently about an image that was never sent, which is
+   * the exact failure the spec calls worse than no answer at all.
+   *
+   * So vision stays on Gemini and conversation moves to Groq when a key
+   * exists. An account's own key wins over the shared one, as everywhere else.
+   */
+  const ownGroq = (keyRow?.groq_api_key as string | null)?.trim() || null;
+  const groqKey = ownGroq ?? env('GROQ_API_KEY');
+  const chatProvider = groqKey ? groqProvider(groqKey, env('GROQ_MODEL') || undefined) : provider;
+
+  /*
+   * The daily budget exists to stop one account draining a SHARED pool, so the
+   * exemption follows whichever key actually pays for the call — the account's
+   * Groq key, or its Gemini key when chat has fallen back to Gemini.
+   */
+  const chatOnOwnKey = Boolean(ownGroq || (!groqKey && ownKey));
 
   const fail = (failure: string, detail: string) =>
     json({
@@ -561,7 +586,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
      * before anyone else can log a meal. An account paying its own way is not
      * competing with anybody, so the reserve simply does not apply to it.
      */
-    if (!ownKey && (usage?.count ?? 0) >= CHAT_CALLS_PER_DAY) {
+    if (!chatOnOwnKey && (usage?.count ?? 0) >= CHAT_CALLS_PER_DAY) {
       return json({
         ok: false,
         failure: 'quota',
@@ -592,7 +617,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       `THEY NOW ASK: ${message}`,
     ].join('\n');
 
-    const result = await provider.complete<unknown>({
+    const result = await chatProvider.complete<unknown>({
       instruction: CHAT_INSTRUCTION,
       input,
       schema: CHAT_SCHEMA as unknown as Record<string, unknown>,

@@ -1143,4 +1143,31 @@ export async function deleteAccount(): Promise<{ error: string | null }> {
   return { error: null };
 }
 
+/**
+ * Whether this account has its own Groq key.
+ *
+ * Same write-only contract as the Gemini one: the app asks WHETHER a key is
+ * set and never reads the value back, so it cannot leak from a screenshot, a
+ * bug report or a stray log.
+ *
+ * A separate column rather than a shared "api key" because the two providers
+ * are not interchangeable — Groq's chat models take no images, so food parsing
+ * stays on Gemini whatever is set here.
+ */
+export async function hasOwnGroqKey(): Promise<boolean> {
+  const { data } = await supabase.from('app_settings').select('groq_api_key').limit(1);
+  return Boolean((data ?? [])[0]?.groq_api_key);
+}
 
+/** Sets or clears it. Passing null returns the chatbot to the shared key. */
+export async function setOwnGroqKey(
+  userId: string,
+  key: string | null,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('app_settings')
+    .update({ groq_api_key: key && key.trim() ? key.trim() : null })
+    .eq('user_id', userId);
+
+  return { error: error ? error.message : null };
+}
