@@ -69,6 +69,32 @@ async function availableModels(apiKey: string): Promise<string[]> {
   }
 }
 
+/**
+ * Picks a replacement when the configured model has retired.
+ *
+ * `availableModels` already filters to models that support generateContent, so
+ * everything here is a candidate that can actually answer. The preference
+ * order is about cost and latency, not capability:
+ *
+ *   flash-lite, then flash — this app makes small, frequent, structured calls
+ *   and the cheap tiers are what a shared free key survives on.
+ *   pro last, because it works and is the wrong default for parsing a line of
+ *   typed food.
+ *
+ * Previews and experimental builds are skipped. Falling back to something
+ * explicitly labelled unstable is how an app that just recovered from one
+ * retirement walks into the next.
+ */
+function bestReplacement(models: string[]): string | null {
+  const stable = models.filter((m) => !/preview|exp|experimental/i.test(m));
+  const pool = stable.length > 0 ? stable : models;
+
+  const rank = (m: string) =>
+    /flash-lite/i.test(m) ? 0 : /flash/i.test(m) ? 1 : /pro/i.test(m) ? 2 : 3;
+
+  return [...pool].sort((a, b) => rank(a) - rank(b))[0] ?? null;
+}
+
 export function geminiProvider(apiKey: string): LlmProvider {
   return {
     name: 'gemini',
@@ -92,8 +118,14 @@ export function geminiProvider(apiKey: string): LlmProvider {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), request.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
-      try {
-        const res = await fetch(`${ENDPOINT}/${MODEL}:generateContent`, {
+      /*
+       * The call, against a NAMED model rather than the module constant, so
+       * the retired path below can run it a second time with a replacement.
+       * Everything about the request is identical between the two attempts —
+       * only the model differs, which is the point.
+       */
+      const call = (model: string) =>
+        fetch(`${ENDPOINT}/${model}:generateContent`, {
           method: 'POST',
           signal: controller.signal,
           headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
@@ -109,20 +141,56 @@ export function geminiProvider(apiKey: string): LlmProvider {
           }),
         });
 
-        const raw = await res.text();
+      let usedModel = MODEL;
+
+      try {
+        let res = await call(MODEL);
+        let raw = await res.text();
 
         if (!res.ok) {
           const failure = classify(res.status, raw);
           let message = `HTTP ${res.status}: ${raw.slice(0, 300)}`;
 
           if (failure === 'retired') {
+            /*
+             * Recover rather than report.
+             *
+             * A retired model name took the whole app down: food parsing, the
+             * syllabus importer, the briefing and the chatbot all returned
+             * "set GEMINI_MODEL to a current model" — advice nobody can act on
+             * from inside the app, for a fault the app could have fixed
+             * itself. The model list was already being fetched here and the
+             * result was thrown away one layer up, so the diagnostic that
+             * existed never reached anyone.
+             *
+             * So: ask which models this key can call, pick a current one, and
+             * try once more. Once — a loop here would turn one dead model into
+             * a sequence of slow failures on a shared quota.
+             */
             const models = await availableModels(apiKey);
-            message = models.length
-              ? `Model "${MODEL}" is unavailable. This key can use: ${models.slice(0, 12).join(', ')}`
+            const replacement = bestReplacement(models);
+
+            if (replacement && replacement !== MODEL) {
+              const second = await call(replacement);
+              if (second.ok) {
+                // Fall through into the normal success path with the retry's
+                // body. The parsing and validation below are identical, and
+                // duplicating them for the recovery case is how the two copies
+                // drift apart.
+                res = second;
+                raw = await second.text();
+                usedModel = replacement;
+              }
+            }
+
+            if (usedModel === MODEL) message = models.length
+              ? `Model "${MODEL}" is unavailable and no replacement worked. This key can use: ${models.slice(0, 12).join(', ')}`
               : `Model "${MODEL}" is unavailable, and the model list could not be read.`;
           }
 
-          return { ok: false, failure, message, provider: 'gemini' };
+          if (usedModel === MODEL) {
+            return { ok: false, failure, message, provider: 'gemini' };
+          }
         }
 
         const body = JSON.parse(raw) as {
@@ -150,7 +218,13 @@ export function geminiProvider(apiKey: string): LlmProvider {
         }
 
         try {
-          return { ok: true, value: JSON.parse(text) as T, provider: 'gemini' };
+          return {
+            ok: true,
+            value: JSON.parse(text) as T,
+            // Names the model that actually answered, so a recovery is visible
+            // in a log rather than silent.
+            provider: usedModel === MODEL ? 'gemini' : `gemini:${usedModel}`,
+          };
         } catch {
           // Deliberately not repaired heuristically. A response that is not the
           // shape demanded is a failure — guessing at it is how malformed data

@@ -160,7 +160,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({
       ok: false,
       failure: result.failure,
-      reason: FAILURE_COPY[result.failure] ?? 'Parsing is unavailable. Add the items by hand.',
+      reason:
+        result.failure === 'retired'
+          ? `${FAILURE_COPY[result.failure]} ${result.message.slice(0, 300)}`
+          : FAILURE_COPY[result.failure] ?? 'Parsing is unavailable. Add the items by hand.',
       // Kept for the delivery-log-style diagnosis this project relies on.
       detail: result.message.slice(0, 300),
     });

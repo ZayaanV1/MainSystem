@@ -460,7 +460,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
     json({
       ok: false,
       failure,
-      reason: FAILURE_COPY[failure] ?? 'That is unavailable right now. Add them by hand.',
+      /*
+       * A retired model gets the DETAIL appended, not just the stock line.
+       *
+       * The provider computes which models the key can actually call and this
+       * layer was discarding it, so the one message that could have been acted
+       * on arrived as "set GEMINI_MODEL to a current model" — advice nobody
+       * can follow from inside the app. The provider now recovers on its own,
+       * so this only shows when recovery also failed, which is exactly when
+       * the list is worth reading.
+       */
+      reason:
+        failure === 'retired'
+          ? `${FAILURE_COPY[failure]} ${detail}`
+          : FAILURE_COPY[failure] ?? 'That is unavailable right now. Add them by hand.',
       detail: detail.slice(0, 300),
     });
 
