@@ -53,10 +53,15 @@ const VARIANTS: Record<Variant, string> = {
   // The gradient runs light to deep down the face, which is what stops a
   // large flat fill reading as a coloured rectangle. Both stops are the same
   // hue — a gradient that drifted in hue would make the brand ambiguous.
+  //
+  // The glow underneath it is `--shadow-ember`, defined once in tokens.css
+  // as a property of the accent fill rather than a general elevation step —
+  // it is what stops "the thing to press" from sitting flush with the page
+  // it presses into, the way a lit surface actually would.
   primary:
-    'border-transparent text-on-accent bg-linear-to-b from-accent-lit via-accent to-accent-deep',
+    'border-transparent text-on-accent bg-linear-to-b from-accent-lit via-accent to-accent-deep shadow-[var(--shadow-ember)]',
   secondary:
-    'border-transparent text-on-accent-2 bg-linear-to-b from-accent-2-mid via-accent-2 to-accent-2-deep',
+    'border-transparent text-on-accent-2 bg-linear-to-b from-accent-2-mid via-accent-2 to-accent-2-deep shadow-sm',
   // Quiet, not invisible. A fully transparent button on a dark ground is
   // indistinguishable from a label until you happen to tap it, and a control
   // should not have to be discovered. This still yields to `primary`.

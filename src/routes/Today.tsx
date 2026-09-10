@@ -688,9 +688,18 @@ function Briefing({ dep }: { dep: TodayData | null }) {
 
   return (
     <section className="mb-6 px-4">
-      <p className="type-body rounded-card border border-ink-600 bg-ink-800 px-4 py-3 text-text-mid">
-        {text}
-      </p>
+      {/*
+        The one hero surface on the busiest screen in the app. Everything
+        else on Today is a `flat` Card — a list of work, a checklist, the
+        inbox — because a screen answering "what do I do right now" cannot
+        afford to make every row compete for the eye. This is the exception:
+        it is the single sentence the app chose to say to you today, and the
+        larger radius plus the lifted shadow are what tell the eye that
+        before a word of it is read.
+      */}
+      <Card elevation="hero" className="px-5 py-4">
+        <p className="type-body text-text-hi">{text}</p>
+      </Card>
     </section>
   );
 }

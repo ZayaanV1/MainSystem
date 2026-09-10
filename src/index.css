@@ -120,9 +120,15 @@
      `p-5` and `gap-7` simply do not exist and cannot drift into the app. */
   --spacing: 4px;
 
+  --radius-tight: var(--r-tight);
   --radius-card: var(--r-card);
+  --radius-hero: var(--r-hero);
   --radius-sheet: var(--r-sheet);
   --radius-pill: var(--r-pill);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
 }
 
 /* ============================================================================

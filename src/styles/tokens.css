@@ -176,10 +176,45 @@
   --sp-8: 32px;
   --sp-12: 48px;
 
-  /* Radii */
+  /* Radii — three families, not one size reused everywhere.
+     Tight for marks and chips, card for ordinary surfaces, hero for the one
+     or two feature surfaces per screen that are meant to read as important
+     before anything on them is read at all. Shape is hierarchy: a screen
+     built from a single radius flattens everything on it to the same rank. */
+  --r-tight: 8px;
   --r-card: 12px;
+  --r-hero: 28px;
   --r-sheet: 20px;
   --r-pill: 999px;
+
+  /* ---- elevation ---------------------------------------------------------
+     The app had no shadow system at all — every surface separated by a flat
+     background step and nothing else, which reads as competent rather than
+     considered. Real elevation needs an offset AND a blur; a shadow with
+     neither is a tint, not depth.
+
+     Two colours, not one. A generic black shadow under a warm charcoal
+     ground looks like soot; these are mixed from the ink itself so a raised
+     surface looks lit from the same light as the ground it sits on, and a
+     second, wider layer keyed to the surface's own hue for surfaces that
+     should feel like they are glowing rather than merely floating — used
+     only on the primary action and the day's one hero surface, never as a
+     texture applied everywhere, or the effect stops meaning anything.
+     -------------------------------------------------------------------- */
+  --shadow-color: 19 14 9;
+  --shadow-sm:
+    0 1px 2px rgb(var(--shadow-color) / 0.28),
+    0 1px 1px rgb(var(--shadow-color) / 0.18);
+  --shadow-md:
+    0 6px 16px -4px rgb(var(--shadow-color) / 0.38),
+    0 2px 6px -1px rgb(var(--shadow-color) / 0.24);
+  --shadow-lg:
+    0 20px 48px -12px rgb(var(--shadow-color) / 0.48),
+    0 8px 20px -6px rgb(var(--shadow-color) / 0.3);
+  /* The ember glow. Reserved for --accent surfaces only — it is a property
+     of the brand fill, not a general elevation step, so it never appears
+     under a neutral card. */
+  --shadow-ember: 0 10px 28px -10px rgb(226 98 44 / 0.45);
 
   /* Motion. Ring fill is the one place motion does real work: the ring
      visibly moving is the receipt that the entry landed. */
