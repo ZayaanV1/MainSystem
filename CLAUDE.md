@@ -579,9 +579,13 @@ could have shown:
   walk converted every occurrence since a series began. A daily series from 2010
   took 1,486 ms; only converting occurrences near the window takes 35 ms, same
   result. An edge function has a CPU ceiling.
-- Google rewrites DTSTAMP on every event on every download, so two copies four
-  seconds apart differed on all 433 events and a hash of the body never matched.
-  The fingerprint now excludes DTSTAMP, which the reader never uses.
+- Google rewrites DTSTAMP on every event on every download, so a hash of the
+  body never matched. Stripping DTSTAMP fixed a public calendar — and a private
+  primary calendar still never matched, varying between downloads in some other
+  way that changed no event. The fingerprint is now of the PARSED result (the
+  window's occurrences and what could not be read), which no volatile byte can
+  move and every real change must. Parsing is cheap; what an unchanged sync now
+  skips is reading back every mirrored row and diffing it.
 - Google answers 429 after about a dozen reads in fifteen minutes. A rate-limited
   feed is now held until Retry-After (ten minutes if absent) through the sync
   lease, instead of being retried on the normal cycle.
@@ -602,9 +606,10 @@ synced it — which is the recovery path working as designed. Guards: a direct
 test of 20,000 conversions (1,385 ms without the cache) and a large-calendar
 parse (317 ms without it), each verified to fail against the old code.
 
-**Not yet observed in production:** the unchanged-feed shortcut. It is unit
-tested, including against two real Google downloads, but Google's rate limit
-ended the live verification before a clean run could show it.
+**The unchanged-feed shortcut, observed in production** on the first real
+subscription once it fingerprinted the parsed result: a seeding run found no
+changes, and the next returned `unchanged` without reading the 545 mirrored
+rows.
 
 ### A documented deviation from the colour law
 

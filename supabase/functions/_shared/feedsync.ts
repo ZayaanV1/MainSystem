@@ -133,18 +133,30 @@ export function mirrorInsertRows(instances: FeedInstance[], userId: string, feed
 }
 
 /**
- * The part of a feed that says what is ON the calendar, for fingerprinting.
+ * A canonical description of what a feed puts on the calendar, for hashing.
  *
- * Google writes the time of the download into every event's DTSTAMP, on
- * every download. Verified against a live Google feed: two copies fetched
- * four seconds apart differ in exactly one property, DTSTAMP, on all 433
- * events — so a hash of the raw body never matched twice, and every
- * five-minute sync fully re-parsed and re-diffed a calendar that had not
- * changed at all.
+ * Fingerprinting the RAW BODY failed twice against real Google feeds. Google
+ * rewrites DTSTAMP on every event on every download, which stripping DTSTAMP
+ * fixed for a public calendar — and then a private primary calendar still
+ * never hashed the same twice, differing between downloads in some other way
+ * that did not change a single event. Chasing each provider's volatile bytes
+ * is a losing game.
  *
- * DTSTAMP describes the export, not the event, and the reader never looks at
- * it. Everything else stays in, so any real change still changes the hash.
+ * So the fingerprint is of the PARSED RESULT instead: the occurrences in the
+ * window and what the reader could not read. Nothing that does not change the
+ * calendar can change this, whatever the provider does to its bytes; anything
+ * that does change the calendar — including the window sliding past a day —
+ * must. Parsing is cheap now; the saving that matters is skipping the read of
+ * every mirrored row and the diff, which is what this lets an unchanged sync
+ * do.
+ *
+ * Sorted on the full line, so two parses of the same calendar agree even if
+ * the provider emitted the events in a different order.
  */
-export function fingerprintSource(text: string): string {
-  return text.replace(/^DTSTAMP[:;][^\r\n]*(?:\r?\n)?/gim, '');
+export function fingerprintInstances(instances: FeedInstance[], problems: string[]): string {
+  const lines = instances.map((i) =>
+    [i.uid, Date.parse(i.startsAt), i.endsAt ? Date.parse(i.endsAt) : '', i.allDay ? 1 : 0, i.title, i.location ?? ''].join('\u001f'),
+  );
+  lines.sort();
+  return [...lines, '--', ...[...problems].sort()].join('\n');
 }

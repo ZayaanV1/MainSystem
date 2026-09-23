@@ -19,7 +19,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { parseFeed, type FeedParse } from '../_shared/feed.ts';
 import { checkFeedUrl, isPrivateAddress } from '../_shared/feedurl.ts';
-import { diffMirror, fingerprintSource, mirrorInsertRows, type MirrorRow } from '../_shared/feedsync.ts';
+import { diffMirror, fingerprintInstances, mirrorInsertRows, type MirrorRow } from '../_shared/feedsync.ts';
 import { addDays, todayKey } from '../_shared/time.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
@@ -452,18 +452,23 @@ async function syncFeed(
       return { id: feed.id, status: 'unchanged' };
     }
 
+    // Reused when the caller already parsed this exact body. Subscribing used
+    // to parse twice — once to read the calendar's name, again here — and
+    // doubling the most expensive step is how the first sync of a large
+    // calendar ran out of CPU and was killed before it wrote anything.
+    const parsed = opts.parsed ?? parseFeed(fetched.text, windowFor(zone));
+
     /*
-     * Byte-identical to the last full read, and that read is recent: nothing
-     * can have changed, so skip the parse, the database read and the diff.
-     * Google sends no ETag, so this — not the 304 above — is the path an
-     * unchanged Google calendar actually takes every five minutes.
+     * Nothing on the calendar changed: skip the read of every mirrored row,
+     * the diff and the writes. The fingerprint is of what was PARSED, not of
+     * the bytes — see fingerprintInstances for why the bytes cannot be trusted.
+     * A full diff still runs every twelve hours regardless, which repairs the
+     * mirror if its rows were ever changed underneath it.
      */
-    // DTSTAMP removed first: Google rewrites it on every download, so the raw
-    // bytes never match twice even when nothing on the calendar has moved.
-    const hash = await bodyHash(fingerprintSource(fetched.text));
-    const parsedRecently =
+    const hash = await bodyHash(fingerprintInstances(parsed.instances, parsed.problems));
+    const diffedRecently =
       feed.last_parsed_at !== null && now.getTime() - Date.parse(feed.last_parsed_at) < FULL_READ_MS;
-    if (!opts.force && hash === feed.last_body_hash && parsedRecently) {
+    if (!opts.force && hash === feed.last_body_hash && diffedRecently) {
       await admin
         .from('calendar_feeds')
         .update({
@@ -477,11 +482,6 @@ async function syncFeed(
       return { id: feed.id, status: 'unchanged' };
     }
 
-    // Reused when the caller already parsed this exact body. Subscribing used
-    // to parse twice — once to read the calendar's name, again here — and
-    // doubling the most expensive step is how the first sync of a large
-    // calendar ran out of CPU and was killed before it wrote anything.
-    const parsed = opts.parsed ?? parseFeed(fetched.text, windowFor(zone));
     const counts = await applyMirror(admin, feed, parsed);
     const changed = counts.added + counts.updated + counts.removed > 0;
 

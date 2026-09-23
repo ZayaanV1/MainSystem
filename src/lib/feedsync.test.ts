@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { checkFeedUrl, isPrivateAddress } from '../../supabase/functions/_shared/feedurl';
-import { diffMirror, fingerprintSource, mirrorInsertRows, type MirrorRow } from '../../supabase/functions/_shared/feedsync';
+import { diffMirror, fingerprintInstances, mirrorInsertRows, type MirrorRow } from '../../supabase/functions/_shared/feedsync';
 import type { FeedInstance } from '../../supabase/functions/_shared/feed';
 
 const GOOGLE_SECRET =
@@ -181,24 +181,33 @@ describe('mirrorInsertRows', () => {
   });
 });
 
-describe('fingerprintSource', () => {
-  const body = (stamp: string, title: string) =>
-    ['BEGIN:VEVENT', `DTSTAMP:${stamp}`, 'UID:a', `SUMMARY:${title}`, 'DTSTART:20260915T140000Z', 'END:VEVENT'].join('\r\n');
+describe('fingerprintInstances', () => {
+  const a = inst({ uid: 'a', startsAt: '2026-09-15T14:00:00Z', title: 'Lab' });
+  const b = inst({ uid: 'b', startsAt: '2026-09-16T14:00:00Z', title: 'Seminar' });
 
-  it('ignores the download time Google stamps on every event', () => {
-    // Two downloads of an unchanged Google calendar, seconds apart.
-    expect(fingerprintSource(body('20260923T220652Z', 'Lab'))).toBe(
-      fingerprintSource(body('20260923T220656Z', 'Lab')),
-    );
+  it('does not care what order the provider emitted events in', () => {
+    expect(fingerprintInstances([a, b], [])).toBe(fingerprintInstances([b, a], []));
   });
 
-  it('still changes when something on the calendar does', () => {
-    expect(fingerprintSource(body('20260923T220652Z', 'Lab'))).not.toBe(
-      fingerprintSource(body('20260923T220652Z', 'Lab, moved')),
-    );
+  it('does not care how a timestamp was written', () => {
+    const same = { ...a, startsAt: '2026-09-15T14:00:00.000Z' };
+    expect(fingerprintInstances([a], [])).toBe(fingerprintInstances([same], []));
   });
 
-  it('leaves DTSTART alone, which starts with the same letters', () => {
-    expect(fingerprintSource(body('x', 'Lab'))).toContain('DTSTART:20260915T140000Z');
+  it.each([
+    ['a retitle', { title: 'Lab, moved' }],
+    ['a new location', { location: 'Room 4' }],
+    ['a new time', { startsAt: '2026-09-15T15:00:00Z' }],
+    ['a new end', { endsAt: '2026-09-15T16:00:00Z' }],
+  ])('changes on %s', (_, patch) => {
+    expect(fingerprintInstances([a], [])).not.toBe(fingerprintInstances([{ ...a, ...patch }], []));
+  });
+
+  it('changes when an event appears or disappears', () => {
+    expect(fingerprintInstances([a], [])).not.toBe(fingerprintInstances([a, b], []));
+  });
+
+  it('changes when what could not be read changes', () => {
+    expect(fingerprintInstances([a], [])).not.toBe(fingerprintInstances([a], ['"X" repeats oddly']));
   });
 });
