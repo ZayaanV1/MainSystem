@@ -4,6 +4,7 @@ import { registerServiceWorker } from './lib/sw';
 import { applyTheme, readTheme, watchSystemTheme } from './lib/theme';
 import './index.css';
 import App from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 registerServiceWorker();
 
@@ -19,6 +20,8 @@ watchSystemTheme(() => {});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary what="The app">
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

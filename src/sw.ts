@@ -81,13 +81,34 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return; // never cache Supabase
 
-  // Navigations resolve to the app shell, so a cold offline launch still opens.
+  /*
+   * Navigations: the network first, briefly, then the cached shell.
+   *
+   * This was cache-first, which made every deploy invisible until the worker
+   * had updated in the background — including a fix for a crash that blanked
+   * the whole app, which kept serving the broken build for another load or
+   * two after the fix was live. Now an online open gets the current version,
+   * and a slow or absent network falls back to the cached shell within two
+   * seconds, so a cold offline launch still opens.
+   *
+   * The fresh page is deliberately NOT written into the cache: the cached
+   * shell must stay the one that matches this worker's precached assets, or
+   * an offline launch could load a page whose scripts were never stored.
+   */
   if (request.mode === 'navigate') {
     event.respondWith(
       (async () => {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2000);
+          const fresh = await fetch(request, { signal: controller.signal });
+          clearTimeout(timer);
+          if (fresh.ok) return fresh;
+        } catch {
+          // Offline or slow: the cached shell below.
+        }
         const cached = await caches.match('/index.html');
-        if (cached) return cached;
-        return fetch(request);
+        return cached ?? fetch(request);
       })(),
     );
     return;

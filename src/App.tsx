@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { AppShell, Page, type NavItem } from './components/AppShell';
 import { keepFeedsLive } from './lib/feeds';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { withTransition, directionBetween } from './lib/transition';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
@@ -322,17 +323,18 @@ function Shell() {
             middle of that animation reads as a glitch rather than as loading.
             The old screen stays painted until the new one is ready.
           */}
-          <Suspense fallback={null}>{renderScreen()}</Suspense>
+          <ErrorBoundary key={screen}>
+            <Suspense fallback={null}>{renderScreen()}</Suspense>
+          </ErrorBoundary>
         </Page>
       )}
 
       {/* Today stays mounted so returning to it is instant and the capture box
           never loses what is half-typed in it. */}
       <div hidden={screen !== 'today'}>
-        <Today
-          key={revision}
-          onData={setData}
-        />
+        <ErrorBoundary key={revision}>
+          <Today key={revision} onData={setData} />
+        </ErrorBoundary>
       </div>
 
       {/* Lives at the shell so opening a piece of work from Week does not need
