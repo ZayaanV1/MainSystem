@@ -210,3 +210,18 @@ describe('display helpers', () => {
     expect(formatDay('2026-08-15')).toContain('Sat');
   });
 });
+
+describe('formatter reuse', () => {
+  it('converts twenty thousand wall-clock times without rebuilding a formatter each time', async () => {
+    // Every conversion used to construct two Intl.DateTimeFormat objects, and
+    // construction — not formatting — is the expensive part. A calendar feed
+    // does this thousands of times per sync inside a CPU-limited edge
+    // function; the first real subscription was killed by it.
+    const { wallClockToUTC } = await import('../../supabase/functions/_shared/time');
+    const t0 = performance.now();
+    for (let i = 0; i < 20_000; i++) {
+      wallClockToUTC('2026-11-01', i % 24, i % 60, 0, i % 2 ? 'America/Toronto' : 'Europe/London');
+    }
+    expect(performance.now() - t0).toBeLessThan(400);
+  });
+});

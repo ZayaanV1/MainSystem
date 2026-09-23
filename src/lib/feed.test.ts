@@ -472,6 +472,54 @@ describe('repeats', () => {
     expect(elapsed).toBeLessThan(400);
   });
 
+  it('reads a large, mostly-past primary calendar well inside the CPU budget', () => {
+    // A real subscription's first sync was killed mid-write on the day this
+    // shipped. A primary Google calendar is years of one-off events, each of
+    // which built two fresh Intl formatters to convert a time the window then
+    // discarded: 542 ms for this calendar on a laptop, with the add path
+    // parsing it twice, against an edge function's two-second CPU ceiling.
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const events: string[] = [];
+    let n = 0;
+    for (let y = 2020; y <= 2026; y++)
+      for (let m = 1; m <= 12; m++)
+        for (let d = 1; d <= 28; d++) {
+          if ((d + m + y) % 3 !== 0) continue;
+          n++;
+          events.push(
+            ev(
+              `UID:one-${n}`,
+              `SUMMARY:Thing ${n}`,
+              `DTSTART;TZID=America/Toronto:${y}${pad(m)}${pad(d)}T${pad(9 + (n % 8))}0000`,
+              `DTEND;TZID=America/Toronto:${y}${pad(m)}${pad(d)}T${pad(10 + (n % 8))}0000`,
+            ),
+          );
+        }
+    // And what a real primary calendar is full of: standing repeats — weekly
+    // meetings, classes, a gym slot — each converted once per occurrence
+    // inside the window. These are what made the original parse expensive.
+    for (let r = 0; r < 40; r++) {
+      events.push(
+        ev(
+          `UID:rep-${r}`,
+          `SUMMARY:Weekly ${r}`,
+          `DTSTART;TZID=America/Toronto:${2020 + (r % 6)}0106T1${r % 10}0000`,
+          'RRULE:FREQ=WEEKLY',
+        ),
+      );
+    }
+    const text = cal(...events);
+
+    const t0 = performance.now();
+    const r = parseFeed(text, TORONTO);
+    const elapsed = performance.now() - t0;
+
+    // Only the ones inside the window survive, and correctly.
+    expect(r.instances.every((i) => i.startsAt >= '2026-09-01' && i.startsAt < '2027-01-02')).toBe(true);
+    expect(r.instances.length).toBeGreaterThan(600);
+    expect(elapsed).toBeLessThan(250);
+  });
+
   it('gives each occurrence the series UID, so a sync can diff them', () => {
     const r = parseFeed(
       cal(

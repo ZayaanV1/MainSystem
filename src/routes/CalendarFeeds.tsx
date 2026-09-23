@@ -176,6 +176,12 @@ export function CalendarFeeds({ onChanged }: CalendarFeedsProps) {
         {adding ? (
           <AddFeed
             onCancel={() => setAdding(false)}
+            // A failed subscribe can still have SAVED the calendar — the row is
+            // written before the first sync, and a sync that dies leaves it
+            // behind for the scheduler to finish. Reloading shows it as
+            // "waiting for the first sync" rather than hiding it, which would
+            // make a retry answer "already added" about something invisible.
+            onFailed={() => void reload()}
             onAdded={async (label) => {
               setAdding(false);
               setNote(`${label} added. It stays in sync from now on.`);
@@ -257,7 +263,15 @@ function FeedStatus({ feed }: { feed: CalendarFeed }) {
  * difficulty of this feature. It is four clicks deep in Google's settings,
  * and the obvious links Google shows first are the wrong ones.
  */
-function AddFeed({ onCancel, onAdded }: { onCancel: () => void; onAdded: (label: string) => void }) {
+function AddFeed({
+  onCancel,
+  onAdded,
+  onFailed,
+}: {
+  onCancel: () => void;
+  onAdded: (label: string) => void;
+  onFailed: () => void;
+}) {
   const [url, setUrl] = useState('');
   const [label, setLabel] = useState('');
   const [preview, setPreview] = useState<Extract<FeedPreview, { ok: true }> | null>(null);
@@ -287,6 +301,7 @@ function AddFeed({ onCancel, onAdded }: { onCancel: () => void; onAdded: (label:
     setSaving(false);
     if (!r.ok) {
       setError(r.reason);
+      onFailed();
       return;
     }
     onAdded(label.trim() || preview.name || hostOf(preview.url));

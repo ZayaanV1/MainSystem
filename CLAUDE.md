@@ -588,6 +588,20 @@ could have shown:
 - A failed sync keeps the last good mirror. Verified mid-429: 22 events still
   there, the status line saying why.
 
+**The first real subscription's first sync was killed.** The feed row was
+claimed and never written back — no status, not even the catch's error, which
+only happens when the isolate itself dies. The cause was CPU: `time.ts` built a
+fresh `Intl.DateTimeFormat` on every call, `wallClockToUTC` builds two, and
+subscribing parsed the feed TWICE (once for its name, again in the sync). A
+six-year calendar measured 542 ms per parse on a laptop, against a two-second
+ceiling on a slower isolate. Formatters are now cached per zone (every date the
+app renders gets the same speedup), one-off events far outside the window are
+skipped before conversion, and subscribing parses once: 60 ms. The feed healed
+on its own two minutes later — the lease expired and the app's keep-alive
+synced it — which is the recovery path working as designed. Guards: a direct
+test of 20,000 conversions (1,385 ms without the cache) and a large-calendar
+parse (317 ms without it), each verified to fail against the old code.
+
 **Not yet observed in production:** the unchanged-feed shortcut. It is unit
 tested, including against two real Google downloads, but Google's rate limit
 ended the live verification before a clean run could show it.

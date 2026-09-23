@@ -2,6 +2,7 @@ import {
   addDays,
   daysBetween,
   isoWeekday,
+  localDayKey,
   startOfDayUTC,
   wallClockToUTC,
   type DayKey,
@@ -150,13 +151,21 @@ function unescapeText(v: string): string {
    Zones
    ========================================================================= */
 
+/** Remembered, because checking means constructing a formatter, which is slow. */
+const zoneValidity = new Map<string, boolean>();
+
 function isZone(z: string): boolean {
+  const known = zoneValidity.get(z);
+  if (known !== undefined) return known;
+  let ok: boolean;
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: z });
-    return true;
+    ok = true;
   } catch {
-    return false;
+    ok = false;
   }
+  zoneValidity.set(z, ok);
+  return ok;
 }
 
 /**
@@ -269,14 +278,7 @@ function instantOf(s: Extract<Stamp, { kind: 'time' }>): number {
 
 /** The local calendar day an instant falls on, in a zone. */
 function dayIn(instantMs: number, zone: string): DayKey {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: zone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date(instantMs));
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')}`;
+  return localDayKey(new Date(instantMs), zone);
 }
 
 /** `P1W`, `PT1H30M`, `P2D` → milliseconds. Nominal days count as 24 hours. */
@@ -692,6 +694,18 @@ export function parseFeed(text: string, win: FeedWindow): FeedParse {
 
     // ---- a single occurrence -----------------------------------------------
     if (!rrule || isOverride) {
+      /*
+       * A primary calendar is mostly the past: years of one-off events, each
+       * of which used to be converted to an instant only for the window to
+       * throw it away. A day-key comparison decides almost all of them for
+       * free. The margin is the event's own length plus two days, so a long
+       * event starting before the window, or a timed one whose zone shifts it
+       * across midnight, still reaches the precise check in `emit`.
+       */
+      const spanDaysOf = start.kind === 'date' ? spanDays : Math.ceil(spanMs / 86_400_000);
+      if (addDays(start.day, spanDaysOf + 2) < win.from || start.day > addDays(win.to, 2)) {
+        continue;
+      }
       emit(build(start));
       continue;
     }

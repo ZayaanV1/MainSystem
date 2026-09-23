@@ -399,7 +399,7 @@ async function syncFeed(
   admin: any,
   feed: FeedRow,
   zone: string,
-  opts: { force: boolean; body?: string },
+  opts: { force: boolean; body?: string; parsed?: FeedParse },
 ): Promise<SyncResult> {
   if (!(await claim(admin, feed.id))) return { id: feed.id, status: 'busy' };
 
@@ -477,7 +477,11 @@ async function syncFeed(
       return { id: feed.id, status: 'unchanged' };
     }
 
-    const parsed = parseFeed(fetched.text, windowFor(zone));
+    // Reused when the caller already parsed this exact body. Subscribing used
+    // to parse twice — once to read the calendar's name, again here — and
+    // doubling the most expensive step is how the first sync of a large
+    // calendar ran out of CPU and was killed before it wrote anything.
+    const parsed = opts.parsed ?? parseFeed(fetched.text, windowFor(zone));
     const counts = await applyMirror(admin, feed, parsed);
     const changed = counts.added + counts.updated + counts.removed > 0;
 
@@ -640,7 +644,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ ok: false, reason: 'Couldn’t save that calendar. Try again.' });
     }
 
-    const result = await syncFeed(admin, feed as FeedRow, zone, { force: true, body: fetched.text });
+    const result = await syncFeed(admin, feed as FeedRow, zone, {
+      force: true,
+      body: fetched.text,
+      parsed,
+    });
     return json({ ok: result.status !== 'error', result, reason: result.error });
   }
 
