@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Card } from '../components/Card';
@@ -16,6 +17,12 @@ import {
 import { formatDay, formatTime, todayKey } from '../lib/time';
 import { effortMinutes, groupWeek, type DayGroup } from '../lib/week';
 import { WeekShape } from '../components/WeekShape';
+import { BubbleWeek, LedgerWeek, StylePicker, TicketWeek, type StyleProps } from '../components/calendar/WeekStyles';
+import { HoursWeek } from '../components/calendar/Hours';
+import { readCalendarStyle, writeCalendarStyle, type CalendarStyle } from '../lib/calendarStyle';
+import { withTransition } from '../lib/transition';
+import { useNow } from '../lib/useNow';
+import { readTitle } from '../lib/blocks';
 
 /**
  * Week — seven days at a glance.
@@ -47,6 +54,17 @@ export function Week({
   onPlan: () => void;
 }) {
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
+  const [style, setStyle] = useState<CalendarStyle>(readCalendarStyle);
+  const now = useNow();
+
+  // A cross-fade between two drawings of the same week, where the browser
+  // can. flushSync so the new style is on the page before the "after"
+  // snapshot is taken, or the transition would fade the old style into itself.
+  const changeStyle = (next: CalendarStyle) => {
+    if (next === style) return;
+    writeCalendarStyle(next);
+    withTransition(() => flushSync(() => setStyle(next)));
+  };
 
   const today = todayKey();
   const courses = data?.courses ?? [];
@@ -83,6 +101,22 @@ export function Week({
   const toggle = (a: Assignment) =>
     void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done').then(onChanged);
 
+  // The calendar's name earns space only when there is more than one to tell
+  // apart. With a single subscribed calendar it is the same word on every row.
+  const showSource =
+    new Set((data?.events ?? []).map((e) => e.source).filter(Boolean)).size > 1;
+
+  const styleProps: StyleProps = {
+    days: grouping.days,
+    today,
+    now,
+    courseFor,
+    progressFor,
+    onToggle: toggle,
+    onOpen: onOpenAssignment,
+    showSource,
+  };
+
   const nothingAtAll =
     grouping.overdue.length === 0 &&
     grouping.undated.length === 0 &&
@@ -101,6 +135,10 @@ export function Week({
           Today
         </Button>
       </header>
+
+      <div className="mb-6 px-4">
+        <StylePicker value={style} onChange={changeStyle} />
+      </div>
 
       <WeekShape tasks={shapeTasks} from={today} />
 
@@ -160,18 +198,31 @@ export function Week({
         </section>
       )}
 
-      {grouping.days.map((group, i) => (
-        <DaySection
-          key={group.day}
-          group={group}
-          isToday={group.day === today}
-          isLast={i === grouping.days.length - 1}
-          courseFor={courseFor}
-          progressFor={progressFor}
-          onToggle={toggle}
-          onOpen={onOpenAssignment}
-        />
-      ))}
+      {/* Keyed on the style so the entrance plays for the new drawing. */}
+      <div key={style} className="mb-8">
+        {style === 'bubble' ? (
+          <BubbleWeek {...styleProps} />
+        ) : style === 'hours' ? (
+          <HoursWeek {...styleProps} />
+        ) : style === 'ticket' ? (
+          <TicketWeek {...styleProps} />
+        ) : style === 'ledger' ? (
+          <LedgerWeek {...styleProps} />
+        ) : (
+          grouping.days.map((group, i) => (
+            <DaySection
+              key={group.day}
+              group={group}
+              isToday={group.day === today}
+              isLast={i === grouping.days.length - 1}
+              courseFor={courseFor}
+              progressFor={progressFor}
+              onToggle={toggle}
+              onOpen={onOpenAssignment}
+            />
+          ))
+        )}
+      </div>
 
       {grouping.undated.length > 0 && (
         <section className="mb-8">
@@ -379,7 +430,7 @@ function EventRow({ event, course }: { event: PlannerEvent; course?: Course }) {
               style={{ backgroundColor: `var(${courseVar(course.colour_index)})` }}
             />
           )}
-          <span className="type-body text-text-hi">{event.title}</span>
+          <span className="type-body text-text-hi">{readTitle(event.title).headline}</span>
         </span>
         <span className="mt-1 flex flex-wrap gap-x-2 type-caption text-text-low">
           <span>{event.source ?? event.kind}</span>

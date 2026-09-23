@@ -1,0 +1,874 @@
+/* ============================================================================
+   calendar.css — the Week view's block styles.
+
+   Five ways to draw the same week. Every colour here is a token: the course
+   washes come from the BLOCK TINTS section of tokens.css, resolved per block
+   against the block's own --b, and nothing below names a colour value.
+
+   The components set three custom properties and nothing else:
+     --b     the course's channel triplet (var(--c-N-rgb))
+     --mins  the block's length in minutes, where it has one
+     --i     its position, for the staggered entrance
+   ========================================================================= */
+
+/* ---- shared --------------------------------------------------------------- */
+
+.blk-num {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* One entrance for every style: a short rise, staggered down the day. Short on
+   purpose — this plays every time the style changes, and a flourish that is
+   charming once is a wait the tenth time. */
+@keyframes blk-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.blk-enter {
+  /* backwards, not both: a fill that outlived the animation would pin
+     transform and cancel every hover lift after it. */
+  animation: blk-in 380ms var(--ease-out) backwards;
+  animation-delay: calc(min(var(--i, 0), 14) * 24ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blk-enter {
+    animation: none;
+  }
+}
+
+/* The "now" pill. A filled ember surface, which is the one thing the brand is
+   allowed to be — it states a moment, not a status. */
+.now-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--r-pill);
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent-deep));
+  color: var(--on-accent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 14px -4px var(--now-glow);
+}
+
+.now-pill::before {
+  content: '';
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--r-pill);
+  background: var(--on-accent);
+  animation: now-beat 1.8s var(--ease-out) infinite;
+}
+
+@keyframes now-beat {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .now-pill::before {
+    animation: none;
+  }
+}
+
+/* The done toggle every deadline carries, in every style. */
+.due-toggle {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  min-height: var(--tap);
+  flex-shrink: 0;
+}
+
+.due-toggle > span {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--ink-500);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-tap) var(--ease-spring);
+}
+
+.due-toggle:hover > span {
+  border-color: var(--text-mid);
+}
+
+.due-toggle:active > span {
+  transform: scale(0.88);
+}
+
+.due-toggle[aria-pressed='true'] > span {
+  border-color: var(--t-done);
+  background: var(--t-done);
+}
+
+/* ---- day headers ----------------------------------------------------------- */
+
+.day-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0 0.25rem 0.75rem;
+}
+
+.day-head-date {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-hi);
+}
+
+.day-head[data-today] .day-head-date {
+  /* Ember as a filled disc, the same mark as the rail's today. */
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding-inline: 0.25rem;
+  border-radius: var(--r-pill);
+  font-size: 1.25rem;
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent-deep));
+  color: var(--on-accent);
+  box-shadow: var(--shadow-ember);
+}
+
+.day-head-rule {
+  flex: 1;
+  height: 1px;
+  align-self: center;
+  background: linear-gradient(to right, var(--ink-600), transparent);
+}
+
+/* ============================================================================
+   BUBBLE — Google's schedule bubble, taken somewhere Google would not.
+
+   The reference is cloisonné: coloured glass fused inside fine metal wire.
+   The course is the glass — a translucent wash, brighter where the light
+   catches the top-left corner — and the wire is a hairline of the same hue
+   that brightens at two opposite corners, the way a bent wire catches light.
+
+   Height is TIME. A 50-minute tutorial and a 3-hour lab are not the same size,
+   and a list that draws them the same hides the thing a calendar is for.
+   ========================================================================= */
+
+.bubble-row {
+  display: grid;
+  grid-template-columns: 3.75rem minmax(0, 1fr);
+  gap: 0.625rem;
+}
+
+.bubble-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-top: 0.75rem;
+  line-height: 1.1;
+}
+
+.bubble-time b {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.bubble-time small {
+  margin-top: 0.125rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-low);
+}
+
+.bubble {
+  position: relative;
+  isolation: isolate;
+  min-height: clamp(3.25rem, calc(var(--mins, 52) * 1px), 12.5rem);
+  padding: 0.75rem 0.875rem 0.75rem 1.125rem;
+  border-radius: 1.125rem;
+  overflow: hidden;
+  background:
+    radial-gradient(130% 160% at 0% 0%, var(--blk-wash-top), transparent 58%),
+    linear-gradient(var(--blk-wash), var(--blk-wash)),
+    var(--ink-800);
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge),
+    0 16px 32px -20px var(--blk-glow),
+    var(--shadow-sm);
+  transition:
+    transform 260ms var(--ease-out),
+    box-shadow 260ms var(--ease-out);
+}
+
+/* The wire. A 1px ring painted as a masked gradient, so it can brighten at
+   the corners rather than being one flat stroke. */
+.bubble::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    150deg,
+    var(--blk-edge) 0%,
+    transparent 38%,
+    transparent 62%,
+    var(--blk-edge) 100%
+  );
+  -webkit-mask:
+    linear-gradient(var(--text-hi) 0 0) content-box,
+    linear-gradient(var(--text-hi) 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(var(--text-hi) 0 0) content-box exclude,
+    linear-gradient(var(--text-hi) 0 0);
+  pointer-events: none;
+}
+
+/* The course, as the 3px edge the law always allowed — now glowing. */
+.bubble::after {
+  content: '';
+  position: absolute;
+  left: 0.4375rem;
+  top: 0.625rem;
+  bottom: 0.625rem;
+  width: 3px;
+  border-radius: var(--r-pill);
+  background: var(--blk-mark);
+  box-shadow: 0 0 10px var(--blk-glow);
+}
+
+@media (hover: hover) {
+  .bubble:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 var(--glass-edge-hover),
+      0 22px 40px -20px var(--blk-glow),
+      var(--shadow-md);
+  }
+}
+
+.bubble[data-now] {
+  box-shadow:
+    inset 0 0 0 1.5px var(--accent),
+    inset 0 1px 0 var(--glass-edge),
+    0 18px 40px -16px var(--now-glow),
+    var(--shadow-md);
+}
+
+/* Finished: the glass goes out, the wire stays. Text keeps its contrast —
+   finished is quieter, not illegible. */
+.bubble[data-past] {
+  background: var(--ink-800);
+  box-shadow: var(--shadow-sm);
+}
+
+.bubble[data-past]::after {
+  box-shadow: none;
+  opacity: 0.5;
+}
+
+/* How far through it you are, drawn along the foot of the bubble. */
+.bubble-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: calc(var(--p, 0) * 100%);
+  background: linear-gradient(90deg, var(--accent-deep), var(--accent-lit));
+  box-shadow: 0 0 10px var(--now-glow);
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+/* A deadline is an instant, not a span, so it is drawn as a slip rather than
+   a block: ink surface, a dashed rim, and the urgency bar the law gives it. */
+.bubble-due {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-radius: 1.125rem;
+  background: var(--ink-800);
+  outline: 1px dashed var(--ink-500);
+  outline-offset: -1px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.bubble-due-bar {
+  width: 3px;
+  margin: 0.625rem 0 0.625rem 0.4375rem;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+}
+
+/* Free time, as a gap you can see between two dotted rules. */
+.gap-free {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-left: 4.375rem;
+  color: var(--text-low);
+}
+
+.gap-free::before,
+.gap-free::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dotted var(--ink-500);
+}
+
+/* ============================================================================
+   HOURS — the grid. A real time axis, overlaps side by side, and a line for
+   now with a disc at its head, after Hilfiker's railway clock: the one moving
+   thing on an otherwise still page.
+   ========================================================================= */
+
+.hours {
+  --hour: 3.25rem;
+  position: relative;
+}
+
+.hours-axis,
+.hours-col {
+  position: relative;
+  height: calc(var(--span) * var(--hour));
+}
+
+.hours-axis span {
+  position: absolute;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hours-col {
+  border-left: 1px solid var(--ink-600);
+  background-image:
+    linear-gradient(to bottom, var(--ink-600) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--glass-fill) 1px, transparent 1px);
+  background-size:
+    100% var(--hour),
+    100% var(--hour);
+  background-position:
+    0 0,
+    0 calc(var(--hour) / 2);
+}
+
+.hours-col[data-today] {
+  background-color: var(--glass-fill);
+}
+
+.hours-block {
+  position: absolute;
+  top: calc(var(--top) * var(--hour) / 60 + 1px);
+  height: max(1.375rem, calc(var(--len) * var(--hour) / 60 - 2px));
+  left: calc(var(--lane) / var(--lanes) * 100% + 2px);
+  width: calc(100% / var(--lanes) - 4px);
+  padding: 0.3125rem 0.5rem 0.3125rem 0.625rem;
+  border-radius: 0.625rem;
+  overflow: hidden;
+  background:
+    radial-gradient(140% 120% at 0% 0%, var(--blk-wash-top), transparent 60%),
+    linear-gradient(var(--blk-wash), var(--blk-wash)),
+    var(--ink-800);
+  box-shadow:
+    inset 0 0 0 1px var(--blk-edge),
+    0 10px 22px -14px var(--blk-glow);
+  transition: transform 220ms var(--ease-out);
+}
+
+.hours-block::after {
+  content: '';
+  position: absolute;
+  left: 0.1875rem;
+  top: 0.3125rem;
+  bottom: 0.3125rem;
+  width: 2px;
+  border-radius: var(--r-pill);
+  background: var(--blk-mark);
+}
+
+@media (hover: hover) {
+  .hours-block:hover {
+    z-index: 2;
+    transform: scale(1.02);
+  }
+}
+
+.hours-block[data-past] {
+  background: var(--ink-800);
+}
+
+.hours-block[data-now] {
+  box-shadow:
+    inset 0 0 0 1.5px var(--accent),
+    0 12px 26px -12px var(--now-glow);
+}
+
+.hours-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--text-hi);
+}
+
+.hours-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 0.0625rem;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  color: var(--text-mid);
+}
+
+/* The all-day strip reuses the block and the flag, in normal flow. */
+.hours-block[data-static] {
+  position: relative;
+  top: auto;
+  left: auto;
+  width: auto;
+  height: auto;
+}
+
+.hours-flag[data-static] {
+  margin-right: 0;
+  box-shadow: inset 0 0 0 1px var(--ink-500);
+}
+
+/* A deadline or an instant: a hairline across the column with a flag. */
+.hours-mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--top) * var(--hour) / 60);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.hours-mark::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px dashed var(--ink-500);
+}
+
+.hours-flag {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  margin-right: 0.25rem;
+  padding: 0.1875rem 0.5rem 0.1875rem 0.1875rem;
+  border-radius: var(--r-pill);
+  background: var(--ink-700);
+  box-shadow:
+    inset 0 0 0 1px var(--ink-500),
+    var(--shadow-md);
+  pointer-events: auto;
+}
+
+.hours-flag .due-toggle {
+  width: 1.75rem;
+  min-height: 1.75rem;
+}
+
+.hours-flag .due-toggle > span {
+  width: 1rem;
+  height: 1rem;
+}
+
+.hours-now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--top) * var(--hour) / 60);
+  z-index: 4;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--now-glow);
+  pointer-events: none;
+}
+
+.hours-now::before {
+  content: '';
+  position: absolute;
+  left: -0.375rem;
+  top: -0.3125rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--ink-900);
+}
+
+/* Across the other six columns in the week grid, the same moment as a
+   whisper: where now falls on days that are not today. */
+.hours-now[data-ghost] {
+  height: 1px;
+  background: var(--ink-500);
+  box-shadow: none;
+}
+
+.hours-now[data-ghost]::before {
+  display: none;
+}
+
+/* ============================================================================
+   TICKET — after Thomas Edmondson's railway ticket of 1837: a small card,
+   colour-coded by printed band, torn at a perforation, and clipped by the
+   conductor once it has been used. Every one of those is information here —
+   the band is the course, the stub is the time, and a class that has already
+   run carries the clip.
+   ========================================================================= */
+
+.ticket-wrap {
+  filter: drop-shadow(0 8px 14px var(--shadow-drop));
+  transition: transform 240ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .ticket-wrap:hover {
+    transform: translateY(-2px) rotate(-0.25deg);
+  }
+}
+
+.ticket {
+  --stub: 5.75rem;
+  --notch: 0.5rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--stub) minmax(0, 1fr);
+  min-height: 5.5rem;
+  border-radius: 0.875rem;
+  background:
+    linear-gradient(var(--glass-fill), transparent 40%),
+    var(--ink-800);
+  /* The two notches at the perforation, cut rather than painted, so they
+     are holes onto whatever is behind the ticket. */
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at var(--stub) 0, transparent 98%, var(--text-hi) 100%) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at var(--stub) 100%, transparent 98%, var(--text-hi) 100%) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at var(--stub) 0, transparent 98%, var(--text-hi) 100%) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at var(--stub) 100%, transparent 98%, var(--text-hi) 100%) bottom / 100% 51% no-repeat;
+}
+
+.ticket-stub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.125rem;
+  padding: 0.75rem 0.625rem 0.75rem 0.875rem;
+  /* The printed band: a diagonal of the course's colour across the stub,
+     over a wash of it. */
+  background:
+    linear-gradient(
+      128deg,
+      transparent 56%,
+      var(--blk-edge) 56%,
+      var(--blk-edge) 64%,
+      transparent 64%
+    ),
+    linear-gradient(var(--blk-wash-top), var(--blk-wash));
+}
+
+.ticket-stub b {
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-hi);
+}
+
+.ticket-stub small {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+}
+
+/* The perforation: a column of dashes down the tear line. */
+.ticket-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.75rem 1rem 0.75rem 1.125rem;
+  background-image: linear-gradient(to bottom, var(--ink-500) 50%, transparent 50%);
+  background-size: 1.5px 0.5rem;
+  background-repeat: repeat-y;
+  background-position: 0 0;
+}
+
+.ticket-kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+}
+
+.ticket-title {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
+  color: var(--text-hi);
+}
+
+/* The conductor's clip: a round punch through the top of the stub. */
+.ticket[data-past] .ticket-stub::after {
+  content: '';
+  position: absolute;
+  right: 0.625rem;
+  top: 0.625rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--r-pill);
+  background: var(--ink-900);
+  box-shadow: inset 0 1px 2px var(--shadow-drop);
+}
+
+.ticket[data-past] .ticket-stub {
+  background: linear-gradient(var(--blk-wash), var(--blk-wash));
+}
+
+.ticket[data-now] {
+  background:
+    linear-gradient(var(--glass-fill-hover), transparent 50%),
+    var(--ink-700);
+}
+
+.ticket-wrap[data-now] {
+  filter: drop-shadow(0 10px 18px var(--now-glow));
+}
+
+.ticket-bar {
+  position: absolute;
+  left: 0;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: 3px;
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+/* ============================================================================
+   LEDGER — a printed timetable. After the Swiss railway timetables and the
+   grid Josef Müller-Brockmann taught from them: no boxes, no fills, every
+   fact in a fixed column, and the hierarchy carried entirely by size, weight
+   and rules. The one graphic element is the length of each thing, drawn as a
+   rule in its course's colour.
+   ========================================================================= */
+
+.ledger-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  column-gap: 0.875rem;
+  padding: 0 0.25rem 0.5rem;
+  border-bottom: 2px solid var(--text-hi);
+}
+
+.ledger-head-num {
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 2.2rem + 2.4vw, 3.75rem);
+  font-weight: 700;
+  line-height: 0.82;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-hi);
+}
+
+.ledger-head[data-today] .ledger-head-num {
+  color: var(--accent);
+}
+
+.ledger-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  column-gap: 0.875rem;
+  align-items: start;
+  padding: 0.875rem 0.25rem;
+  border-bottom: 1px solid var(--ink-600);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .ledger-row:hover {
+    background-color: var(--glass-fill);
+  }
+}
+
+.ledger-time b {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--text-hi);
+}
+
+.ledger-time small {
+  display: block;
+  margin-top: 0.1875rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-low);
+}
+
+.ledger-row[data-past] .ledger-time b {
+  color: var(--text-mid);
+}
+
+.ledger-length {
+  height: 3px;
+  margin-top: 0.5rem;
+  width: calc(var(--frac, 0) * 100%);
+  min-width: 0.75rem;
+  border-radius: var(--r-pill);
+  background: var(--blk-mark);
+  box-shadow: 0 0 8px var(--blk-glow);
+}
+
+.ledger-row[data-past] .ledger-length {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.ledger-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+  white-space: nowrap;
+}
+
+.ledger-code::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--blk-mark);
+}
+
+.ledger-bar {
+  position: absolute;
+  left: -0.5rem;
+  top: 0.875rem;
+  bottom: 0.875rem;
+  width: 3px;
+  border-radius: var(--r-pill);
+}
+
+/* ============================================================================
+   The style picker. A segmented control whose selection is a lit ember
+   capsule that slides between options (motion's shared layout does the
+   sliding), with a drawn miniature of each style so the choice is made by
+   looking rather than by reading the names.
+   ========================================================================= */
+
+.style-seg {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: var(--r-pill);
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.style-seg::-webkit-scrollbar {
+  display: none;
+}
+
+.style-opt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-height: 2.5rem;
+  padding: 0 0.875rem 0 0.625rem;
+  border-radius: var(--r-pill);
+  color: var(--text-mid);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.style-opt:hover {
+  color: var(--text-hi);
+}
+
+.style-opt[aria-checked='true'] {
+  color: var(--on-accent);
+}
+
+.style-opt-lit {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: var(--r-pill);
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent-deep));
+  box-shadow: var(--shadow-ember);
+}
+
+.style-opt > svg,
+.style-opt > span:not(.style-opt-lit) {
+  position: relative;
+  z-index: 1;
+}

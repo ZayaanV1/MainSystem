@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import './styles/tokens.css';
+@import './styles/calendar.css';
 
 /* ============================================================================
    Fonts — self-hosted latin subsets. No runtime request to Google.

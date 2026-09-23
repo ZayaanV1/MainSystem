@@ -7,12 +7,13 @@
      Brand            ember + phthalo   FILLED SURFACES and atmosphere only
      Time / urgency   rose ramp         edge bars, text, icon tint
      Macros           cool jewel        ring strokes only
-     Courses          desat. pastel     3px left edge or 6px dot only
+     Courses          desat. pastel     3px left edge, 6px dot, or the
+                                        translucent wash of a calendar block
 
    The systems are separated by ROLE first and hue second, because hue alone
    was not enough once the brand became a colour. Brand never states a status.
    Urgency never fills anything. Macros only ever appear as a ring stroke.
-   Courses are never a fill. Colour is never the only signal.
+   Courses are never an opaque fill. Colour is never the only signal.
 
    If a component needs a colour that does not exist here, add it here and say
    why. Do not inline it. Do not write bg-[#hex] in a component. This one rule
@@ -160,6 +161,36 @@
   --tag-surface: rgb(246 239 230 / 0.06);
   --selection: rgb(226 98 44 / 0.34);
 
+  /* ---- courses as a WASH, for the Week view's block styles --------------
+     A documented widening of the course law, made when the Week view gained
+     calendar-style blocks (Sep 2026). A course may TINT a block — never
+     paint it — as a translucent wash under text that stays --text-hi. The
+     alphas are capped so every course's strongest wash keeps cream text
+     above 10:1 and --text-mid above 4.5:1, and tests/palette.test.ts
+     asserts both. Urgency never appears on a wash: a deadline block keeps
+     its 3px urgency bar and written label, exactly as a row does.
+  
+     Written as bare channel triplets so a block can compose its own alpha
+     with rgb(), which every engine understands — not color-mix, whose
+     compiled fallback is the base colour at full strength (see the glass
+     note below). --c-0 is the wash for an event with no course.
+     -------------------------------------------------------------------- */
+  --text-mid-rgb: 194 180 164;
+  --text-low-rgb: 142 128 114;
+  --c-0-rgb: var(--text-mid-rgb);
+  --c-1-rgb: 138 155 184;
+  --c-2-rgb: 155 184 154;
+  --c-3-rgb: 184 160 138;
+  --c-4-rgb: 168 138 184;
+  --c-5-rgb: 138 184 180;
+  --c-6-rgb: 184 154 154;
+  --c-7-rgb: 160 168 138;
+  --c-8-rgb: 138 148 184;
+  --block-wash: 0.12;
+  --block-wash-top: 0.22;
+  --block-edge: 0.40;
+  --block-glow: 0.34;
+
   /* ---- focus ----------------------------------------------------------- */
   /* A fifth system, and deliberately none of the other four: focus must not
      be mistaken for a brand surface, a status or a macro. */
@@ -215,6 +246,12 @@
      of the brand fill, not a general elevation step, so it never appears
      under a neutral card. */
   --shadow-ember: 0 10px 28px -10px rgb(226 98 44 / 0.45);
+  /* For filter: drop-shadow(), which follows a MASKED outline — the ticket's
+     perforation notches — where box-shadow would be clipped away with it. */
+  --shadow-drop: rgb(var(--shadow-color) / 0.5);
+  /* The glow behind whatever is happening right now. Ember, because "now" is
+     the one moment on a calendar that is the thing to act on. */
+  --now-glow: rgb(226 98 44 / 0.55);
 
   /* ---- atmosphere ------------------------------------------------------
      The two lights behind the app, weighted independently.
@@ -340,6 +377,23 @@
     --tag-surface: rgb(35 29 22 / 0.05);
     --selection: rgb(194 82 31 / 0.28);
 
+    /* Course washes, light. Paper needs a stronger wash to register at all. */
+    --text-mid-rgb: 84 73 61;
+    --text-low-rgb: 111 99 87;
+    --c-0-rgb: var(--text-mid-rgb);
+    --c-1-rgb: 121 136 162;
+    --c-2-rgb: 136 162 136;
+    --c-3-rgb: 162 141 121;
+    --c-4-rgb: 148 121 162;
+    --c-5-rgb: 121 162 158;
+    --c-6-rgb: 162 136 136;
+    --c-7-rgb: 141 148 121;
+    --c-8-rgb: 121 130 162;
+    --block-wash: 0.16;
+    --block-wash-top: 0.28;
+    --block-edge: 0.55;
+    --block-glow: 0.30;
+
     --focus-ring: #4a6da8;
 
     /* Paper takes far less of both. A wash that reads as lit on charcoal
@@ -411,6 +465,23 @@
   --tag-surface: rgb(35 29 22 / 0.05);
   --selection: rgb(194 82 31 / 0.28);
 
+  /* Course washes, light. Paper needs a stronger wash to register at all. */
+  --text-mid-rgb: 84 73 61;
+  --text-low-rgb: 111 99 87;
+  --c-0-rgb: var(--text-mid-rgb);
+  --c-1-rgb: 121 136 162;
+  --c-2-rgb: 136 162 136;
+  --c-3-rgb: 162 141 121;
+  --c-4-rgb: 148 121 162;
+  --c-5-rgb: 121 162 158;
+  --c-6-rgb: 162 136 136;
+  --c-7-rgb: 141 148 121;
+  --c-8-rgb: 121 130 162;
+  --block-wash: 0.16;
+  --block-wash-top: 0.28;
+  --block-edge: 0.55;
+  --block-glow: 0.30;
+
   --focus-ring: #4a6da8;
 
   /* Paper takes far less of both. A wash that reads as lit on charcoal
@@ -456,6 +527,17 @@
   --c-6: var(--text-low);
   --c-7: var(--text-low);
   --c-8: var(--text-low);
+
+  /* Washes follow the marks into grey. */
+  --c-0-rgb: var(--text-low-rgb);
+  --c-1-rgb: var(--text-low-rgb);
+  --c-2-rgb: var(--text-low-rgb);
+  --c-3-rgb: var(--text-low-rgb);
+  --c-4-rgb: var(--text-low-rgb);
+  --c-5-rgb: var(--text-low-rgb);
+  --c-6-rgb: var(--text-low-rgb);
+  --c-7-rgb: var(--text-low-rgb);
+  --c-8-rgb: var(--text-low-rgb);
 }
 
 /* ============================================================================
@@ -499,3 +581,20 @@
    signal. This is the reason the urgency ramp moved off the warm axis when
    burnt orange was chosen.
    ========================================================================= */
+
+/* ============================================================================
+   BLOCK TINTS
+
+   Composed per element, so each block resolves them against its OWN --b (set
+   inline by the component to one of the --c-N-rgb triplets). Declared on
+   :root they would resolve once, against the root's --b, and every block
+   would be the same colour.
+   ========================================================================= */
+[data-block] {
+  --b: var(--c-0-rgb);
+  --blk-wash: rgb(var(--b) / var(--block-wash));
+  --blk-wash-top: rgb(var(--b) / var(--block-wash-top));
+  --blk-edge: rgb(var(--b) / var(--block-edge));
+  --blk-glow: rgb(var(--b) / var(--block-glow));
+  --blk-mark: rgb(var(--b));
+}

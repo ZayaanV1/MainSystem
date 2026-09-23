@@ -259,3 +259,75 @@ describe('the atmosphere does not eat the contrast floor', () => {
     }
   });
 });
+
+/**
+ * Calendar blocks put text on a course's colour, which the course system had
+ * never done before — courses were marks, never surfaces. So the washes are
+ * measured the way the atmosphere is: composited, at the strongest point a
+ * block paints (its surface, then the wash, then the brighter corner wash),
+ * for every course, in both themes. Text on a block stays --text-hi, and the
+ * metadata beneath it --text-mid; both must survive the worst course.
+ */
+describe('text on a calendar block can be read', () => {
+  function section(opening: string): string {
+    const start = TOKENS.indexOf(opening);
+    if (start < 0) throw new Error(`no block ${opening}`);
+    return TOKENS.slice(start, TOKENS.indexOf('\n}', start));
+  }
+
+  function read(block: string, name: string): string {
+    const m = new RegExp(`--${name}:\\s*([^;]+);`).exec(block);
+    if (!m) throw new Error(`--${name} missing`);
+    return m[1].trim();
+  }
+
+  const hex = (block: string, name: string) => {
+    const v = read(block, name);
+    if (!/^#[0-9a-f]{6}$/i.test(v)) throw new Error(`--${name} is not a hex: ${v}`);
+    return v;
+  };
+
+  const triplet = (block: string, name: string): [number, number, number] => {
+    const parts = read(block, name).split(/\s+/).map(Number);
+    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) {
+      throw new Error(`--${name} is not a channel triplet`);
+    }
+    return parts as [number, number, number];
+  };
+
+  function over(base: string, top: [number, number, number], alpha: number): string {
+    const b = rgb(base).map((c) => c * 255);
+    const mixed = b.map((c, i) => Math.round(top[i] * alpha + c * (1 - alpha)));
+    return `#${mixed.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  const THEMES = [
+    { name: 'dark', block: section(':root {') },
+    { name: 'light', block: section(":root[data-theme='light'] {") },
+  ];
+
+  it.each(THEMES)('$name: every course wash keeps both text colours readable', ({ block }) => {
+    const surface = hex(block, 'ink-800');
+    const wash = Number(read(block, 'block-wash'));
+    const top = Number(read(block, 'block-wash-top'));
+    expect(wash).toBeGreaterThan(0);
+    expect(top).toBeGreaterThan(wash);
+
+    for (let n = 1; n <= 8; n++) {
+      const c = triplet(block, `c-${n}-rgb`);
+      const painted = over(over(surface, c, wash), c, top);
+      expect(contrast(hex(block, 'text-hi'), painted), `c-${n} under text-hi`).toBeGreaterThanOrEqual(7);
+      expect(contrast(hex(block, 'text-mid'), painted), `c-${n} under text-mid`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.each(THEMES)('$name: the triplets are the course colours, not a drifted copy', ({ block }) => {
+    // Two spellings of one colour is how they come apart. The triplet must be
+    // exactly the hex it shadows, or a block's wash and its dot disagree.
+    for (let n = 1; n <= 8; n++) {
+      const fromHex = rgb(hex(block, `c-${n}`)).map((x) => Math.round(x * 255));
+      expect(triplet(block, `c-${n}-rgb`), `c-${n}`).toEqual(fromHex);
+    }
+    expect(triplet(block, 'text-mid-rgb')).toEqual(rgb(hex(block, 'text-mid')).map((x) => Math.round(x * 255)));
+  });
+});
