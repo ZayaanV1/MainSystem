@@ -19,7 +19,17 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { parseFeed, type FeedParse } from '../_shared/feed.ts';
 import { checkFeedUrl, isPrivateAddress } from '../_shared/feedurl.ts';
-import { diffMirror, fingerprintInstances, mirrorInsertRows, type MirrorRow } from '../_shared/feedsync.ts';
+import {
+  courseCodeOf,
+  diffMirror,
+  duplicatesTracked,
+  fingerprintInstances,
+  kindOf,
+  mirrorInsertRows,
+  normaliseCode,
+  type MirrorInstance,
+  type MirrorRow,
+} from '../_shared/feedsync.ts';
 import { addDays, todayKey } from '../_shared/time.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
@@ -348,15 +358,15 @@ async function claim(admin: any, feedId: string): Promise<boolean> {
  * cross-account path is one migration away from a bad day.
  */
 // deno-lint-ignore no-explicit-any
-async function applyMirror(admin: any, feed: { id: string; user_id: string }, parsed: FeedParse) {
+async function applyMirror(admin: any, feed: { id: string; user_id: string }, instances: MirrorInstance[]) {
   const { data: existing, error: readError } = await admin
     .from('events')
-    .select('id, feed_uid, starts_at, ends_at, title, location, all_day')
+    .select('id, feed_uid, starts_at, ends_at, title, location, all_day, course_id, kind')
     .eq('feed_id', feed.id)
     .eq('user_id', feed.user_id);
   if (readError) throw new Error(readError.message);
 
-  const diff = diffMirror((existing ?? []) as MirrorRow[], parsed.instances);
+  const diff = diffMirror((existing ?? []) as MirrorRow[], instances);
 
   // Removals first: they free identity slots an insert may need.
   for (let i = 0; i < diff.remove.length; i += 200) {
@@ -380,7 +390,14 @@ async function applyMirror(admin: any, feed: { id: string; user_id: string }, pa
       diff.update.slice(i, i + 10).map((u) =>
         admin
           .from('events')
-          .update({ title: u.title, location: u.location, ends_at: u.ends_at, all_day: u.all_day })
+          .update({
+            title: u.title,
+            location: u.location,
+            ends_at: u.ends_at,
+            all_day: u.all_day,
+            course_id: u.course_id,
+            kind: u.kind,
+          })
           .eq('id', u.id)
           .eq('feed_id', feed.id)
           .eq('user_id', feed.user_id),
@@ -391,6 +408,66 @@ async function applyMirror(admin: any, feed: { id: string; user_id: string }, pa
   }
 
   return { added: diff.insert.length, updated: diff.update.length, removed: diff.remove.length };
+}
+
+/**
+ * What each occurrence IS, in terms of this account: its course, whether it is
+ * an exam, and whether it is already on screen as something the account owns.
+ *
+ * Three small reads — courses, dated work and hand-added events in the window
+ * — so a mirror of a timetable arrives colour-coded by course, a mirrored
+ * midterm gets the night-before reminder every exam gets, and a mirrored
+ * "Quiz #3 is due" does not sit next to the "Quiz 3" the account is already
+ * tracking. Nothing here creates anything; it only labels and hides copies.
+ */
+async function enrich(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string,
+  parsed: FeedParse,
+  win: { from: string; to: string },
+): Promise<MirrorInstance[]> {
+  const fromIso = new Date(Date.parse(win.from + 'T00:00:00Z') - 86_400_000).toISOString();
+  const toIso = new Date(Date.parse(win.to + 'T00:00:00Z') + 2 * 86_400_000).toISOString();
+
+  const [courses, work, owned] = await Promise.all([
+    admin.from('courses').select('id, code, name').eq('user_id', userId).eq('archived', false),
+    admin
+      .from('assignments')
+      .select('title, due_at')
+      .eq('user_id', userId)
+      .gte('due_at', fromIso)
+      .lte('due_at', toIso),
+    admin
+      .from('events')
+      .select('title, starts_at')
+      .eq('user_id', userId)
+      .is('feed_id', null)
+      .gte('starts_at', fromIso)
+      .lte('starts_at', toIso),
+  ]);
+  if (courses.error || work.error || owned.error) {
+    throw new Error((courses.error ?? work.error ?? owned.error).message);
+  }
+
+  const byCode = new Map<string, string>();
+  for (const c of (courses.data ?? []) as { id: string; code: string | null; name: string }[]) {
+    const code = normaliseCode(c.code) ?? normaliseCode(c.name);
+    if (code) byCode.set(code, c.id);
+  }
+
+  const tracked = [
+    ...((work.data ?? []) as { title: string; due_at: string }[]).map((w) => ({ at: w.due_at, title: w.title })),
+    ...((owned.data ?? []) as { title: string; starts_at: string }[]).map((e) => ({ at: e.starts_at, title: e.title })),
+  ];
+
+  const out: MirrorInstance[] = [];
+  for (const inst of parsed.instances) {
+    if (duplicatesTracked(inst, tracked)) continue;
+    const code = courseCodeOf(inst.title);
+    out.push({ ...inst, courseId: code ? byCode.get(code) ?? null : null, kind: kindOf(inst.title) });
+  }
+  return out;
 }
 
 /** One feed, start to finish. Never throws: failures are recorded on the feed. */
@@ -465,7 +542,15 @@ async function syncFeed(
      * A full diff still runs every twelve hours regardless, which repairs the
      * mirror if its rows were ever changed underneath it.
      */
-    const hash = await bodyHash(fingerprintInstances(parsed.instances, parsed.problems));
+    // Fingerprint what will actually be MIRRORED — after course links and
+    // duplicate-hiding — not only what the feed said. Adding a course or a
+    // piece of work changes the mirror without the feed changing at all, and a
+    // fingerprint of the feed alone would skip exactly that sync.
+    const instances = await enrich(admin, feed.user_id, parsed, windowFor(zone));
+    const hash = await bodyHash(
+      fingerprintInstances(instances, parsed.problems) +
+        instances.map((i) => `|${i.courseId ?? ''}|${i.kind}`).join(''),
+    );
     const diffedRecently =
       feed.last_parsed_at !== null && now.getTime() - Date.parse(feed.last_parsed_at) < FULL_READ_MS;
     if (!opts.force && hash === feed.last_body_hash && diffedRecently) {
@@ -482,7 +567,7 @@ async function syncFeed(
       return { id: feed.id, status: 'unchanged' };
     }
 
-    const counts = await applyMirror(admin, feed, parsed);
+    const counts = await applyMirror(admin, feed, instances);
     const changed = counts.added + counts.updated + counts.removed > 0;
 
     await admin

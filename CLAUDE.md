@@ -611,6 +611,44 @@ subscription once it fingerprinted the parsed result: a seeding run found no
 changes, and the next returned `unchanged` without reading the 545 mirrored
 rows.
 
+**A mirror has to know what its events are, or it doubles the week.** Set up
+against a real term (Concordia timetable plus Moodle deadlines in one Google
+calendar), the raw mirror was wrong in three ways a fresh student would hit on
+day one: no lecture was linked to its course, so the course filters showed
+nothing from the calendar; "Midterm Exam" arrived as `other`, so it never got
+the night-before escalation; and every Moodle deadline appeared twice, once as
+the tracked piece of work and once as "PHYS 205 - Quiz #3 is due" at the same
+minute. The sync now reads each occurrence before writing it
+(`_shared/feedsync.ts`): the course code in the title links it to that account's
+course, a narrow title rule marks real exams (never "practice", "sample" or
+anything "due"), and an occurrence is dropped when it lands within a minute of
+tracked work or an owned event AND shares a meaningful word with it. Both
+conditions, because a 14:00 lecture and a 14:00 exam are different things and
+every course has an "Assignment 2". It only ever hides a copy — if the source
+moves the deadline the instants stop matching and the event reappears beside
+the work, which is how the move gets noticed. First run: 168 updated, 24
+duplicates removed. Course and kind are part of the fingerprint, so adding a
+course re-links an unchanged feed on the next sync.
+
+### A blank brown screen — Sep 2026
+
+`WhatNow` called `useMagnetic` after an early return, so the render that first
+had assignments called one more hook than the one before and React threw #310.
+With no error boundary React unmounted everything, leaving only the page's
+atmosphere: no text, no navigation, nothing saying an error happened. Adding a
+course was the trigger only because it was the first time the component went
+from empty to not.
+
+Three layers were missing and each is now there. `react-hooks/rules-of-hooks`
+was configured but `npm run check` never ran lint, so the rule had caught this
+and nobody was told; `check` runs lint first now. `ErrorBoundary` wraps the app
+and each screen (keyed on the screen, so navigating away clears it) and asks
+the service worker for an update when it catches, since a production render
+error is usually already fixed in a later deploy. And the service worker served
+navigations cache-first, so the fixed build only reached the phone on the
+SECOND open; navigations are network-first with a two-second timeout, falling
+back to the cached shell offline.
+
 ### A documented deviation from the colour law
 
 The colour law says macro colours appear as **ring strokes only**. The weekly

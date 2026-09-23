@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { checkFeedUrl, isPrivateAddress } from '../../supabase/functions/_shared/feedurl';
-import { diffMirror, fingerprintInstances, mirrorInsertRows, type MirrorRow } from '../../supabase/functions/_shared/feedsync';
-import type { FeedInstance } from '../../supabase/functions/_shared/feed';
+import {
+  courseCodeOf,
+  diffMirror,
+  duplicatesTracked,
+  fingerprintInstances,
+  kindOf,
+  mirrorInsertRows,
+  normaliseCode,
+  type MirrorInstance,
+  type MirrorRow,
+} from '../../supabase/functions/_shared/feedsync';
 
 const GOOGLE_SECRET =
   'https://calendar.google.com/calendar/ical/someone%40gmail.com/private-0123456789abcdef/basic.ics';
@@ -82,11 +91,13 @@ describe('isPrivateAddress', () => {
   );
 });
 
-const inst = (o: Partial<FeedInstance> & { uid: string; startsAt: string }): FeedInstance => ({
+const inst = (o: Partial<MirrorInstance> & { uid: string; startsAt: string }): MirrorInstance => ({
   title: 'Meeting',
   location: null,
   endsAt: null,
   allDay: false,
+  courseId: null,
+  kind: 'other',
   ...o,
 });
 
@@ -95,6 +106,8 @@ const row = (o: Partial<MirrorRow> & { id: string; feed_uid: string; starts_at: 
   title: 'Meeting',
   location: null,
   all_day: false,
+  course_id: null,
+  kind: 'other',
   ...o,
 });
 
@@ -127,7 +140,7 @@ describe('diffMirror', () => {
     expect(d.insert).toEqual([]);
     expect(d.remove).toEqual([]);
     expect(d.update).toEqual([
-      { id: 'keep', title: 'New name', location: 'Room 4', ends_at: null, all_day: false },
+      { id: 'keep', title: 'New name', location: 'Room 4', ends_at: null, all_day: false, course_id: null, kind: 'other' },
     ]);
   });
 
@@ -211,3 +224,86 @@ describe('fingerprintInstances', () => {
     expect(fingerprintInstances([a], [])).not.toBe(fingerprintInstances([a], ['"X" repeats oddly']));
   });
 });
+
+describe('reading a mirrored event', () => {
+  // Real titles from a Concordia timetable and its course platforms.
+  it.each([
+    ['H435 - MATH 205-J - LEC', 'MATH 205'],
+    ['MB S2.210 - COEN 231-U - LEC', 'COEN 231'],
+    ['FB S150 - COEN 231-U UA - TUT', 'COEN 231'],
+    ['REMOTE - MATH 205-RMT2 - TUT', 'MATH 205'],
+    ['TBA - COEN 212-FO-X - LAB', 'COEN 212'],
+    ['PHYS 205 - Quiz #3 is due', 'PHYS 205'],
+    ['📖 PHYS 205 Study', 'PHYS 205'],
+    ['Assignment 1 is due', null],
+    ['🍗 Gym', null],
+  ])('finds the course in %s', (title, code) => {
+    expect(courseCodeOf(title)).toBe(code);
+  });
+
+  it('does not read a room number as a course', () => {
+    expect(courseCodeOf('H435 lecture hall')).toBeNull();
+  });
+
+  it('compares codes however they were typed', () => {
+    expect(normaliseCode('coen212')).toBe('COEN 212');
+    expect(normaliseCode('COEN-212')).toBe('COEN 212');
+  });
+
+  it.each([
+    ['Midterm Exam', 'exam'],
+    ['PHYS 205 Midterm', 'exam'],
+    ['TBA - COEN 212-FO-X - LAB', 'lab'],
+    ['MB S2.330 - COEN 212-F - LEC', 'other'],
+    // Mentions an exam; is not one. Calling it one would send a false
+    // night-before warning.
+    ['MATH 205 - Practice Problems Midterm (NOT MANDATORY) Due', 'other'],
+    ['Deadline to submit documentation for exam accommodations', 'other'],
+    ['Lab report due', 'other'],
+  ])('reads %s as %s', (title, kind) => {
+    expect(kindOf(title)).toBe(kind);
+  });
+});
+
+describe('duplicatesTracked', () => {
+  const at = '2026-09-27T03:59:00.000Z';
+
+  it('hides a platform deadline that is already a piece of work', () => {
+    expect(duplicatesTracked({ startsAt: at, title: 'PHYS 205 - Quiz #3 is due' }, [{ at, title: 'Quiz 3' }])).toBe(true);
+    expect(
+      duplicatesTracked({ startsAt: at, title: 'MATH 205 - Assignment 4 Due (WeBWorK)' }, [{ at, title: 'WeBWorK 4' }]),
+    ).toBe(true);
+  });
+
+  it('hides a mirrored exam that the account already has', () => {
+    const t = '2026-10-31T18:00:00.000Z';
+    expect(duplicatesTracked({ startsAt: t, title: 'Midterm Exam' }, [{ at: t, title: 'PHYS 205 Midterm' }])).toBe(true);
+  });
+
+  it('keeps it when the time differs — that is how a moved deadline shows up', () => {
+    expect(
+      duplicatesTracked({ startsAt: '2026-09-28T03:59:00.000Z', title: 'Quiz 3 is due' }, [{ at, title: 'Quiz 3' }]),
+    ).toBe(false);
+  });
+
+  it('keeps it when only the time matches', () => {
+    // A lecture and a deadline can share an instant without being one fact.
+    expect(duplicatesTracked({ startsAt: at, title: 'Office hours' }, [{ at, title: 'Quiz 3' }])).toBe(false);
+  });
+});
+
+describe('mirrored rows carry their labels', () => {
+  it('writes the course and kind the sync worked out', () => {
+    const [r] = mirrorInsertRows([inst({ uid: 'a', startsAt: at0, courseId: 'c1', kind: 'exam' })], 'u', 'f');
+    expect(r).toMatchObject({ course_id: 'c1', kind: 'exam' });
+  });
+
+  it('updates a row whose course link changed, keeping its id', () => {
+    const d = diffMirror(
+      [row({ id: 'k', feed_uid: 'a', starts_at: at0 })],
+      [inst({ uid: 'a', startsAt: at0, courseId: 'c1' })],
+    );
+    expect(d.update.map((u) => [u.id, u.course_id])).toEqual([['k', 'c1']]);
+  });
+});
+const at0 = '2026-09-15T14:00:00Z';

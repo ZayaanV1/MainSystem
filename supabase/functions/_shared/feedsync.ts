@@ -22,7 +22,12 @@ export interface MirrorRow {
   title: string;
   location: string | null;
   all_day: boolean;
+  course_id: string | null;
+  kind: string;
 }
+
+/** A parsed occurrence plus what the sync worked out about it. */
+export type MirrorInstance = FeedInstance & { courseId: string | null; kind: EventKind };
 
 export interface MirrorPatch {
   id: string;
@@ -30,10 +35,12 @@ export interface MirrorPatch {
   location: string | null;
   ends_at: string | null;
   all_day: boolean;
+  course_id: string | null;
+  kind: string;
 }
 
 export interface MirrorDiff {
-  insert: FeedInstance[];
+  insert: MirrorInstance[];
   update: MirrorPatch[];
   /** Row ids. */
   remove: string[];
@@ -53,7 +60,7 @@ function identity(uid: string | null, startsAt: string): string {
   return `${uid ?? ''}|${ms(startsAt)}`;
 }
 
-export function diffMirror(existing: MirrorRow[], incoming: FeedInstance[]): MirrorDiff {
+export function diffMirror(existing: MirrorRow[], incoming: MirrorInstance[]): MirrorDiff {
   const have = new Map<string, MirrorRow>();
   const remove: string[] = [];
 
@@ -66,7 +73,7 @@ export function diffMirror(existing: MirrorRow[], incoming: FeedInstance[]): Mir
     else have.set(k, row);
   }
 
-  const insert: FeedInstance[] = [];
+  const insert: MirrorInstance[] = [];
   const update: MirrorPatch[] = [];
   const seen = new Set<string>();
 
@@ -85,7 +92,9 @@ export function diffMirror(existing: MirrorRow[], incoming: FeedInstance[]): Mir
       row.title !== inst.title ||
       (row.location ?? null) !== inst.location ||
       row.all_day !== inst.allDay ||
-      ms(row.ends_at) !== ms(inst.endsAt);
+      ms(row.ends_at) !== ms(inst.endsAt) ||
+      (row.course_id ?? null) !== inst.courseId ||
+      row.kind !== inst.kind;
 
     if (changed) {
       update.push({
@@ -94,6 +103,8 @@ export function diffMirror(existing: MirrorRow[], incoming: FeedInstance[]): Mir
         location: inst.location,
         ends_at: inst.endsAt,
         all_day: inst.allDay,
+        course_id: inst.courseId,
+        kind: inst.kind,
       });
     }
   }
@@ -116,18 +127,18 @@ export function diffMirror(existing: MirrorRow[], incoming: FeedInstance[]): Mir
  * silently short meal and a failed seed already, so the shape is fixed here
  * rather than left to whoever calls it.
  */
-export function mirrorInsertRows(instances: FeedInstance[], userId: string, feedId: string) {
+export function mirrorInsertRows(instances: MirrorInstance[], userId: string, feedId: string) {
   return instances.map((i) => ({
     user_id: userId,
     feed_id: feedId,
     feed_uid: i.uid,
     title: i.title,
-    kind: 'other',
+    kind: i.kind,
     starts_at: i.startsAt,
     ends_at: i.endsAt,
     all_day: i.allDay,
     location: i.location,
-    course_id: null,
+    course_id: i.courseId,
     notes: null,
   }));
 }
@@ -159,4 +170,87 @@ export function fingerprintInstances(instances: FeedInstance[], problems: string
   );
   lines.sort();
   return [...lines, '--', ...[...problems].sort()].join('\n');
+}
+
+/* ============================================================================
+   Reading what a mirrored event IS
+   ========================================================================= */
+
+export type EventKind = 'exam' | 'lab' | 'other';
+
+/**
+ * The course code in an event's title, normalised — "MATH 205".
+ *
+ * University timetables write the code into every title ("H435 - MATH 205-J -
+ * LEC", "MB S2.210 - COEN 231-U - LEC"), and so do most platforms' deadline
+ * events ("PHYS 205 - Quiz #3 is due"). Three or four capitals, then three
+ * digits. Room codes like "H435" and "FB S150" fall short of the letters, and
+ * a lowercase "205" in prose is not a course.
+ */
+export function courseCodeOf(title: string): string | null {
+  const m = /\b([A-Z]{3,4})\s?-?\s?(\d{3})(?!\d)/.exec(title);
+  return m ? `${m[1]} ${m[2]}` : null;
+}
+
+/** "COEN212", "coen 212", "COEN-212" all compare equal. */
+export function normaliseCode(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const m = /([A-Za-z]{3,4})\s*-?\s*(\d{3})/.exec(code);
+  return m ? `${m[1].toUpperCase()} ${m[2]}` : null;
+}
+
+/**
+ * Exam, lab, or neither — from the title alone.
+ *
+ * Deliberately narrow. "Exam" matters because exams get the reminder the night
+ * before, and marking a mirrored "Midterm Exam" as one is the difference
+ * between that reminder existing and not. Anything that merely MENTIONS an
+ * exam — practice problems, a sample paper, a deadline — is not an exam, and
+ * calling it one would send a false night-before warning.
+ */
+export function kindOf(title: string): EventKind {
+  if (/\b(midterm|final exam|exam|test)\b/i.test(title) &&
+      !/\b(practice|sample|due|available|seat|registration|deadline|accommodation)/i.test(title)) {
+    return 'exam';
+  }
+  // Timetable exports mark lab sections with a standalone LAB, in capitals.
+  if (/(^|[\s-])LAB\b/.test(title)) return 'lab';
+  return 'other';
+}
+
+const STOP = new Set(['the', 'and', 'for', 'with', 'from', 'this', 'that', 'due', 'is', 'are', 'available']);
+
+function tokens(title: string): Set<string> {
+  const out = new Set<string>();
+  for (const w of title.toLowerCase().match(/[a-z]+|\d+/g) ?? []) {
+    if (/^\d+$/.test(w) || (w.length >= 4 && !STOP.has(w))) out.add(w);
+  }
+  return out;
+}
+
+/**
+ * Whether a mirrored occurrence is something the app already shows.
+ *
+ * The same instant AND a shared meaningful word. "PHYS 205 - Quiz #3 is due"
+ * at Sat 23:59 and a piece of work "Quiz 3" due Sat 23:59 are one fact; showing
+ * both makes the calendar read as twice as busy as it is. The instant alone is
+ * not enough — a 14:00 lecture and a 14:00 exam are different things — and the
+ * word alone is not enough either, or every "Assignment 2" in every course
+ * would collide.
+ *
+ * Only ever HIDES a copy. If the source later moves the deadline, the instants
+ * stop matching and the mirrored event reappears beside the work, which is
+ * exactly how the move gets noticed.
+ */
+export function duplicatesTracked(
+  inst: { startsAt: string; title: string },
+  tracked: { at: string; title: string }[],
+): boolean {
+  const at = Date.parse(inst.startsAt);
+  const mine = tokens(inst.title);
+  return tracked.some((t) => {
+    if (Math.abs(Date.parse(t.at) - at) > 60_000) return false;
+    for (const w of tokens(t.title)) if (mine.has(w)) return true;
+    return false;
+  });
 }
