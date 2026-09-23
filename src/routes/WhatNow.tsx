@@ -55,6 +55,20 @@ export function WhatNow({
 }) {
   const [open, setOpen] = useState(false);
   const [minutes, setMinutes] = useState<number | null>(null);
+  /*
+   * Every hook runs before the first return, unconditionally.
+   *
+   * This was called below the empty-list return, which React forbids: a
+   * component must call the same hooks in the same order on every render.
+   * Today renders this once before its data arrives — an empty list, so the
+   * early return, so no useMagnetic — and again once work has loaded, when
+   * the hook suddenly runs. React aborts the whole tree on that mismatch.
+   *
+   * It lay dormant for as long as the account had no open work, and took the
+   * entire app down, on every device, the moment the first assignment was
+   * added: a blank ground and nothing else.
+   */
+  const magnet = useMagnetic();
 
   if (assignments.length === 0) return null;
 
@@ -69,8 +83,6 @@ export function WhatNow({
     // silently ignores everything the syllabus importer worked out.
     weight_percent: a.weight_percent,
   }));
-
-  const magnet = useMagnetic();
 
   const showing = open || alwaysOpen;
   const choice = showing ? whatNow(tasks, { minutesAvailable: minutes }) : null;
