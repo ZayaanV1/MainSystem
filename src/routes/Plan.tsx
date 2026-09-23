@@ -5,6 +5,7 @@ import { Card } from '../components/Card';
 import { RepeatingWork } from './RepeatingWork';
 import { SeriesList } from './SeriesList';
 import { CalendarImport } from './CalendarImport';
+import { CalendarFeeds } from './CalendarFeeds';
 import { courseGrades, gradeSummary } from '../lib/grades';
 import { Chip } from '../components/Chip';
 import { SyllabusImport } from './SyllabusImport';
@@ -153,6 +154,14 @@ export function Plan({ courses, onBack, onChanged }: {
           onChanged={onChanged}
         />
       </section>
+
+      {/*
+        Above the one-time importer, because it is now the main way a calendar
+        gets in. The importer stays for what it is good at: a fixed term
+        timetable you want as ordinary events you own and can edit. This is
+        for a calendar that keeps changing and has to stay right on its own.
+      */}
+      <CalendarFeeds onChanged={onChanged} />
 
       <section className="mb-8">
         <h2 className="type-h2 mb-1 px-4 text-text-hi">Bring in your timetable</h2>

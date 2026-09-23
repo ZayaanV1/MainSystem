@@ -146,6 +146,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .from('events')
       .select('id, title, kind, starts_at, ends_at, all_day, courses(code, name)')
       .eq('user_id', userId)
+      // Never publish an event this app is itself MIRRORING from someone
+      // else's calendar. Subscribing to this feed from Google would otherwise
+      // hand every Google event straight back to Google as a second copy —
+      // a duplicate of each meeting that no longer changes when the original
+      // does. The app republishes what it owns, and only that.
+      .is('feed_id', null)
       .gte('starts_at', from)
       .lte('starts_at', to),
   ]);

@@ -106,6 +106,16 @@ export interface PlannerEvent {
   ends_at: string | null;
   all_day: boolean;
   location: string | null;
+  /** Set when the event is mirrored from a subscribed calendar. */
+  feed_id?: string | null;
+  /**
+   * The subscribed calendar's name, shown where a hand-added event shows its
+   * kind. A mirrored event's kind is always "other" — the feed cannot say
+   * whether a meeting is an exam — so printing it would label every Google
+   * event OTHER. The name answers the question a reader actually has about
+   * it: where did this come from, and is it mine to change.
+   */
+  source?: string | null;
 }
 
 export interface TodayData {
@@ -247,7 +257,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     // anywhere — an exam you already sat is not information, it is clutter.
     supabase
       .from('events')
-      .select('id, course_id, title, kind, starts_at, ends_at, all_day, location')
+      .select('id, course_id, title, kind, starts_at, ends_at, all_day, location, feed_id, calendar_feeds(label)')
       .gte('starts_at', startOfDayUTC(today).toISOString())
       .order('starts_at', { ascending: true }),
 
@@ -316,7 +326,11 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     inbox: (inbox.data ?? []) as InboxItem[],
     courses: (courses.data ?? []) as Course[],
     assignments: (assignments.data ?? []) as Assignment[],
-    events: (events.data ?? []) as PlannerEvent[],
+    // The embedded feed name is flattened here, once, so no screen has to
+    // know that it arrived as a nested object.
+    events: ((events.data ?? []) as unknown as (PlannerEvent & {
+      calendar_feeds?: { label: string } | null;
+    })[]).map(({ calendar_feeds, ...e }) => ({ ...e, source: calendar_feeds?.label ?? null })),
     subtasks: (subtasks.data ?? []) as Subtask[],
     completedToday: (completedToday.data ?? []) as Assignment[],
     deferrals,

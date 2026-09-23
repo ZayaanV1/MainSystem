@@ -19,3 +19,8 @@ verify_jwt = false
 # The only endpoint served without a login: a calendar app cannot present one.
 # The token in the query string is the credential, and the function checks it.
 verify_jwt = false
+
+[functions.feeds]
+# Same shape as dispatch: pg_cron authenticates with the shared secret header,
+# and the app with a user JWT that the function verifies itself.
+verify_jwt = false

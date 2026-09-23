@@ -48,6 +48,7 @@ import {
 import { activeTimezone, addDays, formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 import { announce } from '../lib/announce';
 import { revealList } from '../lib/motion';
+import { onFeedsChanged } from '../lib/feeds';
 import { usePullToRefresh } from '../lib/usePullToRefresh';
 
 /**
@@ -119,9 +120,11 @@ export function Today({
     void fetchHealth().then(setHealth);
   }, [reload]);
 
-  // The dose counter is maintained by a database trigger, so once queued
-  // writes have drained the real numbers have to be re-read rather than
-  // guessed at locally.
+  // A subscribed calendar changed. Reload in place — NOT via the app's
+  // revision key, which remounts this screen and would erase anything
+  // half-typed in the capture box every time a meeting moved in Google.
+  useEffect(() => onFeedsChanged(() => void reload()), [reload]);
+
   /*
    * The work list's entrance.
    *
@@ -153,6 +156,9 @@ export function Today({
     revealList(Array.from(root.children) as HTMLElement[]);
   }, [workIds]);
 
+  // The dose counter is maintained by a database trigger, so once queued
+  // writes have drained the real numbers have to be re-read rather than
+  // guessed at locally.
   const wasBusy = useRef(false);
   useEffect(
     () =>

@@ -535,6 +535,63 @@ to FAIL against a deliberately planted violation before being committed, and
 the table guard was checked against the pre-fix `planner.ts`, where it names
 `assignment_series` and nothing else.
 
+### Live calendars — Sep 2026
+
+A Google Calendar, Outlook or university feed, kept in sync: the server re-reads
+every subscribed feed every five minutes (`life-planner-feeds` cron,
+`functions/feeds`), and the app asks for a sync on open, on return to the front,
+and every two minutes while visible. Mirrored events carry `events.feed_id`, are
+read-only by construction (the client never edits or deletes an event), show
+their calendar's name where a hand-added event shows its kind, and are removed
+when the feed is. The one-time timetable importer stays, for fixed timetables you
+want as ordinary events you own.
+
+**Why a secret iCal address and not the Google Calendar API.** The API needs a
+Cloud project, OAuth, token storage and — decisively — `calendar.readonly` is a
+sensitive scope: unverified apps cap at a hundred users behind a warning screen.
+The address costs none of that and works for every provider. The lag people
+report with calendar URLs is the SUBSCRIBING app's poll interval, which here is
+ours. The API remains the upgrade path if five minutes is ever too slow.
+
+**It needed its own parser.** `icsparse.ts` was right for a confirmed one-time
+paste and wrong for an unattended mirror: it converted UTC with one fixed offset
+(an hour out after the clock change), expanded repeats forward from the FIRST
+occurrence and stopped at sixty (a weekly meeting begun in 2024 yielded nothing
+now), and ignored cancelled and moved instances. `_shared/feed.ts` expands in
+wall-clock time in each event's own zone, applies EXDATE and RECURRENCE-ID, and
+leaves out — and names — any repeat rule it cannot read rather than expanding it
+partly. Three planted bugs were each caught by its tests, which also pass under
+five host timezones.
+
+**Security.** The server fetches a URL a user typed, so every hop — including
+redirects, followed by hand — is checked by name and by resolved address, with a
+byte cap and a timeout. The sync runs as the service role, so ownership is part
+of the key: `(feed_id, user_id)` must reference a feed that account owns, or one
+account could stamp another's feed id on its own rows and the other's sync would
+delete them. The sync scopes by account as well. Ten feeds per account, enforced
+by trigger because the table is writable through RLS.
+
+**Found by running it against real Google output**, none of which the fixtures
+could have shown:
+
+- Google sends no ETag and no Last-Modified, so conditional requests never fire
+  and every sync reads the whole feed. That exposed a CPU risk: the recurrence
+  walk converted every occurrence since a series began. A daily series from 2010
+  took 1,486 ms; only converting occurrences near the window takes 35 ms, same
+  result. An edge function has a CPU ceiling.
+- Google rewrites DTSTAMP on every event on every download, so two copies four
+  seconds apart differed on all 433 events and a hash of the body never matched.
+  The fingerprint now excludes DTSTAMP, which the reader never uses.
+- Google answers 429 after about a dozen reads in fifteen minutes. A rate-limited
+  feed is now held until Retry-After (ten minutes if absent) through the sync
+  lease, instead of being retried on the normal cycle.
+- A failed sync keeps the last good mirror. Verified mid-429: 22 events still
+  there, the status line saying why.
+
+**Not yet observed in production:** the unchanged-feed shortcut. It is unit
+tested, including against two real Google downloads, but Google's rate limit
+ended the live verification before a clean run could show it.
+
 ### A documented deviation from the colour law
 
 The colour law says macro colours appear as **ring strokes only**. The weekly

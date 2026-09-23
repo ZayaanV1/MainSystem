@@ -205,6 +205,7 @@ describe('migrations apply', () => {
       'assignment_series',
       'assignments',
       'bodyweight',
+      'calendar_feeds',
       'chat_messages',
       'checklist_completions',
       'checklist_items',
@@ -493,24 +494,35 @@ describe('Phase 1 tables are private too', () => {
 });
 
 describe('the scheduled job', () => {
-  it('is scheduled exactly once, every 15 minutes', async () => {
+  it('schedules the digest once, every 15 minutes', async () => {
     const res = await db.query<{ jobname: string; schedule: string; command: string }>(
-      `select jobname, schedule, command from cron.jobs`,
+      `select jobname, schedule, command from cron.jobs where jobname = 'life-planner-dispatch'`,
     );
     expect(res.rows).toHaveLength(1);
-    expect(res.rows[0].jobname).toBe('life-planner-dispatch');
     expect(res.rows[0].schedule).toBe('*/15 * * * *');
     expect(res.rows[0].command).toContain('dispatch_tick');
   });
 
-  it('stays at one job when the migration is applied again', async () => {
+  it('schedules the calendar sync once, every 5 minutes', async () => {
+    const res = await db.query<{ jobname: string; schedule: string; command: string }>(
+      `select jobname, schedule, command from cron.jobs where jobname = 'life-planner-feeds'`,
+    );
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0].schedule).toBe('*/5 * * * *');
+    expect(res.rows[0].command).toContain('feeds_tick');
+  });
+
+  it('has exactly those two jobs, and keeps two when migrations are applied again', async () => {
     // Re-running migrations must not accumulate duplicate schedules. Four
-    // identical 07:00 notifications is a bug you only discover on a phone.
-    for (const { sql } of loadMigrations().filter((m) => m.name.startsWith('0002'))) {
+    // identical 07:00 notifications is a bug you only discover on a phone,
+    // and four overlapping calendar syncs would fight over the same feeds.
+    for (const { sql } of loadMigrations().filter(
+      (m) => m.name.startsWith('0002') || m.name.startsWith('0027'),
+    )) {
       await db.exec(sql);
     }
-    const res = await db.query(`select jobname from cron.jobs`);
-    expect(res.rows).toHaveLength(1);
+    const res = await db.query<{ jobname: string }>(`select jobname from cron.jobs order by jobname`);
+    expect(res.rows.map((r) => r.jobname)).toEqual(['life-planner-dispatch', 'life-planner-feeds']);
   });
 
   it('does nothing quietly when the secrets are not configured yet', async () => {
@@ -552,6 +564,33 @@ describe('the scheduled job', () => {
       `select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret'`,
     );
     expect(secret.rows[0].decrypted_secret).toBe('rotated-secret');
+  });
+
+  it('points the calendar sync at the feeds function, with the same secret', async () => {
+    // Derived from the dispatch URL rather than configured separately, so an
+    // install that already sends a digest gets live calendars with no new
+    // setup step.
+    await db.exec(
+      `select public.setup_dispatch('https://ref.supabase.co/functions/v1/dispatch', 'super-secret-value')`,
+    );
+    await db.exec(`delete from net.calls`);
+
+    await db.exec(`select private.feeds_tick()`);
+
+    const res = await db.query<{ url: string; headers: Record<string, string> }>(
+      `select url, headers from net.calls`,
+    );
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0].url).toBe('https://ref.supabase.co/functions/v1/feeds');
+    expect(res.rows[0].headers['x-cron-secret']).toBe('super-secret-value');
+  });
+
+  it('keeps the calendar tick quiet until configured, like the digest', async () => {
+    await db.exec(`delete from vault.secrets`);
+    await db.exec(`delete from net.calls`);
+    await expect(db.exec(`select private.feeds_tick()`)).resolves.toBeTruthy();
+    const res = await db.query(`select * from net.calls`);
+    expect(res.rows).toHaveLength(0);
   });
 
   it('does not expose the tick function to the client roles', async () => {
@@ -1101,5 +1140,82 @@ describe('one bodyweight reading per day', () => {
       db.exec(`insert into public.bodyweight (user_id, local_day, kg)
         values ('${U}', '2026-08-19', 0)`),
     ).rejects.toThrow(/check constraint/i);
+  });
+});
+
+describe('subscribed calendars', () => {
+  const FEED_A = 'aaaaaaaa-0000-0000-0000-00000000000a';
+  const FEED_B = 'bbbbbbbb-0000-0000-0000-00000000000b';
+
+  beforeAll(async () => {
+    await db.exec(`
+      insert into public.calendar_feeds (id, user_id, label, url) values
+        ('${FEED_A}', '${USER_A}', 'A', 'https://calendar.google.com/calendar/ical/a/private-x/basic.ics'),
+        ('${FEED_B}', '${USER_B}', 'B', 'https://calendar.google.com/calendar/ical/b/private-y/basic.ics');
+    `);
+  });
+
+  it('refuses an http address, because the server fetches it', async () => {
+    await expect(
+      db.exec(`insert into public.calendar_feeds (user_id, label, url)
+        values ('${USER_A}', 'plain', 'http://example.com/cal.ics')`),
+    ).rejects.toThrow(/check constraint/i);
+  });
+
+  it('refuses the same calendar twice for one account', async () => {
+    await expect(
+      db.exec(`insert into public.calendar_feeds (user_id, label, url)
+        values ('${USER_A}', 'again', 'https://calendar.google.com/calendar/ical/a/private-x/basic.ics')`),
+    ).rejects.toThrow(/unique|duplicate/i);
+  });
+
+  it('will not let an event claim a feed that belongs to another account', async () => {
+    // The cross-account case. The sync runs as the service role; if this row
+    // could exist, B's next sync would read it as a stale mirror of B's feed
+    // and delete it — one account's scheduled job deleting another's data.
+    await expect(
+      db.exec(`insert into public.events (user_id, title, starts_at, feed_id, feed_uid)
+        values ('${USER_A}', 'forged', now(), '${FEED_B}', 'x')`),
+    ).rejects.toThrow(/foreign key/i);
+  });
+
+  it('removes a feed\'s events with the feed, and nothing else', async () => {
+    await db.exec(`
+      insert into public.events (user_id, title, starts_at, feed_id, feed_uid)
+        values ('${USER_A}', 'mirrored', '2026-09-15 14:00+00', '${FEED_A}', 'm1');
+      insert into public.events (user_id, title, starts_at)
+        values ('${USER_A}', 'hand-added', '2026-09-15 15:00+00');
+    `);
+
+    await db.exec(`delete from public.calendar_feeds where id = '${FEED_A}'`);
+
+    const res = await db.query<{ title: string }>(
+      `select title from public.events where user_id = '${USER_A}' and title in ('mirrored', 'hand-added')`,
+    );
+    // Unsubscribing that left the mirror behind would leave it going quietly
+    // out of date; unsubscribing that took hand-added events would be worse.
+    expect(res.rows.map((r) => r.title)).toEqual(['hand-added']);
+  });
+
+  it('keeps two copies of one recurring occurrence from existing', async () => {
+    await db.exec(`insert into public.events (user_id, title, starts_at, feed_id, feed_uid)
+      values ('${USER_B}', 'weekly', '2026-09-15 14:00+00', '${FEED_B}', 'series')`);
+    await expect(
+      db.exec(`insert into public.events (user_id, title, starts_at, feed_id, feed_uid)
+        values ('${USER_B}', 'weekly', '2026-09-15 14:00+00', '${FEED_B}', 'series')`),
+    ).rejects.toThrow(/unique|duplicate/i);
+  });
+
+  it('caps an account at ten calendars', async () => {
+    // Every feed is fetched every five minutes from a shared free tier. The
+    // table is writable through RLS, so the cap lives here, not in the app.
+    for (let i = 0; i < 9; i++) {
+      await db.exec(`insert into public.calendar_feeds (user_id, label, url)
+        values ('${USER_B}', 'f${i}', 'https://example.com/feed-${i}.ics')`);
+    }
+    await expect(
+      db.exec(`insert into public.calendar_feeds (user_id, label, url)
+        values ('${USER_B}', 'eleventh', 'https://example.com/feed-x.ics')`),
+    ).rejects.toThrow(/Ten calendars is the limit/);
   });
 });

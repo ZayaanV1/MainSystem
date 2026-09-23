@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { AppShell, Page, type NavItem } from './components/AppShell';
+import { keepFeedsLive } from './lib/feeds';
 import { withTransition, directionBetween } from './lib/transition';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
@@ -204,6 +205,19 @@ function Shell() {
     // nothing. Re-subscribing on every launch is the only defence.
     void refreshSubscription();
   }, [session]);
+
+  /*
+   * Subscribed calendars, kept current while the app is in front.
+   *
+   * Waits for the zone, because the server mirrors a window of days computed
+   * in the account's zone and an early sync from a device that has not
+   * adopted it yet gains nothing. Before any subscription exists this is one
+   * cheap request that finds no feeds.
+   */
+  useEffect(() => {
+    if (!session || !zoneReady) return;
+    return keepFeedsLive();
+  }, [session, zoneReady]);
 
   // Nothing is rendered until the stored session has been read back, so the
   // sign-in screen does not flash on every launch.

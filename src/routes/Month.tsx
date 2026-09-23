@@ -294,7 +294,7 @@ function DayDetail({
               <div className="flex min-h-[var(--tap)] flex-1 flex-col justify-center py-3 pr-4">
                 <span className="type-body text-text-hi">{e.title}</span>
                 <span className="mt-1 flex gap-x-2 type-caption text-text-low">
-                  <span>{e.kind}</span>
+                  <span>{e.source ?? e.kind}</span>
                   <span>{e.all_day ? 'All day' : formatTime(new Date(e.starts_at))}</span>
                 </span>
               </div>

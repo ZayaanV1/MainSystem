@@ -382,7 +382,7 @@ function EventRow({ event, course }: { event: PlannerEvent; course?: Course }) {
           <span className="type-body text-text-hi">{event.title}</span>
         </span>
         <span className="mt-1 flex flex-wrap gap-x-2 type-caption text-text-low">
-          <span>{event.kind}</span>
+          <span>{event.source ?? event.kind}</span>
           <span>{when}</span>
           {event.location && <span>{event.location}</span>}
         </span>
