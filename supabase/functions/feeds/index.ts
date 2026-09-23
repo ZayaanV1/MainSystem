@@ -18,7 +18,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { parseFeed, type FeedParse } from '../_shared/feed.ts';
-import { checkFeedUrl, isPrivateAddress } from '../_shared/feedurl.ts';
+import { botChallengeReason, checkFeedUrl, isBotChallenge, isPrivateAddress } from '../_shared/feedurl.ts';
 import {
   courseCodeOf,
   diffMirror,
@@ -187,6 +187,13 @@ async function fetchFeed(
 
     try {
       if (res.status === 304) return { kind: 'unchanged' };
+
+      // Before anything reads the status as success: a firewall's bot check
+      // answers 202 with an empty page, which would otherwise be reported as
+      // the wrong address having been pasted.
+      if (isBotChallenge(res.headers)) {
+        return { kind: 'error', reason: botChallengeReason(checked.url) };
+      }
 
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get('location');

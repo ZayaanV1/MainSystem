@@ -97,7 +97,56 @@ export function checkFeedUrl(raw: string): UrlCheck {
     };
   }
 
+  /*
+   * The second most common wrong paste: a Moodle page. Moodle's feed is a
+   * single script, calendar/export_execute.php, reached from the calendar's
+   * "Import or export calendars" page; a course page, the dashboard or the
+   * calendar view all answer with a login redirect, which would otherwise
+   * surface as the far vaguer "that didn't return a calendar".
+   */
+  if (isMoodle(url) && !url.pathname.endsWith('/calendar/export_execute.php')) {
+    return {
+      ok: false,
+      reason:
+        'That’s a Moodle page, not its calendar feed. In Moodle, open Calendar, choose “Import or export calendars”, then “Export calendar”, and copy the calendar URL it shows.',
+    };
+  }
+
   return { ok: true, url: url.toString() };
+}
+
+/** Moodle by its conventional hostnames or install path. */
+export function isMoodle(url: URL): boolean {
+  return /(^|\.)moodle\./i.test(url.hostname) || /^\/moodle\//i.test(url.pathname);
+}
+
+/**
+ * Whether a response is a bot check rather than an answer.
+ *
+ * Found against Concordia's Moodle: its firewall (AWS WAF) meets any client
+ * that is not a browser with HTTP 202, an empty body and
+ * `x-amzn-waf-action: challenge` — a page of JavaScript the browser is meant
+ * to run. 202 is a success status, so this read as a feed that returned
+ * nothing, and the person was told they had copied the wrong address when
+ * they had copied exactly the right one. Cloudflare says the same thing with
+ * `cf-mitigated: challenge`.
+ *
+ * The sync does not pretend to be a browser to get past one. The check exists
+ * to keep automated clients out, and it is the university's to set.
+ */
+export function isBotChallenge(headers: Headers): boolean {
+  const aws = headers.get('x-amzn-waf-action');
+  if (aws && /challenge|captcha/i.test(aws)) return true;
+  if (/challenge/i.test(headers.get('cf-mitigated') ?? '')) return true;
+  return false;
+}
+
+/** What to say when a feed's server only admits browsers. */
+export function botChallengeReason(url: string): string {
+  const moodle = isMoodle(new URL(url));
+  return moodle
+    ? 'Moodle’s server only lets web browsers read this address, so the planner can’t sync it directly. Add the same address to Google Calendar (Other calendars, From URL) and add Google’s secret address here instead — Google is allowed through, and your Moodle deadlines arrive with it.'
+    : 'That calendar’s server only lets web browsers read it, so the planner can’t sync it directly. Subscribe to it in Google Calendar and add Google’s secret address here instead.';
 }
 
 /**

@@ -630,6 +630,20 @@ the work, which is how the move gets noticed. First run: 168 updated, 24
 duplicates removed. Course and kind are part of the fingerprint, so adding a
 course re-links an unchanged feed on the next sync.
 
+**A Moodle address "didn't work", and the app blamed the paste.** Concordia's
+Moodle sits behind AWS WAF, which answers any non-browser client — the edge
+function included — with HTTP 202, an empty body and `x-amzn-waf-action:
+challenge`. 202 is a success, so the sync read an empty feed and said the
+wrong address had been copied, when it was exactly the right one. The fetcher
+now recognises a bot check (AWS and Cloudflare headers) before reading the
+status and says what is actually true: this server only admits browsers, and
+the working route is to subscribe to it in Google Calendar and add Google's
+address here — which is how this account's Moodle deadlines already arrive.
+The sync does NOT impersonate a browser to get past it; the check is the
+university's to set. A Moodle PAGE (course, dashboard, calendar view) is
+caught by name, like the Google browser-bar link, with the menu path to the
+real export address. Both verified against the deployed function.
+
 ### A blank brown screen — Sep 2026
 
 `WhatNow` called `useMagnetic` after an early return, so the render that first

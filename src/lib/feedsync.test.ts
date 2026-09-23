@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { checkFeedUrl, isPrivateAddress } from '../../supabase/functions/_shared/feedurl';
+import {
+  botChallengeReason,
+  checkFeedUrl,
+  isBotChallenge,
+  isPrivateAddress,
+} from '../../supabase/functions/_shared/feedurl';
 import {
   courseCodeOf,
   diffMirror,
@@ -58,6 +63,59 @@ describe('checkFeedUrl', () => {
     const r = checkFeedUrl('   ');
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason.length).toBeGreaterThan(5);
+  });
+});
+
+const MOODLE_EXPORT =
+  'https://moodle.concordia.ca/moodle/calendar/export_execute.php?userid=1&authtoken=abc&preset_what=all&preset_time=recentupcoming';
+
+describe('Moodle addresses', () => {
+  it('accepts the export feed', () => {
+    expect(checkFeedUrl(MOODLE_EXPORT).ok).toBe(true);
+  });
+
+  it('names the setting to copy when given a Moodle page instead', () => {
+    for (const page of [
+      'https://moodle.concordia.ca/moodle/course/view.php?id=123',
+      'https://moodle.concordia.ca/moodle/calendar/view.php?view=month',
+      'https://moodle.example.edu/my/',
+      'https://lms.example.edu/moodle/calendar/export.php',
+    ]) {
+      const r = checkFeedUrl(page);
+      expect(r.ok, page).toBe(false);
+      if (!r.ok) expect(r.reason).toMatch(/Export calendar/);
+    }
+  });
+
+  it('leaves other hosts alone', () => {
+    expect(checkFeedUrl('https://outlook.office365.com/owa/calendar/x/y/calendar.ics').ok).toBe(true);
+  });
+});
+
+describe('isBotChallenge', () => {
+  // The headers Concordia's firewall actually returned, 23 Sep 2026, with a
+  // 202 and an empty body. 202 is a success status, which is the whole trap.
+  it('recognises an AWS WAF challenge', () => {
+    const h = new Headers({
+      server: 'awselb/2.0',
+      'content-length': '0',
+      'x-amzn-waf-action': 'challenge',
+      'content-type': 'text/html; charset=UTF-8',
+    });
+    expect(isBotChallenge(h)).toBe(true);
+  });
+
+  it('recognises a Cloudflare challenge', () => {
+    expect(isBotChallenge(new Headers({ 'cf-mitigated': 'challenge' }))).toBe(true);
+  });
+
+  it('does not mistake an ordinary response for one', () => {
+    expect(isBotChallenge(new Headers({ 'content-type': 'text/calendar' }))).toBe(false);
+  });
+
+  it('points a Moodle feed at the route that works, and says why', () => {
+    expect(botChallengeReason(MOODLE_EXPORT)).toMatch(/Moodle.*only lets web browsers.*Google Calendar/s);
+    expect(botChallengeReason('https://calendar.example.org/feed.ics')).not.toMatch(/Moodle/);
   });
 });
 
