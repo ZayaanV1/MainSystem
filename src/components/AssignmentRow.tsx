@@ -124,7 +124,7 @@ export function AssignmentRow({
   const code = course ? (course.code ?? course.name) : null;
 
   return (
-    <div className="relative">
+    <div className="relative" data-row={assignment.id}>
       {/*
         What the gesture will do, revealed underneath the slip as it moves.
         Both sit behind the content and are never announced — the slip's own

@@ -264,7 +264,7 @@
   box-shadow: 0 0 10px var(--blk-glow);
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .bubble:hover {
     transform: translateY(-1px);
     box-shadow:
@@ -420,7 +420,7 @@
   background: var(--blk-mark);
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .hours-block:hover {
     z-index: 2;
     transform: scale(1.02);
@@ -583,7 +583,7 @@
   transition: transform 240ms var(--ease-out);
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .ticket-wrap:hover {
     transform: translateY(-2px) rotate(-0.25deg);
   }
@@ -760,7 +760,7 @@
   transition: background-color var(--dur-fast) var(--ease-out);
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .ledger-row:hover {
     background-color: var(--glass-fill);
   }

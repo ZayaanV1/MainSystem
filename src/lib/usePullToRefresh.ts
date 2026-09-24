@@ -28,6 +28,16 @@ import { useEffect, useRef, useState } from 'react';
  */
 
 const ARM_TOP_PX = 2;
+/*
+ * How far a finger must travel, mostly downward, before this counts as a pull
+ * at all. There was no dead zone, and a fingertip is never still: the 1-3px it
+ * drifts during an ordinary TAP was read as a pull, so at the top of Today —
+ * which is where the screen usually is — every tap nudged the whole page down
+ * a pixel, flashed "Pull to refresh" and sprang it back. That was the screen
+ * shaking under every tap. Twelve pixels is past any tap and well short of a
+ * deliberate pull.
+ */
+const DEAD_ZONE_PX = 12;
 const TRIGGER_PX = 64;
 const DAMPING = 3;
 const MAX_PX = 80;
@@ -36,7 +46,13 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void) {
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const startY = useRef<number | null>(null);
+  const startX = useRef(0);
   const active = useRef(false);
+  // Past the dead zone and committed to being a pull.
+  const engaged = useRef(false);
+  // Read by touchend. As state in the effect's dependencies, every pixel of
+  // pull tore the listeners down and put them back mid-gesture.
+  const pullRef = useRef(0);
 
   // Read through a ref so the listeners can stay attached for the life of the
   // component. Re-subscribing on every render of a callback that changes each
@@ -51,29 +67,53 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void) {
       // back to the top of a list turning into a refresh.
       if (window.scrollY > ARM_TOP_PX) return;
       startY.current = e.touches[0].clientY;
+      startX.current = e.touches[0].clientX;
       active.current = true;
+      engaged.current = false;
     }
 
     function onTouchMove(e: TouchEvent) {
       if (!active.current || startY.current === null) return;
 
       const delta = e.touches[0].clientY - startY.current;
-      if (delta <= 0) {
+      const sideways = Math.abs(e.touches[0].clientX - startX.current);
+
+      if (!engaged.current) {
+        // A tap, or not yet enough to tell. Nothing moves.
+        if (delta < DEAD_ZONE_PX && sideways < DEAD_ZONE_PX) return;
+        // Upward, or more sideways than down: a scroll or a swipe, not a pull.
+        if (delta <= 0 || sideways > delta) {
+          active.current = false;
+          return;
+        }
+        engaged.current = true;
+      }
+
+      if (delta <= DEAD_ZONE_PX) {
         // Pulled back up past the start: abandon rather than tracking a
         // negative, so the gesture cannot flip into a scroll halfway.
+        pullRef.current = 0;
         setPull(0);
         active.current = false;
+        engaged.current = false;
         return;
       }
-      setPull(Math.min(MAX_PX, delta / DAMPING));
+      const next = Math.min(MAX_PX, (delta - DEAD_ZONE_PX) / DAMPING);
+      pullRef.current = next;
+      setPull(next);
     }
 
     async function onTouchEnd() {
-      const travelled = pull;
+      const travelled = pullRef.current;
+      const wasPull = engaged.current;
       active.current = false;
+      engaged.current = false;
       startY.current = null;
 
+      if (!wasPull) return;
+
       if (travelled < TRIGGER_PX / DAMPING) {
+        pullRef.current = 0;
         setPull(0);
         return;
       }
@@ -86,6 +126,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void) {
         await handler.current();
       } finally {
         setRefreshing(false);
+        pullRef.current = 0;
         setPull(0);
       }
     }
@@ -105,7 +146,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void) {
       window.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [pull, refreshing]);
+  }, [refreshing]);
 
   return {
     /** Distance the indicator should sit at, already damped. */

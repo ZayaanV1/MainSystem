@@ -148,6 +148,17 @@ export function Today({
    */
   const workList = useRef<HTMLDivElement>(null);
   const workIds = (data?.assignments ?? []).map((a) => a.id).join(',');
+  /*
+   * Only what is NEW comes in.
+   *
+   * This animated every row whenever the set of ids changed — and ticking
+   * one thing off, pushing one to tomorrow or capturing something all change
+   * it. So each of those taps sent the entire list back to opacity zero and
+   * slid it in again: on a phone, the whole column shook every time anything
+   * in it was touched. The first load still arrives in order; after that a
+   * row that was already on screen never moves, and only an arrival animates.
+   */
+  const seenWork = useRef<Set<string> | null>(null);
   // Layout effect, not effect: the animation's own from-value is opacity 0,
   // and applying that after paint means the row renders visible for one frame
   // and is then hidden to be faded back in. A flash on the screen whose whole
@@ -155,7 +166,11 @@ export function Today({
   useLayoutEffect(() => {
     const root = workList.current;
     if (!root || !workIds) return;
-    revealList(Array.from(root.children) as HTMLElement[]);
+    const rows = Array.from(root.children) as HTMLElement[];
+    const before = seenWork.current;
+    seenWork.current = new Set(workIds.split(','));
+    const arriving = before ? rows.filter((r) => !before.has(r.dataset.row ?? '')) : rows;
+    if (arriving.length > 0) revealList(arriving);
   }, [workIds]);
 
   // The dose counter is maintained by a database trigger, so once queued
@@ -814,7 +829,7 @@ function Briefing({ dep }: { dep: TodayData | null }) {
   if (!text) return null;
 
   return (
-    <section className="mb-6 px-4">
+    <section className="arrive mb-6 px-4">
       {/*
         The one hero surface on the busiest screen in the app. Everything
         else on Today is a `flat` Card — a list of work, a checklist, the

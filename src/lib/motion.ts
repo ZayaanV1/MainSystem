@@ -144,8 +144,10 @@ export function drawTick(path: SVGPathElement, box?: HTMLElement) {
 
   if (box) {
     animate(box, {
-      scale: [0.72, 1.12, 1],
-      duration: 380,
+      // Kept small. A 0.72 -> 1.12 pop read as a wobble on a phone, beside
+      // every other thing that moved under a tap; this is a settle, not a bounce.
+      scale: [0.86, 1.04, 1],
+      duration: 300,
       // Overshoot lives in the keyframes rather than in the easing, so the
       // settle is a real deceleration instead of a bounce curve fighting it.
       ease: EASE,
