@@ -357,7 +357,11 @@ export function Today({
           }
         />
 
-        {items.length === 0 ? (
+        {data === null ? (
+          // Loading is not empty. This showed "Nothing on the checklist yet"
+          // with an Add button on every open, for as long as the fetch took.
+          <SkeletonList rows={2} />
+        ) : items.length === 0 ? (
           <EmptyState
             action={
               <Button onClick={() => setEditorFor({ item: null })}>Add an item</Button>
@@ -578,7 +582,7 @@ export function Today({
         {Boolean(data?.inbox.length) && (
           <p className="type-note -mt-2 mb-3 px-4 text-text-low">Tap one to sort it out.</p>
         )}
-        {!data?.inbox.length ? (
+        {data === null ? null : !data.inbox.length ? (
           inboxCleared ? (
             <p className="px-4 py-8 type-body text-t-done">Inbox clear.</p>
           ) : (

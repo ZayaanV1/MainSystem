@@ -647,7 +647,14 @@ button.chip:active {
    behind it lets the conversation pass under without a hard edge. */
 .composer-dock {
   bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 0.75rem);
-  background: linear-gradient(to bottom, transparent, var(--ink-900) 45%);
+  /* A blur that fades in, not a fill. A fill had to pick a colour, and the
+     ground under it is lit (the phthalo pool sits at the bottom of the
+     screen), so any solid colour read as a rectangle. The blur takes its
+     colour from whatever is behind it. */
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, var(--text-hi) 40%);
+  mask-image: linear-gradient(to bottom, transparent, var(--text-hi) 40%);
 }
 
 @media (width >= 64rem) {
