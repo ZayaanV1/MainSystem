@@ -24,7 +24,10 @@ export function Field({ label, hint, error, className = '', ...rest }: FieldProp
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="action-chip type-label">
+      {/* A tracked label above the well. It was an action-chip — a
+          full-width pill — which read exactly like a button, so every form
+          in the app looked like a stack of buttons with boxes under them. */}
+      <label htmlFor={id} className="kicker">
         {label}
       </label>
 
@@ -33,12 +36,10 @@ export function Field({ label, hint, error, className = '', ...rest }: FieldProp
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={hint || error ? describedBy : undefined}
-        className={[
-          'w-full rounded-card border bg-ink-800 px-4 type-body text-text-hi',
-          'placeholder:text-text-low',
-          error ? 'border-t-overdue' : 'border-ink-600',
-          className,
-        ].join(' ')}
+        // A recessed well that lights in ember when it has focus. The error
+        // state is the well's own aria-invalid rule, so it cannot drift from
+        // what a screen reader is told.
+        className={['well type-body', className].join(' ')}
       />
 
       {(hint || error) && (

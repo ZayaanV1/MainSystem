@@ -252,6 +252,17 @@
   /* The glow behind whatever is happening right now. Ember, because "now" is
      the one moment on a calendar that is the thing to act on. */
   --now-glow: rgb(226 98 44 / 0.55);
+  /* The lit top edge of a raised material. White in both themes, because it
+     stands for light arriving from above, not for either ground. */
+  --specular: rgb(255 255 255 / 0.2);
+  /* Phthalo as a glow under a hero surface — the brand's second colour as
+     light, the way ember is light under the primary button. */
+  --aura-phthalo: rgb(20 117 124 / 0.42);
+  /* Finished, as a glow around the tick. The same green as --t-done. */
+  --done-glow: rgb(46 212 160 / 0.45);
+  /* Behind a sheet: the page dimmed with the ink's own shadow colour, never
+     a neutral black, so it darkens the room rather than greying it. */
+  --scrim: rgb(19 14 9 / 0.62);
 
   /* ---- atmosphere ------------------------------------------------------
      The two lights behind the app, weighted independently.
@@ -393,6 +404,9 @@
     --block-wash-top: 0.3;
     --block-edge: 0.7;
     --block-glow: 0.30;
+    --specular: rgb(255 255 255 / 0.65);
+    --aura-phthalo: rgb(12 82 87 / 0.22);
+    --done-glow: rgb(20 150 110 / 0.3);
 
     --focus-ring: #4a6da8;
 
@@ -481,6 +495,9 @@
   --block-wash-top: 0.3;
   --block-edge: 0.7;
   --block-glow: 0.30;
+  --specular: rgb(255 255 255 / 0.65);
+  --aura-phthalo: rgb(12 82 87 / 0.22);
+  --done-glow: rgb(20 150 110 / 0.3);
 
   --focus-ring: #4a6da8;
 

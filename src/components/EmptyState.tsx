@@ -25,9 +25,15 @@ interface EmptyStateProps {
   action?: ReactNode;
 }
 
+/*
+ * Drawn as an empty cell of cloisonné: the wire with no glass in it. A dashed
+ * rim says "something goes here" without saying that anything is missing,
+ * and it keeps the shape of the list that will fill it, so the screen does
+ * not jump when the first thing arrives.
+ */
 export function EmptyState({ children, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-start gap-4 px-4 py-8">
+    <div className="empty-slot">
       <p className="type-body text-text-mid">{children}</p>
       {action}
     </div>

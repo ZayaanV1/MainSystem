@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { drawTick } from '../lib/motion';
 
 /**
@@ -51,22 +51,15 @@ export function CheckRow({ label, done, onToggle, meta, courseVar, disabled }: C
       disabled={disabled}
       aria-pressed={done}
       className={[
-        'flex w-full items-center gap-3 border-b border-ink-600 px-4 last:border-b-0',
-        'min-h-[var(--tap)] text-left transition-colors duration-150 ease-out',
+        // A row of a panel: it lights in place when pressed and never moves.
+        'mat-row flex w-full items-center gap-3 px-4 py-2',
+        'min-h-[3.25rem] text-left',
         'disabled:opacity-50',
       ].join(' ')}
     >
       {/* Shape changes as well as colour: filled and ringed are distinguishable
-          without seeing hue at all. */}
-      <span
-        ref={box}
-        aria-hidden
-        className={[
-          'flex h-5 w-5 shrink-0 items-center justify-center rounded-pill border-2',
-          'transition-colors duration-150 ease-out',
-          done ? 'border-t-done bg-t-done' : 'border-ink-600',
-        ].join(' ')}
-      >
+          without seeing hue at all. Finished glows, briefly and in place. */}
+      <span ref={box} aria-hidden className="tick" data-done={done || undefined}>
         {done && (
           <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden>
             <path
@@ -85,12 +78,15 @@ export function CheckRow({ label, done, onToggle, meta, courseVar, disabled }: C
       {courseVar && (
         <span
           aria-hidden
-          className="h-1.5 w-1.5 shrink-0 rounded-pill"
-          style={{ backgroundColor: `var(${courseVar})` }}
+          data-block
+          className="chip-dot"
+          style={{ '--b': `var(${courseVar}-rgb)` } as CSSProperties}
         />
       )}
 
-      <span className={`flex-1 type-body ${done ? 'text-text-low' : 'text-text-hi'}`}>
+      <span
+        className={`flex-1 type-body transition-colors duration-200 ${done ? 'text-text-low line-through decoration-text-low' : 'text-text-hi'}`}
+      >
         {label}
       </span>
 

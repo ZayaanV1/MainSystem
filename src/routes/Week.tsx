@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
-import { Card } from '../components/Card';
+import { EventSlip } from '../components/EventSlip';
+import { SectionHead } from '../components/SectionHead';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
 import {
@@ -11,10 +12,9 @@ import {
   subtaskProgress,
   type Assignment,
   type Course,
-  type PlannerEvent,
   type TodayData,
 } from '../lib/planner';
-import { formatDay, formatTime, todayKey } from '../lib/time';
+import { formatDay, todayKey } from '../lib/time';
 import { effortMinutes, groupWeek, type DayGroup } from '../lib/week';
 import { WeekShape } from '../components/WeekShape';
 import { BubbleWeek, LedgerWeek, StylePicker, TicketWeek, type StyleProps } from '../components/calendar/WeekStyles';
@@ -22,7 +22,6 @@ import { HoursWeek } from '../components/calendar/Hours';
 import { readCalendarStyle, writeCalendarStyle, type CalendarStyle } from '../lib/calendarStyle';
 import { withTransition } from '../lib/transition';
 import { useNow } from '../lib/useNow';
-import { readTitle } from '../lib/blocks';
 
 /**
  * Week — seven days at a glance.
@@ -182,8 +181,8 @@ export function Week({
 
       {grouping.overdue.length > 0 && (
         <section className="mb-8">
-          <h2 className="type-h2 mb-3 px-4 text-text-hi">Overdue</h2>
-          <Card>
+          <SectionHead title="Overdue" count={grouping.overdue.length} />
+          <div className="flex flex-col gap-2.5">
             {grouping.overdue.map((a) => (
               <AssignmentRow
                 key={a.id}
@@ -194,7 +193,7 @@ export function Week({
                 onOpen={() => onOpenAssignment(a)}
               />
             ))}
-          </Card>
+          </div>
         </section>
       )}
 
@@ -226,11 +225,11 @@ export function Week({
 
       {grouping.undated.length > 0 && (
         <section className="mb-8">
-          <h2 className="type-h2 mb-1 px-4 text-text-hi">No date</h2>
-          <p className="type-note mb-3 px-4 text-text-low">
+          <SectionHead title="No date" count={grouping.undated.length} />
+          <p className="type-note -mt-2 mb-3 px-4 text-text-low">
             Kept here so it is not lost. Give it a date when you know one.
           </p>
-          <Card>
+          <div className="flex flex-col gap-2.5">
             {grouping.undated.map((a) => (
               <AssignmentRow
                 key={a.id}
@@ -241,7 +240,7 @@ export function Week({
                 onOpen={() => onOpenAssignment(a)}
               />
             ))}
-          </Card>
+          </div>
         </section>
       )}
 
@@ -379,9 +378,9 @@ function DaySection({
                 </span>
               </div>
             )}
-            <Card>
+            <div className="flex flex-col gap-2.5">
               {group.events.map((e) => (
-                <EventRow key={e.id} event={e} course={courseFor(e.course_id)} />
+                <EventSlip key={e.id} event={e} course={courseFor(e.course_id)} />
               ))}
               {group.assignments.map((a) => (
                 <AssignmentRow
@@ -393,7 +392,7 @@ function DaySection({
                   onOpen={() => onOpen(a)}
                 />
               ))}
-            </Card>
+            </div>
           </>
         )}
       </div>
@@ -407,38 +406,3 @@ const WEEKDAY_SHORT = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 function weekdayShort(day: string): string {
   return WEEKDAY_SHORT[new Date(`${day}T12:00:00Z`).getUTCDay()];
 }
-
-/**
- * An event.
- *
- * No checkbox: you do not complete an exam, you attend it. Giving it one would
- * imply it is optional, and leaving it permanently unticked would make the day
- * look unfinished forever.
- */
-function EventRow({ event, course }: { event: PlannerEvent; course?: Course }) {
-  const when = event.all_day ? 'All day' : formatTime(new Date(event.starts_at));
-
-  return (
-    <div className="flex items-stretch gap-3 border-b border-ink-600 last:border-b-0">
-      <span aria-hidden className="w-[3px] shrink-0 rounded-pill bg-text-mid" />
-      <div className="flex min-h-[var(--tap)] flex-1 flex-col justify-center py-3 pr-4">
-        <span className="flex items-center gap-2">
-          {course && (
-            <span
-              aria-hidden
-              className="h-1.5 w-1.5 shrink-0 rounded-pill"
-              style={{ backgroundColor: `var(${courseVar(course.colour_index)})` }}
-            />
-          )}
-          <span className="type-body text-text-hi">{readTitle(event.title).headline}</span>
-        </span>
-        <span className="mt-1 flex flex-wrap gap-x-2 type-caption text-text-low">
-          <span>{event.source ?? event.kind}</span>
-          <span>{when}</span>
-          {event.location && <span>{event.location}</span>}
-        </span>
-      </div>
-    </div>
-  );
-}
-

@@ -1,11 +1,11 @@
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentProps, CSSProperties, ReactNode } from 'react';
 
 /**
  * Card.
  *
- * A surface. Optionally carries a course mark — a 3px left edge, per the
- * colour law. Course colour marks; it never fills, and it never appears
- * anywhere else on the card.
+ * A surface. Optionally belongs to a course, in which case it is that
+ * course's glass: a translucent wash and a rim in its colour, under text that
+ * keeps full contrast (tests/palette.test.ts measures it).
  *
  * SHAPE AND DEPTH ARE HIERARCHY, NOT DECORATION
  *
@@ -22,14 +22,19 @@ import type { ComponentProps, ReactNode } from 'react';
 
 type Elevation = 'flat' | 'raised' | 'hero';
 
+/*
+ * All three are the same material (material.css .mat): glass lit from the top
+ * left, a rim that catches the light at two corners, and a glow the surface
+ * sits in. They differ in how far they are lifted, and `hero` in shape.
+ */
 const ELEVATION: Record<Elevation, string> = {
-  flat: 'rounded-card border border-ink-600 bg-ink-800',
-  raised: 'rounded-card border border-ink-600 bg-ink-800 shadow-md',
-  hero: 'rounded-hero border border-ink-600 bg-ink-800 shadow-lg',
+  flat: 'mat',
+  raised: 'mat mat-raised',
+  hero: 'mat mat-hero',
 };
 
 interface CardProps extends ComponentProps<'div'> {
-  /** A course token name, e.g. '--c-3'. Renders as the left edge. */
+  /** A course token name, e.g. '--c-3'. The card becomes that course's glass. */
   courseVar?: string;
   /** @default 'flat' */
   elevation?: Elevation;
@@ -47,11 +52,12 @@ export function Card({
   return (
     <div
       {...rest}
+      data-block={courseVar ? true : undefined}
       style={{
         ...style,
-        ...(courseVar ? { borderLeftColor: `var(${courseVar})` } : {}),
+        ...(courseVar ? ({ '--b': `var(${courseVar}-rgb)` } as CSSProperties) : {}),
       }}
-      className={[ELEVATION[elevation], courseVar ? 'border-l-[3px]' : '', className].join(' ')}
+      className={[ELEVATION[elevation], className].join(' ')}
     >
       {children}
     </div>

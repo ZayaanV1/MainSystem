@@ -1,11 +1,12 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
 
 /**
  * Chip.
  *
- * A small pill: a course tag, a filter, a one-tap re-log. When a course dot is
- * shown it is 6px and it is a dot — never a fill behind the text, per the
- * colour law.
+ * A small pill: a course tag, a filter, a one-tap re-log. A course chip
+ * carries its course as a 6px dot, and when SELECTED it lights in the
+ * course's colour — a translucent wash inside a rim, the same cloisonné the
+ * Week view's blocks use, under text that keeps full contrast.
  *
  * Renders as a button when given an onClick, and as a span otherwise, so a
  * decorative chip is not announced as interactive.
@@ -27,26 +28,23 @@ export function Chip({
   children,
   ...rest
 }: ChipProps) {
-  const classes = [
-    'inline-flex items-center gap-2 rounded-pill border px-3 py-2 type-label',
-    selected ? 'border-text-mid bg-ink-700 text-text-hi' : 'border-ink-600 text-text-mid',
-    // Only when it is actually a control. A decorative chip that lifted under
-    // the cursor would be claiming to do something.
-    onClick ? 'fx-depth min-h-[var(--tap)]' : '',
-    className,
-  ].join(' ');
+  // Glass, with a rim; a selected course chip lights in its course's colour
+  // (material.css). The dot glows faintly in that colour either way.
+  const classes = ['chip', className].join(' ');
+  const tint = courseVar
+    ? ({ '--b': `var(${courseVar}-rgb)` } as CSSProperties)
+    : undefined;
 
-  const dot = courseVar ? (
-    <span
-      aria-hidden
-      className="h-1.5 w-1.5 shrink-0 rounded-pill"
-      style={{ backgroundColor: `var(${courseVar})` }}
-    />
-  ) : null;
+  const dot = courseVar ? <span aria-hidden className="chip-dot" /> : null;
 
   if (!onClick) {
     return (
-      <span className={classes} {...(rest as object)}>
+      <span
+        className={classes}
+        data-block={courseVar ? true : undefined}
+        style={tint}
+        {...(rest as object)}
+      >
         {dot}
         {children}
       </span>
@@ -62,7 +60,9 @@ export function Chip({
       {...rest}
       onClick={onClick}
       aria-pressed={selected}
-      className={`${classes} min-h-[var(--tap)]`}
+      data-block={courseVar ? true : undefined}
+      style={{ ...tint, ...rest.style }}
+      className={classes}
     >
       {dot}
       {children}

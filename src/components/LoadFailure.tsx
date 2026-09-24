@@ -38,7 +38,7 @@ export function CachedNotice({ at, onRetry }: { at: number; onRetry: () => void 
   return (
     <div
       role="status"
-      className="mx-4 mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-ink-600 bg-ink-800 px-4 py-3"
+      className="mat mx-4 mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3"
     >
       <p className="type-note flex-1 text-text-mid">
         Offline. This is your day as it was {ageLabel(at)}.

@@ -106,7 +106,7 @@ export function CalendarImport({ open, onClose, userId, courses, onImported }: C
               the lot.
             </p>
             <div className="flex flex-col gap-2">
-              <label htmlFor="ics" className="action-chip type-label">
+              <label htmlFor="ics" className="kicker">
                 Calendar file
               </label>
               <textarea
@@ -115,7 +115,7 @@ export function CalendarImport({ open, onClose, userId, courses, onImported }: C
                 onChange={(e) => setText(e.target.value)}
                 rows={6}
                 placeholder="BEGIN:VCALENDAR…"
-                className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 py-3 type-body text-text-hi placeholder:text-text-low"
+                className="well py-3 type-body text-text-hi placeholder:text-text-low"
               />
               <p className="type-note text-text-low">
                 Nothing is added until you have seen what it found.
@@ -151,7 +151,7 @@ export function CalendarImport({ open, onClose, userId, courses, onImported }: C
                   <select
                     value={courseId ?? ''}
                     onChange={(e) => setCourseId(e.target.value || null)}
-                    className="min-h-[var(--tap)] rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi"
+                    className="well w-auto px-3 type-body text-text-hi"
                   >
                     <option value="">No course</option>
                     {courses.map((c) => (

@@ -121,7 +121,7 @@ export function RepeatingWork({ open, onClose, userId, courses, onCreated }: Rep
           <select
             value={fields.course_id ?? ''}
             onChange={(e) => set('course_id', e.target.value || null)}
-            className="min-h-[var(--tap)] rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi"
+            className="well w-auto px-3 type-body text-text-hi"
           >
             <option value="">No course</option>
             {courses.map((c) => (

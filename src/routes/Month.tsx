@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
+import { readTitle } from '../lib/blocks';
 import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
-import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
+import { EventSlip } from '../components/EventSlip';
+import { SectionHead } from '../components/SectionHead';
 import {
   courseVar,
   setAssignmentStatus,
@@ -12,7 +14,7 @@ import {
   type Course,
   type TodayData,
 } from '../lib/planner';
-import { formatDay, formatTime, todayKey, type DayKey } from '../lib/time';
+import { formatDay, todayKey, type DayKey } from '../lib/time';
 import { buildMonth, load, monthLabel, shiftMonth, startOfMonth, type MonthCell } from '../lib/month';
 
 /**
@@ -87,22 +89,47 @@ export function Month({
 
   return (
     <main className="page-frame">
-      <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Month</h1>
-        <Button variant="quiet" onClick={onBack}>
-          Today
-        </Button>
+      {/*
+        The month as a masthead: its name at display size, the year set small
+        beside it in numerals, and the arrows beside those. "Month" as an h1
+        over a smaller "September 2026" was a label for the screen sitting on
+        top of the thing the screen is about.
+      */}
+      <header className="mb-6 flex items-end justify-between gap-4 px-4">
+        <div className="min-w-0">
+          <h1 className="sr-only">Month</h1>
+          <p className="kicker mb-2">Month</p>
+          <p className="flex items-baseline gap-3">
+            <span className="type-masthead text-text-hi">{monthLabel(anchor).split(' ')[0]}</span>
+            <span className="numeral text-text-low" style={{ fontSize: '1.5rem' }}>{anchor.slice(0, 4)}</span>
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            aria-label="Previous month"
+            className="btn btn-quiet btn-icon"
+          >
+            <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 3.5 5.5 8l4.5 4.5" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => step(1)}
+            aria-label="Next month"
+            className="btn btn-quiet btn-icon"
+          >
+            <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 3.5 10.5 8 6 12.5" />
+            </svg>
+          </button>
+          <Button variant="quiet" onClick={onBack}>
+            Today
+          </Button>
+        </div>
       </header>
-
-      <div className="mb-4 flex items-center justify-between gap-4 px-4">
-        <Button variant="quiet" size="sm" onClick={() => step(-1)} aria-label="Previous month">
-          Back
-        </Button>
-        <span className="type-h2 text-text-hi">{monthLabel(anchor)}</span>
-        <Button variant="quiet" size="sm" onClick={() => step(1)} aria-label="Next month">
-          Next
-        </Button>
-      </div>
 
       {courses.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-2 px-4">
@@ -122,15 +149,15 @@ export function Month({
         </div>
       )}
 
-      <div className="mb-2 grid grid-cols-7 gap-1 px-4" aria-hidden>
+      <div className="mb-2 grid grid-cols-7 gap-1.5 px-4" aria-hidden>
         {WEEKDAY_INITIALS.map((d, i) => (
-          <span key={i} className="text-center type-caption text-text-low">
+          <span key={i} className="kicker justify-center">
             {d}
           </span>
         ))}
       </div>
 
-      <div className="mb-6 grid grid-cols-7 gap-1 px-4" role="grid" aria-label={monthLabel(anchor)}>
+      <div className="mb-8 grid grid-cols-7 gap-1.5 px-4" role="grid" aria-label={monthLabel(anchor)}>
         {grid.weeks.flat().map((cell) => (
           <DayCell
             key={cell.day}
@@ -154,11 +181,11 @@ export function Month({
 
       {grid.undated.length > 0 && (
         <section className="mb-8">
-          <h2 className="type-h2 mb-1 px-4 text-text-hi">No date</h2>
-          <p className="type-note mb-3 px-4 text-text-low">
+          <SectionHead title="No date" count={grid.undated.length} />
+          <p className="type-note -mt-2 mb-3 px-4 text-text-low">
             Belongs to no day, so it is kept here rather than dropped.
           </p>
-          <Card>
+          <div className="flex flex-col gap-2.5">
             {grid.undated.map((a) => (
               <AssignmentRow
                 key={a.id}
@@ -169,7 +196,7 @@ export function Month({
                 onOpen={() => onOpenAssignment(a)}
               />
             ))}
-          </Card>
+          </div>
         </section>
       )}
     </main>
@@ -206,34 +233,49 @@ function DayCell({
   const description =
     total === 0 ? 'nothing due' : `${total} due`;
 
+  /*
+    Marks, not dots. A deadline is a ring and a class is a bar, each in its
+    course's colour — so a week of lectures and a week of deadlines look
+    different at a glance, which a row of identical grey dots could not say.
+    The accessible name carries the count; the marks are never the only signal.
+  */
+  const marks = [
+    ...cell.assignments.map((a) => ({ id: a.id, due: true, course: courseFor(a.course_id) })),
+    ...cell.events.map((e) => ({ id: e.id, due: false, course: courseFor(e.course_id) })),
+  ].slice(0, 4);
+
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
       aria-label={`${formatDay(cell.day)}, ${description}`}
+      data-out={cell.inMonth ? undefined : true}
       className={[
-        'fx-depth',
-          'flex aspect-square flex-col items-center justify-center gap-1 rounded-card',
-        'min-h-0 text-left transition-colors',
+        'day-tile',
+        'flex aspect-square flex-col items-center justify-center gap-1.5',
+        'min-h-0 text-left',
         'lg:aspect-auto lg:min-h-28 lg:items-stretch lg:justify-start lg:p-2',
-        selected ? 'bg-ink-600' : cell.isToday ? 'bg-ink-700' : 'lg:bg-ink-800/60 lg:hover:bg-ink-700',
         // Days outside the month stay legible but recede — they are context,
         // not the subject.
         cell.inMonth ? 'text-text-hi' : 'text-text-low',
       ].join(' ')}
     >
-      <span
-        className={`type-label lg:self-start ${cell.isToday ? 'text-text-hi' : ''}`}
-      >
+      <span className="day-num lg:self-start" data-today={cell.isToday || undefined}>
         {number}
       </span>
 
-      {/* Dots below lg, where there is no room for anything else. */}
-      <span className="flex h-1.5 items-center gap-0.5 lg:hidden" aria-hidden>
-        {Array.from({ length: weight }, (_, i) => (
-          <span key={i} className="h-1 w-1 rounded-pill bg-text-mid" />
-        ))}
+      {/* Marks below lg, where there is no room for anything else. */}
+      <span className="flex h-1.5 items-center gap-[3px] lg:hidden" aria-hidden>
+        {weight > 0 &&
+          marks.map((m) => (
+            <span
+              key={m.id}
+              className="day-mark"
+              data-due={m.due || undefined}
+              style={{ '--mark': `var(${courseVar(m.course?.colour_index) ?? '--text-low'})` } as CSSProperties}
+            />
+          ))}
       </span>
 
       {/* The same information, said rather than encoded, once there is space. */}
@@ -242,12 +284,13 @@ function DayCell({
           const courseId = (item as { course_id: string | null }).course_id;
           const course = courseFor(courseId);
           return (
-            <span key={item.id} className="flex min-w-0 items-center gap-1">
+            <span key={item.id} className="flex min-w-0 items-center gap-1.5">
               <span
-                className="h-1.5 w-1.5 shrink-0 rounded-pill"
-                style={{ backgroundColor: `var(${courseVar(course?.colour_index) ?? '--text-low'})` }}
+                className="day-mark"
+                data-due={'due_at' in item || undefined}
+                style={{ '--mark': `var(${courseVar(course?.colour_index) ?? '--text-low'})` } as CSSProperties}
               />
-              <span className="truncate type-caption text-text-mid">{item.title}</span>
+              <span className="truncate type-note text-text-mid">{readTitle(item.title).headline}</span>
             </span>
           );
         })}
@@ -277,28 +320,17 @@ function DayDetail({
 
   return (
     <section className="mb-8">
-      <h2 className="type-h2 mb-3 px-4 text-text-hi">
-        {cell.isToday ? `Today, ${formatDay(cell.day)}` : formatDay(cell.day)}
-      </h2>
+      <SectionHead
+        title={cell.isToday ? `Today, ${formatDay(cell.day)}` : formatDay(cell.day)}
+        count={cell.assignments.length + cell.events.length || null}
+      />
 
       {empty ? (
         <EmptyState>Nothing due.</EmptyState>
       ) : (
-        <Card>
+        <div className="flex flex-col gap-2.5">
           {cell.events.map((e) => (
-            <div
-              key={e.id}
-              className="flex items-stretch gap-3 border-b border-ink-600 last:border-b-0"
-            >
-              <span aria-hidden className="w-[3px] shrink-0 rounded-pill bg-text-mid" />
-              <div className="flex min-h-[var(--tap)] flex-1 flex-col justify-center py-3 pr-4">
-                <span className="type-body text-text-hi">{e.title}</span>
-                <span className="mt-1 flex gap-x-2 type-caption text-text-low">
-                  <span>{e.source ?? e.kind}</span>
-                  <span>{e.all_day ? 'All day' : formatTime(new Date(e.starts_at))}</span>
-                </span>
-              </div>
-            </div>
+            <EventSlip key={e.id} event={e} course={courseFor(e.course_id)} />
           ))}
           {cell.assignments.map((a) => (
             <AssignmentRow
@@ -310,7 +342,7 @@ function DayDetail({
               onOpen={() => onOpen(a)}
             />
           ))}
-        </Card>
+        </div>
       )}
     </section>
   );

@@ -296,7 +296,7 @@ function CalendarFeed({ userId }: { userId: string }) {
               readOnly
               value={url}
               onFocus={(e) => e.currentTarget.select()}
-              className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-quote text-text-mid"
+              className="well type-quote text-text-mid"
             />
             <p className="type-note text-t-approaching">
               Anyone with this link can read your deadlines. Replace it if it goes somewhere it
@@ -387,7 +387,7 @@ function ApiKey({ userId }: { userId: string }) {
               placeholder="Paste your Gemini API key"
               autoComplete="off"
               spellCheck={false}
-              className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
+              className="well type-body text-text-hi placeholder:text-text-low"
             />
             <p className="type-note text-text-low">
               A free key comes from aistudio.google.com. Without one, the shared allowance is used.

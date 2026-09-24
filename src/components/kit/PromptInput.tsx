@@ -87,7 +87,7 @@ export function PromptInput({
 
   if (disabledReason) {
     return (
-      <div className="rounded-card border border-ink-600 bg-ink-800 px-4 py-3">
+      <div className="mat px-4 py-3">
         <p className="type-note text-text-mid">{disabledReason}</p>
       </div>
     );
@@ -96,7 +96,7 @@ export function PromptInput({
   return (
     <form
       onSubmit={submit}
-      className="prompt-shell flex items-end gap-2 rounded-card border border-ink-600 bg-ink-800 py-2 pr-2 pl-4"
+      className="well flex items-end gap-2 py-2 pr-2 pl-4"
     >
       <textarea
         ref={field}

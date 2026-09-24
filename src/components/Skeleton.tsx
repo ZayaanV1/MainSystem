@@ -63,7 +63,7 @@ export function SkeletonList({ rows = 3 }: { rows?: number }) {
       {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
-          className="flex items-center gap-3 rounded-card border border-ink-600 bg-ink-800 px-4 py-3"
+          className="mat flex items-center gap-3 px-4 py-3"
         >
           <Skeleton h={5} w="w-5" className="shrink-0 rounded-pill" />
           <div className="flex flex-1 flex-col gap-2">

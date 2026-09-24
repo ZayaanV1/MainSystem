@@ -151,7 +151,7 @@ export function SyllabusImport({
       {drafts === null ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <label htmlFor="syllabus" className="action-chip type-label">
+            <label htmlFor="syllabus" className="kicker">
               Paste the syllabus
             </label>
             <textarea
@@ -160,7 +160,7 @@ export function SyllabusImport({
               onChange={(e) => setText(e.target.value)}
               rows={8}
               placeholder="Paste the evaluation section, or the whole thing."
-              className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 py-3 type-body text-text-hi placeholder:text-text-low"
+              className="well py-3 type-body text-text-hi placeholder:text-text-low"
             />
             <p className="type-note text-text-low">
               Dates are only used when the syllabus states one. "Week 6" stays undated.
@@ -238,22 +238,22 @@ export function SyllabusImport({
                 {d.keep && (
                   <div className="flex flex-wrap items-end gap-3 pl-8">
                     <label className="flex flex-col gap-1">
-                      <span className="tag type-caption">Date</span>
+                      <span className="kicker">Date</span>
                       <input
                         type="date"
                         value={d.due_date ?? ''}
                         onChange={(e) => edit(i, { due_date: e.target.value || null })}
-                        className="rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi"
+                        className="well px-3 type-body"
                       />
                     </label>
 
                     <label className="flex flex-col gap-1">
-                      <span className="tag type-caption">Time</span>
+                      <span className="kicker">Time</span>
                       <input
                         type="time"
                         value={d.due_time ?? ''}
                         onChange={(e) => edit(i, { due_time: e.target.value || null })}
-                        className="rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi"
+                        className="well px-3 type-body"
                       />
                     </label>
 

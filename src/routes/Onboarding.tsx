@@ -367,7 +367,7 @@ function Deadlines({
           onChange={(e) => setText(e.target.value)}
           rows={7}
           placeholder={'Assignment 1 .... 5%   Due September 25, 2026\nMidterm ......... 25%  October 22, 2026'}
-          className="w-full rounded-card border border-ink-600 bg-ink-800 p-4 type-body text-text-hi placeholder:text-text-low"
+          className="well p-4 type-body text-text-hi placeholder:text-text-low"
         />,
         <div key="b" className="flex flex-wrap items-center gap-3">
           <Button variant="primary" disabled={text.trim().length < 20 || busy} onClick={() => void read()}>
@@ -451,7 +451,7 @@ function Daily({ userId, onNext }: { userId: string; onNext: () => void }) {
             value={custom}
             onChange={(e) => setCustom(e.target.value)}
             placeholder="Something else"
-            className="flex-1 rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
+            className="well flex-1 type-body text-text-hi placeholder:text-text-low"
           />
           <Button type="submit" variant="quiet" disabled={!custom.trim()}>
             Add

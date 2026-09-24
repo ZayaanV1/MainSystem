@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import './styles/tokens.css';
 @import './styles/calendar.css';
+@import './styles/material.css';
 
 /* ============================================================================
    Fonts — self-hosted latin subsets. No runtime request to Google.
@@ -574,17 +575,29 @@
   align-items: center;
   justify-content: center;
   min-height: var(--tap);
-  padding-inline: 0.75rem;
+  padding-inline: 0.875rem;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--ink-600);
-  background-color: var(--ink-800);
+  border: 1px solid var(--glass-edge);
+  background-color: var(--glass-fill);
+  box-shadow: inset 0 1px 0 var(--glass-edge);
   color: var(--text-mid);
   white-space: nowrap;
+  transition:
+    transform 180ms var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
-.action-chip:hover {
-  color: var(--text-hi);
-  border-color: var(--text-low);
+.action-chip:active {
+  transform: scale(0.96);
+  transition-duration: 70ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .action-chip:hover {
+    color: var(--text-hi);
+    border-color: var(--glass-edge-hover);
+  }
 }
 
 /* Smaller sibling, for actions that sit inside a row of content. */
@@ -595,15 +608,17 @@
   min-height: 2rem;
   padding-inline: 0.625rem;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--ink-600);
-  background-color: var(--ink-800);
+  border: 1px solid var(--glass-edge);
+  background-color: var(--glass-fill);
   color: var(--text-low);
   white-space: nowrap;
 }
 
-.action-chip-sm:hover {
-  color: var(--text-hi);
-  border-color: var(--text-low);
+@media (hover: hover) and (pointer: fine) {
+  .action-chip-sm:hover {
+    color: var(--text-hi);
+    border-color: var(--glass-edge-hover);
+  }
 }
 
 /*
@@ -818,21 +833,38 @@
  */
 @utility fx-depth {
   transition:
-    transform var(--dur-tap) var(--ease-out),
+    transform 180ms var(--ease-out),
     box-shadow var(--dur-tap) var(--ease-out),
     filter var(--dur-tap) var(--ease-out);
 
-  &:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.06);
-  }
-
+  /*
+   * THE SHAKE. This lifted 2px on :hover and dropped 1px on :active. A phone
+   * has no hover, but it fakes one on tap — so every tap ran up two pixels,
+   * down three, and back, inside a tenth of a second, and on a phone that is
+   * not depth, it is the control shaking. Reported from the phone, where this
+   * app lives; invisible from a laptop, where the mouse makes the two states
+   * arrive seconds apart.
+   *
+   * So a press SCALES IN PLACE and never translates, and the hover lift exists
+   * only on a device with a real pointer.
+   */
   &:active {
-    transform: translateY(1px) scale(0.99);
-    filter: brightness(0.94);
+    transform: scale(0.97);
+    filter: brightness(0.93);
     /* Faster on the way down than on the way up: a press should feel like it
        was received immediately, a release like it settled. */
-    transition-duration: 80ms;
+    transition-duration: 70ms;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.06);
+    }
+
+    &:hover:active {
+      transform: translateY(0) scale(0.97);
+    }
   }
 
   &:disabled {
@@ -881,17 +913,15 @@
     -webkit-backdrop-filter 220ms var(--ease-out),
     backdrop-filter 220ms var(--ease-out);
 
-  &:hover {
-    transform: translateY(-3px);
-    background: var(--glass-fill-hover);
-    border-color: var(--glass-edge-hover);
-    -webkit-backdrop-filter: blur(20px) saturate(215%);
-    backdrop-filter: blur(20px) saturate(215%);
-  }
-
-  &:active {
-    transform: translateY(0);
-    transition-duration: 80ms;
+  /* Same rule as fx-depth: a lift only for a real pointer, a press in place
+     for everyone. The tab bar carries this, and it is tapped constantly. */
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: var(--glass-fill-hover);
+      border-color: var(--glass-edge-hover);
+      -webkit-backdrop-filter: blur(20px) saturate(215%);
+      backdrop-filter: blur(20px) saturate(215%);
+    }
   }
 }
 
@@ -1134,6 +1164,7 @@
   padding-block: 0.125rem;
   border-radius: var(--radius-pill);
   background-color: var(--tag-surface);
+  box-shadow: inset 0 0 0 1px var(--glass-fill);
   color: var(--text-low);
   white-space: nowrap;
 }

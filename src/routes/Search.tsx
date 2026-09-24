@@ -86,7 +86,7 @@ export function Search({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Anything"
           autoFocus
-          className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
+          className="well type-body text-text-hi placeholder:text-text-low"
         />
       </div>
 

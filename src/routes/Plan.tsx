@@ -203,7 +203,7 @@ export function Plan({ courses, onBack, onChanged }: {
             onChange={(e) => setText(e.target.value)}
             rows={7}
             placeholder={'CHEM 233: Lab report, Sept 12, 3h\nEssay draft — Sep 20 at 11:59pm\nMidterm exam, Oct 15'}
-            className="w-full rounded-card border border-ink-600 bg-ink-800 p-4 type-body text-text-hi placeholder:text-text-low"
+            className="well p-4 type-body text-text-hi placeholder:text-text-low"
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-3">

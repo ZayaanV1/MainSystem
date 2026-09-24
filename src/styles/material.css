@@ -1,0 +1,619 @@
+/* ============================================================================
+   material.css — what every surface in the app is made of.
+
+   The Week view's block styles found a language: cloisonné glass (a wash of
+   colour held inside a hairline rim that catches the light at two corners),
+   a lit top edge, a glow the surface sits in rather than a flat drop shadow,
+   and display numerals that carry information by their size. This file makes
+   that the material of the whole app instead of the property of one screen.
+
+   A flat panel with a 1px grey border is the most generic surface there is —
+   it is what you get by not deciding. Everything here is a decision about
+   where the light comes from (top left, always), what catches it (rims and
+   top edges), and what glows (whatever the surface belongs to: a course, the
+   brand, a finished thing).
+
+   Every colour is a token. Course tints resolve through the BLOCK TINTS rule
+   in tokens.css: put `data-block` on an element and give it `--b`.
+
+   TOUCH FIRST. This app is used on a phone. Nothing here moves on hover
+   unless the device has a real pointer — a hover lift that fires on tap and
+   is then cancelled by the press is a jitter, and it is what made controls
+   "shake when clicked". Presses scale in place and never translate.
+   ========================================================================= */
+
+/*
+ * In the components layer, so a Tailwind utility on the same element (px-3,
+ * w-auto, rounded-hero) still wins. Unlayered, these would beat every utility
+ * in the app regardless of specificity, and a caller could no longer adjust a
+ * well's padding or a panel's radius.
+ */
+@layer components {
+
+/* ---- the panel ------------------------------------------------------------ */
+
+.mat {
+  --mat-r: var(--r-card);
+  --mat-light: var(--glass-fill);
+  --mat-wash: transparent;
+  --mat-rim: var(--glass-edge-hover);
+  --mat-glow: var(--shadow-drop);
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--mat-r);
+  background:
+    radial-gradient(120% 100% at 0% 0%, var(--mat-light), transparent 62%),
+    linear-gradient(var(--mat-wash), var(--mat-wash)),
+    var(--ink-800);
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge),
+    0 18px 36px -26px var(--mat-glow),
+    var(--shadow-sm);
+}
+
+/* The rim: a 1px ring painted as a masked gradient, brightest at the top-left
+   and bottom-right corners and nearly gone along the long edges. */
+.mat::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    150deg,
+    var(--mat-rim) 0%,
+    transparent 34%,
+    transparent 66%,
+    var(--mat-rim) 100%
+  );
+  -webkit-mask:
+    linear-gradient(var(--text-hi) 0 0) content-box,
+    linear-gradient(var(--text-hi) 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(var(--text-hi) 0 0) content-box exclude,
+    linear-gradient(var(--text-hi) 0 0);
+  pointer-events: none;
+}
+
+/* Belongs to a course: the course is the glass, the rim and the glow. */
+.mat[data-block] {
+  --mat-light: var(--blk-wash-top);
+  --mat-wash: var(--blk-wash);
+  --mat-rim: var(--blk-edge);
+  --mat-glow: var(--blk-glow);
+}
+
+.mat-raised {
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge),
+    0 24px 48px -28px var(--mat-glow),
+    var(--shadow-md);
+}
+
+/* The one or two surfaces a screen is built around. Larger radius (shape reads
+   before shadow does), a brighter corner, and a phthalo pool of light in the
+   far corner — the brand's second colour as light rather than as paint. */
+.mat-hero {
+  --mat-r: var(--r-hero);
+  --mat-light: var(--glass-fill-hover);
+  --mat-glow: var(--aura-phthalo);
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    0 32px 64px -34px var(--mat-glow),
+    var(--shadow-lg);
+}
+
+.mat-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(90% 120% at 100% 100%, var(--aura-phthalo), transparent 62%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* A surface you tap: it lights in place under a finger. It never moves —
+   on a list, a row that moved made every tap a jitter. */
+.press-row,
+.mat-row {
+  position: relative;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.press-row:active,
+.mat-row:active {
+  background-color: var(--glass-fill);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .press-row:hover,
+  .mat-row:hover {
+    background-color: var(--glass-fill);
+  }
+}
+
+/* A row of a panel additionally draws the hairline between itself and the
+   row above, so the panel needs no borders of its own. */
+.mat-row + .mat-row {
+  box-shadow: inset 0 1px 0 var(--ink-600);
+}
+
+.mat-row:first-child {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+
+.mat-row:last-child {
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
+
+/* ---- the well: where you type ------------------------------------------------
+   Recessed rather than raised. A field is the one surface you put something
+   INTO, so it sits below the plane of the page, lit from above by its own
+   inner shadow. It lights up in ember when it has focus, because it is then
+   the thing being acted on — which is exactly what ember means. */
+
+.well {
+  width: 100%;
+  min-height: var(--tap);
+  padding-inline: 1rem;
+  border-radius: var(--r-card);
+  border: 1px solid var(--ink-600);
+  background: var(--ink-900);
+  color: var(--text-hi);
+  box-shadow:
+    inset 0 2px 5px var(--shadow-drop),
+    0 1px 0 var(--glass-fill);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+textarea.well {
+  padding-block: 0.75rem;
+  line-height: 1.5;
+}
+
+.well::placeholder {
+  color: var(--text-low);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .well:hover {
+    border-color: var(--ink-500);
+  }
+}
+
+.well:focus,
+.well:focus-within {
+  border-color: var(--accent-deep);
+  box-shadow:
+    inset 0 2px 5px var(--shadow-drop),
+    0 0 0 3px var(--selection);
+  outline: none;
+}
+
+.capture-well {
+  min-height: 3.5rem;
+  border-radius: var(--r-hero);
+  font-size: 1.0625rem;
+}
+
+.well[aria-invalid='true'] {
+  border-color: var(--t-overdue);
+}
+
+/* ---- labels and headings ---------------------------------------------------- */
+
+/* The small tracked label that sits above a thing and names it. Replaces the
+   full-width pill labels, which looked exactly like buttons. */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--text-low);
+}
+
+/* A section head in the ledger's manner: the title, a count set in display
+   numerals, and a rule that runs out to the right and fades. */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+  padding-inline: 1rem;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.125rem, 1.05rem + 0.35vw, 1.3125rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text-hi);
+}
+
+.section-count {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-low);
+}
+
+.section-rule {
+  flex: 1;
+  min-width: 1.5rem;
+  height: 1px;
+  background: linear-gradient(to right, var(--ink-600), transparent);
+}
+
+/* Big numerals, anywhere a number is the point. */
+.numeral {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+
+/* ---- buttons -----------------------------------------------------------------
+   Pressed, they scale in place. They never translate: a lift on hover that a
+   tap also triggers, followed by a dip on press, is a two-direction jolt in
+   120ms — the shake. Hover exists only where there is a real pointer. */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--tap);
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    transform 180ms var(--ease-out),
+    filter var(--dur-tap) var(--ease-out),
+    box-shadow var(--dur-tap) var(--ease-out),
+    background-color var(--dur-tap) var(--ease-out),
+    color var(--dur-tap) var(--ease-out);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.965);
+  filter: brightness(0.92);
+  transition-duration: 70ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not(:disabled) {
+    filter: brightness(1.07);
+  }
+}
+
+.btn:disabled {
+  opacity: 0.5;
+}
+
+.btn-primary {
+  color: var(--on-accent);
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent) 55%, var(--accent-deep));
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    inset 0 -1px 0 var(--shadow-drop),
+    var(--shadow-ember);
+}
+
+.btn-secondary {
+  color: var(--on-accent-2);
+  background: linear-gradient(180deg, var(--accent-2-mid), var(--accent-2) 60%, var(--accent-2-deep));
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    0 12px 26px -14px var(--aura-phthalo),
+    var(--shadow-sm);
+}
+
+.btn-quiet {
+  color: var(--text-mid);
+  background: var(--glass-fill);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    inset 0 1px 0 var(--glass-edge);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-quiet:hover:not(:disabled) {
+    color: var(--text-hi);
+    background: var(--glass-fill-hover);
+    box-shadow:
+      inset 0 0 0 1px var(--glass-edge-hover),
+      inset 0 1px 0 var(--glass-edge);
+  }
+}
+
+/* A round icon control — Close, and anything else that is a glyph. */
+.btn-icon {
+  width: var(--tap);
+  padding: 0;
+}
+
+/* ---- chips -------------------------------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.875rem;
+  border-radius: var(--r-pill);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text-mid);
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  white-space: nowrap;
+  transition:
+    transform 180ms var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+button.chip {
+  min-height: var(--tap);
+}
+
+button.chip:active {
+  transform: scale(0.96);
+  transition-duration: 70ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.chip:hover {
+    color: var(--text-hi);
+    box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+  }
+}
+
+.chip[aria-pressed='true'] {
+  color: var(--text-hi);
+  background: var(--glass-fill-hover);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge-hover),
+    inset 0 1px 0 var(--specular),
+    0 8px 18px -12px var(--shadow-drop);
+}
+
+/* A selected course chip is lit in its course: glass, rim and glow. */
+.chip[data-block][aria-pressed='true'] {
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--blk-wash-top), transparent 70%),
+    linear-gradient(var(--blk-wash), var(--blk-wash));
+  box-shadow:
+    inset 0 0 0 1px var(--blk-edge),
+    inset 0 1px 0 var(--specular),
+    0 10px 22px -12px var(--blk-glow);
+}
+
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: var(--r-pill);
+  background: var(--blk-mark);
+  box-shadow: 0 0 8px var(--blk-glow);
+}
+
+/* ---- ticks ----------------------------------------------------------------------
+   One checkbox for the whole app. Ringed when open, filled and glowing when
+   done — shape as well as colour, so it reads without hue. */
+
+.tick {
+  display: grid;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--ink-500);
+  background: var(--ink-900);
+  box-shadow: inset 0 1px 2px var(--shadow-drop);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow 240ms var(--ease-out),
+    transform 200ms var(--ease-spring);
+}
+
+.tick[data-done] {
+  border-color: var(--t-done);
+  background: var(--t-done);
+  box-shadow: 0 0 14px var(--done-glow);
+}
+
+:active > .tick {
+  transform: scale(0.88);
+}
+
+/* ---- a slip: one piece of work -------------------------------------------------- */
+
+.slip {
+  --mat-r: 1.125rem;
+}
+
+.slip-bar {
+  position: absolute;
+  left: 0;
+  top: 0.875rem;
+  bottom: 0.875rem;
+  width: 3px;
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+.slip-title {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  text-wrap: pretty;
+}
+
+.slip-count {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+
+/* A small control with a full-size target: the visible chip stays compact,
+   the invisible hit area reaches the 44px floor. */
+.hit-expand {
+  position: relative;
+}
+
+.hit-expand::after {
+  content: '';
+  position: absolute;
+  inset: -0.375rem -0.25rem;
+}
+
+/* ---- the month grid ----------------------------------------------------------------- */
+
+.day-tile {
+  position: relative;
+  border-radius: 0.875rem;
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-fill);
+  transition:
+    transform 160ms var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.day-tile[data-out] {
+  background: transparent;
+  box-shadow: none;
+}
+
+.day-tile:active {
+  transform: scale(0.94);
+  transition-duration: 70ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .day-tile:hover {
+    background: var(--glass-fill-hover);
+  }
+}
+
+.day-tile[aria-pressed='true'] {
+  background: var(--glass-fill-hover);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge-hover),
+    inset 0 1px 0 var(--specular),
+    0 12px 26px -14px var(--shadow-drop);
+}
+
+.day-num {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--r-pill);
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* Today: the ember disc, the same mark as the rail and the week. */
+.day-num[data-today] {
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent-deep));
+  color: var(--on-accent);
+  box-shadow: 0 6px 16px -6px var(--now-glow);
+}
+
+.day-mark {
+  width: 0.5rem;
+  height: 0.25rem;
+  flex-shrink: 0;
+  border-radius: var(--r-pill);
+  background: var(--mark, var(--text-low));
+}
+
+.day-mark[data-due] {
+  width: 0.375rem;
+  height: 0.375rem;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--mark, var(--text-low));
+}
+
+/* ---- an empty place ---------------------------------------------------------------
+   The wire with no glass in it: a dashed rim around a sentence. It says
+   "something goes here" without lamenting that nothing does. */
+
+.empty-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-inline: 1rem;
+  padding: 1.125rem 1.25rem;
+  border-radius: var(--r-card);
+  border: 1px dashed var(--ink-500);
+  background: linear-gradient(135deg, var(--glass-fill), transparent 60%);
+}
+
+/* ---- the sheet ------------------------------------------------------------------ */
+
+.sheet-panel {
+  background:
+    radial-gradient(120% 60% at 0% 0%, var(--glass-fill-hover), transparent 60%),
+    var(--ink-700);
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    0 -24px 60px -20px var(--shadow-drop);
+}
+
+.sheet-scrim {
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+  backdrop-filter: blur(6px) saturate(120%);
+}
+
+.sheet-title {
+  font-size: 1.375rem;
+}
+
+.sheet-handle {
+  width: 2.5rem;
+  height: 0.3125rem;
+  margin: -0.5rem auto 1rem;
+  border-radius: var(--r-pill);
+  background: var(--ink-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .chip,
+  .tick {
+    transition-duration: 1ms;
+  }
+}
+
+} /* @layer components */

@@ -260,7 +260,7 @@ export function AssignmentEditor({
         />
 
         <div className="flex flex-col gap-2">
-          <label htmlFor="notes" className="action-chip type-label">
+          <label htmlFor="notes" className="kicker">
             Notes
           </label>
           <textarea
@@ -268,7 +268,7 @@ export function AssignmentEditor({
             rows={3}
             value={fields.notes ?? ''}
             onChange={(e) => set('notes', e.target.value || null)}
-            className="w-full rounded-card border border-ink-600 bg-ink-800 p-4 type-body text-text-hi placeholder:text-text-low"
+            className="well p-4 type-body text-text-hi placeholder:text-text-low"
           />
         </div>
 
@@ -437,7 +437,7 @@ function Subtasks({
             }
           }}
           placeholder="A first move"
-          className="flex-1 rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
+          className="well flex-1 type-body text-text-hi placeholder:text-text-low"
         />
         <Button onClick={() => void add()} disabled={!draft.trim()}>
           Add

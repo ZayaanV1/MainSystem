@@ -1,25 +1,34 @@
-import { startBy, startByIsDue, urgencyFor, type Thresholds } from '../lib/urgency';
+import type { CSSProperties } from 'react';
+import { startBy, startByIsDue, urgencyFor, type Thresholds, type Urgency } from '../lib/urgency';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 import type { Assignment, Course } from '../lib/planner';
 import { useSwipe } from '../lib/useSwipe';
 import { courseVar } from '../lib/planner';
 
 /**
- * One assignment.
+ * One assignment, as a slip.
  *
- * The colour law gives both urgency and courses a claim on an edge, so they
- * are separated by form as well as by hue: urgency is the vertical bar down
- * the left, the course is a 6px dot beside the title. Warm bar, cool dot,
- * different shapes — legible even if you cannot tell the two hues apart.
+ * Each piece of work is its own surface now rather than a line in a shared
+ * card: a slip of its course's glass, with the countdown to it set as a
+ * display numeral on the right. The numeral is the thing a list of deadlines
+ * is read for — "how long have I got" — and at the size of a body line it was
+ * the smallest text on the row. At display size it can be read down the list
+ * without reading any titles at all.
  *
- * The urgency colour never appears without its written label. That pairing is
- * the rule, and it is also the entire colourblind-safety answer.
+ * The colour law still separates the two systems by form. Urgency is the 3px
+ * bar down the left edge and the colour of the numeral; the course is the
+ * glass the slip is made of. Warm bar, cool glass, different shapes — legible
+ * even if you cannot tell the hues apart. And the urgency colour never appears
+ * without its words: the numeral carries a unit ("days", "late", "today"),
+ * and the full label is what a screen reader hears.
  *
- * Two targets, not one: the box ticks it off, the body opens it. That split is
- * the convention every task app uses, and it is discoverable because the box
- * looks like a box. The checklist deliberately does the opposite — a single
- * whole-row target — because ticking is almost the only thing you do there,
- * and a second control beside it would be a mis-tap at 7am.
+ * Two targets, not one: the ring ticks it off, the body opens it. The
+ * checklist deliberately does the opposite — a single whole-row target —
+ * because ticking is almost the only thing you do there.
+ *
+ * Nothing on the slip moves when pressed except by scaling in place. A row
+ * that lifted on the phone's simulated hover and dropped on the press made
+ * every tap on the work list a jitter.
  */
 
 interface AssignmentRowProps {
@@ -40,6 +49,39 @@ interface AssignmentRowProps {
   progress?: { done: number; total: number } | null;
 }
 
+/**
+ * The countdown, as a numeral and its unit.
+ *
+ * Derived from the urgency rather than recomputed, so the big number and the
+ * written label can never disagree.
+ */
+function countdown(
+  u: Urgency,
+  due: Date | null,
+  hasTime: boolean,
+): { big: string; unit: string } {
+  switch (u.state) {
+    case 'done':
+      return { big: '✓', unit: 'done' };
+    case 'undated':
+      return { big: '—', unit: 'no date' };
+    case 'overdue': {
+      const late = Math.abs(u.days ?? 0);
+      return late === 0 ? { big: '0', unit: 'overdue' } : { big: String(late), unit: late === 1 ? 'day late' : 'days late' };
+    }
+    default:
+      if (u.days === 0) {
+        if (due && hasTime) {
+          const t = formatTime(due);
+          const m = /^(\d{1,2}:\d{2})\s*(.*)$/u.exec(t);
+          return m ? { big: m[1], unit: `${m[2]} today` } : { big: t, unit: 'today' };
+        }
+        return { big: '0', unit: 'today' };
+      }
+      return { big: String(u.days ?? ''), unit: u.days === 1 ? 'day' : 'days' };
+  }
+}
+
 export function AssignmentRow({
   assignment,
   course,
@@ -54,6 +96,7 @@ export function AssignmentRow({
   const done = assignment.status === 'done';
 
   const urgency = urgencyFor(due, { done, now, thresholds });
+  const count = countdown(urgency, due, assignment.due_has_time);
 
   const start = startBy(due, assignment.effort_minutes, assignment.start_by_override);
   // Only surfaced once it is relevant. "Start by 12 December" in August is
@@ -62,7 +105,7 @@ export function AssignmentRow({
 
   const dueLabel = due
     ? assignment.due_has_time
-      ? `${formatDay(localDayKey(due))} ${formatTime(due)}`
+      ? `${formatDay(localDayKey(due))} · ${formatTime(due)}`
       : formatDay(localDayKey(due))
     : null;
 
@@ -76,11 +119,15 @@ export function AssignmentRow({
     onRight: onToggleDone,
   });
 
+  const cv = courseVar(course?.colour_index);
+  const tint = (cv ? { '--b': `var(${cv}-rgb)` } : {}) as CSSProperties;
+  const code = course ? (course.code ?? course.name) : null;
+
   return (
-    <div className="relative overflow-hidden border-b border-ink-600 last:border-b-0">
+    <div className="relative">
       {/*
-        What the gesture will do, revealed underneath the row as it moves.
-        Both sit behind the content and are never announced — the row's own
+        What the gesture will do, revealed underneath the slip as it moves.
+        Both sit behind the content and are never announced — the slip's own
         buttons already carry the accessible names, and a screen reader user
         is not swiping.
       */}
@@ -88,7 +135,7 @@ export function AssignmentRow({
         <span
           aria-hidden
           className={[
-            'absolute inset-y-0 flex items-center px-4 type-caption',
+            'absolute inset-y-0 flex items-center px-5 type-caption',
             swipe.dx > 0 ? 'left-0 text-t-done' : 'right-0 text-text-mid',
             swipe.armed ? 'opacity-100' : 'opacity-50',
           ].join(' ')}
@@ -99,141 +146,149 @@ export function AssignmentRow({
 
       <div
         {...swipe.handlers}
-        className="flex items-stretch gap-3 bg-ink-900"
+        className="mat slip flex items-stretch"
+        data-block={cv ? true : undefined}
         style={{
-          transform: `translate3d(${swipe.dx}px, 0, 0)`,
-          // No transition while the finger is down: the row must track the
+          ...tint,
+          transform: swipe.dx === 0 ? undefined : `translate3d(${swipe.dx}px, 0, 0)`,
+          // No transition while the finger is down: the slip must track the
           // finger exactly, and easing it makes the gesture feel like lag.
           transition: swipe.dx === 0 ? 'transform 220ms var(--ease-out)' : 'none',
         }}
       >
-      {/* Urgency, as a bar. Never the only signal — the label below repeats it. */}
-      <span
-        aria-hidden
-        className="w-[3px] shrink-0 rounded-pill"
-        style={{ backgroundColor: `var(${urgency.colourVar})` }}
-      />
-
-      <button
-        type="button"
-        onClick={onToggleDone}
-        aria-pressed={done}
-        aria-label={done ? `Mark ${assignment.title} not done` : `Mark ${assignment.title} done`}
-        className="flex min-h-[var(--tap)] w-11 shrink-0 items-center justify-center"
-      >
+        {/* Urgency, as a bar. Never the only signal — the numeral repeats it in words. */}
         <span
           aria-hidden
-          className={[
-            'flex h-5 w-5 items-center justify-center rounded-pill border-2',
-            done ? 'border-t-done bg-t-done' : 'border-ink-600',
-          ].join(' ')}
-        >
-          {done && (
-            <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden>
-              <path
-                d="M2.5 6.2 L4.8 8.5 L9.5 3.8"
-                fill="none"
-                stroke="var(--ink-900)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
-        </span>
-      </button>
+          className="slip-bar"
+          style={{ backgroundColor: `var(${urgency.colourVar})` }}
+        />
 
-      <button
-        type="button"
-        onClick={onOpen}
-        disabled={!onOpen}
-        className="flex min-h-[var(--tap)] min-w-0 flex-1 flex-col justify-center py-3 pr-4 text-left"
-      >
-        <span className="flex items-center gap-2">
-          {course && (
-            <span
-              aria-hidden
-              className="h-1.5 w-1.5 shrink-0 rounded-pill"
-              style={{ backgroundColor: `var(${courseVar(course.colour_index)})` }}
-            />
-          )}
-          <span className={`type-body truncate ${done ? 'text-text-low' : 'text-text-hi'}`}>
-            {assignment.title}
-          </span>
-        </span>
-
-        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="type-caption" style={{ color: `var(${urgency.colourVar})` }}>
-            {urgency.label}
-          </span>
-          {dueLabel && <span className="action-chip-sm type-caption">{dueLabel}</span>}
-          {course && <span className="action-chip-sm type-caption">{course.code ?? course.name}</span>}
-          {/*
-            What it is worth, when that is known. A tag rather than an
-            action-chip, because it is a label and not a control — and stated
-            as a share of the course rather than a bare number, since "30"
-            beside a due date reads as minutes.
-          */}
-          {typeof assignment.weight_percent === 'number' && (
-            <span className="tag type-caption">{assignment.weight_percent}% of grade</span>
-          )}
-          {/*
-            A recorded mark. Never coloured by how good it is: a red 52 and a
-            green 91 would be the app grading the person, which is the line
-            this feature does not cross.
-          */}
-          {typeof assignment.grade_percent === 'number' && (
-            <span className="tag type-caption">scored {assignment.grade_percent}%</span>
-          )}
-          {/*
-            An anchor rather than a button, so it behaves like a link: long
-            press, open in a new tab, copy address. rel="noreferrer" because
-            the destination is a third party the app does not control and has
-            no reason to hand a referrer to.
-
-            stopPropagation keeps a tap on the link from also opening the
-            editor — the row is a tap target and this sits inside it.
-          */}
-          {assignment.link && (
-            <a
-              href={assignment.link}
-              target="_blank"
-              rel="noreferrer noopener"
-              onClick={(e) => e.stopPropagation()}
-              className="tag type-caption underline decoration-dotted underline-offset-2"
-            >
-              Open
-            </a>
-          )}
-          {showStart && start && (
-            <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
-          )}
-          {/* Surfaced rather than hidden behind a tap: knowing three of five
-              steps are done is most of what decides whether to pick this up. */}
-          {progress && (
-            <span className="type-caption text-text-mid">
-              {progress.done} of {progress.total} steps
-            </span>
-          )}
-        </span>
-      </button>
-
-      {/*
-        One tap, no friction, no comment. The spec is explicit that deferring
-        must cost nothing: a push that feels like an admission is one avoided
-        by not opening the app at all. It is only offered on unfinished work
-        that has a date to move.
-      */}
-      {onDefer && !done && assignment.due_at && (
         <button
           type="button"
-          onClick={onDefer}
-          aria-label={`Push "${assignment.title}" to tomorrow`}
-          className="flex min-h-[var(--tap)] shrink-0 items-center px-4 type-caption text-text-low"
+          onClick={onToggleDone}
+          aria-pressed={done}
+          aria-label={done ? `Mark ${assignment.title} not done` : `Mark ${assignment.title} done`}
+          className="flex min-h-[var(--tap)] w-12 shrink-0 items-center justify-center pl-1"
         >
-          Tomorrow
+          <span aria-hidden className="tick" data-done={done || undefined}>
+            {done && (
+              <svg viewBox="0 0 12 12" className="h-3 w-3">
+                <path
+                  d="M2.5 6.2 L4.8 8.5 L9.5 3.8"
+                  fill="none"
+                  stroke="var(--ink-900)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </span>
         </button>
-      )}
+
+        <button
+          type="button"
+          onClick={onOpen}
+          disabled={!onOpen}
+          className="flex min-h-[var(--tap)] min-w-0 flex-1 flex-col justify-center gap-1 py-3.5 pr-2 text-left"
+        >
+          {/* What it belongs to and when, as the kicker over the title. */}
+          {(code || dueLabel) && (
+            <span className="kicker">
+              {code && (
+                <span className="flex items-center gap-1.5">
+                  {cv && <span aria-hidden data-block className="chip-dot" style={tint} />}
+                  {code}
+                </span>
+              )}
+              {code && dueLabel && <span aria-hidden>·</span>}
+              {dueLabel && <span className="blk-num normal-case tracking-normal">{dueLabel}</span>}
+            </span>
+          )}
+
+          <span
+            className={`slip-title ${done ? 'text-text-low line-through decoration-text-low' : 'text-text-hi'}`}
+          >
+            {assignment.title}
+          </span>
+
+          <span className="sr-only">{urgency.label}.</span>
+
+          {(typeof assignment.weight_percent === 'number' ||
+            typeof assignment.grade_percent === 'number' ||
+            assignment.link ||
+            (showStart && start) ||
+            progress) && (
+            <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              {/*
+                What it is worth, when that is known — stated as a share of the
+                course, since "30" beside a due date reads as minutes.
+              */}
+              {typeof assignment.weight_percent === 'number' && (
+                <span className="tag type-caption">{assignment.weight_percent}% of grade</span>
+              )}
+              {/*
+                A recorded mark. Never coloured by how good it is: a red 52 and
+                a green 91 would be the app grading the person.
+              */}
+              {typeof assignment.grade_percent === 'number' && (
+                <span className="tag type-caption">scored {assignment.grade_percent}%</span>
+              )}
+              {/*
+                An anchor rather than a button, so it behaves like a link: long
+                press, open in a new tab, copy address. stopPropagation keeps a
+                tap on the link from also opening the editor.
+              */}
+              {assignment.link && (
+                <a
+                  href={assignment.link}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  onClick={(e) => e.stopPropagation()}
+                  className="tag type-caption text-text-mid underline decoration-dotted underline-offset-2"
+                >
+                  Open
+                </a>
+              )}
+              {showStart && start && (
+                <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
+              )}
+              {/* Surfaced rather than hidden behind a tap: knowing three of
+                  five steps are done is most of what decides whether to pick
+                  this up. */}
+              {progress && (
+                <span className="type-caption text-text-mid">
+                  {progress.done} of {progress.total} steps
+                </span>
+              )}
+            </span>
+          )}
+        </button>
+
+        {/*
+          The countdown. A display numeral in the urgency colour, with its unit
+          in words beneath it, and the one-tap push to tomorrow under that.
+          Deferring costs nothing and says nothing, per the spec: a push that
+          feels like an admission is one avoided by not opening the app.
+        */}
+        <div className="flex shrink-0 flex-col items-end justify-center gap-1 py-3 pr-4 pl-1">
+          <span aria-hidden className="flex flex-col items-end">
+            <span className="slip-count" style={{ color: `var(${urgency.colourVar})` }}>
+              {count.big}
+            </span>
+            <span className="type-caption text-text-low">{count.unit}</span>
+          </span>
+          {onDefer && !done && assignment.due_at && (
+            <button
+              type="button"
+              onClick={onDefer}
+              aria-label={`Push "${assignment.title}" to tomorrow`}
+              className="hit-expand action-chip-sm type-caption"
+            >
+              Tomorrow
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

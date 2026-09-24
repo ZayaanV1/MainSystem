@@ -737,7 +737,7 @@ function WeightRow({
   return (
     <form onSubmit={submit} className="mb-12 flex items-end gap-3 px-4">
       <div className="flex flex-1 flex-col gap-2">
-        <label htmlFor="weight" className="action-chip type-label">
+        <label htmlFor="weight" className="kicker">
           Weight today
         </label>
         <input
@@ -749,7 +749,7 @@ function WeightRow({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="kg"
-          className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
+          className="well type-body text-text-hi placeholder:text-text-low"
         />
       </div>
       <Button type="submit" disabled={saving || !value}>

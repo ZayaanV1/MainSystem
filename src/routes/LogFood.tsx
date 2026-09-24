@@ -601,7 +601,7 @@ function DraftRow({
     key: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'grams',
   ) => (
     <label className="flex flex-1 flex-col gap-1">
-      <span className="tag type-caption">{label}</span>
+      <span className="kicker">{label}</span>
       <input
         type="number"
         inputMode="decimal"
@@ -613,7 +613,7 @@ function DraftRow({
           const n = raw === '' ? null : Number(raw);
           set(key, (n === null || Number.isNaN(n) ? (key === 'grams' ? null : 0) : n) as DraftItem[typeof key]);
         }}
-        className="w-full rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi"
+        className="well px-3 type-body text-text-hi"
       />
     </label>
   );
@@ -622,12 +622,12 @@ function DraftRow({
     <div className="flex flex-col gap-3 rounded-card border border-ink-600 p-3">
       <div className="flex items-end gap-3">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="tag type-caption">Item</span>
+          <span className="kicker">Item</span>
           <input
             value={item.name}
             onChange={(e) => set('name', e.target.value)}
             placeholder="Chicken breast"
-            className="w-full rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi placeholder:text-text-low"
+            className="well px-3 type-body text-text-hi placeholder:text-text-low"
           />
         </label>
         <Button variant="quiet" size="sm" onClick={onRemove}>

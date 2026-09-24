@@ -23,9 +23,9 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
  * press response, the focus ring, and the disabled treatment. Those live here
  * identically rather than being remembered ten times.
  *
- * The press is `fx-depth` like everything else, so a row answers a finger the
- * same way a button does. On a list this is the only feedback there is — there
- * is no hover on a phone and no label to dim.
+ * The press lights the row in place (`press-row`), because on a list that is
+ * the only feedback there is — there is no hover on a phone and no label to
+ * dim — and a row that moved under a finger made the whole list jitter.
  */
 
 type Align = 'center' | 'start' | 'baseline';
@@ -72,7 +72,10 @@ export function Pressable({
         // The tap floor is on the row, not on the text inside it, so a row
         // holding one short line is still a full target.
         'min-h-[var(--tap)]',
-        'fx-depth',
+        // Lights in place under a finger. It used fx-depth, which lifted the
+        // whole row on the phone's simulated hover and dropped it on press —
+        // on a list, every tap made the row jump.
+        'press-row',
         'disabled:opacity-50',
         className,
       ].join(' ')}

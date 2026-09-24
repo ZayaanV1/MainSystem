@@ -94,8 +94,10 @@ export function Sheet({ open, onClose, title, children, dock = false }: SheetPro
         dock ? 'items-end lg:items-stretch lg:justify-end' : 'items-end',
       ].join(' ')}
     >
+      {/* The page behind dims and softens, so the sheet reads as a surface
+          lifted off it rather than a box painted on top of it. */}
       <div
-        className="absolute inset-0 bg-ink-900/70 motion-safe:animate-[scrim-in_250ms_cubic-bezier(0.2,0,0,1)]"
+        className="sheet-scrim absolute inset-0 motion-safe:animate-[scrim-in_250ms_cubic-bezier(0.2,0,0,1)]"
         onClick={onClose}
         aria-hidden
       />
@@ -107,12 +109,12 @@ export function Sheet({ open, onClose, title, children, dock = false }: SheetPro
         aria-label={title}
         tabIndex={-1}
         className={[
-          'relative w-full max-w-160 bg-ink-700 px-6 pb-8 pt-6',
+          'sheet-panel relative w-full max-w-160 px-6 pb-8 pt-6',
           // Docked: a column against the right edge rather than a slab across
           // the bottom. The border replaces the rounded top corners, which
           // read as "this rose from below" and would be a lie here.
           dock
-            ? 'lg:h-full lg:max-w-[34rem] lg:rounded-none lg:border-l lg:border-ink-600'
+            ? 'lg:h-full lg:max-w-[34rem] lg:rounded-none'
             : '',
           // A sheet taller than the screen must scroll, not overflow. The
           // history grid and a long editor both exceed a phone easily.
@@ -133,15 +135,25 @@ export function Sheet({ open, onClose, title, children, dock = false }: SheetPro
           'pb-[calc(var(--sp-8)+env(safe-area-inset-bottom))]',
         ].join(' ')}
       >
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="type-h2 text-text-hi">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="action-chip type-label"
-          >
-            Close
+        {/* The grab handle a bottom sheet has on every phone. Decorative: the
+            sheet closes on the scrim, Escape and the close control. */}
+        <div aria-hidden className={`sheet-handle ${dock ? 'lg:hidden' : ''}`} />
+
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <h2 className="section-title sheet-title">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="btn btn-quiet btn-icon">
+            <svg
+              aria-hidden
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            >
+              <path d="M4 4l8 8M12 4l-8 8" />
+            </svg>
           </button>
         </div>
 

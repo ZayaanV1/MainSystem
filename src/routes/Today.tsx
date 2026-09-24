@@ -15,6 +15,8 @@ import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
+import { NowNext } from '../components/NowNext';
+import { SectionHead } from '../components/SectionHead';
 import { WhatNow } from './WhatNow';
 import { ChecklistEditor } from './ChecklistEditor';
 import { AssignmentEditor } from './AssignmentEditor';
@@ -308,6 +310,14 @@ export function Today({
 
       <CaptureBox userId={userId} onCaptured={reload} />
 
+      {data && (
+        <NowNext
+          events={data.events}
+          today={today}
+          courseFor={(id) => data.courses.find((c) => c.id === id)}
+        />
+      )}
+
       <Briefing dep={data} />
 
       {/*
@@ -319,17 +329,18 @@ export function Today({
       <div className="lg:grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.3fr)] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,0.95fr)] xl:gap-10">
         <div className="min-w-0">
       <section className="mb-8">
-        <div className="mb-3 flex items-baseline justify-between gap-4 px-4">
-          <h2 className="type-h2 text-text-hi">Checklist</h2>
-          {editing ? (
-            <Button variant="quiet"
-              onClick={() => setEditing(false)}>
-              Done
-            </Button>
-          ) : (
-            <DayStrip today={today} selected={day} onSelect={setDay} />
-          )}
-        </div>
+        <SectionHead
+          title="Checklist"
+          aside={
+            editing ? (
+              <Button variant="quiet" onClick={() => setEditing(false)}>
+                Done
+              </Button>
+            ) : (
+              <DayStrip today={today} selected={day} onSelect={setDay} />
+            )
+          }
+        />
 
         {items.length === 0 ? (
           <EmptyState
@@ -472,7 +483,7 @@ export function Today({
       {askingTime && <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />}
 
       <section className="mb-8">
-        <h2 className="type-h2 mb-3 px-4 text-text-hi">Work</h2>
+        <SectionHead title="Work" count={data?.assignments.length || null} />
         {/*
           `data === null` is checked FIRST and separately, because
           `!data?.assignments.length` is also true while the fetch is still in
@@ -492,7 +503,7 @@ export function Today({
             <EmptyState>Nothing due.</EmptyState>
           )
         ) : (
-          <Card ref={workList}>
+          <div ref={workList} className="flex flex-col gap-2.5">
             {data.assignments.map((a) => (
               <AssignmentRow
                 key={a.id}
@@ -516,7 +527,7 @@ export function Today({
                 onOpen={() => setOpenAssignment(a)}
               />
             ))}
-          </Card>
+          </div>
         )}
       </section>
 
@@ -548,9 +559,9 @@ export function Today({
       />
 
       <section className="mb-8 flex-1">
-        <h2 className="type-h2 mb-1 px-4 text-text-hi">Inbox</h2>
+        <SectionHead title="Inbox" count={data?.inbox.length || null} />
         {Boolean(data?.inbox.length) && (
-          <p className="type-note mb-3 px-4 text-text-low">Tap one to sort it out.</p>
+          <p className="type-note -mt-2 mb-3 px-4 text-text-low">Tap one to sort it out.</p>
         )}
         {!data?.inbox.length ? (
           inboxCleared ? (
@@ -561,10 +572,13 @@ export function Today({
         ) : (
           <Card>
             {data.inbox.map((entry) => (
-              <Pressable className="border-b border-ink-600 px-4 py-3 last:border-b-0"
+              <Pressable
+                className="mat-row gap-3 px-4 py-3"
                 key={entry.id}
-                onClick={() => setTriaging(entry)}>
-                <span className="type-body text-text-hi">{entry.body}</span>
+                onClick={() => setTriaging(entry)}
+              >
+                <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 self-start rounded-pill bg-text-low" />
+                <span className="type-quote text-text-hi">{entry.body}</span>
               </Pressable>
             ))}
           </Card>
@@ -623,16 +637,41 @@ function CaptureBox({ userId, onCaptured }: { userId: string; onCaptured: () => 
       <label htmlFor="capture" className="sr-only">
         Capture a thought
       </label>
-      <input
-        id="capture"
-        ref={input}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Capture anything"
-        autoComplete="off"
-        enterKeyHint="done"
-        className="prompt-shell w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi placeholder:text-text-low"
-      />
+      {/*
+        The largest field in the app, because it is the one used most and in
+        the most hurry. A plus inside it says what it does before a word is
+        read; the key hint only appears while there is something to send.
+      */}
+      <div className="relative">
+        <svg
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-text-low"
+          width="18"
+          height="18"
+          viewBox="0 0 18 18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        >
+          <path d="M9 3.5v11M3.5 9h11" />
+        </svg>
+        <input
+          id="capture"
+          ref={input}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Capture anything"
+          autoComplete="off"
+          enterKeyHint="done"
+          className="well capture-well pl-11 type-body"
+        />
+        {text.trim() && (
+          <span aria-hidden className="kicker pointer-events-none absolute top-1/2 right-4 -translate-y-1/2">
+            Enter
+          </span>
+        )}
+      </div>
     </form>
   );
 }
@@ -785,8 +824,11 @@ function Briefing({ dep }: { dep: TodayData | null }) {
         larger radius plus the lifted shadow are what tell the eye that
         before a word of it is read.
       */}
-      <Card elevation="hero" className="px-5 py-4">
-        <p className="type-body text-text-hi">{text}</p>
+      <Card elevation="hero" className="px-5 py-5">
+        <p className="kicker mb-2">Briefing</p>
+        <p className="type-body text-text-hi" style={{ fontSize: '1.0625rem' }}>
+          {text}
+        </p>
       </Card>
     </section>
   );

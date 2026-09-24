@@ -122,7 +122,7 @@ export function TargetEditor({
             <div key={key} className="flex items-end gap-3">
               <span className="type-label w-20 shrink-0 text-text-mid">{label}</span>
               <label className="flex flex-1 flex-col gap-1">
-                <span className="tag type-caption">Low</span>
+                <span className="kicker">Low</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -130,11 +130,11 @@ export function TargetEditor({
                   step="1"
                   value={draft[key].min}
                   onChange={(e) => set(key, 'min', e.target.value)}
-                  className="w-full rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi"
+                  className="well px-3 type-body text-text-hi"
                 />
               </label>
               <label className="flex flex-1 flex-col gap-1">
-                <span className="tag type-caption">High</span>
+                <span className="kicker">High</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -142,7 +142,7 @@ export function TargetEditor({
                   step="1"
                   value={draft[key].max}
                   onChange={(e) => set(key, 'max', e.target.value)}
-                  className="w-full rounded-card border border-ink-600 bg-ink-800 px-3 type-body text-text-hi"
+                  className="well px-3 type-body text-text-hi"
                 />
               </label>
               <span className="type-caption w-10 shrink-0 pb-3 text-text-low">{unit}</span>
@@ -156,7 +156,7 @@ export function TargetEditor({
             type="date"
             value={from}
             onChange={(e) => setFrom((e.target.value || todayKey()) as DayKey)}
-            className="w-full rounded-card border border-ink-600 bg-ink-800 px-4 type-body text-text-hi"
+            className="well type-body text-text-hi"
           />
           <span className="type-note text-text-low">
             Days before this keep the targets they already had.

@@ -95,7 +95,7 @@ export function LowBattery({
       {work && (
         <section className="mb-8">
           <h2 className="type-label mb-3 px-4 text-text-mid">If you have it in you</h2>
-          <Card>
+          <div>
             <AssignmentRow
               assignment={work as Assignment}
               course={courseFor((work as Assignment).course_id)}
@@ -106,7 +106,7 @@ export function LowBattery({
                 ).then(onChanged)
               }
             />
-          </Card>
+          </div>
         </section>
       )}
 

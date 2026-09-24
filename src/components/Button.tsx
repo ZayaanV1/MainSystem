@@ -25,12 +25,11 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
  *
  * MOTION
  *
- * Every variant carries `fx-depth`: lifts under a cursor, sinks under a
- * finger. The press half is the one that matters, because hover does not fire
- * on a phone and that is where this app is mostly used. Callers that want the
- * heavier treatments pass them in `className` — `fx-glass` for the single hero
- * control on a screen with `atmosphere` behind it, `fx-magnet` with
- * useMagnetic() for a capture action.
+ * Every variant scales in place under a finger and brightens under a real
+ * pointer. It never moves: a hover lift that a tap also fires, followed by a
+ * press dip, is the jitter a phone showed as "shaking when clicked". Callers
+ * that want a heavier treatment pass it in `className` — `fx-magnet` with
+ * useMagnetic() for a capture action on a desktop.
  */
 
 type Variant = 'primary' | 'secondary' | 'quiet';
@@ -49,23 +48,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
+/*
+ * The faces live in material.css (.btn-primary, .btn-secondary, .btn-quiet),
+ * alongside the panels and chips they are drawn to match: a lit top edge, a
+ * gradient that runs light to deep down the face, and a glow in the button's
+ * own colour underneath. Ember is still the only colour on a control that
+ * means "press this".
+ */
 const VARIANTS: Record<Variant, string> = {
-  // The gradient runs light to deep down the face, which is what stops a
-  // large flat fill reading as a coloured rectangle. Both stops are the same
-  // hue — a gradient that drifted in hue would make the brand ambiguous.
-  //
-  // The glow underneath it is `--shadow-ember`, defined once in tokens.css
-  // as a property of the accent fill rather than a general elevation step —
-  // it is what stops "the thing to press" from sitting flush with the page
-  // it presses into, the way a lit surface actually would.
-  primary:
-    'border-transparent text-on-accent bg-linear-to-b from-accent-lit via-accent to-accent-deep shadow-[var(--shadow-ember)]',
-  secondary:
-    'border-transparent text-on-accent-2 bg-linear-to-b from-accent-2-mid via-accent-2 to-accent-2-deep shadow-sm',
-  // Quiet, not invisible. A fully transparent button on a dark ground is
-  // indistinguishable from a label until you happen to tap it, and a control
-  // should not have to be discovered. This still yields to `primary`.
-  quiet: 'bg-ink-800 text-text-mid border-ink-600',
+  primary: 'btn-primary',
+  secondary: 'btn-secondary',
+  quiet: 'btn-quiet',
 };
 
 const SIZES: Record<Size, string> = {
@@ -92,12 +85,10 @@ export function Button({
       type={type}
       {...rest}
       className={[
-        'inline-flex items-center justify-center gap-2 rounded-pill border',
+        // Presses scale in place and never translate; see material.css for
+        // why a translate here was the "shake when clicked" on a phone.
+        'btn',
         SIZES[size],
-        // 44px comes from the base layer; this keeps the label centred in it.
-        'min-h-[var(--tap)]',
-        'fx-depth',
-        'disabled:opacity-50',
         VARIANTS[variant],
         full ? 'w-full' : '',
         className,
