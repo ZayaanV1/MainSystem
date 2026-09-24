@@ -263,11 +263,14 @@ function Column({
                       className="h-2.5 w-[3px] shrink-0 rounded-pill"
                       style={{ backgroundColor: `var(${m.urgency.colourVar})` }}
                     />
-                    <span className="truncate type-caption" style={{ color: `var(${m.urgency.colourVar})` }}>
+                    <span className="shrink-0 type-caption" style={{ color: `var(${m.urgency.colourVar})` }}>
                       {m.urgency.label}
                     </span>
+                    {/* The time gives way first: how soon is the fact that
+                        matters, and the edge the flag is pinned to already
+                        says roughly when. */}
                     {edge && (
-                      <span className="shrink-0 type-caption text-text-low blk-num">
+                      <span className="min-w-0 truncate type-caption text-text-low blk-num">
                         {when.hm} {when.suffix}
                       </span>
                     )}
