@@ -644,6 +644,59 @@ university's to set. A Moodle PAGE (course, dashboard, calendar view) is
 caught by name, like the Google browser-bar link, with the menu path to the
 real export address. Both verified against the deployed function.
 
+### Week block styles — Sep 2026
+
+Week draws the same data five ways, chosen from a segmented control at the top
+of the screen and remembered per device (`lib/calendarStyle.ts`, localStorage,
+for the reason theme is: a seven-column grid is right on a laptop and wrong on
+a phone). Rail is the original spine. The four added:
+
+- **Bubble** — Google's schedule bubble as cloisonné: a course-tinted glass
+  wash inside a hairline rim that catches light at two corners, HEIGHT
+  proportional to length, free time between blocks written out ("45 min
+  free"), a progress line along whatever is under way.
+- **Hours** — a real time axis. Seven columns on one shared axis at 64rem+,
+  a grid per day below it. Overlaps go side by side (`placeSpans`, lanes per
+  cluster so one clash does not narrow the whole day); deadlines and instants
+  are flags on a hairline, not slivers; an ember line for now, with a faint
+  echo across the other days.
+- **Ticket** — an Edmondson railway ticket: stub with the time, a diagonal band
+  in the course's colour, a perforation with real notches (masked, so
+  `drop-shadow` rather than `box-shadow`), and a punch through the stub once
+  the class has run.
+- **Ledger** — a printed Swiss timetable: no boxes, big tabular numerals, and
+  each thing's length as a rule in its course colour.
+
+Every style keeps each deadline's done toggle, written urgency and tap to open.
+Facts are computed once in `components/calendar/items.ts` so the styles can
+only disagree about appearance.
+
+**The course law was widened, on purpose.** Courses may now TINT a calendar
+block — a translucent wash, never an opaque fill. Channel triplets
+(`--c-N-rgb`) live in tokens.css and a `[data-block]` rule composes each
+block's tints against its own `--b`. `tests/palette.test.ts` composites the
+strongest wash of all eight courses in both themes and requires 7:1 for cream
+and 4.5:1 for `--text-mid`. That floor is the reason the dark wash is only
+0.11: the first attempt at 0.17 failed it, so the extra colour went to the rim,
+the glow and the edge bar, which carry hue without sitting under text.
+Events with no course are glass, not a neutral tint — Travel and Gym are most
+of a real week, and washing them in cream made them outshine every lecture.
+
+**Found by looking at the real week, not the fixtures:**
+- One WeBWorK due at 12:00 a.m. stretched the whole week's hour grid back to
+  midnight. The grid now fits to events, and a flag outside the fitted hours
+  is pinned to the edge it fell past with its time written.
+- Timetable exports put the room first: "MB S2.210 - COEN 231-U - LEC".
+  `readTitle` leads with "COEN 231 Lecture" and only rewrites a title that
+  matches that shape exactly; anything typed by a person is left alone.
+- A two-line flag, because a seventh of a laptop screen truncated a deadline's
+  title to nothing once its time was added.
+- `needsOnboarding` read a failed query as "never onboarded", so a returning
+  account whose token was refreshing at launch was shown the first-run
+  screen. It throws now, and unknown means not a first run.
+- An aborted view transition (tab hidden mid-switch) rejected two promises
+  nobody listened to.
+
 ### A blank brown screen — Sep 2026
 
 `WhatNow` called `useMagnetic` after an early return, so the render that first

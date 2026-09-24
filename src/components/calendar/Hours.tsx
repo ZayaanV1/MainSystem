@@ -242,28 +242,35 @@ function Column({
           style={vars({ '--top': Math.min(Math.max(at, 0), span * 60) })}
         >
           <div className="hours-flag">
-            {edge && (
-              <span className="shrink-0 pl-1 type-caption text-text-mid blk-num">
-                {when.hm} {when.suffix}
-              </span>
-            )}
             {m.kind === 'due' ? (
               <>
                 <DueToggle a={m.assignment} onToggle={() => props.onToggle(m.assignment)} />
+                {/* Two lines, so the title keeps its width in a seventh of a
+                    screen: the name first, then how soon — and the time, when
+                    the flag has been pinned away from it. */}
                 <button
                   type="button"
                   onClick={() => props.onOpen(m.assignment)}
-                  className="flex min-w-0 items-center gap-2 text-left"
+                  className="flex min-w-0 flex-col py-0.5 pr-1 text-left"
                   title={`${m.assignment.title}, ${m.urgency.label}`}
                 >
-                  <span
-                    aria-hidden
-                    className="h-3 w-[3px] shrink-0 rounded-pill"
-                    style={{ backgroundColor: `var(${m.urgency.colourVar})` }}
-                  />
-                  <span className="truncate type-note font-semibold text-text-hi">{m.assignment.title}</span>
-                  <span className="shrink-0 type-caption" style={{ color: `var(${m.urgency.colourVar})` }}>
-                    {m.urgency.label}
+                  <span className="truncate type-note font-semibold leading-tight text-text-hi">
+                    {m.assignment.title}
+                  </span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span
+                      aria-hidden
+                      className="h-2.5 w-[3px] shrink-0 rounded-pill"
+                      style={{ backgroundColor: `var(${m.urgency.colourVar})` }}
+                    />
+                    <span className="truncate type-caption" style={{ color: `var(${m.urgency.colourVar})` }}>
+                      {m.urgency.label}
+                    </span>
+                    {edge && (
+                      <span className="shrink-0 type-caption text-text-low blk-num">
+                        {when.hm} {when.suffix}
+                      </span>
+                    )}
                   </span>
                 </button>
               </>
@@ -275,7 +282,14 @@ function Column({
                   className="size-1.5 shrink-0 rounded-pill"
                   style={{ ...tint(m.course), backgroundColor: 'var(--blk-mark)' }}
                 />
-                <span className="truncate type-note text-text-mid">{m.headline}</span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate type-note leading-tight text-text-mid">{m.headline}</span>
+                  {edge && (
+                    <span className="type-caption text-text-low blk-num">
+                      {when.hm} {when.suffix}
+                    </span>
+                  )}
+                </span>
               </span>
             )}
           </div>
@@ -316,10 +330,12 @@ function AllDay({ items, props }: { items: Item[]; props: StyleProps }) {
             <button
               type="button"
               onClick={() => props.onOpen(it.assignment)}
-              className="flex min-w-0 items-center gap-2 text-left"
+              className="flex min-w-0 flex-col py-0.5 pr-1 text-left"
             >
-              <span className="truncate type-note font-semibold text-text-hi">{it.assignment.title}</span>
-              <span className="shrink-0 type-caption" style={{ color: `var(${it.urgency.colourVar})` }}>
+              <span className="truncate type-note font-semibold leading-tight text-text-hi">
+                {it.assignment.title}
+              </span>
+              <span className="truncate type-caption" style={{ color: `var(${it.urgency.colourVar})` }}>
                 {it.urgency.label}
               </span>
             </button>
