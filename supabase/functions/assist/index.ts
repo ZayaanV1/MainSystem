@@ -424,7 +424,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .eq('user_id', userData.user.id)
     .maybeSingle();
 
-  const ownKey = (keyRow?.gemini_api_key as string | null)?.trim() || null;
+  /*
+   * A key in the wrong field is ignored rather than trusted. Google's keys
+   * start "AIza", Groq's "gsk_"; a Groq key saved as the account's Gemini key
+   * overrode the working shared key and made every Gemini call — food, the
+   * syllabus, the briefing — fail as "API key not valid". Found on the live
+   * account, where the same Groq key sat in both fields.
+   */
+  const rawGemini = (keyRow?.gemini_api_key as string | null)?.trim() || null;
+  const ownKey = rawGemini && !rawGemini.startsWith('gsk_') ? rawGemini : null;
 
   /*
    * Read from the ACCOUNT, not the request body. Only the summary task ever
@@ -449,7 +457,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
    * So vision stays on Gemini and conversation moves to Groq when a key
    * exists. An account's own key wins over the shared one, as everywhere else.
    */
-  const ownGroq = (keyRow?.groq_api_key as string | null)?.trim() || null;
+  const rawGroq = (keyRow?.groq_api_key as string | null)?.trim() || null;
+  const ownGroq = rawGroq && !rawGroq.startsWith('AIza') ? rawGroq : null;
   const groqKey = ownGroq ?? env('GROQ_API_KEY');
   // Groq first when there is a key, with Gemini behind it: a Groq failure used
   // to end the question even with a working Gemini key beside it.

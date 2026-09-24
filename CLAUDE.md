@@ -644,6 +644,37 @@ university's to set. A Moodle PAGE (course, dashboard, calendar view) is
 caught by name, like the Google browser-bar link, with the menu path to the
 real export address. Both verified against the deployed function.
 
+### Abood went dark, for three stacked reasons — Sep 2026
+
+Every chat question failed, and each layer hid the next:
+
+1. **Groq stopped serving `llama-3.3-70b-versatile`** to this key. Groq now
+   reads its catalogue on a withdrawn model, ranks current ones (families
+   known to honour strict JSON first; speech, moderation, routing never),
+   retries once and remembers the pick. The default is `openai/gpt-oss-120b`.
+2. **Strict mode rejected the chat schema**: every object must carry
+   `additionalProperties: false`, which Gemini-shaped schemas never did.
+   `strictSchema` closes them, and any schema complaint falls back to JSON
+   mode on the same model — callers validate the reply either way.
+3. **The account's Gemini key field held a Groq key** (`gsk_…`, the same key
+   as the Groq field). An account key overrides the shared one, so food
+   parsing, the syllabus reader, the briefing and chat's fallback all sent
+   Google a Groq key and failed "API key not valid" — reported as "could not
+   reach the model". Cleared on the live account (the Groq copy kept); both
+   functions now ignore a key in the wrong field, Settings refuses to save
+   one, and Gemini classifies an invalid key as `unconfigured`.
+
+Chat now falls back to Gemini when Groq fails for provider reasons (never for
+a refusal or a spent quota), and Gemini treats a 503 "high demand" like a
+retirement: one retry on another current model. The failure copy no longer
+names GEMINI_MODEL — it blamed Gemini for Groq's fault. Verified live: chat
+answered through Groq; a breakdown answered through
+`gemini:gemini-flash-lite-latest` after the default returned 503.
+
+Unanswered questions were saved as ordinary replies, so "Could not reach the
+model" read as something Abood said. `chat_messages.failed` (0029, backfilled
+from the app's fixed failure sentences) draws them as a dashed note.
+
 ### One material, app-wide — Sep 2026
 
 Asked for after the Week block styles landed: "implement this design principle

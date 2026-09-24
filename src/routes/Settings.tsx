@@ -345,6 +345,14 @@ function ApiKey({ userId }: { userId: string }) {
   async function save(next: string | null) {
     setBusy(true);
     setMessage(null);
+    // Checked before it is stored: a Groq key saved here overrode the shared
+    // Gemini key and broke food parsing, the syllabus reader and the briefing
+    // with "API key not valid", with nothing on screen to say why.
+    if (next?.trim().startsWith('gsk_')) {
+      setMessage('That is a Groq key. Paste it under Abood’s model below; this field takes a Google Gemini key, which starts with AIza.');
+      setBusy(false);
+      return;
+    }
     const { error } = await setOwnApiKey(userId, next);
     setBusy(false);
 
@@ -577,6 +585,11 @@ function GroqKey({ userId }: { userId: string }) {
   async function save(next: string | null) {
     setBusy(true);
     setMessage(null);
+    if (next?.trim().startsWith('AIza')) {
+      setMessage('That is a Google Gemini key. Paste it under Your own AI key above; this field takes a Groq key, which starts with gsk_.');
+      setBusy(false);
+      return;
+    }
     const { error } = await setOwnGroqKey(userId, next);
     setBusy(false);
     if (error) {

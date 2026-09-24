@@ -118,7 +118,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .eq('user_id', userData.user.id)
     .maybeSingle();
 
-  const ownKey = (keyRow?.gemini_api_key as string | null)?.trim() || null;
+  // A Groq key ("gsk_") saved in the Gemini field is ignored, not sent to
+  // Google — it overrode the working shared key and failed every parse.
+  const rawKey = (keyRow?.gemini_api_key as string | null)?.trim() || null;
+  const ownKey = rawKey && !rawKey.startsWith('gsk_') ? rawKey : null;
   const provider = geminiProvider(ownKey ?? env('GEMINI_API_KEY'));
 
   /*

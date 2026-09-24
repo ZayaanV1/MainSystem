@@ -73,11 +73,43 @@ export function classify(status: number, raw: string): LlmFailure {
   return 'unavailable';
 }
 
-/** The model accepted the request but not strict json_schema output. */
+/**
+ * The model took the request but not the strict schema — because it does not
+ * do strict output at all, or because strict mode has rules the schema does
+ * not meet. Either way the same model can still answer in JSON mode.
+ */
 export function schemaUnsupported(status: number, raw: string): boolean {
   if (status !== 400) return false;
   const { message } = errorOf(raw);
-  return /json_schema|response_format|structured output/i.test(message) && /support/i.test(message);
+  return /json.?schema|response_format|structured output/i.test(message);
+}
+
+/**
+ * The schema as strict mode wants it: every object closed with
+ * `additionalProperties: false`.
+ *
+ * The app's schemas were written for Gemini, which does not ask for this, and
+ * the first current Groq model found rejected the chatbot's schema on exactly
+ * this rule. Closing every object changes nothing the app accepts — each
+ * caller already validates the reply and drops keys it does not know.
+ */
+export function strictSchema(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(strictSchema);
+  if (!schema || typeof schema !== 'object') return schema;
+
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(schema as Record<string, unknown>)) {
+    if (k === 'properties' && v && typeof v === 'object') {
+      out[k] = Object.fromEntries(
+        Object.entries(v as Record<string, unknown>).map(([name, sub]) => [name, strictSchema(sub)]),
+      );
+    } else {
+      out[k] = strictSchema(v);
+    }
+  }
+  const isObject = out.type === 'object' || (Array.isArray(out.type) && out.type.includes('object')) || 'properties' in out;
+  if (isObject && !('additionalProperties' in out)) out.additionalProperties = false;
+  return out;
 }
 
 /**
@@ -178,7 +210,7 @@ export function groqProvider(apiKey: string, model = DEFAULT_MODEL): LlmProvider
               { role: 'user', content: request.input },
             ],
             response_format: strict
-              ? { type: 'json_schema', json_schema: { name: 'reply', strict: true, schema: request.schema } }
+              ? { type: 'json_schema', json_schema: { name: 'reply', strict: true, schema: strictSchema(request.schema) } }
               : { type: 'json_object' },
           }),
         });

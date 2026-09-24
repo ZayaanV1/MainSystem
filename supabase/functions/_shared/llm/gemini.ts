@@ -37,6 +37,10 @@ function classify(status: number, body: string): LlmFailure {
   // Google returns 400 with RESOURCE_EXHAUSTED in some quota cases.
   if (/RESOURCE_EXHAUSTED|quota/i.test(body)) return 'quota';
   if (status === 401 || status === 403) return 'unconfigured';
+  // A key Google does not recognise comes back as a 400, not a 401. It was
+  // read as "could not reach the model" — advice to retry, for a key that
+  // will be rejected every time.
+  if (/API key not valid|API_KEY_INVALID/i.test(body)) return 'unconfigured';
   if (/SAFETY|blocked/i.test(body)) return 'refused';
   if (status === 404) return 'retired';
   if (/is no longer available|not found|NOT_FOUND/i.test(body)) return 'retired';
@@ -151,7 +155,14 @@ export function geminiProvider(apiKey: string): LlmProvider {
           const failure = classify(res.status, raw);
           let message = `HTTP ${res.status}: ${raw.slice(0, 300)}`;
 
-          if (failure === 'retired') {
+          /*
+           * An overloaded model (503, "experiencing high demand") takes the
+           * same way out as a retired one: another current model on the same
+           * key is usually free when the default is not, and one extra
+           * request beats sending a person away from a feature that would
+           * have worked a model over.
+           */
+          if (failure === 'retired' || res.status === 503) {
             /*
              * Recover rather than report.
              *
@@ -168,9 +179,11 @@ export function geminiProvider(apiKey: string): LlmProvider {
              * a sequence of slow failures on a shared quota.
              */
             const models = await availableModels(apiKey);
-            const replacement = bestReplacement(models);
+            // Never the default itself: retired, it cannot answer; overloaded,
+            // asking it a second time is the same request to the same queue.
+            const replacement = bestReplacement(models.filter((m) => m !== MODEL));
 
-            if (replacement && replacement !== MODEL) {
+            if (replacement) {
               const second = await call(replacement);
               if (second.ok) {
                 // Fall through into the normal success path with the retry's
@@ -183,7 +196,7 @@ export function geminiProvider(apiKey: string): LlmProvider {
               }
             }
 
-            if (usedModel === MODEL) message = models.length
+            if (usedModel === MODEL && failure === 'retired') message = models.length
               ? `Model "${MODEL}" is unavailable and no replacement worked. This key can use: ${models.slice(0, 12).join(', ')}`
               : `Model "${MODEL}" is unavailable, and the model list could not be read.`;
           }

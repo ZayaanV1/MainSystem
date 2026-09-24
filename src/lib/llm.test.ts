@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bestReplacement, classify, schemaUnsupported } from '../../supabase/functions/_shared/llm/groq';
+import { bestReplacement, classify, schemaUnsupported, strictSchema } from '../../supabase/functions/_shared/llm/groq';
 import { withFallback } from '../../supabase/functions/_shared/llm/chain';
 import type { LlmProvider, LlmResult } from '../../supabase/functions/_shared/llm/types';
 
@@ -102,5 +102,40 @@ describe('withFallback', () => {
       expect(r.message).toContain('Groq said gone.');
       expect(r.message).toContain('timed out');
     }
+  });
+});
+
+describe('strictSchema', () => {
+  it('closes every object, at every depth, and leaves the rest alone', () => {
+    const out = strictSchema({
+      type: 'object',
+      properties: {
+        reply: { type: 'string' },
+        action: { type: 'object', properties: { kind: { type: 'string' } } },
+        cited: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' } } } },
+      },
+      required: ['reply'],
+    }) as { additionalProperties: boolean; required: string[]; properties: Record<string, Record<string, unknown> & { items?: Record<string, unknown> }> };
+    expect(out.additionalProperties).toBe(false);
+    expect(out.properties.action.additionalProperties).toBe(false);
+    expect(out.properties.cited.items?.additionalProperties).toBe(false);
+    expect(out.properties.reply).toEqual({ type: 'string' });
+    expect(out.required).toEqual(['reply']);
+  });
+
+  it('keeps an explicit additionalProperties as written', () => {
+    const out = strictSchema({ type: 'object', additionalProperties: true, properties: {} }) as Record<string, unknown>;
+    expect(out.additionalProperties).toBe(true);
+  });
+});
+
+describe('Groq schema complaints fall back to JSON mode', () => {
+  it('recognises the strict-mode rule that broke the chatbot', () => {
+    expect(
+      schemaUnsupported(
+        400,
+        err("invalid JSON schema for response_format: 'reply': /properties/action: `additionalProperties:false` must be set on every object"),
+      ),
+    ).toBe(true);
   });
 });
