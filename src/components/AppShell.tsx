@@ -82,6 +82,7 @@ function TabBar<T extends string>({
   onNavigate: (id: T) => void;
 }) {
   const [more, setMore] = useState(false);
+  const reduced = useReducedMotion();
 
   const shown = items.slice(0, PRIMARY);
   const rest = items.slice(PRIMARY);
@@ -153,10 +154,24 @@ function TabBar<T extends string>({
               }}
               aria-current={active ? 'page' : undefined}
               className={[
-                'flex h-[var(--tab-bar)] flex-1 flex-col items-center justify-center gap-1',
+                'relative flex h-[var(--tab-bar)] flex-1 flex-col items-center justify-center gap-1',
                 active ? 'text-text-hi' : 'text-text-low',
               ].join(' ')}
             >
+              {/*
+                One lit capsule that slides to the tab you chose, the same
+                object as the rail's and the calendar style picker's — so
+                "where am I" is answered by a single moving thing rather than
+                by which label happens to be brighter.
+              */}
+              {active && (
+                <motion.span
+                  layoutId="tab-lit"
+                  aria-hidden
+                  className="nav-lit absolute inset-x-1.5 inset-y-1.5 -z-10 rounded-pill"
+                  transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 460, damping: 38 }}
+                />
+              )}
               <span aria-hidden>{item.icon}</span>
               <span className="type-caption">{item.short ?? item.label}</span>
             </button>
@@ -234,7 +249,7 @@ function Rail<T extends string>({
                     ? { duration: 0 }
                     : { type: 'spring', stiffness: 420, damping: 34 }
                 }
-                className="absolute inset-0 -z-10 rounded-card bg-ink-700"
+                className="nav-lit absolute inset-0 -z-10 rounded-card"
               />
             )}
             <span aria-hidden className="shrink-0 text-text-mid">

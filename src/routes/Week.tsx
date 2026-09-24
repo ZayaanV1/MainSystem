@@ -125,7 +125,7 @@ export function Week({
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <div>
-          <h1 className="type-h1 text-text-hi">Week</h1>
+          <h1 className="page-title">Week</h1>
           <p className="type-caption mt-1 text-text-low">
             {formatDay(today)} to {formatDay(grouping.days[WEEK_DAYS - 1].day)}
           </p>

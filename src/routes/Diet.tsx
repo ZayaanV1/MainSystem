@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { SectionHead } from '../components/SectionHead';
 import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { LoadFailure } from '../components/LoadFailure';
@@ -108,7 +109,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Diet tracker</h1>
+        <h1 className="page-title">Diet tracker</h1>
         <div className="flex items-baseline gap-4">
           <Button variant="quiet" onClick={() => setEditingTargets(true)}>
             Macro targets
@@ -145,7 +146,10 @@ export function Diet({ onBack }: { onBack: () => void }) {
         still only as a stroke, still with the written value beneath it.
       */}
       {t ? (
-        <section className="mb-8 px-4 lg:flex lg:items-center lg:gap-10">
+        // The day's numbers on one hero surface rather than loose on the page:
+        // the rings are the reason the screen is opened, and a panel lit from
+        // the corner is what tells the eye so before any ring is read.
+        <section className="mat mat-hero mx-4 mb-8 px-5 py-7 lg:flex lg:items-center lg:gap-10 lg:px-8">
           <div className="mb-6 flex justify-center lg:mb-0 lg:shrink-0">
             <Ring
               label="Calories"
@@ -236,14 +240,16 @@ export function Diet({ onBack }: { onBack: () => void }) {
 
       {data.savedMeals.length > 0 && (
         <section className="mb-8">
-          <div className="mb-1 flex items-baseline justify-between gap-4 px-4">
-            <h2 className="type-h2 text-text-hi">Saved meals</h2>
-            <Button variant="quiet"
-              onClick={() => setEditingMeals((v) => !v)}>
-              {editingMeals ? 'Done' : 'Edit'}
-            </Button>
-          </div>
-          <p className="type-note mb-3 px-4 text-text-low">
+          <SectionHead
+            title="Saved meals"
+            count={data.savedMeals.length}
+            aside={
+              <Button variant="quiet" size="sm" onClick={() => setEditingMeals((v) => !v)}>
+                {editingMeals ? 'Done' : 'Edit'}
+              </Button>
+            }
+          />
+          <p className="type-note -mt-2 mb-3 px-4 text-text-low">
             {editingMeals
               ? 'Removing a meal leaves what you already logged alone.'
               : portion === 1
@@ -258,11 +264,11 @@ export function Diet({ onBack }: { onBack: () => void }) {
             accident while trying to log breakfast.
           */}
           {editingMeals ? (
-            <div className="flex flex-col">
+            <div className="mat flex flex-col">
               {data.savedMeals.map((meal) => (
                 <div
                   key={meal.id}
-                  className="flex items-baseline justify-between gap-4 border-b border-ink-600 px-4 py-3"
+                  className="mat-row flex items-center justify-between gap-4 px-4 py-2"
                 >
                   <span className="type-body text-text-hi">{meal.name}</span>
                   <Button variant="quiet" size="sm"
@@ -289,8 +295,8 @@ export function Diet({ onBack }: { onBack: () => void }) {
 
       {recent.length > 0 && (
         <section className="mb-8">
-          <h2 className="type-h2 mb-1 px-4 text-text-hi">Logged recently</h2>
-          <p className="type-note mb-3 px-4 text-text-low">
+          <SectionHead title="Logged recently" />
+          <p className="type-note -mt-2 mb-3 px-4 text-text-low">
             From the last two weeks. Today's entries are not repeated here.
           </p>
           <div className="flex flex-wrap gap-2 px-4">
@@ -310,7 +316,7 @@ export function Diet({ onBack }: { onBack: () => void }) {
 
         <div>
       <section className="mb-8 flex-1">
-        <h2 className="type-h2 mb-3 px-4 text-text-hi">Today</h2>
+        <SectionHead title="Today" />
 
         {data.entries.length === 0 ? (
           <EmptyState>Nothing logged yet.</EmptyState>
@@ -431,16 +437,16 @@ function MealSuggestions({
 
   return (
     <section className="mb-8">
-      <h2 className="type-h2 mb-1 px-4 text-text-hi">What fits</h2>
-      <p className="type-note mb-3 px-4 text-text-low">
+      <SectionHead title="What fits" />
+      <p className="type-note -mt-2 mb-3 px-4 text-text-low">
         {remaining && remaining.protein_g > 0
           ? `${Math.round(remaining.protein_g)} g of protein and ${Math.round(remaining.calories).toLocaleString('en-CA')} kcal left.`
           : `${Math.round(remaining?.calories ?? 0).toLocaleString('en-CA')} kcal left.`}
       </p>
 
-      <div className="flex flex-col">
+      <div className="mat flex flex-col">
         {fits.map((fit) => (
-          <Pressable align="baseline" className="justify-between gap-4 border-b border-ink-600 px-4 py-3 last:border-b-0"
+          <Pressable align="baseline" className="mat-row justify-between gap-4 px-4 py-3"
             key={fit.meal.id}
             onClick={() => onLog(fit.meal, fit.portion)}>
             <span className="type-body text-text-hi">
@@ -616,7 +622,7 @@ function DietSkeleton({ onBack }: { onBack: () => void }) {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Diet tracker</h1>
+        <h1 className="page-title">Diet tracker</h1>
         <div className="flex items-baseline gap-4">
           {/* Real buttons, disabled. Spans measured six pixels taller than the
               buttons they stand in for, which moved everything below them. */}

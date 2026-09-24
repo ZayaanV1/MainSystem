@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { SectionHead } from '../components/SectionHead';
 import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -7,7 +8,6 @@ import { SeriesList } from './SeriesList';
 import { CalendarImport } from './CalendarImport';
 import { CalendarFeeds } from './CalendarFeeds';
 import { courseGrades, gradeSummary } from '../lib/grades';
-import { Chip } from '../components/Chip';
 import { SyllabusImport } from './SyllabusImport';
 import { EmptyState } from '../components/EmptyState';
 import { Field } from '../components/Field';
@@ -109,7 +109,7 @@ export function Plan({ courses, onBack, onChanged }: {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Courses and syllabus</h1>
+        <h1 className="page-title">Courses and syllabus</h1>
         <Button variant="quiet" onClick={onBack}>
           Today
         </Button>
@@ -130,8 +130,8 @@ export function Plan({ courses, onBack, onChanged }: {
         is friction where there need be none.
       */}
       <section className="mb-8">
-        <h2 className="type-h2 mb-1 px-4 text-text-hi">Something every week</h2>
-        <p className="type-note mb-3 px-4 text-text-low">
+        <SectionHead title="Something every week" />
+        <p className="type-note -mt-2 mb-3 px-4 text-text-low">
           A weekly lab, a Tuesday tutorial, a biweekly problem set. Set the
           pattern once and every one gets its own date.
         </p>
@@ -164,8 +164,8 @@ export function Plan({ courses, onBack, onChanged }: {
       <CalendarFeeds onChanged={onChanged} />
 
       <section className="mb-8">
-        <h2 className="type-h2 mb-1 px-4 text-text-hi">Bring in your timetable</h2>
-        <p className="type-note mb-3 px-4 text-text-low">
+        <SectionHead title="Bring in your timetable" />
+        <p className="type-note -mt-2 mb-3 px-4 text-text-low">
           Paste your university&rsquo;s calendar file and every lecture, tutorial
           and lab lands on the right day. A weekly class becomes one entry here
           and a term of events in the app.
@@ -178,8 +178,8 @@ export function Plan({ courses, onBack, onChanged }: {
       </section>
 
       <section className="mb-8">
-        <h2 className="type-h2 mb-1 px-4 text-text-hi">Read a whole syllabus</h2>
-        <p className="type-note mb-3 px-4 text-text-low">
+        <SectionHead title="Read a whole syllabus" />
+        <p className="type-note -mt-2 mb-3 px-4 text-text-low">
           Paste the whole thing or hand it a PDF. Every deliverable comes back for checking before
           anything is added.
         </p>
@@ -191,8 +191,8 @@ export function Plan({ courses, onBack, onChanged }: {
       </section>
 
       <section className="mb-8">
-        <h2 className="type-h2 mb-1 px-4 text-text-hi">Type deadlines</h2>
-        <p className="type-note mb-3 px-4 text-text-low">
+        <SectionHead title="Type deadlines" />
+        <p className="type-note -mt-2 mb-3 px-4 text-text-low">
           One per line. Course, date, time and effort are picked out wherever they sit. No model
           involved, so this works offline and never runs out of requests.
         </p>
@@ -217,7 +217,7 @@ export function Plan({ courses, onBack, onChanged }: {
 
       {preview && (
         <section className="mb-12">
-          <h2 className="type-h2 mb-1 px-4 text-text-hi">Before anything is saved</h2>
+          <SectionHead title="Before anything is saved" />
           <p className="type-caption mb-3 px-4 text-text-low">{summarise(chosen)}</p>
 
           <Card>
@@ -431,21 +431,27 @@ function CourseEditor({
 
   return (
     <section className="mb-8">
-      <div className="mb-3 flex items-baseline justify-between gap-4 px-4">
-        <h2 className="type-h2 text-text-hi">Courses</h2>
-        <div className="flex items-baseline gap-4">
-          <Button variant="quiet"
-            onClick={() => {
-              setManaging((v) => !v);
-              if (!managing) refreshAll();
-            }}>
-            {managing ? 'Done' : 'Archive'}
-          </Button>
-          <Button variant="quiet" onClick={() => setOpen((v) => !v)}>
-            {open ? 'Cancel' : 'Add'}
-          </Button>
-        </div>
-      </div>
+      <SectionHead
+        title="Courses"
+        count={courses.length || null}
+        aside={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="quiet"
+              size="sm"
+              onClick={() => {
+                setManaging((v) => !v);
+                if (!managing) refreshAll();
+              }}
+            >
+              {managing ? 'Done' : 'Archive'}
+            </Button>
+            <Button variant="quiet" size="sm" onClick={() => setOpen((v) => !v)}>
+              {open ? 'Cancel' : 'Add'}
+            </Button>
+          </div>
+        }
+      />
 
       {/*
         Archiving a course only stops it appearing in chips, filters and
@@ -455,13 +461,14 @@ function CourseEditor({
       */}
       {managing ? (
         <div className="flex flex-col">
-          <p className="mb-2 px-4 type-note text-text-low">
+          <p className="mb-3 px-4 type-note text-text-low">
             Archiving hides a course from the lists. Everything you logged against it stays.
           </p>
+          <div className="mat flex flex-col">
           {all.map((c) => (
             <div
               key={c.id}
-              className="flex items-baseline justify-between gap-4 border-b border-ink-600 px-4 py-3 last:border-b-0"
+              className="mat-row flex items-center justify-between gap-4 px-4 py-2"
             >
               <span className={`type-body ${c.archived ? 'text-text-low' : 'text-text-hi'}`}>
                 {c.code ?? c.name}
@@ -478,16 +485,36 @@ function CourseEditor({
               </Button>
             </div>
           ))}
+          </div>
         </div>
       ) : courses.length === 0 && !open ? (
         <EmptyState>No courses yet. Adding them lets a pasted syllabus match itself up.</EmptyState>
       ) : (
-        <div className="flex flex-wrap gap-2 px-4">
-          {courses.map((c) => (
-            <Chip key={c.id} courseVar={courseVar(c.colour_index)}>
-              {c.code ?? c.name}
-            </Chip>
-          ))}
+        /*
+          Each course as a tile of its own glass: the code set large, the full
+          name under it. They were four small chips, which is how a filter
+          looks — and this is not a filter, it is the term.
+        */
+        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          {courses.map((c) => {
+            const cv = courseVar(c.colour_index);
+            return (
+              <div
+                key={c.id}
+                className="mat flex min-h-24 flex-col justify-end gap-1 px-4 py-3.5"
+                data-block={cv ? true : undefined}
+                style={cv ? ({ '--b': `var(${cv}-rgb)` } as CSSProperties) : undefined}
+              >
+                <span aria-hidden className="chip-dot mb-auto" />
+                <span className="numeral text-text-hi" style={{ fontSize: '1.375rem', letterSpacing: '-0.02em' }}>
+                  {c.code ?? c.name}
+                </span>
+                {c.code && c.name !== c.code && (
+                  <span className="type-note line-clamp-2 text-text-mid">{c.name}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -548,7 +575,7 @@ function Grades({ courses }: { courses: Course[] }) {
   if (failed) {
     return (
       <section className="mb-8">
-        <h2 className="type-h2 mb-3 px-4 text-text-hi">Grades</h2>
+        <SectionHead title="Grades" />
         <p className="px-4 type-note text-text-mid">
           Couldn&rsquo;t load what your work is worth. Nothing has been lost.
         </p>
@@ -564,25 +591,45 @@ function Grades({ courses }: { courses: Course[] }) {
 
   return (
     <section className="mb-8">
-      <h2 className="type-h2 mb-3 px-4 text-text-hi">Grades</h2>
+      <SectionHead title="Grades" />
       <Card>
-        {byCourse.map(({ course, grades }) => (
-          <div
-            key={course.id}
-            className="flex flex-col gap-1 border-b border-ink-600 px-4 py-3 last:border-b-0"
-          >
-            <span className="flex items-center gap-2">
-              {/* Course colour stays a 6px dot, never a fill. */}
-              <span
-                aria-hidden
-                className="h-1.5 w-1.5 shrink-0 rounded-pill"
-                style={{ backgroundColor: `var(${courseVar(course.colour_index)})` }}
-              />
-              <span className="type-label text-text-hi">{course.code ?? course.name}</span>
-            </span>
-            <span className="type-note text-text-mid">{gradeSummary(grades)}</span>
-          </div>
-        ))}
+        {byCourse.map(({ course, grades }) => {
+          const cv = courseVar(course.colour_index);
+          return (
+            <div
+              key={course.id}
+              className="mat-row flex flex-col gap-2 px-4 py-3.5"
+              data-block={cv ? true : undefined}
+              style={cv ? ({ '--b': `var(${cv}-rgb)` } as CSSProperties) : undefined}
+            >
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="flex items-center gap-2">
+                  <span aria-hidden className="chip-dot" />
+                  <span className="type-label text-text-hi">{course.code ?? course.name}</span>
+                </span>
+                <span className="numeral text-text-hi" style={{ fontSize: '1.25rem' }}>
+                  {Math.round(grades.weightKnown)}
+                  <span className="type-caption text-text-low"> % on the calendar</span>
+                </span>
+              </span>
+              {/*
+                The whole course as one bar, out of 100. Solid is weight with a
+                mark recorded, hatched is weight on the calendar but not yet
+                marked, and the empty track is what no syllabus has named yet.
+                It shows how much of the course is DECIDED, never how well it
+                is going — the bar is the course's colour whatever the marks.
+              */}
+              <span aria-hidden className="grade-bar">
+                <span className="grade-marked" style={{ width: `${Math.min(100, grades.weightMarked)}%` }} />
+                <span
+                  className="grade-known"
+                  style={{ width: `${Math.max(0, Math.min(100, grades.weightKnown) - Math.min(100, grades.weightMarked))}%` }}
+                />
+              </span>
+              <span className="type-note text-text-mid">{gradeSummary(grades)}</span>
+            </div>
+          );
+        })}
       </Card>
       <p className="mt-2 px-4 type-note text-text-low">
         Points already decided, and what is still outstanding. Nothing here is a

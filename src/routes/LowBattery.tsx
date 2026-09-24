@@ -55,7 +55,7 @@ export function LowBattery({
   return (
     <main className="page-frame">
       <header className="mb-8 px-4">
-        <h1 className="type-h1 text-text-hi">Today</h1>
+        <h1 className="page-title">Today</h1>
         <p className="type-caption mt-1 text-text-low">{formatDay(today)}</p>
         <p className="type-body mt-4 text-text-mid">Just the essentials.</p>
       </header>

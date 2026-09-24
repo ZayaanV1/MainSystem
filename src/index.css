@@ -882,10 +882,18 @@
  * linear curve so the control follows the cursor instead of lagging behind it.
  */
 @utility fx-magnet {
-  transition: transform 380ms var(--ease-spring);
+  /*
+   * Only where there is a real pointer. The spring overshoots by design, and
+   * on a phone the only transform this control ever makes is the press — so
+   * the press scaled down, sprang back PAST full size and settled: a wobble on
+   * every tap of What now?, the one button a stuck person presses.
+   */
+  @media (hover: hover) and (pointer: fine) {
+    transition: transform 380ms var(--ease-spring);
 
-  &.is-tracking {
-    transition: transform 120ms linear;
+    &.is-tracking {
+      transition: transform 120ms linear;
+    }
   }
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { SectionHead } from '../components/SectionHead';
 import { Button } from '../components/Button';
 import { drawPath } from '../lib/motion';
 import { EmptyState } from '../components/EmptyState';
@@ -40,7 +41,7 @@ export function Trend({ onBack }: { onBack: () => void }) {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Weight trend</h1>
+        <h1 className="page-title">Weight trend</h1>
         <Button variant="quiet" onClick={onBack}>
           Diet tracker
         </Button>
@@ -63,7 +64,7 @@ export function Trend({ onBack }: { onBack: () => void }) {
           )}
 
           <section className="mb-12">
-            <h2 className="type-h2 mb-3 px-4 text-text-hi">By week</h2>
+            <SectionHead title="By week" />
             <div className="flex flex-col">
               {[...weeks].reverse().map((w) => (
                 <div

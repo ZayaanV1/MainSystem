@@ -74,7 +74,7 @@ export function SignIn() {
   if (sentTo) {
     return (
       <main className="mx-auto flex min-h-svh max-w-100 flex-col justify-center px-6">
-        <h1 className="type-h1 mb-2 text-text-hi">Check your email</h1>
+        <h1 className="page-title mb-2">Check your email</h1>
         <p className="type-body mb-6 text-text-mid">
           A confirmation link is on its way to {sentTo}. Open it and you are in.
         </p>
@@ -95,7 +95,7 @@ export function SignIn() {
 
   return (
     <main className="mx-auto flex min-h-svh max-w-100 flex-col justify-center px-6">
-      <h1 className="type-h1 mb-2 text-text-hi">
+      <h1 className="page-title mb-2">
         {mode === 'in' ? 'Planner' : 'Start a planner'}
       </h1>
       <p className="type-body mb-8 text-text-mid">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { SectionHead } from '../components/SectionHead';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Field } from '../components/Field';
@@ -97,8 +98,8 @@ export function CalendarFeeds({ onChanged }: CalendarFeedsProps) {
 
   return (
     <section className="mb-8">
-      <h2 className="type-h2 mb-1 px-4 text-text-hi">Your calendars</h2>
-      <p className="type-note mb-3 px-4 text-text-low">
+      <SectionHead title="Your calendars" />
+      <p className="type-note -mt-2 mb-3 px-4 text-text-low">
         Google Calendar, Outlook, iCloud or a university timetable, kept in sync. Changes appear
         within a few minutes, and straight away when you open the app.
       </p>

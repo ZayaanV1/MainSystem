@@ -156,7 +156,7 @@ export function Chat({ courses, onBack, onChanged }: {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Abood</h1>
+        <h1 className="page-title">Abood</h1>
         <div className="flex items-baseline gap-4">
           {messages.length > 0 && (
             <Button variant="quiet"
@@ -182,17 +182,29 @@ export function Chat({ courses, onBack, onChanged }: {
 
         {messages.map((m) => (
           <div key={m.id} className={m.role === 'user' ? 'self-end' : 'self-start'}>
+            {/*
+              Yours in phthalo glass, Abood's on the app's own lit panel — the
+              two voices told apart by material as well as by side, so a long
+              exchange reads as a conversation rather than a column of boxes.
+              The corner nearest the speaker is tightened, the way a speech
+              bubble points at who said it.
+            */}
             <div
               className={[
-                'max-w-[85vw] rounded-card px-4 py-3',
-                m.role === 'user' ? 'bg-ink-600' : 'bg-ink-800',
+                'max-w-[min(85vw,40rem)] px-4 py-3',
+                m.role === 'user' ? 'chat-mine' : 'mat chat-theirs',
               ].join(' ')}
             >
-              <p className="type-body whitespace-pre-wrap text-text-hi">{m.content}</p>
+              <p
+                className={`type-body whitespace-pre-wrap ${m.role === 'user' ? 'text-on-accent-2' : 'text-text-hi'}`}
+              >
+                {m.content}
+              </p>
             </div>
 
             {m.proposed_action && (
-              <div className="mt-2 flex flex-col gap-2 rounded-card border border-ink-600 p-3">
+              <div className="mat mat-raised mt-2 flex flex-col gap-2 p-4">
+                <p className="kicker">{m.action_taken ? 'Done' : 'Proposed'}</p>
                 <p className="type-note text-text-low">
                   {m.action_taken ? 'Done.' : 'Nothing is saved until you tap this.'}
                 </p>

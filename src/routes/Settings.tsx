@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { SectionHead } from '../components/SectionHead';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
@@ -111,14 +112,14 @@ export function Settings({ onBack }: { onBack: () => void }) {
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Settings</h1>
+        <h1 className="page-title">Settings</h1>
         <Button variant="quiet" onClick={onBack}>
           Today
         </Button>
       </header>
 
       <section className="mb-8">
-        <h2 className="type-h2 mb-3 px-4 text-text-hi">Notifications</h2>
+        <SectionHead title="Notifications" />
 
         <Card className="p-4">
           <p className="type-body text-text-mid">{push ? PUSH_COPY[push] : 'Checking.'}</p>
@@ -159,12 +160,12 @@ export function Settings({ onBack }: { onBack: () => void }) {
       </section>
 
       <section className="mb-8">
-        <h2 className="type-h2 mb-3 px-4 text-text-hi">Morning digest</h2>
+        <SectionHead title="Morning digest" />
         <DigestSettings />
       </section>
 
       <section className="mb-8">
-        <h2 className="type-h2 mb-3 px-4 text-text-hi">Delivery log</h2>
+        <SectionHead title="Delivery log" />
 
         {log.length === 0 ? (
           <EmptyState>No delivery attempts recorded yet.</EmptyState>
@@ -216,7 +217,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
       <Appearance />
 
       <section className="mb-8">
-        <h2 className="type-h2 mb-3 px-4 text-text-hi">Your data</h2>
+        <SectionHead title="Your data" />
         <Card className="p-4">
           <p className="type-body mb-4 text-text-mid">
             Everything this app holds, in one file. You can leave whenever you want.
@@ -277,7 +278,7 @@ function CalendarFeed({ userId }: { userId: string }) {
 
   return (
     <section className="mb-8">
-      <h2 className="type-h2 mb-1 px-4 text-text-hi">Calendar feed</h2>
+      <SectionHead title="Calendar feed" />
       <p className="type-note mb-3 max-w-prose px-4 text-text-low">
         Subscribe to this in any calendar app and your deadlines appear there. Titles and times
         only — never notes.
@@ -361,7 +362,7 @@ function ApiKey({ userId }: { userId: string }) {
 
   return (
     <section className="mb-8">
-      <h2 className="type-h2 mb-1 px-4 text-text-hi">Your own AI key</h2>
+      <SectionHead title="Your own AI key" />
       <p className="type-note mb-3 max-w-prose px-4 text-text-low">
         Food parsing and Abood share one free allowance across everyone using this app. Add your
         own Gemini key and you get your own limits instead, with no daily cap on questions. It is
@@ -439,7 +440,7 @@ function Appearance() {
 
   return (
     <section className="mb-8">
-      <h2 className="type-h2 mb-3 px-4 text-text-hi">Appearance</h2>
+      <SectionHead title="Appearance" />
       <Card className="p-4">
         <div role="radiogroup" aria-label="Theme" className="flex flex-wrap gap-2">
           {options.map((o) => (
@@ -500,7 +501,7 @@ function DeleteAccount() {
 
   return (
     <section className="mb-12">
-      <h2 className="type-h2 mb-3 px-4 text-text-hi">Delete this account</h2>
+      <SectionHead title="Delete this account" />
       <Card className="p-4">
         {!open ? (
           <>
@@ -589,7 +590,7 @@ function GroqKey({ userId }: { userId: string }) {
 
   return (
     <section className="mb-8">
-      <h2 className="type-h2 mb-3 px-4 text-text-hi">Abood&rsquo;s model</h2>
+      <SectionHead title="Abood’s model" />
       <Card className="p-4">
         <p className="type-body mb-3 text-text-mid">
           A Groq key runs the chatbot on your own account, so the shared daily

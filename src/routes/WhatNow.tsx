@@ -5,7 +5,7 @@ import { useMagnetic } from '../lib/useMagnetic';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { whatNow, type Task } from '../lib/intelligence';
-import type { Assignment, Course } from '../lib/planner';
+import { courseVar, type Assignment, type Course } from '../lib/planner';
 import { startSession } from '../lib/focus';
 
 /**
@@ -108,7 +108,7 @@ export function WhatNow({
   return (
     <section className="mb-8 px-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="tag type-label">I have</span>
+        <span className="kicker mr-1">I have</span>
         {WINDOWS.map((m) => (
           <Chip key={m} selected={minutes === m} onClick={() => setMinutes(minutes === m ? null : m)}>
             {m < 60 ? `${m} min` : `${m / 60} h`}
@@ -117,18 +117,32 @@ export function WhatNow({
       </div>
 
       {choice && picked ? (
-        <Card>
-          <Pressable align="start" className="flex-col gap-2 px-4 py-4"
-            onClick={() => onOpen(picked)}>
-            <span className="type-h2 text-text-hi">{picked.title}</span>
-            <span className="type-note text-text-low">{choice.because}</span>
+        /*
+          The pick, on the screen's hero surface and in its course's glass.
+          It is the one answer the app chose to give, so it gets the one
+          surface that says "this, before anything else".
+        */
+        <Card
+          elevation="hero"
+          courseVar={courseVar(courses.find((c) => c.id === picked.course_id)?.colour_index)}
+        >
+          <Pressable
+            align="start"
+            className="flex-col gap-2 rounded-[inherit] px-5 py-5"
+            onClick={() => onOpen(picked)}
+          >
+            <span className="kicker">
+              What now
+              {courses.find((c) => c.id === picked.course_id)?.code
+                ? ` · ${courses.find((c) => c.id === picked.course_id)?.code}`
+                : ''}
+            </span>
+            <span className="slip-title text-text-hi" style={{ fontSize: '1.375rem' }}>
+              {picked.title}
+            </span>
+            <span className="type-note text-text-mid">{choice.because}</span>
             {picked.effort_minutes !== null && (
-              <span className="tag type-caption">
-                {picked.effort_minutes} min
-                {courses.find((c) => c.id === picked.course_id)
-                  ? ` · ${courses.find((c) => c.id === picked.course_id)?.code ?? ''}`
-                  : ''}
-              </span>
+              <span className="tag type-caption">{picked.effort_minutes} min</span>
             )}
           </Pressable>
         </Card>

@@ -107,7 +107,7 @@
   transition:
     border-color var(--dur-fast) var(--ease-out),
     background-color var(--dur-fast) var(--ease-out),
-    transform var(--dur-tap) var(--ease-spring);
+    transform var(--dur-tap) var(--ease-out);
 }
 
 .due-toggle:hover > span {

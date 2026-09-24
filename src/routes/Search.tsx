@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { SectionHead } from '../components/SectionHead';
 import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
@@ -74,19 +75,34 @@ export function Search({
   return (
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="type-h1 text-text-hi">Search</h1>
+        <h1 className="page-title">Search</h1>
         <Button variant="quiet" onClick={onBack}>
           Today
         </Button>
       </header>
 
-      <div className="mb-6 px-4">
+      <div className="relative mb-8 px-4">
+        <svg
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-8 -translate-y-1/2 text-text-low"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.9"
+          strokeLinecap="round"
+        >
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m20 20-4.2-4.2" />
+        </svg>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Anything"
+          aria-label="Search"
           autoFocus
-          className="well type-body text-text-hi placeholder:text-text-low"
+          className="well capture-well pl-11 type-body"
         />
       </div>
 
@@ -100,10 +116,10 @@ export function Search({
         ) : (
           grouped.map(({ kind, items }) => (
             <section key={kind} className="mb-6">
-              <h2 className="type-h2 mb-2 px-4 text-text-hi">{KIND_LABEL[kind]}</h2>
-              <div className="flex flex-col">
+              <SectionHead title={KIND_LABEL[kind]} count={items.length} />
+              <div className="mat flex flex-col">
                 {items.map((h) => (
-                  <Pressable align="baseline" className="justify-between gap-4 border-b border-ink-600 px-4 py-3 last:border-b-0"
+                  <Pressable align="baseline" className="mat-row justify-between gap-4 px-4 py-3"
                     key={`${h.kind}:${h.id}`}
                     onClick={() => h.kind === 'assignment' && onOpenAssignment(h.id)}>
                     <span className={`type-body ${h.done ? 'text-text-low' : 'text-text-hi'}`}>
