@@ -80,6 +80,7 @@ export function HoursWeek(props: StyleProps) {
             key={group.day}
             items={items}
             from={from}
+            span={to - from}
             isToday={group.day === props.today}
             nowMin={nowInRange ? nowMin : null}
             props={props}
@@ -139,6 +140,7 @@ function NarrowDay({ group, items, props }: { group: DayGroup; items: Item[]; pr
             <Column
               items={items}
               from={from}
+              span={to - from}
               isToday={isToday}
               nowMin={isToday && nowMin >= from * 60 && nowMin <= to * 60 ? nowMin : null}
               props={props}
@@ -166,12 +168,15 @@ function Axis({ from, to }: { from: number; to: number }) {
 function Column({
   items,
   from,
+  span,
   isToday,
   nowMin,
   props,
 }: {
   items: Item[];
   from: number;
+  /** Hours the grid shows. */
+  span: number;
   isToday: boolean;
   /** Where now falls, when it is on this grid at all. */
   nowMin: number | null;
@@ -225,9 +230,23 @@ function Column({
         );
       })}
 
-      {marks.map((m) => (
-        <div key={m.id} className="hours-mark" style={vars({ '--top': m.startMin - origin })}>
+      {marks.map((m) => {
+        const at = m.startMin - origin;
+        const edge = at < 0 ? 'top' : at > span * 60 ? 'bottom' : undefined;
+        const when = clock(m.kind === 'due' ? m.at : m.start);
+        return (
+        <div
+          key={m.id}
+          className="hours-mark"
+          data-edge={edge}
+          style={vars({ '--top': Math.min(Math.max(at, 0), span * 60) })}
+        >
           <div className="hours-flag">
+            {edge && (
+              <span className="shrink-0 pl-1 type-caption text-text-mid blk-num">
+                {when.hm} {when.suffix}
+              </span>
+            )}
             {m.kind === 'due' ? (
               <>
                 <DueToggle a={m.assignment} onToggle={() => props.onToggle(m.assignment)} />
@@ -261,7 +280,8 @@ function Column({
             )}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {nowMin !== null && (
         <div
@@ -314,14 +334,28 @@ function isAllDayish(i: Item): boolean {
   return (i.kind === 'event' && i.allDay) || (i.kind === 'due' && !i.timed);
 }
 
-/** Every minute the grid must be able to show for these items. */
+/**
+ * The minutes the grid is fitted to.
+ *
+ * Events only, when there are any. A deadline is a flag, and one WeBWorK due
+ * at 12:00 a.m. was enough to stretch the whole week's grid back to
+ * midnight — eight hours of empty rows above the first lecture, for the sake
+ * of one flag. A deadline outside the fitted hours is pinned to the edge it
+ * fell past instead, with its time written on it. Deadlines set the range
+ * only for a day that has nothing else to fit.
+ */
 function minutesIn(items: Item[]): number[] {
-  const out: number[] = [];
+  const events: number[] = [];
+  const dues: number[] = [];
   for (const i of items) {
     if (isAllDayish(i)) continue;
-    out.push(i.startMin);
-    if (i.kind === 'event' && i.endMin !== null) out.push(i.endMin);
+    if (i.kind === 'event') {
+      events.push(i.startMin);
+      if (i.endMin !== null) events.push(i.endMin);
+    } else {
+      dues.push(i.startMin);
+    }
   }
-  return out;
+  return events.length > 0 ? events : dues;
 }
 

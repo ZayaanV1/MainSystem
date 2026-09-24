@@ -58,10 +58,27 @@ export interface DueItem {
 
 export type Item = EventItem | DueItem;
 
-/** A block's course, as the custom property its tints resolve against. */
+/**
+ * A block's course, as the custom property its tints resolve against.
+ *
+ * A block with no course is glass rather than a tint. Travel, the gym and
+ * a study block are most of a real week, and washing them in cream made them
+ * the brightest things on it — the calendar's loudest colour belonging to the
+ * things that are nobody's course. Quiet glass lets the courses carry the
+ * colour, which is the information.
+ */
 export function tint(course?: Course, extra: Record<string, string | number> = {}): CSSProperties {
   const v = courseVar(course?.colour_index);
-  return { ...(v ? { '--b': `var(${v}-rgb)` } : {}), ...extra } as CSSProperties;
+  const colour = v
+    ? { '--b': `var(${v}-rgb)` }
+    : {
+        '--blk-wash': 'var(--glass-fill)',
+        '--blk-wash-top': 'var(--glass-fill-hover)',
+        '--blk-edge': 'var(--glass-edge)',
+        '--blk-glow': 'var(--glass-fill)',
+        '--blk-mark': 'var(--text-low)',
+      };
+  return { ...colour, ...extra } as CSSProperties;
 }
 
 /** "8:45 a.m." split so the numerals and the suffix can be set differently. */

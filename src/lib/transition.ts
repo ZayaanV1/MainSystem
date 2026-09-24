@@ -38,7 +38,11 @@ type Direction = 'forward' | 'back' | 'none';
  * up trusting a type declaration.
  */
 type MaybeViewTransitions = {
-  startViewTransition?: (callback: () => void | Promise<void>) => { finished: Promise<void> };
+  startViewTransition?: (callback: () => void | Promise<void>) => {
+    finished: Promise<void>;
+    ready: Promise<void>;
+    updateCallbackDone: Promise<void>;
+  };
 };
 
 const reduced = () =>
@@ -58,7 +62,8 @@ export function withTransition(apply: () => void, direction: Direction = 'none')
   // Reduced motion still gets a transition — the CSS collapses it to a plain
   // cross-fade rather than removing it. Cutting instantly between two full
   // screens is its own kind of jarring, and a fade is not vestibular motion.
-  if (typeof doc.startViewTransition !== 'function') {
+  // A hidden document cannot animate, and the browser rejects the attempt.
+  if (typeof doc.startViewTransition !== 'function' || doc.visibilityState === 'hidden') {
     apply();
     return;
   }
@@ -66,9 +71,20 @@ export function withTransition(apply: () => void, direction: Direction = 'none')
   doc.documentElement.dataset.transition = reduced() ? 'fade' : direction;
 
   const transition = doc.startViewTransition(apply);
-  void transition.finished.finally(() => {
-    delete doc.documentElement.dataset.transition;
-  });
+  /*
+   * An aborted transition — the tab hidden mid-flight, a second one started
+   * before the first finished — rejects `ready` and `updateCallbackDone`,
+   * and nothing was listening, so every one surfaced as an uncaught
+   * exception. The state change itself still happens; only the animation is
+   * lost, which is not an error worth reporting.
+   */
+  transition.ready.catch(() => {});
+  transition.updateCallbackDone.catch(() => {});
+  void transition.finished
+    .catch(() => {})
+    .finally(() => {
+      delete doc.documentElement.dataset.transition;
+    });
 }
 
 /**

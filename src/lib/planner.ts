@@ -795,8 +795,21 @@ export async function finishOnboarding(userId: string): Promise<void> {
  * a choice, and showing it again next launch would be the app overruling them.
  */
 export async function needsOnboarding(): Promise<boolean> {
-  const { data } = await supabase.from('app_settings').select('onboarded_at').limit(1);
-  return (data ?? [])[0]?.onboarded_at == null;
+  const { data, error } = await supabase.from('app_settings').select('onboarded_at').limit(1);
+  /*
+   * A failed read is not an answer. It read as "never onboarded" — `data` is
+   * null on error — so an existing account whose token was mid-refresh at
+   * launch was greeted with the first-run screen, which then vanished when
+   * the refreshed session re-ran the check. Seen on the live app, Sep 2026.
+   * Throwing lets the caller choose, and the caller treats unknown as "not a
+   * first run": an empty Today is a recoverable first impression, a setup
+   * flow shown to someone with a term of data is not.
+   */
+  if (error) throw error;
+  // No settings row at all is also not a first run we can act on — the row
+  // is created by trigger at signup, so its absence is a fault, not a newcomer.
+  if (!data || data.length === 0) return false;
+  return data[0].onboarded_at == null;
 }
 
 export async function addCourse(

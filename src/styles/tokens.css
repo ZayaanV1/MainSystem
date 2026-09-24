@@ -166,7 +166,7 @@
      calendar-style blocks (Sep 2026). A course may TINT a block — never
      paint it — as a translucent wash under text that stays --text-hi. The
      alphas are capped so every course's strongest wash keeps cream text
-     above 10:1 and --text-mid above 4.5:1, and tests/palette.test.ts
+     at least 7:1 and --text-mid at 4.5:1, and tests/palette.test.ts
      asserts both. Urgency never appears on a wash: a deadline block keeps
      its 3px urgency bar and written label, exactly as a row does.
   
@@ -186,10 +186,10 @@
   --c-6-rgb: 184 154 154;
   --c-7-rgb: 160 168 138;
   --c-8-rgb: 138 148 184;
-  --block-wash: 0.12;
-  --block-wash-top: 0.22;
-  --block-edge: 0.40;
-  --block-glow: 0.34;
+  --block-wash: 0.11;
+  --block-wash-top: 0.23;
+  --block-edge: 0.58;
+  --block-glow: 0.42;
 
   /* ---- focus ----------------------------------------------------------- */
   /* A fifth system, and deliberately none of the other four: focus must not
@@ -390,8 +390,8 @@
     --c-7-rgb: 141 148 121;
     --c-8-rgb: 121 130 162;
     --block-wash: 0.16;
-    --block-wash-top: 0.28;
-    --block-edge: 0.55;
+    --block-wash-top: 0.3;
+    --block-edge: 0.7;
     --block-glow: 0.30;
 
     --focus-ring: #4a6da8;
@@ -478,8 +478,8 @@
   --c-7-rgb: 141 148 121;
   --c-8-rgb: 121 130 162;
   --block-wash: 0.16;
-  --block-wash-top: 0.28;
-  --block-edge: 0.55;
+  --block-wash-top: 0.3;
+  --block-edge: 0.7;
   --block-glow: 0.30;
 
   --focus-ring: #4a6da8;

@@ -251,8 +251,10 @@ function Week({
   props: StyleProps;
   render: (items: Item[], group: DayGroup, isToday: boolean) => ReactNode;
 }) {
+  // A bubble or a ticket stretched across a desktop is a banner, not a block.
+  // Held to a reading width; the hour grid and the ledger use the full frame.
   return (
-    <div className="flex flex-col gap-8 px-4 pb-4">
+    <div className="flex max-w-3xl flex-col gap-8 px-4 pb-4">
       {props.days.map((group) => {
         const isToday = group.day === props.today;
         const items = buildDay(group, props.courseFor, props.progressFor, props.now);
@@ -404,7 +406,7 @@ export function TicketWeek(props: StyleProps) {
           {items.map((it, i) => (
             <Stagger key={it.id} i={i}>
               {it.kind === 'event' ? (
-                <TicketEvent item={it} showSource={props.showSource} />
+                <TicketEvent item={it} />
               ) : (
                 <TicketDue
                   item={it}
@@ -420,9 +422,12 @@ export function TicketWeek(props: StyleProps) {
   );
 }
 
-function TicketEvent({ item, showSource }: { item: EventItem; showSource: boolean }) {
+function TicketEvent({ item }: { item: EventItem }) {
   const c = clock(item.start);
-  const kicker = item.read.type ?? (item.course?.code ?? (showSource ? item.event.source : null) ?? 'Event');
+  // What kind of thing this is, as specifically as the data allows: the
+  // meeting type from a timetable, else the course, else the calendar it
+  // came from. "Event" only when nothing better is known.
+  const kicker = item.read.type ?? item.course?.code ?? item.event.source ?? 'Event';
 
   return (
     <div className="ticket-wrap" data-now={item.state === 'now' || undefined}>
@@ -593,10 +598,8 @@ function LedgerEvent({
         ) : (
           <>
             <b>{c.hm}</b>
-            <small>
-              {c.suffix}
-              {until ? ` – ${until.hm}` : ''}
-            </small>
+            <small>{c.suffix}</small>
+            {until && <small>to {until.hm}</small>}
           </>
         )}
       </div>
