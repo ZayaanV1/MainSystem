@@ -65,7 +65,6 @@ export function NowNext({
         data-block
         style={{ ...tint(course), '--mat-r': 'var(--r-hero)' } as CSSProperties}
       >
-        <span aria-hidden className="slip-bar" style={{ backgroundColor: 'var(--blk-mark)' }} />
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="kicker mb-2">

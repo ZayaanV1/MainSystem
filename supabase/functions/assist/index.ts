@@ -32,6 +32,7 @@ import {
 import { addDays, endOfDayUTC, localDayKey, startOfDayUTC } from '../_shared/time.ts';
 import { checkBudget, recordUse, standDownMessage, type AiKind } from '../_shared/budget.ts';
 import { groqProvider } from '../_shared/llm/groq.ts';
+import { withFallback } from '../_shared/llm/chain.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
 
@@ -92,7 +93,10 @@ const FAILURE_COPY: Record<string, string> = {
   malformed: 'The model returned something unreadable. Nothing was saved.',
   refused: 'The model declined to read that. Add them by hand.',
   unavailable: 'Could not reach the model. Try again, or add them by hand.',
-  retired: 'The configured model is no longer available. This needs GEMINI_MODEL set to a current model.',
+  // Said without naming a setting. It used to blame GEMINI_MODEL even when
+  // the model that failed was Groq's, which sent the reader to the wrong
+  // provider; the detail appended below names the one that actually failed.
+  retired: 'The model behind this has been withdrawn by its provider, and no replacement answered.',
 };
 
 /**
@@ -447,7 +451,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
    */
   const ownGroq = (keyRow?.groq_api_key as string | null)?.trim() || null;
   const groqKey = ownGroq ?? env('GROQ_API_KEY');
-  const chatProvider = groqKey ? groqProvider(groqKey, env('GROQ_MODEL') || undefined) : provider;
+  // Groq first when there is a key, with Gemini behind it: a Groq failure used
+  // to end the question even with a working Gemini key beside it.
+  const chatProvider = groqKey
+    ? withFallback(groqProvider(groqKey, env('GROQ_MODEL') || undefined), provider)
+    : provider;
 
   /*
    * The daily budget exists to stop one account draining a SHARED pool, so the

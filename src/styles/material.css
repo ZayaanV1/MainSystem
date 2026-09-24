@@ -468,14 +468,6 @@ button.chip:active {
   --mat-r: 1.125rem;
 }
 
-.slip-bar {
-  position: absolute;
-  left: 0;
-  top: 0.875rem;
-  bottom: 0.875rem;
-  width: 3px;
-  border-radius: 0 var(--r-pill) var(--r-pill) 0;
-}
 
 .slip-title {
   font-family: var(--font-display);
@@ -638,6 +630,31 @@ button.chip:active {
 
 .chat-theirs {
   --mat-r: 1.25rem 1.25rem 1.25rem 0.375rem;
+}
+
+/* A note about the conversation, not a turn in it: no surface, a dashed rim,
+   the app's small voice. */
+.chat-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  border: 1px dashed var(--ink-500);
+}
+
+/* The composer's dock. Clears the floating tab bar on a phone; the fade
+   behind it lets the conversation pass under without a hard edge. */
+.composer-dock {
+  bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 0.75rem);
+  background: linear-gradient(to bottom, transparent, var(--ink-900) 45%);
+}
+
+@media (width >= 64rem) {
+  .composer-dock {
+    bottom: 0;
+    padding-bottom: 1.5rem;
+  }
 }
 
 /* ---- a course as a bar out of 100 ------------------------------------------------ */

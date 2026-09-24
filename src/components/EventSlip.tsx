@@ -48,8 +48,7 @@ export function EventSlip({
 
   return (
     <div className="mat slip flex items-stretch" data-block style={tint(course)}>
-      <span aria-hidden className="slip-bar" style={{ backgroundColor: 'var(--blk-mark)' }} />
-      <div className="flex min-h-[var(--tap)] min-w-0 flex-1 flex-col justify-center gap-1 py-3.5 pr-4 pl-5">
+      <div className="flex min-h-[var(--tap)] min-w-0 flex-1 flex-col justify-center gap-1 px-4 py-3.5">
         <span className="kicker">
           <span className="blk-num normal-case tracking-normal">{when}</span>
           {showSource && event.source && (

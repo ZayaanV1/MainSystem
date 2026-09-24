@@ -75,14 +75,16 @@ export function Chat({ courses, onBack, onChanged }: {
     setThinking(false);
 
     if (!result.ok) {
-      setProblem(result.reason);
       if (result.failure === 'quota') setSpent(result.reason);
 
-      // The failure is persisted as a reply rather than left as a transient
+      // The failure is persisted, marked, rather than left as a transient
       // banner. Otherwise a reload shows the question sitting there with no
-      // answer and no reason, which reads as the app having ignored it.
-      const failed = await saveMessage(userId, { role: 'assistant', content: result.reason });
+      // answer and no reason, which reads as the app having ignored it. The
+      // banner is only for when even that save fails — showing both put the
+      // same sentence on screen twice, once in red.
+      const failed = await saveMessage(userId, { role: 'assistant', content: result.reason, failed: true });
       if (failed) setMessages((m) => [...(m ?? []), failed]);
+      else setProblem(result.reason);
       return;
     }
 
@@ -189,18 +191,31 @@ export function Chat({ courses, onBack, onChanged }: {
               The corner nearest the speaker is tightened, the way a speech
               bubble points at who said it.
             */}
-            <div
-              className={[
-                'max-w-[min(85vw,40rem)] px-4 py-3',
-                m.role === 'user' ? 'chat-mine' : 'mat chat-theirs',
-              ].join(' ')}
-            >
-              <p
-                className={`type-body whitespace-pre-wrap ${m.role === 'user' ? 'text-on-accent-2' : 'text-text-hi'}`}
+            {m.failed ? (
+              /*
+                Not a reply. A question that went unanswered keeps its reason
+                beside it — without one it reads as ignored — but in the
+                app's voice, as a note on the conversation, not in Abood's
+                as if it had said "could not reach the model".
+              */
+              <div className="chat-note max-w-[min(85vw,40rem)]" role="note">
+                <span className="kicker">Couldn&rsquo;t answer</span>
+                <p className="type-note text-text-mid">{m.content}</p>
+              </div>
+            ) : (
+              <div
+                className={[
+                  'max-w-[min(85vw,40rem)] px-4 py-3',
+                  m.role === 'user' ? 'chat-mine' : 'mat chat-theirs',
+                ].join(' ')}
               >
-                {m.content}
-              </p>
-            </div>
+                <p
+                  className={`type-body whitespace-pre-wrap ${m.role === 'user' ? 'text-on-accent-2' : 'text-text-hi'}`}
+                >
+                  {m.content}
+                </p>
+              </div>
+            )}
 
             {m.proposed_action && (
               <div className="mat mat-raised mt-2 flex flex-col gap-2 p-4">
@@ -256,7 +271,13 @@ export function Chat({ courses, onBack, onChanged }: {
         one. PromptInput grows with the text, sends on Enter and breaks the
         line on Shift+Enter, and refuses to send mid-IME-composition.
       */}
-      <div className="sticky bottom-0 mb-6 bg-ink-900 px-4 pt-2">
+      {/*
+        Pinned above the floating tab bar on a phone and to the bottom edge on
+        a desktop, over a fade rather than a slab. It sat at bottom-0 on a
+        solid ink rectangle: on a phone that put it UNDER the tab bar, and
+        everywhere it drew a hard-edged dark box across the conversation.
+      */}
+      <div className="composer-dock sticky z-10 px-4 pt-6 pb-3">
         <PromptInput
           value={draft}
           onChange={setDraft}

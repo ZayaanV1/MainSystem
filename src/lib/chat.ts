@@ -16,6 +16,8 @@ export interface ChatMessage {
   proposed_action: Record<string, unknown> | null;
   action_taken: boolean;
   referenced_ids: string[] | null;
+  /** A reason the question went unanswered, not an answer. Drawn as a note. */
+  failed: boolean;
   created_at: string;
 }
 
@@ -23,7 +25,7 @@ export interface ChatMessage {
 export async function loadChat(limit = 50): Promise<ChatMessage[]> {
   const { data } = await supabase
     .from('chat_messages')
-    .select('id, role, content, proposed_action, action_taken, referenced_ids, created_at')
+    .select('id, role, content, proposed_action, action_taken, referenced_ids, failed, created_at')
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -37,6 +39,7 @@ export async function saveMessage(
     content: string;
     proposed_action?: Record<string, unknown> | null;
     referenced_ids?: string[] | null;
+    failed?: boolean;
   },
 ): Promise<ChatMessage | null> {
   const { data } = await supabase
@@ -47,8 +50,9 @@ export async function saveMessage(
       content: message.content,
       proposed_action: message.proposed_action ?? null,
       referenced_ids: message.referenced_ids ?? null,
+      failed: message.failed ?? false,
     })
-    .select('id, role, content, proposed_action, action_taken, referenced_ids, created_at')
+    .select('id, role, content, proposed_action, action_taken, referenced_ids, failed, created_at')
     .single();
 
   return (data as ChatMessage) ?? null;

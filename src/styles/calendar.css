@@ -208,7 +208,7 @@
   position: relative;
   isolation: isolate;
   min-height: clamp(3.25rem, calc(var(--mins, 52) * 1px), 12.5rem);
-  padding: 0.75rem 0.875rem 0.75rem 1.125rem;
+  padding: 0.75rem 0.875rem;
   border-radius: 1.125rem;
   overflow: hidden;
   background:
@@ -253,18 +253,6 @@
   pointer-events: none;
 }
 
-/* The course, as the 3px edge the law always allowed — now glowing. */
-.bubble::after {
-  content: '';
-  position: absolute;
-  left: 0.4375rem;
-  top: 0.625rem;
-  bottom: 0.625rem;
-  width: 3px;
-  border-radius: var(--r-pill);
-  background: var(--blk-mark);
-  box-shadow: 0 0 10px var(--blk-glow);
-}
 
 @media (hover: hover) and (pointer: fine) {
   .bubble:hover {
@@ -293,10 +281,6 @@
   box-shadow: var(--shadow-sm);
 }
 
-.bubble[data-past]::after {
-  box-shadow: none;
-  opacity: 0.5;
-}
 
 /* How far through it you are, drawn along the foot of the bubble. */
 .bubble-progress {
@@ -324,12 +308,6 @@
   overflow: hidden;
 }
 
-.bubble-due-bar {
-  width: 3px;
-  margin: 0.625rem 0 0.625rem 0.4375rem;
-  border-radius: var(--r-pill);
-  flex-shrink: 0;
-}
 
 /* Free time, as a gap you can see between two dotted rules. */
 .gap-free {
@@ -398,7 +376,7 @@
   height: max(1.375rem, calc(var(--len) * var(--hour) / 60 - 2px));
   left: calc(var(--lane) / var(--lanes) * 100% + 2px);
   width: calc(100% / var(--lanes) - 4px);
-  padding: 0.3125rem 0.5rem 0.3125rem 0.625rem;
+  padding: 0.3125rem 0.5rem;
   border-radius: 0.625rem;
   overflow: hidden;
   background:
@@ -411,16 +389,6 @@
   transition: transform 220ms var(--ease-out);
 }
 
-.hours-block::after {
-  content: '';
-  position: absolute;
-  left: 0.1875rem;
-  top: 0.3125rem;
-  bottom: 0.3125rem;
-  width: 2px;
-  border-radius: var(--r-pill);
-  background: var(--blk-mark);
-}
 
 @media (hover: hover) and (pointer: fine) {
   .hours-block:hover {
@@ -711,14 +679,6 @@
   filter: drop-shadow(0 10px 18px var(--now-glow));
 }
 
-.ticket-bar {
-  position: absolute;
-  left: 0;
-  top: 0.75rem;
-  bottom: 0.75rem;
-  width: 3px;
-  border-radius: 0 var(--r-pill) var(--r-pill) 0;
-}
 
 /* ============================================================================
    LEDGER — a printed timetable. After the Swiss railway timetables and the
@@ -824,14 +784,6 @@
   background: var(--blk-mark);
 }
 
-.ledger-bar {
-  position: absolute;
-  left: -0.5rem;
-  top: 0.875rem;
-  bottom: 0.875rem;
-  width: 3px;
-  border-radius: var(--r-pill);
-}
 
 /* ============================================================================
    The style picker. A segmented control whose selection is a lit ember

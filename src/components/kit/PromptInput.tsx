@@ -114,12 +114,18 @@ export function PromptInput({
         the only thing the control could mean, and a glyph reads faster than a
         word you have to finish reading. The accessible name still says it.
       */}
+      {/*
+        A true circle at the full tap size. It was 36px wide against the
+        button's 44px minimum height, which drew an orange egg; and disabled
+        ember at half opacity read as a smudge rather than as "not yet". Quiet
+        glass until there is something to send, lit ember once there is.
+      */}
       <Button
         type="submit"
-        variant="primary"
+        variant={ready ? 'primary' : 'quiet'}
         disabled={!ready}
         aria-label="Send"
-        className="grid size-9 shrink-0 place-items-center rounded-pill px-0"
+        className="btn-icon shrink-0 disabled:opacity-100"
       >
         <svg
           aria-hidden

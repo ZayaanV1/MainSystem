@@ -258,11 +258,6 @@ function Column({
                     {m.assignment.title}
                   </span>
                   <span className="flex min-w-0 items-center gap-1.5">
-                    <span
-                      aria-hidden
-                      className="h-2.5 w-[3px] shrink-0 rounded-pill"
-                      style={{ backgroundColor: `var(${m.urgency.colourVar})` }}
-                    />
                     <span className="shrink-0 type-caption" style={{ color: `var(${m.urgency.colourVar})` }}>
                       {m.urgency.label}
                     </span>

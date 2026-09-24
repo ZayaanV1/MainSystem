@@ -15,12 +15,14 @@ import { courseVar } from '../lib/planner';
  * the smallest text on the row. At display size it can be read down the list
  * without reading any titles at all.
  *
- * The colour law still separates the two systems by form. Urgency is the 3px
- * bar down the left edge and the colour of the numeral; the course is the
- * glass the slip is made of. Warm bar, cool glass, different shapes — legible
- * even if you cannot tell the hues apart. And the urgency colour never appears
- * without its words: the numeral carries a unit ("days", "late", "today"),
- * and the full label is what a screen reader hears.
+ * The colour law still separates the two systems by form. Urgency is the
+ * numeral — its colour and its words; the course is the glass the slip is
+ * made of. There used to be a 3px urgency bar down the left edge as well: it
+ * said again what the numeral already said, and a solid stripe on every card
+ * was the one element that read as a template rather than as a material. The
+ * urgency colour still never appears without its words — the numeral carries
+ * a unit ("days", "late", "today"), and the full label is what a screen
+ * reader hears.
  *
  * Two targets, not one: the ring ticks it off, the body opens it. The
  * checklist deliberately does the opposite — a single whole-row target —
@@ -156,13 +158,6 @@ export function AssignmentRow({
           transition: swipe.dx === 0 ? 'transform 220ms var(--ease-out)' : 'none',
         }}
       >
-        {/* Urgency, as a bar. Never the only signal — the numeral repeats it in words. */}
-        <span
-          aria-hidden
-          className="slip-bar"
-          style={{ backgroundColor: `var(${urgency.colourVar})` }}
-        />
-
         <button
           type="button"
           onClick={onToggleDone}

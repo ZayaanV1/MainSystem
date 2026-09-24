@@ -369,11 +369,6 @@ function BubbleDue({ item, onToggle, onOpen }: { item: DueItem; onToggle: () => 
         )}
       </div>
       <div className="bubble-due" data-block style={tint(item.course)}>
-        <span
-          aria-hidden
-          className="bubble-due-bar"
-          style={{ backgroundColor: `var(${item.urgency.colourVar})` }}
-        />
         <DueToggle a={item.assignment} onToggle={onToggle} />
         <button
           type="button"
@@ -479,11 +474,6 @@ function TicketDue({ item, onToggle, onOpen }: { item: DueItem; onToggle: () => 
   return (
     <div className="ticket-wrap">
       <article className="ticket" data-block style={tint(item.course)}>
-        <span
-          aria-hidden
-          className="ticket-bar"
-          style={{ backgroundColor: `var(${item.urgency.colourVar})` }}
-        />
         <div className="ticket-stub blk-num">
           <small>Due</small>
           {item.timed ? (
@@ -639,7 +629,6 @@ function LedgerDue({
   const c = clock(item.at);
   return (
     <li className="ledger-row blk-enter" data-block style={tint(item.course, { '--i': i })}>
-      <span aria-hidden className="ledger-bar" style={{ backgroundColor: `var(${item.urgency.colourVar})` }} />
       <div className="ledger-time blk-num">
         {item.timed ? (
           <>
