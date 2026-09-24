@@ -644,6 +644,58 @@ university's to set. A Moodle PAGE (course, dashboard, calendar view) is
 caught by name, like the Google browser-bar link, with the menu path to the
 real export address. Both verified against the deployed function.
 
+### One material, app-wide — Sep 2026
+
+Asked for after the Week block styles landed: "implement this design principle
+throughout the app … it looks too generic". `src/styles/material.css` (in
+`@layer components`, so a Tailwind utility on the same element still wins —
+unlayered, it beat every utility regardless of specificity) is what every
+surface is made of now:
+
+- **`.mat`** — the cloisonné panel generalised. Corner light, a masked rim
+  that catches it at two corners, a glow rather than a flat drop shadow.
+  `data-block` + `--b` makes it a course's glass. `Card` is this at three
+  lifts; `hero` adds a phthalo pool of light.
+- **`.well`** — every text field and select, recessed, lighting in ember on
+  focus. **`.kicker`** replaced the `action-chip` labels, which rendered every
+  form label as a full-width pill indistinguishable from a button.
+- **`SectionHead`** — title, count in display numerals, a fading rule, and
+  the section's controls at the end. Every `type-h2` section heading was
+  swept onto it; every page h1 is `.page-title`.
+- **Work is slips** (`AssignmentRow`): one course-glass surface per item with
+  the countdown as a display numeral in its urgency colour, the unit in words
+  under it and the full label for screen readers. `EventSlip` is the same
+  shape for things you attend. Month is glass tiles with course marks (a ring
+  for a deadline, a bar for a class). Courses are tiles; grades are one bar
+  out of 100 (solid marked, hatched on the calendar, empty unnamed) — how much
+  is decided, never how well.
+- **Today gained Now/Next**: the class under way, with time left and a
+  progress line, or the next one. Today had never shown an event at all.
+
+**The shake.** Reported from the phone: "a lot of ui elements shake when
+clicked". Five separate causes, none visible from a laptop:
+
+1. `fx-depth` lifted 2px on `:hover` and dipped 1px on `:active`. A phone
+   fakes hover on tap, so each tap jolted up and down inside 100ms. Presses
+   now scale in place; lifts need `(hover: hover) and (pointer: fine)`.
+2. Pull-to-refresh had no dead zone, so the 1-3px a fingertip drifts during
+   a tap was a pull: at the top of Today every tap nudged the page down and
+   flashed "Pull to refresh". Now 12px, mostly downward.
+3. The work list's entrance re-ran on every id change, so ticking one item
+   off faded and slid the whole list in again. Only new rows animate now.
+4. `fx-magnet` eased every transform with an overshooting spring, so What
+   now's press sprang back past full size. The tick popped 0.72 -> 1.12. Both
+   now settle without overshoot.
+5. The Week styles' hover lifts were gated on `(hover: hover)` alone, which
+   some Android phones report.
+
+Verified by auditing the live compiled CSS for every `:hover`/`:active`/
+`:focus` rule that moves or resizes anything: what remains on touch is the
+intended in-place press scale and colour changes. NOT verified on a phone —
+the verification browser cannot emulate touch or a narrow viewport, and a
+backgrounded tab neither renders nor reports layout shift, so a live tap test
+from here proves nothing.
+
 ### Week block styles — Sep 2026
 
 Week draws the same data five ways, chosen from a segmented control at the top

@@ -110,8 +110,10 @@
     transform var(--dur-tap) var(--ease-out);
 }
 
-.due-toggle:hover > span {
-  border-color: var(--text-mid);
+@media (hover: hover) and (pointer: fine) {
+  .due-toggle:hover > span {
+    border-color: var(--text-mid);
+  }
 }
 
 .due-toggle:active > span {
