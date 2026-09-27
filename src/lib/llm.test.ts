@@ -170,3 +170,14 @@ describe('what Abood may remember', () => {
     expect(validateFacts({ facts: 'one' }, [])).toEqual([]);
   });
 });
+
+describe('Groq rate-limit waits', () => {
+  it('reads the wait from the header or from the message', async () => {
+    const { retryAfter } = await import('../../supabase/functions/_shared/llm/groq');
+    expect(retryAfter('3', '')).toBe(3000);
+    expect(retryAfter(null, err('Rate limit reached ... Please try again in 2.7225s. Need more tokens?'))).toBeCloseTo(2722.5);
+    expect(retryAfter(null, err('Please try again in 1m30s.'))).toBe(90_000);
+    expect(retryAfter(null, err('Please try again in 450ms.'))).toBe(450);
+    expect(retryAfter(null, err('Rate limit reached for requests per day'))).toBeNull();
+  });
+});

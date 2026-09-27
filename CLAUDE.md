@@ -644,6 +644,32 @@ university's to set. A Moodle PAGE (course, dashboard, calendar view) is
 caught by name, like the Google browser-bar link, with the menu path to the
 real export address. Both verified against the deployed function.
 
+### Abood on Telegram, with a memory — Sep 2026
+
+The five-piece bot recipe (channel, webhook, server, memory, LLM) built as a
+second door into the same Abood: `functions/telegram` is the webhook for the
+digest's existing bot, `_shared/abood.ts` holds the context, memory and the
+one `askAbood` call both doors use. One transcript (`chat_messages.via`),
+one daily budget, one memory; a proposed change is confirmed in the app only.
+
+- **Trust:** the secret Telegram sends with every update, compared in
+  constant time (`TELEGRAM_WEBHOOK_SECRET`); chats link only by redeeming a
+  15-minute one-time code the account made (Settings > Text Abood).
+- **Memory (0030):** `memory_facts` + pgvector (768-d Gemini embeddings),
+  recall by cosine similarity with a recency fallback, at most three facts
+  learned per message, never deadlines/food/weight (the planner holds those
+  fresh) nor health, money or credentials. Learned facts are announced and
+  listed with Forget in Settings; `/memory`, `/forget yes` in the chat.
+- **Groq free tier is 8,000 tokens a minute** and one question with planner
+  context is ~6,500, so quick successive messages hit it. A 429 with a wait
+  of 8s or less is waited out and retried once.
+- `setup.mjs` registers the webhook after finding the chat and reuses the
+  stored chat on a re-run (getUpdates returns 409 under a webhook).
+
+Verified live end to end: a simulated update from the linked chat was
+answered in ~4s; a stated preference was extracted, embedded and stored, and
+a later related question was answered from it. Test rows were deleted.
+
 ### Abood went dark, for three stacked reasons — Sep 2026
 
 Every chat question failed, and each layer hid the next:

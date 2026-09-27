@@ -112,6 +112,16 @@ export function strictSchema(schema: unknown): unknown {
   return out;
 }
 
+/** Milliseconds Groq asked us to wait, from the header or its message. */
+export function retryAfter(header: string | null, raw: string): number | null {
+  const secs = header ? Number(header) : NaN;
+  if (Number.isFinite(secs)) return secs * 1000;
+  const m = /try again in (?:(\d+)m)?([\d.]+)(ms|s)/i.exec(errorOf(raw).message);
+  if (!m) return null;
+  const minutes = m[1] ? Number(m[1]) * 60_000 : 0;
+  return minutes + Number(m[2]) * (m[3] === 'ms' ? 1 : 1000);
+}
+
 /**
  * The best chat model in a catalogue, for this app's purposes.
  *
@@ -220,6 +230,22 @@ export function groqProvider(apiKey: string, model = DEFAULT_MODEL): LlmProvider
       try {
         let res = await call(used, true);
         let raw = await res.text();
+
+        /*
+         * A per-minute token limit, not a daily one. Groq's free tier allows a
+         * few thousand tokens a minute and one question with its planner
+         * context is most of that, so two quick messages trip it — and Groq
+         * says exactly how long to wait, usually a couple of seconds. Waiting
+         * that long once beats telling someone they are out of requests.
+         */
+        if (res.status === 429) {
+          const wait = retryAfter(res.headers.get('retry-after'), raw);
+          if (wait !== null && wait <= 8_000) {
+            await new Promise((r) => setTimeout(r, wait + 250));
+            res = await call(used, true);
+            raw = await res.text();
+          }
+        }
 
         // A model that is current but does not do strict schemas: same model,
         // JSON mode.
