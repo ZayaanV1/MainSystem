@@ -139,3 +139,34 @@ describe('Groq schema complaints fall back to JSON mode', () => {
     ).toBe(true);
   });
 });
+
+describe('what Abood may remember', () => {
+  it('keeps short, new facts and refuses the rest', async () => {
+    const { validateFacts } = await import('../../supabase/functions/_shared/abood');
+    const out = validateFacts(
+      {
+        facts: [
+          '- Works at the library on Saturday mornings',
+          'Works at the library on Saturday mornings.',
+          'short',
+          'Commutes by metro.',
+          42,
+          'Prefers breaking big assignments into small steps.',
+          'Plays five-a-side on Tuesdays.',
+        ],
+      },
+      ['commutes by metro.'],
+    );
+    expect(out).toEqual([
+      'Works at the library on Saturday mornings.',
+      'Prefers breaking big assignments into small steps.',
+      'Plays five-a-side on Tuesdays.',
+    ]);
+  });
+
+  it('treats a reply that is not the shape as nothing learned', async () => {
+    const { validateFacts } = await import('../../supabase/functions/_shared/abood');
+    expect(validateFacts('nope', [])).toEqual([]);
+    expect(validateFacts({ facts: 'one' }, [])).toEqual([]);
+  });
+});

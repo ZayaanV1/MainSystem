@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { forgetFact, loadMemory, telegramLink, telegramLinked, type MemoryFact } from '../lib/abood';
 import { SectionHead } from '../components/SectionHead';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -211,6 +212,10 @@ export function Settings({ onBack }: { onBack: () => void }) {
       <ApiKey userId={userId} />
 
       <GroqKey userId={userId} />
+
+      <TextAbood userId={userId} />
+
+      <AboodMemory />
 
       <CalendarFeed userId={userId} />
 
@@ -642,6 +647,121 @@ function GroqKey({ userId }: { userId: string }) {
 
         {message && <p className="mt-3 type-note text-text-mid">{message}</p>}
       </Card>
+    </section>
+  );
+}
+
+/**
+ * Abood by text message.
+ *
+ * The morning digest already arrives on Telegram; this makes the same chat a
+ * conversation. Linking is a one-time code carried in the bot's start link,
+ * so the account that tapped Connect is the only one a chat can join.
+ */
+function TextAbood({ userId }: { userId: string }) {
+  const [linked, setLinked] = useState<boolean | null>(null);
+  const [url, setUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void telegramLinked().then(setLinked);
+  }, []);
+
+  async function connect() {
+    setBusy(true);
+    setMessage(null);
+    const r = await telegramLink(userId);
+    setBusy(false);
+    if ('error' in r) setMessage(r.error);
+    else setUrl(r.url);
+  }
+
+  return (
+    <section className="mb-8">
+      <SectionHead title="Text Abood" />
+      <Card className="p-4">
+        <p className="type-body mb-3 text-text-mid">
+          Ask about your week from Telegram, the same way you would here. It is
+          the same conversation and the same memory, and anything it offers to
+          change still waits for you to confirm it in the app.
+        </p>
+        <p className="type-note mb-4 text-text-low">
+          {linked === null
+            ? 'Checking.'
+            : linked
+              ? 'Your Telegram is connected. Message the bot any time; send /help for commands.'
+              : 'Not connected yet.'}
+        </p>
+
+        {url ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <a href={url} target="_blank" rel="noreferrer noopener" className="btn btn-primary px-5 type-label">
+              Open Telegram
+            </a>
+            <span className="type-note text-text-low">Then tap Start. The link works once, for fifteen minutes.</span>
+          </div>
+        ) : (
+          <Button variant="secondary" disabled={busy} onClick={() => void connect()}>
+            {busy ? 'Making a link' : linked ? 'Connect a different chat' : 'Connect Telegram'}
+          </Button>
+        )}
+
+        {message && <p className="mt-3 type-note text-text-mid">{message}</p>}
+      </Card>
+    </section>
+  );
+}
+
+/**
+ * What Abood has picked up about you.
+ *
+ * Facts are learned from what you say to it and announced when they are
+ * learned; this is where they can be read in full and taken back. A memory
+ * that could not be inspected or corrected would be the app keeping notes on
+ * you, which is not the same thing as remembering.
+ */
+function AboodMemory() {
+  const [facts, setFacts] = useState<MemoryFact[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const reload = useCallback(() => {
+    void loadMemory().then((r) => {
+      setFacts(r.facts);
+      setFailed(r.failed);
+    });
+  }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  return (
+    <section className="mb-8">
+      <SectionHead title="What Abood remembers" count={facts?.length || null} />
+      {failed ? (
+        <p className="px-4 type-note text-text-mid">Couldn&rsquo;t load this. Nothing has been lost.</p>
+      ) : facts === null ? null : facts.length === 0 ? (
+        <EmptyState>
+          Nothing yet. Abood picks up routines and preferences as you talk, and tells you when it does.
+        </EmptyState>
+      ) : (
+        <Card>
+          {facts.map((f) => (
+            <div key={f.id} className="mat-row flex items-center justify-between gap-3 px-4 py-2.5">
+              <span className="type-body text-text-hi">{f.fact}</span>
+              <Button
+                variant="quiet"
+                size="sm"
+                aria-label={`Forget: ${f.fact}`}
+                onClick={() => void forgetFact(f.id).then(reload)}
+              >
+                Forget
+              </Button>
+            </div>
+          ))}
+        </Card>
+      )}
     </section>
   );
 }

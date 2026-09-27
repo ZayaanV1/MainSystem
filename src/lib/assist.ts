@@ -129,6 +129,8 @@ export interface ChatResponse {
   action: Record<string, unknown> | null;
   referenced: string[];
   warnings: string[];
+  /** Facts Abood learned from this message, said out loud rather than kept quietly. */
+  learned: string[];
   /** Questions left in today's self-imposed budget. */
   remaining: number;
 }
@@ -143,6 +145,7 @@ export async function askChat(message: string): Promise<ChatResponse | AssistFai
     action: (body.action ?? null) as Record<string, unknown> | null,
     referenced: (body.referenced ?? []) as string[],
     warnings: (body.warnings ?? []) as string[],
+    learned: (Array.isArray(body.learned) ? body.learned : []) as string[],
     remaining: Number(body.remaining ?? 0),
   };
 }

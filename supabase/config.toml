@@ -24,3 +24,9 @@ verify_jwt = false
 # Same shape as dispatch: pg_cron authenticates with the shared secret header,
 # and the app with a user JWT that the function verifies itself.
 verify_jwt = false
+
+[functions.telegram]
+# Telegram cannot present a user JWT. The function checks the secret token
+# Telegram sends with every update instead, and links chats only through
+# one-time codes an account made itself.
+verify_jwt = false

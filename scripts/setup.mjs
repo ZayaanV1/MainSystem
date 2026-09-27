@@ -133,6 +133,13 @@ if (!generated.VAPID_PUBLIC_KEY || !generated.VAPID_PRIVATE_KEY) {
   note('reusing existing VAPID keypair (regenerating would break subscriptions)');
 }
 
+// The secret Telegram sends with every webhook call. Without it the telegram
+// function refuses the request, so it is generated once and reused like the
+// cron secret — regenerating it would need the webhook registered again.
+if (!generated.TELEGRAM_WEBHOOK_SECRET) {
+  generated.TELEGRAM_WEBHOOK_SECRET = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('hex');
+}
+
 if (!generated.CRON_SECRET) {
   generated.CRON_SECRET = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
     'base64url',
@@ -203,7 +210,12 @@ supabase(
     `APP_URL=${cfg.APP_URL || 'http://localhost:5173'}`,
     // Telegram is a per-person channel, so its token is only set when there
     // is a person. Web Push needs nothing here and works for everyone.
-    ...(cfg.TELEGRAM_BOT_TOKEN ? [`TELEGRAM_BOT_TOKEN=${cfg.TELEGRAM_BOT_TOKEN}`] : []),
+    ...(cfg.TELEGRAM_BOT_TOKEN
+      ? [
+          `TELEGRAM_BOT_TOKEN=${cfg.TELEGRAM_BOT_TOKEN}`,
+          `TELEGRAM_WEBHOOK_SECRET=${generated.TELEGRAM_WEBHOOK_SECRET}`,
+        ]
+      : []),
   ],
   { quiet: true },
 );
@@ -222,6 +234,13 @@ supabase(['functions', 'deploy', 'assist']);
 ok('assist deployed');
 supabase(['functions', 'deploy', 'calendar']);
 ok('calendar deployed');
+// feeds keeps subscribed calendars live; telegram is Abood by text message.
+// Both were added after this script was written and neither was deployed by
+// it — the same gap that once left parse-food 404ing.
+supabase(['functions', 'deploy', 'feeds']);
+ok('feeds deployed');
+supabase(['functions', 'deploy', 'telegram']);
+ok('telegram deployed');
 
 /* ------------------------------------------------------------- rest api --- */
 
@@ -292,14 +311,31 @@ if (!withAccount) {
     `https://api.telegram.org/bot${cfg.TELEGRAM_BOT_TOKEN}/getUpdates`,
   ).then((r) => r.json());
 
-  if (!updates.ok) {
+  /*
+   * 409 means the webhook is already registered — a re-run on an install
+   * where Abood already answers on Telegram. getUpdates cannot be used while
+   * a webhook is set, and the chat is already known from the first run, so
+   * the stored one is reused rather than the webhook being torn down.
+   */
+  let chat = null;
+  if (!updates.ok && updates.error_code === 409) {
+    const known = await admin.call(
+      `/rest/v1/notification_channels?user_id=eq.${userId}&kind=eq.telegram&select=config`,
+    );
+    if (known[0]?.config?.chat_id) chat = { id: known[0].config.chat_id };
+    else
+      die(
+        'The bot is already on a webhook, so its messages cannot be read here.',
+        'Connect Telegram from the app instead: Settings, then Connect Telegram.',
+      );
+  } else if (!updates.ok) {
     die(
       `Telegram rejected the bot token: ${updates.description ?? 'unknown error'}`,
       'Check TELEGRAM_BOT_TOKEN in .env.setup against what @BotFather sent you.',
     );
   }
 
-  const chat = updates.result
+  chat ??= updates.result
     ?.map((u) => u.message?.chat ?? u.edited_message?.chat)
     .filter(Boolean)
     .pop();
@@ -314,6 +350,21 @@ if (!withAccount) {
   }
 
   ok(`chat found: ${chat.first_name ?? chat.title ?? chat.id}`);
+
+  // Now that the chat is known, hand incoming messages to the telegram
+  // function. From here on getUpdates is unavailable, which is why the chat
+  // is found first.
+  const hook = await fetch(`https://api.telegram.org/bot${cfg.TELEGRAM_BOT_TOKEN}/setWebhook`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      url: `https://${REF}.supabase.co/functions/v1/telegram`,
+      secret_token: generated.TELEGRAM_WEBHOOK_SECRET,
+      allowed_updates: ['message'],
+    }),
+  }).then((r) => r.json());
+  if (hook.ok) ok('Abood answers on Telegram');
+  else note(`Telegram webhook not set: ${hook.description ?? 'unknown error'}`);
 
   /* ------------------------------------------------------- wire it together - */
 

@@ -18,6 +18,8 @@ export interface ChatMessage {
   referenced_ids: string[] | null;
   /** A reason the question went unanswered, not an answer. Drawn as a note. */
   failed: boolean;
+  /** Which door the turn came through. */
+  via: 'app' | 'telegram';
   created_at: string;
 }
 
@@ -25,7 +27,7 @@ export interface ChatMessage {
 export async function loadChat(limit = 50): Promise<ChatMessage[]> {
   const { data } = await supabase
     .from('chat_messages')
-    .select('id, role, content, proposed_action, action_taken, referenced_ids, failed, created_at')
+    .select('id, role, content, proposed_action, action_taken, referenced_ids, failed, via, created_at')
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -52,7 +54,7 @@ export async function saveMessage(
       referenced_ids: message.referenced_ids ?? null,
       failed: message.failed ?? false,
     })
-    .select('id, role, content, proposed_action, action_taken, referenced_ids, failed, created_at')
+    .select('id, role, content, proposed_action, action_taken, referenced_ids, failed, via, created_at')
     .single();
 
   return (data as ChatMessage) ?? null;

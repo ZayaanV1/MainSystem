@@ -105,6 +105,11 @@ describe('every table written is also read', () => {
       for (const m of source.matchAll(/\.from\(\s*'([a-z_]+)'\s*\)[\s\S]{0,40}?\.(select)/g)) {
         read.add(m[1]);
       }
+      // A delete that returns its rows is a read that consumes what it
+      // reads — a one-time code redeemed, for instance.
+      for (const m of source.matchAll(/\.from\(\s*'([a-z_]+)'\s*\)\s*\.delete\([^)]*\)[\s\S]{0,160}?\.select\(/g)) {
+        read.add(m[1]);
+      }
     }
 
     const writeOnly = [...written].filter((t) => !read.has(t)).sort();

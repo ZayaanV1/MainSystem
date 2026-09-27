@@ -123,6 +123,14 @@ const PLATFORM_STUB = `
   $fn$;
 `;
 
+const VECTOR_STUB = `
+  create schema if not exists extensions;
+  create domain extensions.vector as real[];
+  create function extensions.vector_distance_stub(a real[], b real[]) returns float
+    language sql immutable as $$ select 0::float $$;
+  create operator extensions.<=> (leftarg = real[], rightarg = real[], function = extensions.vector_distance_stub);
+`;
+
 /** Strip only the hosted-platform extension declarations; leave our DDL intact. */
 function loadMigrations(): { name: string; sql: string }[] {
   return readdirSync(migrationsDir)
@@ -138,7 +146,13 @@ function loadMigrations(): { name: string; sql: string }[] {
         .replace(
           /create extension if not exists supabase_vault with schema vault;/g,
           '-- (extension stubbed in test)',
-        ),
+        )
+        // pgvector has no PGlite build here. The type is stubbed as real[] with
+        // a <=> that always answers 0, which is enough to exercise the table,
+        // its policies and the functions' shape; similarity itself is
+        // Postgres's job and is not what these tests are for.
+        .replace(/create extension if not exists vector with schema extensions;/g, () => VECTOR_STUB)
+        .replace(/extensions\.vector\(\d+\)/g, 'extensions.vector'),
     }));
 }
 
@@ -218,10 +232,12 @@ describe('migrations apply', () => {
       'food_items',
       'inbox_items',
       'macro_targets',
+      'memory_facts',
       'notification_channels',
       'push_subscriptions',
       'saved_meals',
       'subtasks',
+      'telegram_link_codes',
     ]);
   });
 
@@ -1217,5 +1233,60 @@ describe('subscribed calendars', () => {
       db.exec(`insert into public.calendar_feeds (user_id, label, url)
         values ('${USER_B}', 'eleventh', 'https://example.com/feed-x.ics')`),
     ).rejects.toThrow(/Ten calendars is the limit/);
+  });
+});
+
+describe('Abood memory and the Telegram link', () => {
+  it('lets an account read and forget its own facts, and nobody else\'s', async () => {
+    await db.exec(`
+      insert into public.memory_facts (user_id, fact) values
+        ('${USER_A}', 'Works at the library on Saturday mornings.'),
+        ('${USER_B}', 'Prefers studying late at night.');
+    `);
+
+    const mine = await asUser(USER_A, () => db.query<{ fact: string }>('select fact from public.memory_facts'));
+    expect(mine.rows.map((r) => r.fact)).toEqual(['Works at the library on Saturday mornings.']);
+
+    const forgotten = await asUser(USER_B, async () => {
+      await db.exec(`delete from public.memory_facts where user_id = '${USER_A}'`);
+      return db.query<{ n: number }>(`select count(*)::int as n from public.memory_facts`);
+    });
+    // B saw only its own row, so A's fact could not have been deleted by B.
+    expect(forgotten.rows[0].n).toBe(1);
+    const stillThere = await db.query<{ n: number }>(`select count(*)::int as n from public.memory_facts where user_id = '${USER_A}'`);
+    expect(stillThere.rows[0].n).toBe(1);
+
+    await db.exec(`delete from public.memory_facts`);
+  });
+
+  it('refuses facts written directly: memory arrives only through the chatbot', async () => {
+    await expect(
+      asUser(USER_A, () =>
+        db.exec(`insert into public.memory_facts (user_id, fact) values ('${USER_A}', 'Planted by hand, not learned.')`),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('remembers a fact once, however it is cased', async () => {
+    const first = await db.query<{ r: boolean }>(`select public.remember_fact('${USER_A}', 'Commutes by metro.', null, 'app') as r`);
+    const again = await db.query<{ r: boolean }>(`select public.remember_fact('${USER_A}', 'commutes BY metro.', null, 'telegram') as r`);
+    expect(first.rows[0].r).toBe(true);
+    expect(again.rows[0].r).toBe(false);
+    await db.exec(`delete from public.memory_facts`);
+  });
+
+  it('lets an account make a link code for itself only, and read none', async () => {
+    await expect(
+      asUser(USER_A, () =>
+        db.exec(`insert into public.telegram_link_codes (code, user_id) values ('aaaaaaaaaaaaaaaaaaaa', '${USER_B}')`),
+      ),
+    ).rejects.toThrow();
+
+    const seen = await asUser(USER_A, async () => {
+      await db.exec(`insert into public.telegram_link_codes (code, user_id) values ('bbbbbbbbbbbbbbbbbbbb', '${USER_A}')`);
+      return db.query('select * from public.telegram_link_codes');
+    });
+    // Codes are redeemed by the webhook alone; not even their maker reads them back.
+    expect(seen.rows).toHaveLength(0);
   });
 });

@@ -36,6 +36,7 @@ export function Chat({ courses, onBack, onChanged }: {
   const [draft, setDraft] = useState('');
   const [thinking, setThinking] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [learned, setLearned] = useState<string[]>([]);
   const [remaining, setRemaining] = useState<number | null>(null);
   /*
    * Set when the daily question budget is gone.
@@ -66,6 +67,7 @@ export function Chat({ courses, onBack, onChanged }: {
 
     setDraft('');
     setProblem(null);
+    setLearned([]);
     setThinking(true);
 
     const mine = await saveMessage(userId, { role: 'user', content: text });
@@ -89,6 +91,7 @@ export function Chat({ courses, onBack, onChanged }: {
     }
 
     setRemaining(result.remaining);
+    setLearned(result.learned);
     if (result.remaining <= 0) {
       setSpent(
         'That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow.',
@@ -214,6 +217,9 @@ export function Chat({ courses, onBack, onChanged }: {
                 >
                   {m.content}
                 </p>
+                {m.via === 'telegram' && m.role === 'user' && (
+                  <span className="mt-1 block text-right type-caption text-on-accent-2 opacity-70">via Telegram</span>
+                )}
               </div>
             )}
 
@@ -247,6 +253,16 @@ export function Chat({ courses, onBack, onChanged }: {
           to be read. Under reduced motion the sweep stops and the sentence
           simply sits there, which is a complete pending state on its own.
         */}
+        {/* Said when it happens: memory that grew in silence could not be
+            corrected. Everything remembered is listed, and can be taken
+            back, in Settings. */}
+        {learned.length > 0 && (
+          <div className="chat-note max-w-[min(85vw,40rem)] self-start" role="status">
+            <span className="kicker">Remembered</span>
+            <p className="type-note text-text-mid">{learned.join(' ')}</p>
+          </div>
+        )}
+
         {thinking && (
           <ThinkingText
             className="self-start"
