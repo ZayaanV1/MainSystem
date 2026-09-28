@@ -271,10 +271,11 @@ export const FACTS_SCHEMA = {
 } as const;
 
 export const FACTS_INSTRUCTION = [
-  'You maintain a short memory about one student for their planner assistant.',
+  'You maintain a short memory about one student for Abood, their companion.',
   'From the MESSAGE they just sent, extract facts about them worth remembering',
   'for weeks: preferences, goals, routines, constraints on their time, people',
-  'and places that matter to them, how they like to be helped. Write each as a',
+  'and places that matter to them, interests, what is going on in their life,',
+  'how they like to be helped. Write each as a',
   'short third-person sentence without their name, e.g. "Works at the library',
   'on Saturday mornings." At most three. Skip anything temporary (today\'s mood,',
   'a single errand), anything that is only a question, anything already in',
@@ -402,6 +403,10 @@ export async function askAbood(opts: {
     instruction: CHAT_INSTRUCTION,
     input,
     schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
+    // Some warmth: a companion who says the same sentence every time is not
+    // one. Facts stay pinned by the instruction and by validateChat, which
+    // refuses any id the model was not given, whatever the temperature.
+    temperature: 0.7,
     timeoutMs: 45_000,
   });
 
