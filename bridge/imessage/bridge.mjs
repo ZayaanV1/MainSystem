@@ -50,8 +50,8 @@ function loadConfig() {
     process.exit(1);
   }
   const c = JSON.parse(readFileSync(CONFIG, 'utf8'));
-  if (!c.url || !c.secret) {
-    log('Config is missing url or secret.');
+  if (!c.url || !c.secret || !c.address) {
+    log('Config is missing the url, the secret or Abood\'s address. Run: bridge/imessage/install.sh <abood-apple-id>');
     process.exit(1);
   }
   return c;
@@ -85,6 +85,8 @@ async function sql(query) {
  * first NSString class marker, after a '+' byte and a length that is one
  * byte, or 0x81 plus two bytes, or 0x82 plus four, little-endian.
  */
+export { send };
+
 export function decodeAttributedBody(hex) {
   if (!hex) return null;
   const b = Buffer.from(hex, 'hex');
@@ -133,39 +135,33 @@ async function incoming(after) {
  * the script, never spliced into it, so nothing a reply contains can become
  * AppleScript.
  */
-async function send(handle, text, chat) {
+async function send(handle, text, address) {
   /*
-   * Into the conversation the message came from, when it is known. Sending to
-   * a participant instead starts a conversation of Messages' choosing, from
-   * an address of Messages' choosing — and on a fresh Apple ID that address
-   * can be one iMessage will not send from, which is how the first replies
-   * came back "Not Delivered".
+   * From Abood's account, named. A Mac can have several iMessage accounts
+   * signed in — here, the owner's own Apple ID as well as Abood's — and
+   * "the first iMessage account", or the conversation's default, was the
+   * owner's. A reply from the owner's own Apple ID to the owner's own phone
+   * is a message to yourself, which iMessage refuses (error 22). So the
+   * account is chosen by its address, and if it cannot be found nothing is
+   * sent from anyone else's.
    */
-  const toChat = [
+  const script = [
     'on run argv',
     '  tell application "Messages"',
-    '    send (item 1 of argv) to chat id (item 2 of argv)',
+    '    set wanted to "E:" & (item 3 of argv)',
+    '    set theAccount to missing value',
+    '    repeat with a in (every account)',
+    '      if (description of a as text) is wanted and enabled of a then',
+    '        set theAccount to a',
+    '        exit repeat',
+    '      end if',
+    '    end repeat',
+    '    if theAccount is missing value then error "Abood\'s account " & wanted & " is not signed in and enabled in Messages"',
+    '    send (item 1 of argv) to participant (item 2 of argv) of theAccount',
     '  end tell',
     'end run',
   ];
-  const toParticipant = [
-    'on run argv',
-    '  tell application "Messages"',
-    '    set theService to 1st account whose service type = iMessage',
-    '    send (item 1 of argv) to participant (item 2 of argv) of theService',
-    '  end tell',
-    'end run',
-  ];
-  const osa = (lines, target) => run('/usr/bin/osascript', [...lines.flatMap((l) => ['-e', l]), text, target]);
-  if (chat) {
-    try {
-      await osa(toChat, chat);
-      return;
-    } catch (e) {
-      log('send to chat failed, trying the participant:', String(e.stderr || e.message).trim());
-    }
-  }
-  await osa(toParticipant, handle);
+  await run('/usr/bin/osascript', [...script.flatMap((l) => ['-e', l]), text, handle, address]);
 }
 
 /**
@@ -242,7 +238,7 @@ async function main() {
 
         const text = (m.text ?? decodeAttributedBody(m.body) ?? '').replace(/￼/g, '').trim();
         const { replies = [] } = await post(config, { kind: 'message', handle: m.handle, text });
-        for (const r of replies) await send(m.handle, r, m.chat);
+        for (const r of replies) await send(m.handle, r, config.address);
         if (replies.length) {
           log(`answered ${m.handle.replace(/.(?=.{4})/g, '•')}`);
           await reportDelivery(m.handle);
