@@ -210,6 +210,12 @@ export function groqProvider(apiKey: string, model = DEFAULT_MODEL): LlmProvider
           body: JSON.stringify({
             model: m,
             temperature: request.temperature ?? 0,
+            ...(request.maxOutputTokens ? { max_completion_tokens: request.maxOutputTokens } : {}),
+            // gpt-oss reasons before it answers, and at its default effort that
+            // reasoning is most of the tokens a chat reply costs. Low effort is
+            // plenty for conversation and planner look-ups. Only sent to the
+            // models that accept it; others would reject the request.
+            ...(/gpt-oss/i.test(m) ? { reasoning_effort: 'low' } : {}),
             messages: [
               {
                 role: 'system',

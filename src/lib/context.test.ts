@@ -76,7 +76,7 @@ describe('buildContext', () => {
     const { text } = ctx({
       assignments: [{ id: 'a1', title: 'Assembly lab 2', due_at: '2026-08-21T03:59:00Z', due_has_time: true, status: 'todo', effort_minutes: null }],
     });
-    expect(text).toContain('due 2026-08-20 23:59');
+    expect(text).toContain('due Thu 2026-08-20 23:59');
     expect(text).not.toContain('2026-08-21');
   });
 
@@ -93,7 +93,7 @@ describe('buildContext', () => {
     const { text } = ctx({
       assignments: [{ id: 'a1', title: 'Winter essay', due_at: '2027-01-15T03:59:00Z', due_has_time: true, status: 'todo', effort_minutes: null }],
     });
-    expect(text).toContain('due 2027-01-14 22:59');
+    expect(text).toContain('due Thu 2027-01-14 22:59');
   });
 
   it('says so rather than guessing when a timestamp is unreadable', () => {
@@ -131,7 +131,7 @@ describe('buildContext', () => {
     const { text } = ctx({
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2026-09-01T03:59:00Z', due_has_time: false, status: 'todo', effort_minutes: null }],
     });
-    expect(text).toContain('due 2026-08-31');
+    expect(text).toContain('due Mon 2026-08-31');
     expect(text).not.toContain('03:59');
   });
 
@@ -185,5 +185,53 @@ describe('deadlines are stated in the account\'s zone, not the builder\'s', () =
     // The prompt asserts the dates are the user's own local time. If that
     // claim is going to be made, the zone behind it has to be checkable.
     expect(ctx({ timezone: 'Australia/Sydney' }).text).toBeTruthy();
+  });
+});
+
+describe('buildContext, trimmed', () => {
+  const input = {
+    today: '2026-09-28',
+    now: '10:00',
+    timezone: 'America/Toronto',
+    assignments: [
+      { id: '11111111-1111-1111-1111-111111111111', title: 'Quiz 4', due_at: '2026-10-04T03:59:00Z', due_has_time: true, status: 'todo', effort_minutes: null, course: 'PHYS 205' },
+    ],
+    events: [
+      { id: '22222222-2222-2222-2222-222222222222', title: 'Lab', kind: 'lab', starts_at: '2026-09-29T18:45:00Z', all_day: false },
+      { id: '33333333-3333-3333-3333-333333333333', title: 'Far exam', kind: 'exam', starts_at: '2026-10-25T14:00:00Z', all_day: false },
+    ],
+    checklist: [{ id: '44444444-4444-4444-4444-444444444444', title: 'Creatine', done_today: false, doses_remaining: null }],
+    food: { totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, targets: null, items: [] },
+    savedMeals: [{ id: '55555555-5555-5555-5555-555555555555', name: 'Oats', calories: 400, protein_g: 20 }],
+    weights: [],
+  };
+
+  it('labels items briefly and can map every label back', () => {
+    const c = buildContext(input, { shortIds: true });
+    expect(c.text).not.toContain('1111-1111');
+    expect(c.text).toContain('[w1] Quiz 4');
+    expect(c.aliases?.get('w1')).toBe('11111111-1111-1111-1111-111111111111');
+    expect(c.aliases?.get('m1')).toBe('55555555-5555-5555-5555-555555555555');
+    expect([...c.knownIds].sort()).toEqual(['c1', 'e1', 'e2', 'm1', 'w1']);
+  });
+
+  it('includes only the sections asked for', () => {
+    const c = buildContext(input, { scopes: new Set(['food'] as const) });
+    expect(c.text).toContain('FOOD TODAY');
+    expect(c.text).not.toContain('OPEN WORK');
+    expect(c.text).not.toContain('DAILY CHECKLIST');
+  });
+
+  it('bounds events to the window it is given', () => {
+    const c = buildContext(input, { eventDays: 14 });
+    expect(c.text).toContain('Lab');
+    expect(c.text).not.toContain('Far exam');
+  });
+
+  it('gives conversation a snapshot of what is next, not the whole planner', () => {
+    const c = buildContext(input, { scopes: new Set(), shortIds: true });
+    expect(c.text).toContain('PLANNER SNAPSHOT');
+    expect(c.text).not.toContain('SAVED MEALS');
+    expect(c.text.length).toBeLessThan(400);
   });
 });

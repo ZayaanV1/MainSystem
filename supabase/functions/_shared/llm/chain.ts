@@ -24,7 +24,11 @@ export function withFallback(primary: LlmProvider, secondary: LlmProvider): LlmP
 
     async complete<T>(request: LlmRequest): Promise<LlmResult<T>> {
       const first = await primary.complete<T>(request);
-      if (first.ok || !FALL_THROUGH.includes(first.failure) || !secondary.configured) return first;
+      // A per-minute throttle is not a spent quota: it clears in seconds, and
+      // answering from the second provider meanwhile beats "try later". A
+      // daily limit still stops here, as the budget intends.
+      const burst = first.ok === false && first.failure === 'quota' && /per minute|\(TPM\)|\(RPM\)|tokens per minute|requests per minute/i.test(first.message);
+      if (first.ok || (!FALL_THROUGH.includes(first.failure) && !burst) || !secondary.configured) return first;
 
       const second = await secondary.complete<T>(request);
       if (second.ok) return { ...second, provider: `${second.provider} (after ${primary.name}: ${first.failure})` };

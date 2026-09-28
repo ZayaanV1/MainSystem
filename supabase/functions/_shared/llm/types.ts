@@ -64,6 +64,13 @@ export interface LlmRequest {
    * the second impossible.
    */
   timeoutMs?: number;
+  /**
+   * The most the reply may use, including any reasoning. Groq counts this
+   * allowance against the per-minute limit up front, so leaving it at the
+   * model's default reserved thousands of tokens a short chat reply never
+   * needed and made a single question look like most of a minute's budget.
+   */
+  maxOutputTokens?: number;
 }
 
 export interface LlmProvider {

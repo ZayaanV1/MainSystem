@@ -479,8 +479,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Learn from what they said, after answering it. A memory failure never
     // costs the answer.
-    const learned = await learn(admin, userId, message, chatProvider, gemini, 'app').catch(() => []);
-    const { ok: _ok, provider: _p, ...validated } = result;
+    const learned = await learn(admin, userId, result.remember, gemini, 'app').catch(() => []);
+    const { ok: _ok, provider: _p, remember: _r, needsPlanner: _n, ...validated } = result;
 
     return json({
       ok: true,

@@ -644,6 +644,32 @@ university's to set. A Moodle PAGE (course, dashboard, calendar view) is
 caught by name, like the Google browser-bar link, with the menu path to the
 real export address. Both verified against the deployed function.
 
+### Abood, cheaper per message — Sep 2026
+
+Asked for after Abood became a companion on a free Groq key (8,000 tokens a
+minute). Measured on the live account: the planner context was ~1,940 tokens
+on every message, plus a second model call per message for memory, plus the
+model's default reply allowance, which Groq counts up front — one question
+registered as ~6,500 tokens "requested".
+
+- **Sections by message** (`scopesFor`, no model call): conversation gets a
+  ~130-token snapshot of what is next; planner questions get only work, food
+  or checklist as needed (~1,250). Errs toward including; a short follow-up
+  inherits the previous question's sections. If a snapshot was not enough the
+  model sets `needs_planner` and is asked once more with everything.
+- **Short labels** (`w1`, `e3`, `m2`) replace uuids in the prompt and are
+  translated back after validateChat has checked them against what was shown.
+- **Memory in the same call** (`remember` in the chat schema); the separate
+  extraction call is gone.
+- Events 14 days out unless the message reaches further (exams, month
+  names: 31); six turns of history at 400 characters each.
+- Groq: `max_completion_tokens` 1,200 and `reasoning_effort: low` for gpt-oss.
+  A per-minute throttle now falls back to Gemini; a daily limit does not.
+
+Found while measuring: given bare dates, the model worked out weekdays itself
+and got them wrong ("due Sun Oct 2" for a Friday). Every stamp in the context
+now carries its weekday. Verified live: correct weekdays, ~2s replies.
+
 ### Abood by iMessage, through a Mac — Sep 2026
 
 Apple has no iMessage API, so `bridge/imessage/bridge.mjs` runs on a Mac

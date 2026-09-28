@@ -150,7 +150,7 @@ export async function converse(opts: {
 
   // Learned after answering, and said out loud: memory that grows in secret
   // is memory nobody can correct.
-  const learned = await learn(admin, userId, message, provider, geminiKey, via).catch(() => []);
+  const learned = await learn(admin, userId, result.remember, geminiKey, via).catch(() => []);
   if (learned.length) {
     await send(`Noted: ${learned.join(' ')}`);
   }

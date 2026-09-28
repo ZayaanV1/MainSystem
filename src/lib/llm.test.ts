@@ -181,3 +181,45 @@ describe('Groq rate-limit waits', () => {
     expect(retryAfter(null, err('Rate limit reached for requests per day'))).toBeNull();
   });
 });
+
+describe('sending Abood only what a message needs', () => {
+  it('routes planner questions to their sections and conversation to a snapshot', async () => {
+    const { scopesFor } = await import('../../supabase/functions/_shared/abood');
+    const s = (m: string, prev?: string) => [...scopesFor(m, prev)].sort();
+    expect(s('What is due this week?')).toEqual(['work']);
+    expect(s('how much protein have i had today')).toEqual(['food', 'work']);
+    expect(s('did i take my adderall')).toEqual(['checklist']);
+    expect(s('When is my COEN 212 lab?')).toEqual(['work']);
+    expect(s('hey whats up')).toEqual([]);
+    expect(s('my friend is being weird with me, what do i do')).toEqual([]);
+  });
+
+  it('lets a short follow-up inherit what the last question needed', async () => {
+    const { scopesFor } = await import('../../supabase/functions/_shared/abood');
+    expect([...scopesFor('and the one after?', 'What is due this week?')]).toEqual(['work']);
+    // A long new message stands on its own.
+    expect([
+      ...scopesFor(
+        'honestly I have been thinking a lot about whether I even like engineering as a career path',
+        'what is due this week',
+      ),
+    ]).toEqual([]);
+  });
+
+  it('looks a month ahead only when the question reaches that far', async () => {
+    const { eventDaysFor } = await import('../../supabase/functions/_shared/abood');
+    expect(eventDaysFor('what do I have tomorrow')).toBe(14);
+    expect(eventDaysFor('when is my midterm')).toBe(31);
+  });
+});
+
+describe('withFallback and a per-minute throttle', () => {
+  it('answers from the second provider when the first is only throttled for the minute', async () => {
+    const mk = (r: LlmResult<unknown>) => ({ name: 'p', configured: true, async complete<T>() { return r as LlmResult<T>; } });
+    const throttled = mk({ ok: false, failure: 'quota', message: 'Groq (x): Rate limit reached on tokens per minute (TPM): Limit 8000', provider: 'groq' });
+    const daily = mk({ ok: false, failure: 'quota', message: 'Rate limit reached on tokens per day (TPD)', provider: 'groq' });
+    const good = mk({ ok: true, value: { reply: 'hi' }, provider: 'gemini' });
+    expect((await withFallback(throttled, good).complete({ instruction: '', input: '', schema: {} })).ok).toBe(true);
+    expect((await withFallback(daily, good).complete({ instruction: '', input: '', schema: {} })).ok).toBe(false);
+  });
+});

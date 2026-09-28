@@ -141,3 +141,18 @@ describe('validateChat', () => {
     expect(validateChat({ reply: 'x', action: 'no' }, known).action).toBeNull();
   });
 });
+
+describe('validateChat with short labels', () => {
+  it('translates labels back to real ids, and still refuses unknown ones', () => {
+    const aliases = new Map([['m1', 'real-meal-uuid'], ['w2', 'real-work-uuid']]);
+    const out = validateChat(
+      { reply: 'Log the oats?', referenced: ['w2', 'w9'], action: { kind: 'log_saved_meal', meal_id: 'm1' }, remember: ['Prefers oats in the morning.'], needs_planner: false },
+      new Set(['m1', 'w2']),
+      aliases,
+    );
+    expect(out.referenced).toEqual(['real-work-uuid']);
+    expect(out.action).toMatchObject({ kind: 'log_saved_meal', meal_id: 'real-meal-uuid' });
+    expect(out.remember).toEqual(['Prefers oats in the morning.']);
+    expect(out.warnings.length).toBe(1);
+  });
+});

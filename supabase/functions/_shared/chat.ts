@@ -41,6 +41,10 @@ export interface ChatReply {
   action: ChatAction | null;
   referenced: string[];
   warnings: string[];
+  /** Facts about the person worth keeping, as the model offered them. Checked again before storing. */
+  remember: string[];
+  /** The model was given a snapshot and says it needs the full planner to answer. */
+  needsPlanner: boolean;
 }
 
 export const CHAT_SCHEMA = {
@@ -48,6 +52,12 @@ export const CHAT_SCHEMA = {
   properties: {
     reply: { type: 'string' },
     referenced: { type: 'array', items: { type: 'string' } },
+    // Memory, learned in the SAME call as the answer. It used to be a second
+    // model call after every message — roughly a seventh of each message's
+    // tokens and a whole request against a per-minute limit, spent mostly to
+    // conclude there was nothing to remember.
+    remember: { type: 'array', items: { type: 'string' } },
+    needs_planner: { type: 'boolean' },
     action: {
       type: 'object',
       nullable: true,
@@ -121,6 +131,19 @@ export const CHAT_INSTRUCTION = [
   'Use their data to be useful when it fits (what is next, what is due soon),',
   'but do not force planner talk into a personal conversation.',
   '',
+  'MEMORY. In "remember", list at most three NEW facts about them from this',
+  'message worth knowing for weeks: routines, preferences, goals, interests,',
+  'people and places that matter, what is going on in their life. Short',
+  'third-person sentences without their name ("Works at the library on',
+  'Saturday mornings."). Skip anything temporary, anything already under WHAT',
+  'YOU REMEMBER, and anything about deadlines, classes, food or weight (the',
+  'planner holds those). Never health conditions, medication, money details,',
+  'passwords, or other people\'s private lives. Usually the list is empty.',
+  '',
+  'If you are given only a PLANNER SNAPSHOT and answering well needs more of',
+  'their planner than it shows, set "needs_planner" to true and keep the reply',
+  'short; you will be asked again with the full planner. Otherwise false.',
+  '',
   'OUTPUT. List in "referenced" the id of every planner item your answer',
   'relies on, copied exactly from the data; an empty list is fine for',
   'conversation. Never invent an id.',
@@ -151,8 +174,19 @@ function isRealDate(value: string): boolean {
  * pointing outside that set did not come from the data, and is refused rather
  * than passed to a confirmation screen where it would look legitimate.
  */
-export function validateChat(raw: unknown, knownIds: Set<string>): ChatReply {
-  const root = raw as { reply?: unknown; action?: unknown; referenced?: unknown };
+export function validateChat(
+  raw: unknown,
+  knownIds: Set<string>,
+  /** Short label -> real id, when the context used labels. */
+  aliases?: Map<string, string>,
+): ChatReply {
+  const root = raw as {
+    reply?: unknown;
+    action?: unknown;
+    referenced?: unknown;
+    remember?: unknown;
+    needs_planner?: unknown;
+  };
 
   const warnings: string[] = [];
 
@@ -172,7 +206,25 @@ export function validateChat(raw: unknown, knownIds: Set<string>): ChatReply {
 
   const action = validateAction(root?.action, knownIds, warnings);
 
-  return { reply, action, referenced: [...new Set(referenced)], warnings };
+  // Labels back to real ids, AFTER validation against what was shown — so an
+  // id the model was never given is refused exactly as before, whatever its
+  // shape.
+  const real = (id: string) => aliases?.get(id) ?? id;
+  if (action && typeof action.item_id === 'string') action.item_id = real(action.item_id);
+  if (action && typeof action.meal_id === 'string') action.meal_id = real(action.meal_id);
+
+  const remember = Array.isArray(root?.remember)
+    ? root.remember.filter((f): f is string => typeof f === 'string').slice(0, 5)
+    : [];
+
+  return {
+    reply,
+    action,
+    referenced: [...new Set(referenced)].map(real),
+    warnings,
+    remember,
+    needsPlanner: root?.needs_planner === true,
+  };
 }
 
 function validateAction(

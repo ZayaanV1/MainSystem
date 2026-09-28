@@ -1,4 +1,4 @@
-import { buildContext } from './context.ts';
+import { buildContext, type BuildOptions, type Scope } from './context.ts';
 import { CHAT_INSTRUCTION, CHAT_SCHEMA, validateChat, type ChatReply } from './chat.ts';
 import type { LlmProvider } from './llm/types.ts';
 
@@ -32,7 +32,9 @@ import type { LlmProvider } from './llm/types.ts';
 type Admin = any;
 
 /** How many turns of history to send. Enough to follow a thread, bounded. */
-export const HISTORY_TURNS = 8;
+export const HISTORY_TURNS = 6;
+/** Characters kept of each earlier turn: enough to follow the thread. */
+const TURN_CHARS = 400;
 /** How many remembered facts may ride along with one question. */
 const RECALL = 12;
 const EMBED_DIMS = 768;
@@ -50,7 +52,7 @@ const EMBED_DIMS = 768;
  * eventually cost more per question than the answer is worth.
  */
 // deno-lint-ignore no-explicit-any
-export async function gatherContext(admin: any, userId: string, today: string, tz: string) {
+export async function gatherContext(admin: any, userId: string, today: string, tz: string, opts: BuildOptions = {}) {
   const monthOut = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
 
   const [assignments, events, checklist, completions, entries, targets, meals, weights] =
@@ -196,7 +198,7 @@ export async function gatherContext(admin: any, userId: string, today: string, t
     }),
     // deno-lint-ignore no-explicit-any
     weights: ((weights.data ?? []) as any[]).map((w) => ({ local_day: w.local_day, kg: num(w.kg) })),
-  });
+  }, opts);
 }
 
 
@@ -262,28 +264,6 @@ export async function recall(admin: Admin, userId: string, message: string, gemi
   return ((data ?? []) as { fact: string }[]).map((r) => r.fact);
 }
 
-export const FACTS_SCHEMA = {
-  type: 'object',
-  properties: {
-    facts: { type: 'array', items: { type: 'string' } },
-  },
-  required: ['facts'],
-} as const;
-
-export const FACTS_INSTRUCTION = [
-  'You maintain a short memory about one student for Abood, their companion.',
-  'From the MESSAGE they just sent, extract facts about them worth remembering',
-  'for weeks: preferences, goals, routines, constraints on their time, people',
-  'and places that matter to them, interests, what is going on in their life,',
-  'how they like to be helped. Write each as a',
-  'short third-person sentence without their name, e.g. "Works at the library',
-  'on Saturday mornings." At most three. Skip anything temporary (today\'s mood,',
-  'a single errand), anything that is only a question, anything already in',
-  'KNOWN FACTS, and anything about deadlines, classes, food or weight — the',
-  'planner already tracks those. Never record health conditions, medication,',
-  'passwords, money details or anything about other people\'s private lives.',
-  'If nothing qualifies, return an empty list. Return only the JSON.',
-].join(' ');
 
 /** Facts from what they said, checked for shape and for repeats. */
 export function validateFacts(raw: unknown, known: string[]): string[] {
@@ -307,39 +287,31 @@ export function validateFacts(raw: unknown, known: string[]): string[] {
 }
 
 /**
- * Learns from a message, after it has been answered.
+ * Keeps what the answer offered to remember.
  *
- * A near-duplicate of something already known is dropped by the database
- * (see match_memory_facts' sibling, the similarity guard in remember_fact),
- * so saying the same thing twice does not remember it twice.
+ * The facts come from the chat call itself (its "remember" field) rather
+ * than from a second model call, and are checked here against the same
+ * rules — shape, length, repeats — before each is embedded and stored.
+ * Near-duplicates of what is already known are dropped by remember_fact.
  */
 export async function learn(
   admin: Admin,
   userId: string,
-  message: string,
-  provider: LlmProvider,
+  offered: string[],
   geminiKey: string,
   source: 'app' | 'telegram' | 'imessage',
 ): Promise<string[]> {
-  if (message.trim().length < 12) return [];
+  if (offered.length === 0) return [];
   const { data: existing } = await admin
     .from('memory_facts')
     .select('fact')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(80);
+    .limit(200);
   const known = ((existing ?? []) as { fact: string }[]).map((r) => r.fact);
 
-  const result = await provider.complete<unknown>({
-    instruction: FACTS_INSTRUCTION,
-    input: `KNOWN FACTS\n${known.map((f) => `- ${f}`).join('\n') || '(none)'}\n\nMESSAGE\n${message}`,
-    schema: FACTS_SCHEMA as unknown as Record<string, unknown>,
-    timeoutMs: 20_000,
-  });
-  if (!result.ok) return [];
-
   const saved: string[] = [];
-  for (const fact of validateFacts(result.value, known)) {
+  for (const fact of validateFacts({ facts: offered }, known)) {
     const v = await embed(fact, geminiKey);
     const { data } = await admin.rpc('remember_fact', {
       p_user_id: userId,
@@ -360,6 +332,45 @@ export type AskResult =
   | ({ ok: true; provider: string } & ChatReply)
   | { ok: false; failure: string; message: string };
 
+/* ============================================================================
+   Which parts of the planner a message needs
+   ========================================================================= */
+
+const WORK =
+  /\b(due|deadlines?|assignments?|homework|hw|quiz(zes)?|exams?|midterms?|finals?|tests?|labs?|lectures?|class(es)?|tutorials?|courses?|projects?|essays?|papers?|reports?|submit\w*|stud(y|ying|ied)|work|busy|free|schedule\w*|calendar|plan\w*|week\w*|today|tonight|tomorrow|yesterday|mon(day)?|tue(s(day)?)?|wed(nesday)?|thu(rs(day)?)?|fri(day)?|sat(urday)?|sun(day)?|next|when|late|overdue|behind|grade\w*|marks?|semester|term|prof(essor)?s?|school|uni(versity)?|campus|room|what now|what's on|agenda|remind\w*|add|ticked|done)\b|\b[A-Z]{3,4}\s?\d{3}\b/i;
+const FOOD =
+  /\b(eat|ate|eating|food|meals?|lunch|dinner|breakfast|snacks?|protein|calories?|kcal|carbs?|fats?|macros?|weigh\w*|weight|kg|lbs?|hungry|cook\w*|recipes?|diet|bulk\w*|cut(ting)?|log(ged)?)\b/i;
+const CHECKLIST =
+  /\b(checklist|meds?|medication|pills?|doses?|adderall|creatine|vitamins?|supplements?|habits?|routine|took|take|ticked|tick)\b/i;
+
+/**
+ * The sections a message needs, from its words alone — no model call.
+ *
+ * Errs toward including: a missed section costs a worse answer, an extra one
+ * costs a few hundred tokens. A short follow-up ("and tomorrow?") inherits
+ * what the message before it needed. An empty result means conversation, and
+ * gets a snapshot; if that turns out not to be enough the model says so and
+ * is asked again with everything.
+ */
+export function scopesFor(message: string, previous?: string | null): Set<Scope> {
+  const scopes = new Set<Scope>();
+  const read = (text: string) => {
+    if (WORK.test(text)) scopes.add('work');
+    if (FOOD.test(text)) scopes.add('food');
+    if (CHECKLIST.test(text)) scopes.add('checklist');
+  };
+  read(message);
+  if (previous && message.trim().length < 60) read(previous);
+  return scopes;
+}
+
+/** Events a fortnight ahead unless the message reaches further. */
+export function eventDaysFor(message: string): number {
+  return /\b(month|exams?|finals?|midterms?|semester|term|october|november|december|january|february|march|april)\b/i.test(message)
+    ? 31
+    : 14;
+}
+
 export async function askAbood(opts: {
   admin: Admin;
   userId: string;
@@ -371,45 +382,72 @@ export async function askAbood(opts: {
 }): Promise<AskResult> {
   const { admin, userId, message, today, tz, provider, geminiKey } = opts;
 
-  const [context, history, memory] = await Promise.all([
-    gatherContext(admin, userId, today, tz),
+  const [history, memory] = await Promise.all([
     admin
       .from('chat_messages')
       .select('role, content')
       .eq('user_id', userId)
       .eq('failed', false)
       .order('created_at', { ascending: false })
-      .limit(HISTORY_TURNS),
+      .limit(HISTORY_TURNS + 1),
     recall(admin, userId, message, geminiKey),
   ]);
 
-  const priorTurns = (((history as { data: unknown }).data ?? []) as { role: string; content: string }[])
-    .reverse()
-    .map((m) => `${m.role === 'user' ? 'They said' : 'You answered'}: ${m.content}`)
+  const turns = (((history as { data: unknown }).data ?? []) as { role: string; content: string }[]).reverse();
+  // The newest stored turn is usually this very message, already saved by
+  // the caller; it is said once, below, not twice.
+  if (turns.length && turns[turns.length - 1].role === 'user' && turns[turns.length - 1].content === message) turns.pop();
+  const kept = turns.slice(-HISTORY_TURNS);
+  const previousQuestion = [...kept].reverse().find((t) => t.role === 'user')?.content ?? null;
+
+  const priorTurns = kept
+    .map((m) => `${m.role === 'user' ? 'They said' : 'You answered'}: ${m.content.slice(0, TURN_CHARS)}`)
     .join('\n');
 
-  const input = [
-    'THEIR DATA',
-    context.text,
-    '',
-    memory.length
-      ? `WHAT YOU REMEMBER ABOUT THEM (from earlier conversations; use it to be helpful, never recite it)\n${memory.map((f) => `- ${f}`).join('\n')}\n`
-      : '',
-    priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
-    `THEY NOW SAY: ${message}`,
-  ].join('\n');
+  const memoryBlock = memory.length
+    ? `WHAT YOU REMEMBER ABOUT THEM (from earlier conversations; use it to be helpful, never recite it)\n${memory.map((f) => `- ${f}`).join('\n')}\n`
+    : '';
 
-  const result = await provider.complete<unknown>({
-    instruction: CHAT_INSTRUCTION,
-    input,
-    schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
-    // Some warmth: a companion who says the same sentence every time is not
-    // one. Facts stay pinned by the instruction and by validateChat, which
-    // refuses any id the model was not given, whatever the temperature.
-    temperature: 0.7,
-    timeoutMs: 45_000,
-  });
+  const ask = async (scopes: Set<Scope> | undefined) => {
+    const context = await gatherContext(admin, userId, today, tz, {
+      scopes,
+      shortIds: true,
+      eventDays: eventDaysFor(message),
+    });
+    const input = [
+      'THEIR DATA',
+      context.text,
+      '',
+      memoryBlock,
+      priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
+      `THEY NOW SAY: ${message}`,
+    ].join('\n');
+
+    const result = await provider.complete<unknown>({
+      instruction: CHAT_INSTRUCTION,
+      input,
+      schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
+      // Some warmth: a companion who says the same sentence every time is not
+      // one. Facts stay pinned by the instruction and by validateChat, which
+      // refuses any id the model was not given, whatever the temperature.
+      temperature: 0.7,
+      maxOutputTokens: 1_200,
+      timeoutMs: 45_000,
+    });
+    return { result, context };
+  };
+
+  const scopes = scopesFor(message, previousQuestion);
+  let { result, context } = await ask(scopes);
+
+  // A snapshot that was not enough: ask again with the whole planner, once.
+  // Rare by design — the router leans toward including — and it costs one
+  // extra call only when a conversation turned out to need the planner.
+  if (result.ok && scopes.size === 0) {
+    const first = validateChat(result.value, context.knownIds, context.aliases);
+    if (first.needsPlanner) ({ result, context } = await ask(undefined));
+  }
 
   if (!result.ok) return { ok: false, failure: result.failure, message: result.message };
-  return { ok: true, provider: result.provider, ...validateChat(result.value, context.knownIds) };
+  return { ok: true, provider: result.provider, ...validateChat(result.value, context.knownIds, context.aliases) };
 }

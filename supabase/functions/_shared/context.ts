@@ -1,4 +1,4 @@
-import { daysBetween, localDayKey, localHourMinute, type DayKey } from './time.ts';
+import { addDays, daysBetween, localDayKey, localHourMinute, type DayKey } from './time.ts';
 
 /**
  * The slice of the user's own data the chatbot is allowed to see.
@@ -53,9 +53,36 @@ export interface BuiltContext {
   text: string;
   /** Every id the model may legitimately cite or act on. */
   knownIds: Set<string>;
+  /**
+   * Short label -> real id, when short labels were used. The model sees and
+   * returns labels; they are translated back before anything is stored or
+   * acted on. Absent when real ids were used.
+   */
+  aliases?: Map<string, string>;
+}
+
+/** Which parts of the planner a message needs. */
+export type Scope = 'work' | 'food' | 'checklist';
+
+export interface BuildOptions {
+  /**
+   * The sections to include. Undefined means all of them. An empty set means
+   * a SNAPSHOT only: the time, and the next few things coming up.
+   */
+  scopes?: Set<Scope>;
+  /**
+   * Label items w1, e1, c1, m1 instead of their 36-character ids. A uuid
+   * costs a dozen tokens and there can be seventy of them in one prompt; the
+   * labels cost two, and are translated back afterwards.
+   */
+  shortIds?: boolean;
+  /** How many days of events to include. Defaults to all given. */
+  eventDays?: number;
 }
 
 const n = (v: number) => Math.round(v * 10) / 10;
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /**
  * An instant, rendered in the user's local time.
@@ -82,10 +109,18 @@ function localStamp(iso: string, withTime: boolean, tz: string): string {
    * boundary and reproduces exactly the bug this comment warns about.
    */
   const day = localDayKey(instant, tz);
-  if (!withTime) return day;
+  /*
+   * The weekday is written out, never left to the model. Given bare dates it
+   * worked weekdays out itself and got them wrong — "Assignment 2, due Sun
+   * Oct 2" for a Friday — which is a confidently wrong deadline in all but
+   * name. A day key is a calendar date, so noon UTC names its weekday in
+   * every zone.
+   */
+  const weekday = WEEKDAYS[new Date(`${day}T12:00:00Z`).getUTCDay()];
+  if (!withTime) return `${weekday} ${day}`;
 
   const { hour, minute } = localHourMinute(instant, tz);
-  return `${day} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  return `${weekday} ${day} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
 /**
@@ -96,20 +131,64 @@ function localStamp(iso: string, withTime: boolean, tz: string): string {
  * is shown JSON tends to answer in the shape of the JSON, which is the wrong
  * register for "what's due this week".
  */
-export function buildContext(input: ContextInput): BuiltContext {
+export function buildContext(input: ContextInput, opts: BuildOptions = {}): BuiltContext {
   const knownIds = new Set<string>();
   const lines: string[] = [];
+  const aliases = opts.shortIds ? new Map<string, string>() : undefined;
+  const counters: Record<string, number> = {};
+  const label = (id: string, prefix: string): string => {
+    if (!aliases) {
+      knownIds.add(id);
+      return id;
+    }
+    counters[prefix] = (counters[prefix] ?? 0) + 1;
+    const short = `${prefix}${counters[prefix]}`;
+    aliases.set(short, id);
+    knownIds.add(short);
+    return short;
+  };
+  const want = (scope: Scope) => !opts.scopes || opts.scopes.has(scope);
+  const lastDay = opts.eventDays !== undefined ? addDays(input.today, opts.eventDays) : null;
+  const events = lastDay
+    ? input.events.filter((e) => localDayKey(new Date(e.starts_at), input.timezone) <= lastDay)
+    : input.events;
 
-  lines.push(`Today is ${input.today}. The current local time is ${input.now}.`);
+  lines.push(
+    `Today is ${WEEKDAYS[new Date(`${input.today}T12:00:00Z`).getUTCDay()]} ${input.today}. The current local time is ${input.now}.`,
+  );
   lines.push('All dates below are already in the user\'s local time.');
   lines.push('');
 
+  if (opts.scopes && opts.scopes.size === 0) {
+    /*
+     * A snapshot, for a message that is not about the planner. Enough for a
+     * friend to say "you have the lab at 2:45" in passing, and a fraction of
+     * the full context. If the message turns out to need more, the model says
+     * so (needs_planner) and it is asked again with everything.
+     */
+    lines.push('PLANNER SNAPSHOT (only the next few items; the full planner is not shown)');
+    const now = Date.now();
+    const soon = input.events
+      .filter((e) => !e.all_day && Date.parse(e.starts_at) >= now)
+      .slice(0, 3);
+    for (const e of soon) {
+      lines.push(`  [${label(e.id, 'e')}] ${e.title} — ${localStamp(e.starts_at, true, input.timezone)}${e.course ? `, course ${e.course}` : ''}`);
+    }
+    const due = input.assignments.filter((a) => a.due_at).slice(0, 3);
+    for (const a of due) {
+      lines.push(`  [${label(a.id, 'w')}] ${a.title} — due ${localStamp(a.due_at!, a.due_has_time, input.timezone)}${a.course ? `, course ${a.course}` : ''}`);
+    }
+    if (soon.length + due.length === 0) lines.push('  (nothing coming up)');
+    return { text: lines.join('\n'), knownIds, aliases };
+  }
+
+  if (want('work')) {
   lines.push('OPEN WORK');
   if (input.assignments.length === 0) {
     lines.push('  (nothing open)');
   } else {
     for (const a of input.assignments) {
-      knownIds.add(a.id);
+      const id = label(a.id, 'w');
       const due = a.due_at ? `due ${localStamp(a.due_at, a.due_has_time, input.timezone)}` : 'no date';
       // How long it has been sitting there. "What have I been putting off" is
       // a question the spec names explicitly, and without this the only
@@ -124,35 +203,41 @@ export function buildContext(input: ContextInput): BuiltContext {
         a.status !== 'todo' ? a.status : '',
         age !== null && age >= 1 ? `on the list ${age} ${age === 1 ? 'day' : 'days'}` : '',
       ].filter(Boolean);
-      lines.push(`  [${a.id}] ${a.title} — ${due}${bits.length ? `, ${bits.join(', ')}` : ''}`);
+      lines.push(`  [${id}] ${a.title} — ${due}${bits.length ? `, ${bits.join(', ')}` : ''}`);
     }
   }
   lines.push('');
 
-  lines.push('UPCOMING EVENTS');
-  if (input.events.length === 0) {
-    lines.push('  (none in the next month)');
+  lines.push(lastDay ? `UPCOMING EVENTS (through ${lastDay})` : 'UPCOMING EVENTS');
+  if (events.length === 0) {
+    lines.push(lastDay ? '  (none)' : '  (none in the next month)');
   } else {
-    for (const e of input.events) {
-      knownIds.add(e.id);
+    for (const e of events) {
+      const id = label(e.id, 'e');
       const when = localStamp(e.starts_at, !e.all_day, input.timezone);
-      lines.push(`  [${e.id}] ${e.title} — ${e.kind}, ${when}${e.course ? `, course ${e.course}` : ''}`);
+      lines.push(`  [${id}] ${e.title} — ${e.kind}, ${when}${e.course ? `, course ${e.course}` : ''}`);
     }
   }
   lines.push('');
 
+  }
+
+  if (want('checklist')) {
   lines.push('DAILY CHECKLIST, TODAY');
   if (input.checklist.length === 0) {
     lines.push('  (nothing due today)');
   } else {
     for (const c of input.checklist) {
-      knownIds.add(c.id);
+      const id = label(c.id, 'c');
       const doses = c.doses_remaining === null ? '' : `, ${c.doses_remaining} doses left`;
-      lines.push(`  [${c.id}] ${c.title} — ${c.done_today ? 'done today' : 'not done today'}${doses}`);
+      lines.push(`  [${id}] ${c.title} — ${c.done_today ? 'done today' : 'not done today'}${doses}`);
     }
   }
   lines.push('');
 
+  }
+
+  if (want('food')) {
   lines.push('FOOD TODAY');
   const t = input.food.totals;
   lines.push(`  eaten so far: ${n(t.calories)} kcal, protein ${n(t.protein_g)} g, carbs ${n(t.carbs_g)} g, fat ${n(t.fat_g)} g`);
@@ -180,8 +265,8 @@ export function buildContext(input: ContextInput): BuiltContext {
     lines.push('  (none saved)');
   } else {
     for (const m of input.savedMeals) {
-      knownIds.add(m.id);
-      lines.push(`  [${m.id}] ${m.name} — ${n(m.calories)} kcal, ${n(m.protein_g)} g protein per portion`);
+      const id = label(m.id, 'm');
+      lines.push(`  [${id}] ${m.name} — ${n(m.calories)} kcal, ${n(m.protein_g)} g protein per portion`);
     }
   }
   lines.push('');
@@ -192,6 +277,7 @@ export function buildContext(input: ContextInput): BuiltContext {
   } else {
     for (const w of input.weights) lines.push(`  ${w.local_day}: ${n(w.kg)} kg`);
   }
+  }
 
-  return { text: lines.join('\n'), knownIds };
+  return { text: lines.join('\n'), knownIds, aliases };
 }
