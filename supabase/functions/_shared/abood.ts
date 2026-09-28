@@ -409,6 +409,7 @@ export async function askAbood(opts: {
     : '';
 
   const ask = async (scopes: Set<Scope> | undefined) => {
+    const planner = scopes === undefined || scopes.size > 0;
     const context = await gatherContext(admin, userId, today, tz, {
       scopes,
       shortIds: true,
@@ -427,11 +428,17 @@ export async function askAbood(opts: {
       instruction: CHAT_INSTRUCTION,
       input,
       schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
-      // Some warmth: a companion who says the same sentence every time is not
-      // one. Facts stay pinned by the instruction and by validateChat, which
-      // refuses any id the model was not given, whatever the temperature.
-      temperature: 0.7,
-      maxOutputTokens: 1_200,
+      /*
+       * Two settings, by what is being asked. Conversation gets warmth and
+       * cheap, quick thinking. A planner question gets a steadier hand and
+       * more thought: at low effort and 0.7 a live answer put Assignment 2
+       * "due tonight" when it was due friday, and a wrong deadline is the one
+       * mistake Abood is not allowed. validateChat still refuses any id the
+       * model was not given, whatever the settings.
+       */
+      temperature: planner ? 0.3 : 0.7,
+      reasoning: planner ? 'medium' : 'low',
+      maxOutputTokens: planner ? 2_000 : 1_200,
       timeoutMs: 45_000,
     });
     return { result, context };
@@ -444,10 +451,10 @@ export async function askAbood(opts: {
   // Rare by design — the router leans toward including — and it costs one
   // extra call only when a conversation turned out to need the planner.
   if (result.ok && scopes.size === 0) {
-    const first = validateChat(result.value, context.knownIds, context.aliases);
+    const first = validateChat(result.value, context.knownIds, context.aliases, context.titles);
     if (first.needsPlanner) ({ result, context } = await ask(undefined));
   }
 
   if (!result.ok) return { ok: false, failure: result.failure, message: result.message };
-  return { ok: true, provider: result.provider, ...validateChat(result.value, context.knownIds, context.aliases) };
+  return { ok: true, provider: result.provider, ...validateChat(result.value, context.knownIds, context.aliases, context.titles) };
 }

@@ -71,6 +71,12 @@ export interface LlmRequest {
    * needed and made a single question look like most of a minute's budget.
    */
   maxOutputTokens?: number;
+  /**
+   * How hard a reasoning model thinks before answering, where the provider
+   * supports it. Low is right for conversation; a question whose answer is a
+   * date needs more, because at low effort a deadline was read off wrong.
+   */
+  reasoning?: 'low' | 'medium' | 'high';
 }
 
 export interface LlmProvider {

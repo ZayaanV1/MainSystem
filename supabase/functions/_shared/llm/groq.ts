@@ -215,7 +215,7 @@ export function groqProvider(apiKey: string, model = DEFAULT_MODEL): LlmProvider
             // reasoning is most of the tokens a chat reply costs. Low effort is
             // plenty for conversation and planner look-ups. Only sent to the
             // models that accept it; others would reject the request.
-            ...(/gpt-oss/i.test(m) ? { reasoning_effort: 'low' } : {}),
+            ...(/gpt-oss/i.test(m) ? { reasoning_effort: request.reasoning ?? 'low' } : {}),
             messages: [
               {
                 role: 'system',

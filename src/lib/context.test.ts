@@ -235,3 +235,24 @@ describe('buildContext, trimmed', () => {
     expect(c.text.length).toBeLessThan(400);
   });
 });
+
+describe('how far away each date is', () => {
+  it('says it outright, so the model never subtracts dates', () => {
+    const c = buildContext({
+      today: '2026-09-28',
+      now: '10:00',
+      timezone: 'America/Toronto',
+      assignments: [
+        { id: 'a', title: 'Assignment 2', due_at: '2026-10-03T03:59:00Z', due_has_time: true, status: 'todo', effort_minutes: null },
+        { id: 'b', title: 'WeBWorK 3', due_at: '2026-09-29T03:59:00Z', due_has_time: true, status: 'todo', effort_minutes: null },
+      ],
+      events: [],
+      checklist: [],
+      food: { totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, targets: null, items: [] },
+      savedMeals: [],
+      weights: [],
+    });
+    expect(c.text).toContain('Assignment 2 — due Fri 2026-10-02 23:59 (in 4 days)');
+    expect(c.text).toContain('WeBWorK 3 — due Mon 2026-09-28 23:59 (today)');
+  });
+});

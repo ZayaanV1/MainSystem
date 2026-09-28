@@ -59,6 +59,8 @@ export interface BuiltContext {
    * acted on. Absent when real ids were used.
    */
   aliases?: Map<string, string>;
+  /** Short label -> the item's name, so a label that leaks into prose can be put right. */
+  titles?: Map<string, string>;
 }
 
 /** Which parts of the planner a message needs. */
@@ -84,6 +86,13 @@ const n = (v: number) => Math.round(v * 10) / 10;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+function relative(days: number): string {
+  if (days === 0) return ' (today)';
+  if (days === 1) return ' (tomorrow)';
+  if (days === -1) return ' (yesterday)';
+  return days > 0 ? ` (in ${days} days)` : ` (${-days} days ago)`;
+}
+
 /**
  * An instant, rendered in the user's local time.
  *
@@ -94,7 +103,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * deadline the spec says is worse than no chatbot, and it got past a first
  * live test looking entirely plausible.
  */
-function localStamp(iso: string, withTime: boolean, tz: string): string {
+function localStamp(iso: string, withTime: boolean, tz: string, today?: DayKey): string {
   const instant = new Date(iso);
   if (Number.isNaN(instant.getTime())) return 'unknown time';
 
@@ -117,10 +126,17 @@ function localStamp(iso: string, withTime: boolean, tz: string): string {
    * every zone.
    */
   const weekday = WEEKDAYS[new Date(`${day}T12:00:00Z`).getUTCDay()];
-  if (!withTime) return `${weekday} ${day}`;
+  /*
+   * And how far away it is, said outright. Given only the date, a live answer
+   * called a friday deadline "due tonight" on the monday before — the model
+   * had to subtract dates, and did it wrong. "(in 4 days)" leaves nothing to
+   * work out.
+   */
+  const rel = today ? relative(daysBetween(today, day)) : '';
+  if (!withTime) return `${weekday} ${day}${rel}`;
 
   const { hour, minute } = localHourMinute(instant, tz);
-  return `${weekday} ${day} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  return `${weekday} ${day} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}${rel}`;
 }
 
 /**
@@ -135,8 +151,9 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
   const knownIds = new Set<string>();
   const lines: string[] = [];
   const aliases = opts.shortIds ? new Map<string, string>() : undefined;
+  const titles = opts.shortIds ? new Map<string, string>() : undefined;
   const counters: Record<string, number> = {};
-  const label = (id: string, prefix: string): string => {
+  const label = (id: string, prefix: string, title?: string): string => {
     if (!aliases) {
       knownIds.add(id);
       return id;
@@ -144,6 +161,7 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
     counters[prefix] = (counters[prefix] ?? 0) + 1;
     const short = `${prefix}${counters[prefix]}`;
     aliases.set(short, id);
+    if (title) titles?.set(short, title);
     knownIds.add(short);
     return short;
   };
@@ -172,14 +190,14 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
       .filter((e) => !e.all_day && Date.parse(e.starts_at) >= now)
       .slice(0, 3);
     for (const e of soon) {
-      lines.push(`  [${label(e.id, 'e')}] ${e.title} — ${localStamp(e.starts_at, true, input.timezone)}${e.course ? `, course ${e.course}` : ''}`);
+      lines.push(`  [${label(e.id, 'e', e.title)}] ${e.title} — ${localStamp(e.starts_at, true, input.timezone, input.today)}${e.course ? `, course ${e.course}` : ''}`);
     }
     const due = input.assignments.filter((a) => a.due_at).slice(0, 3);
     for (const a of due) {
-      lines.push(`  [${label(a.id, 'w')}] ${a.title} — due ${localStamp(a.due_at!, a.due_has_time, input.timezone)}${a.course ? `, course ${a.course}` : ''}`);
+      lines.push(`  [${label(a.id, 'w', a.title)}] ${a.title} — due ${localStamp(a.due_at!, a.due_has_time, input.timezone, input.today)}${a.course ? `, course ${a.course}` : ''}`);
     }
     if (soon.length + due.length === 0) lines.push('  (nothing coming up)');
-    return { text: lines.join('\n'), knownIds, aliases };
+    return { text: lines.join('\n'), knownIds, aliases, titles };
   }
 
   if (want('work')) {
@@ -188,8 +206,8 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
     lines.push('  (nothing open)');
   } else {
     for (const a of input.assignments) {
-      const id = label(a.id, 'w');
-      const due = a.due_at ? `due ${localStamp(a.due_at, a.due_has_time, input.timezone)}` : 'no date';
+      const id = label(a.id, 'w', a.title);
+      const due = a.due_at ? `due ${localStamp(a.due_at, a.due_has_time, input.timezone, input.today)}` : 'no date';
       // How long it has been sitting there. "What have I been putting off" is
       // a question the spec names explicitly, and without this the only
       // honest answer is that the data does not say — which is true, and
@@ -213,8 +231,8 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
     lines.push(lastDay ? '  (none)' : '  (none in the next month)');
   } else {
     for (const e of events) {
-      const id = label(e.id, 'e');
-      const when = localStamp(e.starts_at, !e.all_day, input.timezone);
+      const id = label(e.id, 'e', e.title);
+      const when = localStamp(e.starts_at, !e.all_day, input.timezone, input.today);
       lines.push(`  [${id}] ${e.title} — ${e.kind}, ${when}${e.course ? `, course ${e.course}` : ''}`);
     }
   }
@@ -228,7 +246,7 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
     lines.push('  (nothing due today)');
   } else {
     for (const c of input.checklist) {
-      const id = label(c.id, 'c');
+      const id = label(c.id, 'c', c.title);
       const doses = c.doses_remaining === null ? '' : `, ${c.doses_remaining} doses left`;
       lines.push(`  [${id}] ${c.title} — ${c.done_today ? 'done today' : 'not done today'}${doses}`);
     }
@@ -265,7 +283,7 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
     lines.push('  (none saved)');
   } else {
     for (const m of input.savedMeals) {
-      const id = label(m.id, 'm');
+      const id = label(m.id, 'm', m.name);
       lines.push(`  [${id}] ${m.name} — ${n(m.calories)} kcal, ${n(m.protein_g)} g protein per portion`);
     }
   }
@@ -279,5 +297,5 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
   }
   }
 
-  return { text: lines.join('\n'), knownIds, aliases };
+  return { text: lines.join('\n'), knownIds, aliases, titles };
 }

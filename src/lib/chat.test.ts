@@ -156,3 +156,15 @@ describe('validateChat with short labels', () => {
     expect(out.warnings.length).toBe(1);
   });
 });
+
+describe('a label that leaks into the reply', () => {
+  it('is replaced by the item name', () => {
+    const out = validateChat(
+      { reply: 'w2 is due friday, and [e3] is at 2.', referenced: [] },
+      new Set(['w2', 'e3']),
+      new Map([['w2', 'x'], ['e3', 'y']]),
+      new Map([['w2', 'Assignment 2'], ['e3', 'COEN 212 Lab']]),
+    );
+    expect(out.reply).toBe('Assignment 2 is due friday, and COEN 212 Lab is at 2.');
+  });
+});
