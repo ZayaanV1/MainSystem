@@ -113,7 +113,7 @@ async function newestRowId() {
 
 async function incoming(after) {
   return sql(`
-    select m.ROWID as id, m.text as text, hex(m.attributedBody) as body, h.id as handle
+    select m.ROWID as id, m.text as text, hex(m.attributedBody) as body, h.id as handle, c.guid as chat
     from message m
     join handle h on h.ROWID = m.handle_id
     join chat_message_join j on j.message_id = m.ROWID
@@ -133,8 +133,22 @@ async function incoming(after) {
  * the script, never spliced into it, so nothing a reply contains can become
  * AppleScript.
  */
-async function send(handle, text) {
-  const script = [
+async function send(handle, text, chat) {
+  /*
+   * Into the conversation the message came from, when it is known. Sending to
+   * a participant instead starts a conversation of Messages' choosing, from
+   * an address of Messages' choosing — and on a fresh Apple ID that address
+   * can be one iMessage will not send from, which is how the first replies
+   * came back "Not Delivered".
+   */
+  const toChat = [
+    'on run argv',
+    '  tell application "Messages"',
+    '    send (item 1 of argv) to chat id (item 2 of argv)',
+    '  end tell',
+    'end run',
+  ];
+  const toParticipant = [
     'on run argv',
     '  tell application "Messages"',
     '    set theService to 1st account whose service type = iMessage',
@@ -142,7 +156,39 @@ async function send(handle, text) {
     '  end tell',
     'end run',
   ];
-  await run('/usr/bin/osascript', [...script.flatMap((l) => ['-e', l]), text, handle]);
+  const osa = (lines, target) => run('/usr/bin/osascript', [...lines.flatMap((l) => ['-e', l]), text, target]);
+  if (chat) {
+    try {
+      await osa(toChat, chat);
+      return;
+    } catch (e) {
+      log('send to chat failed, trying the participant:', String(e.stderr || e.message).trim());
+    }
+  }
+  await osa(toParticipant, handle);
+}
+
+/**
+ * What Messages did with the reply it was handed.
+ *
+ * osascript returns as soon as Messages accepts a send, which is not the same
+ * as delivering it — a reply can sit "Not Delivered" with nothing thrown
+ * anywhere. So a few seconds later the outgoing row is read back and its
+ * state logged, which is the only place a silent failure would show.
+ */
+async function reportDelivery(handle) {
+  await new Promise((r) => setTimeout(r, 4_000));
+  try {
+    const rows = await sql(`
+      select m.error, m.is_sent, m.is_delivered, m.service, m.account, m.destination_caller_id as from_id
+      from message m join handle h on h.ROWID = m.handle_id
+      where m.is_from_me = 1 and h.id = '${handle.replace(/'/g, "''")}'
+      order by m.ROWID desc limit 1
+    `);
+    log('delivery:', JSON.stringify(rows[0] ?? 'no outgoing row found'));
+  } catch (e) {
+    log('delivery check failed:', String(e.stderr || e.message).trim());
+  }
 }
 
 async function post(config, body) {
@@ -196,8 +242,11 @@ async function main() {
 
         const text = (m.text ?? decodeAttributedBody(m.body) ?? '').replace(/￼/g, '').trim();
         const { replies = [] } = await post(config, { kind: 'message', handle: m.handle, text });
-        for (const r of replies) await send(m.handle, r);
-        if (replies.length) log(`answered ${m.handle.replace(/.(?=.{4})/g, '•')}`);
+        for (const r of replies) await send(m.handle, r, m.chat);
+        if (replies.length) {
+          log(`answered ${m.handle.replace(/.(?=.{4})/g, '•')}`);
+          await reportDelivery(m.handle);
+        }
       }
     } catch (e) {
       log('error:', String(e.stderr || e.message).trim());
