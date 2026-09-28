@@ -84,6 +84,12 @@ export interface BuildOptions {
   shortIds?: boolean;
   /** How many days of events to include. Defaults to all given. */
   eventDays?: number;
+  /**
+   * The date and time only, no planner at all. For when they are opening up:
+   * a to-do list in the prompt is what kept turning a confidence into a
+   * status report, however the instruction was worded.
+   */
+  bare?: boolean;
 }
 
 const n = (v: number) => Math.round(v * 10) / 10;
@@ -180,6 +186,11 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
   );
   lines.push('All dates below are already in the user\'s local time.');
   lines.push('');
+
+  if (opts.bare) {
+    lines.push('(Their planner is deliberately not shown: they are talking, not planning.)');
+    return { text: lines.join('\n'), knownIds, aliases, titles };
+  }
 
   if (opts.scopes && opts.scopes.size === 0) {
     /*

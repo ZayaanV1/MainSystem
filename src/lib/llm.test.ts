@@ -206,6 +206,42 @@ describe('sending Abood only what a message needs', () => {
     ]).toEqual([]);
   });
 
+  it('keeps the planner out of a confidence unless they ask for it', async () => {
+    const { modeFor } = await import('../../supabase/functions/_shared/abood');
+    // These all matched WORK before, and arrived with everything due attached.
+    expect(modeFor('honestly this week has been rough and i feel kind of lost')).toBe('confide');
+    expect(modeFor('i keep thinking about my family and whether im doing enough with my life')).toBe('confide');
+    expect(modeFor('i have no motivation for school lately')).toBe('confide');
+    // A reply inside the confidence stays in it.
+    expect(modeFor('yeah', 'i feel like nobody gets me')).toBe('confide');
+    expect(modeFor('it just builds up at night', 'i feel like nobody gets me')).toBe('confide');
+    // Asking outright is asking, whatever came before.
+    expect(modeFor('ok when is my midterm', 'i feel anxious about math')).toBe('planner');
+    expect(modeFor('what is due this week?')).toBe('planner');
+    expect(modeFor('did i take my adderall')).toBe('planner');
+    expect(modeFor('hey whats up')).toBe('chat');
+  });
+
+  it('shows no planner at all in a bare context', async () => {
+    const { buildContext } = await import('../../supabase/functions/_shared/context');
+    const built = buildContext(
+      {
+        today: '2026-09-28',
+        now: '21:00',
+        timezone: 'America/Toronto',
+        assignments: [{ id: 'a1', title: 'WeBWorK 3', due_at: '2026-10-10T03:59:00Z', due_has_time: true, status: 'todo', effort_minutes: null }],
+        events: [],
+        checklist: [],
+        food: { totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, targets: null, items: [] },
+        savedMeals: [],
+        weights: [],
+      },
+      { bare: true, shortIds: true },
+    );
+    expect(built.text).not.toContain('WeBWorK');
+    expect(built.knownIds.size).toBe(0);
+  });
+
   it('looks a month ahead only when the question reaches that far', async () => {
     const { eventDaysFor } = await import('../../supabase/functions/_shared/abood');
     expect(eventDaysFor('what do I have tomorrow')).toBe(14);

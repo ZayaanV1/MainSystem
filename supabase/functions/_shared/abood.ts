@@ -398,6 +398,46 @@ export function scopesFor(message: string, previous?: string | null): Set<Scope>
   return scopes;
 }
 
+/*
+ * Opening up, or asking?
+ *
+ * Asked for, after Abood kept answering "deep down thoughts" with a list of
+ * everything due: "the ai bot is supposed to be like a companion, not a
+ * director". The instruction already said not to steer to assignments, and
+ * it did anyway, for a mechanical reason: WORK matches "today", "week",
+ * "life", "behind", so almost any confidence arrived with the whole planner
+ * attached, at the cool planner temperature, and a model handed a to-do list
+ * talks about the to-do list.
+ *
+ * So a personal message gets NO planner — only the date — unless it also
+ * asks a planner question outright. And once they are opening up, the
+ * conversation stays there until they ask for something concrete.
+ */
+const PERSONAL =
+  /\b(feel\w*|felt|sad|down|low|lonely|alone|anxious|anxiety|panic\w*|depress\w*|overwhelm\w*|stress\w*|burn(t|ed)?\s?out|exhausted|drained|tired of|numb|empty|lost|stuck|hopeless|worthless|cry\w*|tears|hurt\w*|upset|angry|mad at|frustrat\w*|scared|afraid|fear\w*|worr\w*|insecur\w*|confiden\w*|ashamed|shame|guilt\w*|regret\w*|embarrass\w*|jealous|hate (my|myself|it)|love|miss(ing)?|heart\w*|break\s?up|broke up|relationship|girlfriend|boyfriend|gf|bf|crush|dating|friends?|friendship|family|mom|mum|dad|parents?|brother|sister|home\s?sick|life|myself|thoughts?|thinking about|overthink\w*|deep|honest(ly)?|vent\w*|rant|talk|confess|secret|purpose|meaning|future|pointless|motivat\w*|therap\w*|mental|adhd|sleep|can't sleep|idk what|i don'?t know (what|why|how)|be real|can i tell you)\b/i;
+
+/** A plain request for planner facts or a planner change, even mid-confidence. */
+const PLANNER_ASK =
+  /\b(when('?s| is| are| do)|what('?s| is) due|due (today|tonight|tomorrow|this|next)|deadline|what do i have|what have i got|do i have (any|a|an)|what now|what should i (do|work on|start)|how (much|many) (time|protein|calories|kcal|left)|add (a|an|it|this|that)|remind me|mark (it|that|as)|tick|log (my|a|this|that)|my (schedule|calendar|checklist)|[A-Z]{3,4}\s?\d{3})\b/i;
+
+export type Mode = 'confide' | 'chat' | 'planner';
+
+export function modeFor(message: string, previous?: string | null): Mode {
+  if (PLANNER_ASK.test(message)) return 'planner';
+  if (PERSONAL.test(message)) return 'confide';
+  // A reply inside a confidence ("yeah", "it's just a lot") is still one.
+  if (previous && PERSONAL.test(previous) && !PLANNER_ASK.test(previous)) return 'confide';
+  return scopesFor(message, previous).size ? 'planner' : 'chat';
+}
+
+const CONFIDE_NOTE = [
+  'MODE: THEY ARE OPENING UP.',
+  'This is talking, not planning. Listen first. Reflect what you heard in your own words, name the feeling if it helps,',
+  'and ask one open question that goes a layer deeper. Do not offer fixes, plans or productivity advice unless they ask,',
+  'and if you are not sure whether they want ideas or just to be heard, ask. Do not mention assignments, deadlines,',
+  'classes, their schedule or anything to get done — even if you think it is related — unless they bring it up.',
+].join(' ');
+
 /** Events a fortnight ahead unless the message reaches further. */
 export function eventDaysFor(message: string): number {
   return /\b(month|exams?|finals?|midterms?|semester|term|october|november|december|january|february|march|april)\b/i.test(message)
@@ -442,12 +482,15 @@ export async function askAbood(opts: {
     ? `WHAT YOU REMEMBER ABOUT THEM (from earlier conversations; use it to be helpful, never recite it)\n${memory.map((f) => `- ${f}`).join('\n')}\n`
     : '';
 
-  const ask = async (scopes: Set<Scope> | undefined) => {
-    const planner = scopes === undefined || scopes.size > 0;
+  const mode = modeFor(message, previousQuestion);
+
+  const ask = async (scopes: Set<Scope> | undefined, bare = false) => {
+    const planner = mode === 'planner';
     const context = await gatherContext(admin, userId, today, tz, {
       scopes,
       shortIds: true,
       eventDays: eventDaysFor(message),
+      bare,
     });
     const input = [
       'THEIR DATA',
@@ -455,6 +498,7 @@ export async function askAbood(opts: {
       '',
       memoryBlock,
       priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
+      mode === 'confide' ? `${CONFIDE_NOTE}\n` : '',
       `THEY NOW SAY: ${message}`,
     ].join('\n');
 
@@ -470,21 +514,23 @@ export async function askAbood(opts: {
        * mistake Abood is not allowed. validateChat still refuses any id the
        * model was not given, whatever the settings.
        */
-      temperature: planner ? 0.3 : 0.8,
-      reasoning: planner ? 'medium' : 'low',
+      // A confidence gets medium effort too: what makes a listener good is
+      // noticing what was actually said, and that is thinking, not warmth.
+      temperature: planner ? 0.3 : mode === 'confide' ? 0.85 : 0.8,
+      reasoning: planner || mode === 'confide' ? 'medium' : 'low',
       maxOutputTokens: 2_000,
       timeoutMs: 45_000,
     });
     return { result, context };
   };
 
-  const scopes = scopesFor(message, previousQuestion);
-  let { result, context } = await ask(scopes);
+  const scopes = mode === 'planner' ? scopesFor(message, previousQuestion) : new Set<Scope>();
+  let { result, context } = await ask(mode === 'planner' && scopes.size === 0 ? undefined : scopes, mode === 'confide');
 
-  // A snapshot that was not enough: ask again with the whole planner, once.
-  // Rare by design — the router leans toward including — and it costs one
-  // extra call only when a conversation turned out to need the planner.
-  if (result.ok && scopes.size === 0) {
+  // A snapshot (or nothing) that was not enough: ask again with the whole
+  // planner, once. Rare by design, and it costs one extra call only when a
+  // conversation turned out to need the planner.
+  if (result.ok && scopes.size === 0 && mode !== 'planner') {
     const first = validateChat(result.value, context.knownIds, context.aliases, context.titles);
     if (first.needsPlanner) ({ result, context } = await ask(undefined));
   }
