@@ -27,20 +27,12 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { askAbood, learn } from '../_shared/abood.ts';
-import { geminiProvider } from '../_shared/llm/gemini.ts';
-import { groqProvider } from '../_shared/llm/groq.ts';
-import { withFallback } from '../_shared/llm/chain.ts';
-import { checkBudget, recordUse } from '../_shared/budget.ts';
-import { localDayKey } from '../_shared/time.ts';
+import { HELP, converse } from '../_shared/door.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
 
 const BOT = env('TELEGRAM_BOT_TOKEN');
 const SECRET = env('TELEGRAM_WEBHOOK_SECRET');
-const APP_URL = env('APP_URL');
-
-const MAX_MESSAGE = 2_000;
 /** Telegram's own ceiling on one message. */
 const MAX_TELEGRAM = 4_000;
 
@@ -143,13 +135,6 @@ async function link(admin: Admin, chatId: number, code: string): Promise<string 
   return userId;
 }
 
-const HELP = [
-  'Ask me anything about your work, classes, checklist or food, and I answer from what is in your planner.',
-  '',
-  '/memory  what I remember about you',
-  '/forget  clear what I remember',
-  '/help  this message',
-].join('\n');
 
 async function handle(admin: Admin, update: Update): Promise<void> {
   const msg = update.message;
@@ -186,119 +171,14 @@ async function handle(admin: Admin, update: Update): Promise<void> {
     return;
   }
 
-  // ---- commands ----------------------------------------------------------
-  if (/^\/help\b/.test(text)) {
-    await say(chatId, HELP);
-    return;
-  }
-
-  if (/^\/memory\b/.test(text)) {
-    const { data } = await admin
-      .from('memory_facts')
-      .select('fact')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true });
-    const facts = ((data ?? []) as { fact: string }[]).map((r) => `- ${r.fact}`);
-    await say(
-      chatId,
-      facts.length
-        ? `What I remember:\n${facts.join('\n')}\n\nYou can remove any of these in Settings, or send /forget.`
-        : 'Nothing yet. I pick things up as we talk — routines, preferences, what helps.',
-    );
-    return;
-  }
-
-  if (/^\/forget\b/.test(text)) {
-    // Two steps, because it cannot be undone.
-    if (!/^\/forget\s+yes$/i.test(text)) {
-      await say(chatId, 'That clears everything I remember about you. Send "/forget yes" to go ahead.');
-      return;
-    }
-    const { count } = await admin
-      .from('memory_facts')
-      .delete({ count: 'exact' })
-      .eq('user_id', userId);
-    await say(chatId, count ? `Cleared ${count} ${count === 1 ? 'thing' : 'things'}.` : 'There was nothing to clear.');
-    return;
-  }
-
-  // ---- a question --------------------------------------------------------
-  const message = text.slice(0, MAX_MESSAGE);
-
-  const { data: settings } = await admin
-    .from('app_settings')
-    .select('gemini_api_key, groq_api_key, timezone')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  const rawGemini = (settings?.gemini_api_key as string | null)?.trim() || null;
-  const ownGemini = rawGemini && !rawGemini.startsWith('gsk_') ? rawGemini : null;
-  const rawGroq = (settings?.groq_api_key as string | null)?.trim() || null;
-  const ownGroq = rawGroq && !rawGroq.startsWith('AIza') ? rawGroq : null;
-  const tz = ((settings?.timezone as string | null) ?? 'UTC').trim() || 'UTC';
-  const today = localDayKey(new Date(), tz);
-
-  const geminiKey = ownGemini ?? env('GEMINI_API_KEY');
-  const gemini = geminiProvider(geminiKey);
-  const groqKey = ownGroq ?? env('GROQ_API_KEY');
-  const provider = groqKey ? withFallback(groqProvider(groqKey, env('GROQ_MODEL') || undefined), gemini) : gemini;
-  const onOwnKey = Boolean(ownGroq || (!groqKey && ownGemini));
-
-  // The same daily budget as the app's chat, so a second door is not a way
-  // round the reserve kept for logging food.
-  const budget = await checkBudget(admin, userId, 'chat', today, onOwnKey);
-
-  await admin.from('chat_messages').insert({ user_id: userId, role: 'user', content: message, via: 'telegram' });
-
-  if (!budget.allowed) {
-    const reason = 'That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow.';
-    await admin
-      .from('chat_messages')
-      .insert({ user_id: userId, role: 'assistant', content: reason, failed: true, via: 'telegram' });
-    await say(chatId, reason);
-    return;
-  }
-
-  await tg('sendChatAction', { chat_id: chatId, action: 'typing' });
-
-  const result = await askAbood({ admin, userId, message, today, tz, provider, geminiKey });
-  await recordUse(admin, userId, 'chat', today, onOwnKey);
-
-  if (!result.ok) {
-    const reason =
-      result.failure === 'quota'
-        ? 'Out of model requests for now. Try again later.'
-        : 'I could not answer that just now. Try again in a minute.';
-    await admin
-      .from('chat_messages')
-      .insert({ user_id: userId, role: 'assistant', content: `${reason} ${result.message}`.slice(0, 1_000), failed: true, via: 'telegram' });
-    await say(chatId, reason);
-    return;
-  }
-
-  const content = result.warnings.length ? `${result.reply}\n\n${result.warnings.join(' ')}` : result.reply;
-  await admin.from('chat_messages').insert({
-    user_id: userId,
-    role: 'assistant',
-    content,
-    proposed_action: result.action,
-    referenced_ids: result.referenced,
+  await converse({
+    admin,
+    userId,
+    text,
     via: 'telegram',
+    send: (t) => say(chatId, t),
+    typing: () => tg('sendChatAction', { chat_id: chatId, action: 'typing' }),
   });
-
-  await say(
-    chatId,
-    result.action
-      ? `${content}\n\nNothing is changed until you confirm it in the planner${APP_URL ? `: ${APP_URL}` : '.'}`
-      : content,
-  );
-
-  // Learned after answering, and said out loud: memory that grows in secret
-  // is memory nobody can correct.
-  const learned = await learn(admin, userId, message, provider, geminiKey, 'telegram').catch(() => []);
-  if (learned.length) {
-    await say(chatId, `Noted: ${learned.join(' ')}`);
-  }
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {

@@ -63,3 +63,46 @@ export async function telegramLink(userId: string): Promise<{ url: string } | { 
   if (!who.username) return { error: 'The Telegram bot is not reachable right now. Try again shortly.' };
   return { url: `https://t.me/${who.username}?start=${code}` };
 }
+
+export interface BridgeStatus {
+  /** The Apple ID people text, once the Mac has reported it. */
+  address: string | null;
+  /** Checked in within the last ten minutes (it reports every five). */
+  online: boolean;
+  lastSeen: string | null;
+  /** Numbers and Apple IDs linked to this account. */
+  handles: string[];
+}
+
+export async function bridgeStatus(): Promise<BridgeStatus | null> {
+  const [bridge, links] = await Promise.all([
+    supabase.from('imessage_bridge').select('address, last_seen').maybeSingle(),
+    supabase.from('imessage_links').select('handle').order('created_at'),
+  ]);
+  if (bridge.error || links.error) return null;
+  const lastSeen = (bridge.data?.last_seen as string | null) ?? null;
+  return {
+    address: (bridge.data?.address as string | null) ?? null,
+    lastSeen,
+    online: lastSeen !== null && Date.now() - Date.parse(lastSeen) < 10 * 60_000,
+    handles: ((links.data ?? []) as { handle: string }[]).map((l) => l.handle),
+  };
+}
+
+export async function unlinkHandle(handle: string): Promise<boolean> {
+  const { error } = await supabase.from('imessage_links').delete().eq('handle', handle);
+  return !error;
+}
+
+/**
+ * A Messages link that texts the one-time code to the bridge. On an iPhone
+ * it opens Messages with the text already written; sending it links the
+ * number it is sent from.
+ */
+export async function imessageLink(userId: string, address: string): Promise<{ url: string } | { error: string }> {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  const code = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  const { error } = await supabase.from('telegram_link_codes').insert({ user_id: userId, code });
+  if (error) return { error: 'Could not make a link. Try again.' };
+  return { url: `sms:${address}&body=${encodeURIComponent(`link ${code}`)}` };
+}

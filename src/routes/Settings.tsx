@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { forgetFact, loadMemory, telegramLink, telegramLinked, type MemoryFact } from '../lib/abood';
+import {
+  bridgeStatus,
+  forgetFact,
+  imessageLink,
+  loadMemory,
+  telegramLink,
+  telegramLinked,
+  unlinkHandle,
+  type BridgeStatus,
+  type MemoryFact,
+} from '../lib/abood';
 import { SectionHead } from '../components/SectionHead';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -214,6 +224,8 @@ export function Settings({ onBack }: { onBack: () => void }) {
       <GroqKey userId={userId} />
 
       <TextAbood userId={userId} />
+
+      <IMessageAbood userId={userId} />
 
       <AboodMemory />
 
@@ -762,6 +774,83 @@ function AboodMemory() {
           ))}
         </Card>
       )}
+    </section>
+  );
+}
+
+/**
+ * Abood by iMessage, through the Mac bridge.
+ *
+ * Says plainly whether the Mac is up, because a bridge that is off looks
+ * exactly like an Abood that is ignoring you.
+ */
+function IMessageAbood({ userId }: { userId: string }) {
+  const [status, setStatus] = useState<BridgeStatus | null | undefined>(undefined);
+  const [url, setUrl] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const reload = useCallback(() => void bridgeStatus().then(setStatus), []);
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  async function connect() {
+    if (!status?.address) return;
+    setMessage(null);
+    const r = await imessageLink(userId, status.address);
+    if ('error' in r) setMessage(r.error);
+    else setUrl(r.url);
+  }
+
+  return (
+    <section className="mb-8">
+      <SectionHead title="iMessage" />
+      <Card className="p-4">
+        <p className="type-body mb-3 text-text-mid">
+          The same Abood in Messages, answered by a Mac running the planner&rsquo;s bridge.
+        </p>
+        <p className="type-note mb-4 text-text-low">
+          {status === undefined
+            ? 'Checking.'
+            : status === null
+              ? 'Couldn’t check the bridge.'
+              : !status.lastSeen
+                ? 'No Mac is running the bridge yet.'
+                : status.online
+                  ? `The bridge is up${status.address ? `, answering on ${status.address}` : ''}.`
+                  : 'The bridge Mac is offline or asleep, so messages will wait until it is back.'}
+        </p>
+
+        {status && status.handles.length > 0 && (
+          <div className="mb-4 flex flex-col gap-2">
+            <span className="kicker">Linked</span>
+            {status.handles.map((h) => (
+              <div key={h} className="flex items-center justify-between gap-3">
+                <span className="type-body text-text-hi">{h}</span>
+                <Button variant="quiet" size="sm" onClick={() => void unlinkHandle(h).then(reload)}>
+                  Unlink
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {status?.address &&
+          (url ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <a href={url} className="btn btn-primary px-5 type-label">
+                Open Messages
+              </a>
+              <span className="type-note text-text-low">Send the message it writes for you, from the phone you want linked.</span>
+            </div>
+          ) : (
+            <Button variant="secondary" onClick={() => void connect()}>
+              Connect this phone
+            </Button>
+          ))}
+
+        {message && <p className="mt-3 type-note text-text-mid">{message}</p>}
+      </Card>
     </section>
   );
 }

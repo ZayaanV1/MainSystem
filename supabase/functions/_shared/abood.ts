@@ -318,7 +318,7 @@ export async function learn(
   message: string,
   provider: LlmProvider,
   geminiKey: string,
-  source: 'app' | 'telegram',
+  source: 'app' | 'telegram' | 'imessage',
 ): Promise<string[]> {
   if (message.trim().length < 12) return [];
   const { data: existing } = await admin

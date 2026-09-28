@@ -644,6 +644,31 @@ university's to set. A Moodle PAGE (course, dashboard, calendar view) is
 caught by name, like the Google browser-bar link, with the menu path to the
 real export address. Both verified against the deployed function.
 
+### Abood by iMessage, through a Mac — Sep 2026
+
+Apple has no iMessage API, so `bridge/imessage/bridge.mjs` runs on a Mac
+signed into Messages (a LaunchAgent, `install.sh`): it polls
+`~/Library/Messages/chat.db` with the system sqlite3 for new one-to-one
+iMessages it did not send, posts each to `functions/imessage` with a shared
+secret (`IMESSAGE_BRIDGE_SECRET`), and sends back what that returns through
+Messages via osascript, with the text passed as an argument, never spliced
+into the script. It holds a caffeinate assertion while it runs, starts from
+the newest message on first run, and waits (rather than crash-looping) until
+Full Disk Access is granted to the node binary. Zero dependencies.
+
+The server side is the shared door (`_shared/door.ts`, now also Telegram's):
+same commands, memory, budget and confirm-in-app rule. A handle links only by
+texting a one-time code (Settings > iMessage > Connect this phone, which opens
+Messages pre-filled); **an unlinked handle gets no reply at all**, so a bridge
+on a personal Apple ID can never answer a friend. `imessage_bridge` records
+the address and a five-minute heartbeat so Settings can say when the Mac is
+off. Needs a second Apple ID signed into Messages on the Mac — texting your
+own Apple ID from your own phone is texting yourself.
+
+Verified against the live function by playing the Mac's side: 401 without the
+secret, silence for an unlinked number, a link redeemed from a formatted
+number, and a correct answer to "what classes do I have tomorrow".
+
 ### Abood on Telegram, with a memory — Sep 2026
 
 The five-piece bot recipe (channel, webhook, server, memory, LLM) built as a

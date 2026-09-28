@@ -230,6 +230,8 @@ describe('migrations apply', () => {
       'events',
       'food_entries',
       'food_items',
+      'imessage_bridge',
+      'imessage_links',
       'inbox_items',
       'macro_targets',
       'memory_facts',

@@ -30,3 +30,8 @@ verify_jwt = false
 # Telegram sends with every update instead, and links chats only through
 # one-time codes an account made itself.
 verify_jwt = false
+
+[functions.imessage]
+# Called only by the Mac bridge, which authenticates with a shared secret
+# header rather than a user JWT.
+verify_jwt = false
