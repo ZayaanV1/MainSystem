@@ -470,9 +470,9 @@ export async function askAbood(opts: {
        * mistake Abood is not allowed. validateChat still refuses any id the
        * model was not given, whatever the settings.
        */
-      temperature: planner ? 0.3 : 0.7,
+      temperature: planner ? 0.3 : 0.8,
       reasoning: planner ? 'medium' : 'low',
-      maxOutputTokens: planner ? 2_000 : 1_200,
+      maxOutputTokens: 2_000,
       timeoutMs: 45_000,
     });
     return { result, context };
