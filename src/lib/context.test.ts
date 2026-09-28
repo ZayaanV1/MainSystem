@@ -256,3 +256,22 @@ describe('how far away each date is', () => {
     expect(c.text).toContain('WeBWorK 3 — due Mon 2026-09-28 23:59 (today)');
   });
 });
+
+describe('academic standing', () => {
+  it('says what is decided against what is on the calendar, and predicts nothing', () => {
+    const c = buildContext({
+      today: '2026-09-28', now: '10:00', timezone: 'America/Toronto',
+      assignments: [{ id: 'a', title: 'Midterm prep', due_at: null, due_has_time: false, status: 'todo', effort_minutes: null, weight_percent: 25 }],
+      events: [], checklist: [],
+      food: { totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, targets: null, items: [] },
+      savedMeals: [], weights: [],
+      grades: [
+        { course: 'MATH 205', weightKnown: 10, weightMarked: 5, earned: 4 },
+        { course: 'PHYS 205', weightKnown: 25, weightMarked: 0, earned: 0 },
+      ],
+    });
+    expect(c.text).toContain('worth 25% of the course');
+    expect(c.text).toContain('MATH 205: 10% of the grade is on the calendar, 5% of it marked, 4 points banked (80% on what is marked)');
+    expect(c.text).toContain('PHYS 205: 25% of the grade is on the calendar, 0% of it marked, none marked yet');
+  });
+});

@@ -37,6 +37,8 @@ export interface ContextInput {
     course?: string | null;
     /** When it was added. Lets "what have I been putting off" be answerable. */
     created_at?: string | null;
+    /** Share of the course grade, when known. Lets "what matters most" be answered. */
+    weight_percent?: number | null;
   }[];
   events: { id: string; title: string; kind: string; starts_at: string; all_day: boolean; course?: string | null }[];
   checklist: { id: string; title: string; done_today: boolean; doses_remaining: number | null }[];
@@ -47,6 +49,8 @@ export interface ContextInput {
   };
   savedMeals: { id: string; name: string; calories: number; protein_g: number }[];
   weights: { local_day: DayKey; kg: number }[];
+  /** Academic standing per course: weight decided against weight on the calendar. */
+  grades?: { course: string; weightKnown: number; weightMarked: number; earned: number }[];
 }
 
 export interface BuiltContext {
@@ -218,6 +222,7 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
       const bits = [
         a.course ? `course ${a.course}` : '',
         a.effort_minutes ? `${a.effort_minutes} min of work` : '',
+        typeof a.weight_percent === 'number' ? `worth ${a.weight_percent}% of the course` : '',
         a.status !== 'todo' ? a.status : '',
         age !== null && age >= 1 ? `on the list ${age} ${age === 1 ? 'day' : 'days'}` : '',
       ].filter(Boolean);
@@ -225,6 +230,19 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
     }
   }
   lines.push('');
+
+  if (input.grades?.length) {
+    lines.push('STANDING BY COURSE (points already decided; nothing here is a prediction)');
+    for (const g of input.grades) {
+      lines.push(
+        `  ${g.course}: ${n(g.weightKnown)}% of the grade is on the calendar, ${n(g.weightMarked)}% of it marked` +
+          (g.weightMarked > 0
+            ? `, ${n(g.earned)} points banked (${Math.round((g.earned / g.weightMarked) * 100)}% on what is marked)`
+            : ', none marked yet'),
+      );
+    }
+    lines.push('');
+  }
 
   lines.push(lastDay ? `UPCOMING EVENTS (through ${lastDay})` : 'UPCOMING EVENTS');
   if (events.length === 0) {

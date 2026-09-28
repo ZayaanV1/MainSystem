@@ -55,11 +55,11 @@ const EMBED_DIMS = 768;
 export async function gatherContext(admin: any, userId: string, today: string, tz: string, opts: BuildOptions = {}) {
   const monthOut = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [assignments, events, checklist, completions, entries, targets, meals, weights] =
+  const [assignments, events, checklist, completions, entries, targets, meals, weights, weighted] =
     await Promise.all([
       admin
         .from('assignments')
-        .select('id, title, due_at, due_has_time, status, effort_minutes, created_at, courses(code, name)')
+        .select('id, title, due_at, due_has_time, status, effort_minutes, created_at, weight_percent, courses(code, name)')
         .eq('user_id', userId)
         .neq('status', 'done')
         .order('due_at', { ascending: true, nullsFirst: false })
@@ -103,6 +103,15 @@ export async function gatherContext(admin: any, userId: string, today: string, t
         .eq('user_id', userId)
         .order('local_day', { ascending: false })
         .limit(5),
+      // Every piece of weighted work, done or not: standing is what has been
+      // decided against what the course is made of, and finished work is
+      // exactly the part an open-work query leaves out.
+      admin
+        .from('assignments')
+        .select('weight_percent, grade_percent, courses(code, name)')
+        .eq('user_id', userId)
+        .not('weight_percent', 'is', null)
+        .limit(300),
     ]);
 
   const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
@@ -131,6 +140,24 @@ export async function gatherContext(admin: any, userId: string, today: string, t
 
   const t = targets.data?.[0];
 
+  // Per course, the same subtraction the Courses screen does: weight on the
+  // calendar, how much of it has a mark, and the points already banked. No
+  // projection — a forecast would be a guess dressed as a fact.
+  const byCourse = new Map<string, { known: number; marked: number; earned: number }>();
+  // deno-lint-ignore no-explicit-any
+  for (const w of (weighted.data ?? []) as any[]) {
+    const name = w.courses?.code ?? w.courses?.name;
+    if (!name) continue;
+    const c = byCourse.get(name) ?? { known: 0, marked: 0, earned: 0 };
+    const weight = Number(w.weight_percent);
+    c.known += weight;
+    if (w.grade_percent !== null && w.grade_percent !== undefined) {
+      c.marked += weight;
+      c.earned += (weight * Number(w.grade_percent)) / 100;
+    }
+    byCourse.set(name, c);
+  }
+
   return buildContext({
     today,
     timezone: tz,
@@ -152,6 +179,7 @@ export async function gatherContext(admin: any, userId: string, today: string, t
       effort_minutes: a.effort_minutes,
       course: courseOf(a),
       created_at: a.created_at,
+      weight_percent: a.weight_percent === null || a.weight_percent === undefined ? null : Number(a.weight_percent),
     })),
     // deno-lint-ignore no-explicit-any
     events: ((events.data ?? []) as any[]).map((e) => ({
@@ -198,6 +226,12 @@ export async function gatherContext(admin: any, userId: string, today: string, t
     }),
     // deno-lint-ignore no-explicit-any
     weights: ((weights.data ?? []) as any[]).map((w) => ({ local_day: w.local_day, kg: num(w.kg) })),
+    grades: [...byCourse].map(([course, c]) => ({
+      course,
+      weightKnown: Math.round(c.known * 100) / 100,
+      weightMarked: Math.round(c.marked * 100) / 100,
+      earned: Math.round(c.earned * 100) / 100,
+    })),
   }, opts);
 }
 
