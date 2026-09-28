@@ -206,21 +206,31 @@ export function Chat({ courses, onBack, onChanged }: {
                 <p className="type-note text-text-mid">{m.content}</p>
               </div>
             ) : (
+              /*
+                Abood texts in short messages, a blank line between each, the
+                way people do; each is its own bubble here as on the phone.
+              */
+              (m.role === 'assistant' ? m.content.split(/\n\s*\n/).filter((t) => t.trim()) : [m.content]).map((part, i, all) => (
               <div
+                key={i}
                 className={[
                   'max-w-[min(85vw,40rem)] px-4 py-3',
+                  i < all.length - 1 ? 'mb-1.5' : '',
                   m.role === 'user' ? 'chat-mine' : 'mat chat-theirs',
                 ].join(' ')}
               >
                 <p
                   className={`type-body whitespace-pre-wrap ${m.role === 'user' ? 'text-on-accent-2' : 'text-text-hi'}`}
                 >
-                  {m.content}
+                  {part}
                 </p>
-                {m.via === 'telegram' && m.role === 'user' && (
-                  <span className="mt-1 block text-right type-caption text-on-accent-2 opacity-70">via Telegram</span>
+                {m.via !== 'app' && m.role === 'user' && (
+                  <span className="mt-1 block text-right type-caption text-on-accent-2 opacity-70">
+                    via {m.via === 'telegram' ? 'Telegram' : 'iMessage'}
+                  </span>
                 )}
               </div>
+              ))
             )}
 
             {m.proposed_action && (

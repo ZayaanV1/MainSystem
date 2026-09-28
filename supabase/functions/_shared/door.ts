@@ -25,6 +25,23 @@ const MAX_MESSAGE = 2_000;
 
 export type Via = 'telegram' | 'imessage';
 
+/**
+ * A reply as the separate texts a person would send.
+ *
+ * The model writes its messages with a blank line between them; each becomes
+ * its own bubble. Costs nothing — it is the same reply, cut where the model
+ * already chose to break it. Capped at four: anything past that joins the
+ * last, because six texts in a row reads as spam, not as a friend.
+ */
+export function textsOf(reply: string, max = 4): string[] {
+  const parts = reply
+    .split(/\n\s*\n/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (parts.length <= max) return parts.length ? parts : [reply.trim()];
+  return [...parts.slice(0, max - 1), parts.slice(max - 1).join(' ')];
+}
+
 export const HELP = [
   'Ask me anything about your work, classes, checklist or food, and I answer from what is in your planner.',
   '',
@@ -142,11 +159,10 @@ export async function converse(opts: {
     via,
   });
 
-  await send(
-    result.action
-      ? `${content}\n\nNothing is changed until you confirm it in the planner${APP_URL ? `: ${APP_URL}` : '.'}`
-      : content,
-  );
+  for (const text of textsOf(content)) await send(text);
+  if (result.action) {
+    await send(`nothing changes until you confirm it in the planner${APP_URL ? `: ${APP_URL}` : ''}`);
+  }
 
   // Learned after answering, and said out loud: memory that grows in secret
   // is memory nobody can correct.

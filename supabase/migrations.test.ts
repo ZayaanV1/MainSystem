@@ -232,6 +232,7 @@ describe('migrations apply', () => {
       'food_items',
       'imessage_bridge',
       'imessage_links',
+      'imessage_outbox',
       'inbox_items',
       'macro_targets',
       'memory_facts',
@@ -530,17 +531,17 @@ describe('the scheduled job', () => {
     expect(res.rows[0].command).toContain('feeds_tick');
   });
 
-  it('has exactly those two jobs, and keeps two when migrations are applied again', async () => {
+  it('has exactly those three jobs, and keeps three when migrations are applied again', async () => {
     // Re-running migrations must not accumulate duplicate schedules. Four
     // identical 07:00 notifications is a bug you only discover on a phone,
     // and four overlapping calendar syncs would fight over the same feeds.
     for (const { sql } of loadMigrations().filter(
-      (m) => m.name.startsWith('0002') || m.name.startsWith('0027'),
+      (m) => m.name.startsWith('0002') || m.name.startsWith('0027') || m.name.startsWith('0032'),
     )) {
       await db.exec(sql);
     }
     const res = await db.query<{ jobname: string }>(`select jobname from cron.jobs order by jobname`);
-    expect(res.rows.map((r) => r.jobname)).toEqual(['life-planner-dispatch', 'life-planner-feeds']);
+    expect(res.rows.map((r) => r.jobname)).toEqual(['life-planner-checkin', 'life-planner-dispatch', 'life-planner-feeds']);
   });
 
   it('does nothing quietly when the secrets are not configured yet', async () => {

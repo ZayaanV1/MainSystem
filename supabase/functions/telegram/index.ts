@@ -171,12 +171,20 @@ async function handle(admin: Admin, update: Update): Promise<void> {
     return;
   }
 
+  let sent = 0;
   await converse({
     admin,
     userId,
     text,
     via: 'telegram',
-    send: (t) => say(chatId, t),
+    // Several short texts, a typing beat apart, the way a person sends them.
+    send: async (t) => {
+      if (sent++ > 0) {
+        await tg('sendChatAction', { chat_id: chatId, action: 'typing' });
+        await new Promise((r) => setTimeout(r, 500 + Math.min(t.length * 15, 1_500)));
+      }
+      await say(chatId, t);
+    },
     typing: () => tg('sendChatAction', { chat_id: chatId, action: 'typing' }),
   });
 }

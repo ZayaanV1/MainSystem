@@ -187,6 +187,32 @@ async function reportDelivery(handle) {
   }
 }
 
+/**
+ * Several texts, a beat apart, the way a person sends them — longer texts
+ * take a little longer, as if typed.
+ */
+async function sendAll(handle, texts, address) {
+  for (const [i, t] of texts.entries()) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 700 + Math.min(t.length * 15, 1_800)));
+    await send(handle, t, address);
+  }
+}
+
+/** Collects anything Abood started (check-ins) and sends it. */
+async function drainOutbox(config) {
+  try {
+    const { outbox = [] } = await post(config, { kind: 'outbox' });
+    const byHandle = new Map();
+    for (const o of outbox) byHandle.set(o.handle, [...(byHandle.get(o.handle) ?? []), o.text]);
+    for (const [handle, texts] of byHandle) {
+      await sendAll(handle, texts, config.address);
+      log(`checked in with ${handle.replace(/.(?=.{4})/g, '•')}`);
+    }
+  } catch (e) {
+    log('outbox:', String(e.stderr || e.message).trim());
+  }
+}
+
 async function post(config, body) {
   const res = await fetch(config.url, {
     method: 'POST',
@@ -228,6 +254,8 @@ async function main() {
   const hello = () => post(config, { kind: 'hello', address: config.address }).catch((e) => log('heartbeat failed:', e.message));
   await hello();
   setInterval(hello, HEARTBEAT_MS);
+  // Check-ins are rare, so a slow poll is plenty and costs the server little.
+  setInterval(() => void drainOutbox(config), 30_000);
   log(`bridge up, watching after message ${state.last}${config.address ? ` for ${config.address}` : ''}`);
 
   for (;;) {
@@ -238,7 +266,7 @@ async function main() {
 
         const text = (m.text ?? decodeAttributedBody(m.body) ?? '').replace(/￼/g, '').trim();
         const { replies = [] } = await post(config, { kind: 'message', handle: m.handle, text });
-        for (const r of replies) await send(m.handle, r, config.address);
+        await sendAll(m.handle, replies, config.address);
         if (replies.length) {
           log(`answered ${m.handle.replace(/.(?=.{4})/g, '•')}`);
           await reportDelivery(m.handle);

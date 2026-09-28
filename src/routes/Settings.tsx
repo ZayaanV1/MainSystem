@@ -3,6 +3,9 @@ import {
   bridgeStatus,
   forgetFact,
   imessageLink,
+  loadCheckins,
+  saveCheckins,
+  type CheckinSettings,
   loadMemory,
   telegramLink,
   telegramLinked,
@@ -226,6 +229,8 @@ export function Settings({ onBack }: { onBack: () => void }) {
       <TextAbood userId={userId} />
 
       <IMessageAbood userId={userId} />
+
+      <AboodTextsFirst userId={userId} />
 
       <AboodMemory />
 
@@ -850,6 +855,86 @@ function IMessageAbood({ userId }: { userId: string }) {
           ))}
 
         {message && <p className="mt-3 type-note text-text-mid">{message}</p>}
+      </Card>
+    </section>
+  );
+}
+
+const hourLabel = (h: number) => (h === 0 || h === 24 ? 'midnight' : h === 12 ? 'noon' : h < 12 ? `${h}am` : `${h - 12}pm`);
+
+/**
+ * When Abood texts first. "When I've gone quiet" is one check-in per silence;
+ * a rhythm is every N hours inside a window, and stops after two in a row go
+ * unanswered so it never texts into a void.
+ */
+function AboodTextsFirst({ userId }: { userId: string }) {
+  const [s, setS] = useState<CheckinSettings | null | undefined>(undefined);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    void loadCheckins().then(setS);
+  }, []);
+
+  async function change(next: CheckinSettings) {
+    setS(next);
+    setNote(null);
+    const ok = await saveCheckins(userId, next);
+    setNote(ok ? 'Saved.' : 'Couldn’t save that. Try again.');
+  }
+
+  if (s === undefined) return null;
+
+  return (
+    <section className="mb-8">
+      <SectionHead title="Abood texts first" />
+      <Card className="p-4">
+        {s === null ? (
+          <p className="type-note text-text-mid">Couldn&rsquo;t load this setting.</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <p className="type-body text-text-mid">
+              Abood checks in by iMessage or Telegram, about something real — never to guilt you.
+            </p>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="When Abood texts first">
+              <Chip selected={!s.on} onClick={() => void change({ ...s, on: false })}>Off</Chip>
+              <Chip selected={s.on && s.every === null} onClick={() => void change({ ...s, on: true, every: null })}>
+                When I&rsquo;ve gone quiet
+              </Chip>
+              {[2, 3, 4, 6].map((h) => (
+                <Chip key={h} selected={s.on && s.every === h} onClick={() => void change({ ...s, on: true, every: h })}>
+                  Every {h} hours
+                </Chip>
+              ))}
+            </div>
+            {s.on && (
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="kicker" htmlFor="checkin-from">Between</label>
+                <select
+                  id="checkin-from"
+                  className="well w-auto px-3 type-body"
+                  value={s.from}
+                  onChange={(e) => void change({ ...s, from: Number(e.target.value) })}
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{hourLabel(h)}</option>
+                  ))}
+                </select>
+                <label className="kicker" htmlFor="checkin-until">and</label>
+                <select
+                  id="checkin-until"
+                  className="well w-auto px-3 type-body"
+                  value={s.until}
+                  onChange={(e) => void change({ ...s, until: Number(e.target.value) })}
+                >
+                  {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                    <option key={h} value={h}>{hourLabel(h)}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {note && <p className="type-note text-text-mid">{note}</p>}
+          </div>
+        )}
       </Card>
     </section>
   );

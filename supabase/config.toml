@@ -35,3 +35,7 @@ verify_jwt = false
 # Called only by the Mac bridge, which authenticates with a shared secret
 # header rather than a user JWT.
 verify_jwt = false
+
+[functions.checkin]
+# Called hourly by pg_cron with the shared cron secret.
+verify_jwt = false

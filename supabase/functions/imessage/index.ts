@@ -93,6 +93,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return reply([]);
   }
 
+  /*
+   * Messages Abood started (check-ins). Handed over and removed in one step,
+   * so each is sent at most once: a check-in lost to a crash is better than
+   * the same check-in sent twice.
+   */
+  if (body.kind === 'outbox') {
+    await heartbeat(admin);
+    const { data } = await admin
+      .from('imessage_outbox')
+      .delete()
+      .lt('created_at', new Date(Date.now() + 1000).toISOString())
+      .select('handle, body, created_at');
+    const queued = ((data ?? []) as { handle: string; body: string; created_at: string }[]).sort((x, y) =>
+      x.created_at.localeCompare(y.created_at),
+    );
+    return new Response(JSON.stringify({ outbox: queued.map((q) => ({ handle: q.handle, text: q.body })) }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
   if (body.kind !== 'message' || !body.handle) return reply([]);
   await heartbeat(admin);
 

@@ -106,3 +106,38 @@ export async function imessageLink(userId: string, address: string): Promise<{ u
   if (error) return { error: 'Could not make a link. Try again.' };
   return { url: `sms:${address}&body=${encodeURIComponent(`link ${code}`)}` };
 }
+
+export interface CheckinSettings {
+  on: boolean;
+  /** Null: when I have gone quiet. A number: every that many hours. */
+  every: number | null;
+  from: number;
+  until: number;
+}
+
+export async function loadCheckins(): Promise<CheckinSettings | null> {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('abood_checkins, abood_checkin_every_hours, abood_checkin_from, abood_checkin_until')
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    on: Boolean(data.abood_checkins),
+    every: (data.abood_checkin_every_hours as number | null) ?? null,
+    from: Number(data.abood_checkin_from ?? 10),
+    until: Number(data.abood_checkin_until ?? 21),
+  };
+}
+
+export async function saveCheckins(userId: string, s: CheckinSettings): Promise<boolean> {
+  const { error } = await supabase
+    .from('app_settings')
+    .update({
+      abood_checkins: s.on,
+      abood_checkin_every_hours: s.every,
+      abood_checkin_from: s.from,
+      abood_checkin_until: s.until,
+    })
+    .eq('user_id', userId);
+  return !error;
+}

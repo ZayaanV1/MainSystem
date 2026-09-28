@@ -19,7 +19,7 @@ export interface ChatMessage {
   /** A reason the question went unanswered, not an answer. Drawn as a note. */
   failed: boolean;
   /** Which door the turn came through. */
-  via: 'app' | 'telegram';
+  via: 'app' | 'telegram' | 'imessage';
   created_at: string;
 }
 
