@@ -670,6 +670,32 @@ Found while measuring: given bare dates, the model worked out weekdays itself
 and got them wrong ("due Sun Oct 2" for a Friday). Every stamp in the context
 now carries its weekday. Verified live: correct weekdays, ~2s replies.
 
+### Abood, more human — and private about itself — Sep 2026
+
+"monotone and repetitive … it doesn't actually act like a therapist". The
+prompt ended every confidence in a question and gave one example question,
+which the model repeated forever; its own transcript then reinforced it.
+Replies now rotate between moves (an observation, a take, naming what is
+underneath, staying with it, a question), and the questions already asked are
+listed back as spent. A stable character, a per-turn "texture" nudge and the
+openings of recent replies give variety in shape, never on planner answers.
+
+Most of what read as a bot was transport, not prompt. The bridge answered
+each bubble of a burst separately and replied to tapbacks; it now waits out a
+burst (4 s quiet, 25 s cap) and filters `associated_message_type`. The
+transcript had no timestamps, so "hey" three days later continued yesterday's
+thread; pauses are written in and the model is told never to treat a gap as a
+lapse. Conversation keeps 12 turns (planner questions 6). System copy ("Noted:",
+"I could not answer") speaks in Abood's voice.
+
+**How Abood works is private except to the owner, decided in code.** Asked for
+as a codeword; a codeword alone is a password a model cannot verify, so owner
+mode needs the account in `ABOOD_OWNER_IDS` AND the word in
+`ABOOD_OWNER_CODEWORD` within the last 30 minutes. The word is redacted before
+anything reaches the prompt. A reply reproducing any twelve words running
+from the instruction is replaced, whatever the model was talked into. Crisis
+line copy no longer assumes Canada.
+
 ### Abood by iMessage, through a Mac — Sep 2026
 
 Apple has no iMessage API, so `bridge/imessage/bridge.mjs` runs on a Mac

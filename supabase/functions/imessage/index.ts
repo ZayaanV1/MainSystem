@@ -124,7 +124,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const ok = await link(admin, handle, linkAttempt[1]);
     return reply([
       ok
-        ? `Connected. This conversation is now your planner.\n\n${HELP}`
+        ? `we're connected. this is me now.\n\n${HELP}`
         : 'That link has expired or was already used. Open Settings in the planner and make a new one.',
     ]);
   }
@@ -137,7 +137,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const userId = linked?.user_id as string | undefined;
   if (!userId) return reply([]);
 
-  if (!text) return reply(['I can only read text for now.']);
+  if (!text) return reply(["i can only read text for now — tell me in words?"]);
 
   const replies: string[] = [];
   try {
@@ -152,7 +152,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   } catch (e) {
     console.error('[imessage]', e);
-    replies.push('I could not answer that just now. Try again in a minute.');
+    replies.push("that didn't go through on my end. send it again in a minute?");
   }
   return reply(replies);
 });

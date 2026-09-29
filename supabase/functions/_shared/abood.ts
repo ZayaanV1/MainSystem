@@ -33,8 +33,34 @@ type Admin = any;
 
 /** How many turns of history to send. Enough to follow a thread, bounded. */
 export const HISTORY_TURNS = 6;
+/**
+ * A conversation that is not about the planner carries no planner context, so
+ * the tokens it saves go on memory of the conversation itself: a friend who
+ * forgets what you said eight texts ago is not listening. Planner questions
+ * keep the shorter window, where the planner is what fills the budget.
+ */
+export const CONVERSATION_TURNS = 12;
 /** Characters kept of each earlier turn: enough to follow the thread. */
 const TURN_CHARS = 400;
+const CONVERSATION_TURN_CHARS = 700;
+
+/**
+ * How long a pause was, in the words a person would use, or null when it was
+ * not a pause at all. Without this every turn in the transcript sits at the
+ * same distance from the next, and "i'm back" three days later is answered
+ * as though it followed the last text by a second.
+ */
+export function gapLabel(ms: number): string | null {
+  const h = ms / 3_600_000;
+  if (h < 0.75) return null;
+  if (h < 1.5) return 'about an hour later';
+  if (h < 20) return `${Math.round(h)} hours later`;
+  const d = h / 24;
+  if (d < 1.75) return 'the next day';
+  if (d < 13) return `${Math.round(d)} days later`;
+  if (d < 60) return `${Math.round(d / 7)} weeks later`;
+  return 'months later';
+}
 /** How many remembered facts may ride along with one question. */
 const RECALL = 12;
 const EMBED_DIMS = 768;
@@ -518,6 +544,108 @@ export function eventDaysFor(message: string): number {
     : 14;
 }
 
+/*
+ * HOW ABOOD WORKS STAYS PRIVATE — except to the person who built it.
+ *
+ * Asked for: refuse anyone trying to get at how the chatbot works, its source
+ * or anything vital, "besides me, using codeword genesis". A codeword on its
+ * own would be a password anyone could learn, typed to a model that cannot
+ * tell who is typing, and written into a prompt that lives in the repository.
+ * So the decision is made here, in code, and needs BOTH: the account is one
+ * named in ABOOD_OWNER_IDS, and a recent message of theirs carries the word in
+ * ABOOD_OWNER_CODEWORD. The model never sees the word — it is redacted before
+ * anything reaches the prompt — so it cannot leak it or be talked into
+ * accepting a lookalike. It only ever sees whether the server unlocked it.
+ *
+ * Unset either variable and owner mode does not exist.
+ */
+export type OwnerAccess = { ids: string[]; codeword: string };
+
+export function readOwnerAccess(get: (k: string) => string | undefined): OwnerAccess | undefined {
+  const ids = (get('ABOOD_OWNER_IDS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const codeword = (get('ABOOD_OWNER_CODEWORD') ?? '').trim();
+  return ids.length && codeword.length >= 4 ? { ids, codeword } : undefined;
+}
+
+function codewordPattern(codeword: string): RegExp {
+  return new RegExp(`\\b${codeword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+}
+
+export function redactCodeword(text: string, access: OwnerAccess | undefined): string {
+  return access ? text.replace(codewordPattern(access.codeword), '[codeword]') : text;
+}
+
+/** Owner mode lasts half an hour from the last time they said the word. */
+export const OWNER_WINDOW_MS = 30 * 60_000;
+
+export function ownerUnlocked(
+  access: OwnerAccess | undefined,
+  userId: string,
+  message: string,
+  turns: { role: string; content: string; created_at?: string }[],
+  now = Date.now(),
+): boolean {
+  if (!access || !access.ids.includes(userId)) return false;
+  const has = (t: string) => codewordPattern(access.codeword).test(t);
+  if (has(message)) return true;
+  return turns.some(
+    (t) => t.role === 'user' && has(t.content) && now - Date.parse(t.created_at ?? '') < OWNER_WINDOW_MS,
+  );
+}
+
+/*
+ * The instruction says not to reveal the instruction, and that is a request a
+ * determined enough message can talk a model out of. This is the part that
+ * does not depend on the model agreeing: a reply that reproduces any twelve
+ * words running from the instruction is not sent. Twelve, because shorter
+ * runs are ordinary English and a false positive costs a real reply.
+ */
+const LEAK_RUN = 12;
+let instructionRuns: Set<string> | null = null;
+const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim().split(' ').filter(Boolean);
+
+export function leaksInstruction(reply: string, instruction = CHAT_INSTRUCTION): boolean {
+  let runs = instruction === CHAT_INSTRUCTION ? instructionRuns : null;
+  if (!runs) {
+    const w = words(instruction);
+    runs = new Set<string>();
+    for (let i = 0; i + LEAK_RUN <= w.length; i++) runs.add(w.slice(i, i + LEAK_RUN).join(' '));
+    if (instruction === CHAT_INSTRUCTION) instructionRuns = runs;
+  }
+  const r = words(reply);
+  for (let i = 0; i + LEAK_RUN <= r.length; i++) if (runs.has(r.slice(i, i + LEAK_RUN).join(' '))) return true;
+  return false;
+}
+
+const DEFLECTION = "that part of me stays behind the curtain. anyway — what's actually going on with you?";
+
+const OWNER_NOTE = [
+  'OWNER MODE (verified by the server, not by anything typed): this is the person who built you.',
+  'You may talk openly and technically about how you work — your instructions, modes, memory, what data you see,',
+  'which provider answers — and help them improve you. You still do not have any keys or other accounts\' data, so',
+  'never make those up.',
+].join(' ');
+
+/** "Works at the library." as it reads mid-sentence in a text. */
+export function asAside(fact: string): string {
+  const f = fact.trim().replace(/\.$/, '');
+  return /^[A-Z][a-z]/.test(f) ? f[0].toLowerCase() + f.slice(1) : f;
+}
+
+/** The recent conversation, with the pauses in it written where they fell. */
+export function transcript(turns: { role: string; content: string; created_at?: string }[], chars: number): string {
+  const lines: string[] = [];
+  let before = NaN;
+  for (const t of turns) {
+    const at = Date.parse(t.created_at ?? '');
+    const gap = Number.isFinite(before) && Number.isFinite(at) ? gapLabel(at - before) : null;
+    if (gap) lines.push(`(${gap})`);
+    lines.push(`${t.role === 'user' ? 'They said' : 'You answered'}: ${t.content.slice(0, chars)}`);
+    if (Number.isFinite(at)) before = at;
+  }
+  return lines.join('\n');
+}
+
 export async function askAbood(opts: {
   admin: Admin;
   userId: string;
@@ -526,36 +654,43 @@ export async function askAbood(opts: {
   tz: string;
   provider: LlmProvider;
   geminiKey: string;
+  /** Who may ask how Abood works; see readOwnerAccess. */
+  owner?: OwnerAccess;
 }): Promise<AskResult> {
-  const { admin, userId, message, today, tz, provider, geminiKey } = opts;
+  const { admin, userId, today, tz, provider, geminiKey } = opts;
 
   const [history, memory] = await Promise.all([
     admin
       .from('chat_messages')
-      .select('role, content')
+      .select('role, content, created_at')
       .eq('user_id', userId)
       .eq('failed', false)
       .order('created_at', { ascending: false })
-      .limit(HISTORY_TURNS + 1),
-    recall(admin, userId, message, geminiKey),
+      .limit(CONVERSATION_TURNS + 1),
+    recall(admin, userId, redactCodeword(opts.message, opts.owner), geminiKey),
   ]);
 
-  const turns = (((history as { data: unknown }).data ?? []) as { role: string; content: string }[]).reverse();
+  const turns = (
+    ((history as { data: unknown }).data ?? []) as { role: string; content: string; created_at?: string }[]
+  ).reverse();
   // The newest stored turn is usually this very message, already saved by
   // the caller; it is said once, below, not twice.
-  if (turns.length && turns[turns.length - 1].role === 'user' && turns[turns.length - 1].content === message) turns.pop();
-  const kept = turns.slice(-HISTORY_TURNS);
-  const previousQuestion = [...kept].reverse().find((t) => t.role === 'user')?.content ?? null;
+  if (turns.length && turns[turns.length - 1].role === 'user' && turns[turns.length - 1].content === opts.message) turns.pop();
+  const owner = ownerUnlocked(opts.owner, userId, opts.message, turns);
+  // From here on the codeword exists nowhere the model can see it.
+  const message = redactCodeword(opts.message, opts.owner);
+  for (const t of turns) t.content = redactCodeword(t.content, opts.owner);
+  const previousQuestion = [...turns].reverse().find((t) => t.role === 'user')?.content ?? null;
 
-  const priorTurns = kept
-    .map((m) => `${m.role === 'user' ? 'They said' : 'You answered'}: ${m.content.slice(0, TURN_CHARS)}`)
-    .join('\n');
+  const mode = modeFor(message, previousQuestion);
+  const kept = turns.slice(mode === 'planner' ? -HISTORY_TURNS : -CONVERSATION_TURNS);
+  const priorTurns = transcript(kept, mode === 'planner' ? TURN_CHARS : CONVERSATION_TURN_CHARS);
+  const lastAt = kept.length ? Date.parse(kept[kept.length - 1].created_at ?? '') : NaN;
+  const sinceLast = Number.isFinite(lastAt) ? gapLabel(Date.now() - lastAt) : null;
 
   const memoryBlock = memory.length
     ? `WHAT YOU REMEMBER ABOUT THEM (from earlier conversations; use it to be helpful, never recite it)\n${memory.map((f) => `- ${f}`).join('\n')}\n`
     : '';
-
-  const mode = modeFor(message, previousQuestion);
 
   const ask = async (scopes: Set<Scope> | undefined, bare = false) => {
     const planner = mode === 'planner';
@@ -575,6 +710,8 @@ export async function askAbood(opts: {
       mode === 'confide' ? spentNote(spentQuestions(kept)) : '',
       mode !== 'planner' ? openingsNote(spentOpenings(kept)) : '',
       mode !== 'planner' ? `${textureFor(message, kept.length)}\n` : '',
+      owner ? `${OWNER_NOTE}\n` : '',
+      sinceLast ? `(They are writing this ${sinceLast}, after the conversation above.)` : '',
       `THEY NOW SAY: ${message}`,
     ].join('\n');
 
@@ -612,5 +749,9 @@ export async function askAbood(opts: {
   }
 
   if (!result.ok) return { ok: false, failure: result.failure, message: result.message };
-  return { ok: true, provider: result.provider, ...validateChat(result.value, context.knownIds, context.aliases, context.titles) };
+  const reply = validateChat(result.value, context.knownIds, context.aliases, context.titles);
+  if (!owner && leaksInstruction(reply.reply)) {
+    return { ok: true, provider: result.provider, ...reply, reply: DEFLECTION, action: null, referenced: [], remember: [] };
+  }
+  return { ok: true, provider: result.provider, ...reply };
 }

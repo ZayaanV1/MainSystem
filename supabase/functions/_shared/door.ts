@@ -1,4 +1,4 @@
-import { askAbood, learn } from './abood.ts';
+import { asAside, askAbood, learn, readOwnerAccess } from './abood.ts';
 import { geminiProvider } from './llm/gemini.ts';
 import { groqProvider } from './llm/groq.ts';
 import { withFallback } from './llm/chain.ts';
@@ -43,7 +43,7 @@ export function textsOf(reply: string, max = 4): string[] {
 }
 
 export const HELP = [
-  'Ask me anything about your work, classes, checklist or food, and I answer from what is in your planner.',
+  'text me like you would a friend: how your day went, something on your mind, or what is due this week. i keep your planner too, so ask about work, classes, the checklist or food whenever.',
   '',
   'memory  what I remember about you',
   'forget  clear what I remember',
@@ -124,7 +124,7 @@ export async function converse(opts: {
   await admin.from('chat_messages').insert({ user_id: userId, role: 'user', content: message, via });
 
   if (!budget.allowed) {
-    const reason = 'That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow.';
+    const reason = "i'm out of words for today — what's left is kept for logging food. talk tomorrow.";
     await admin
       .from('chat_messages')
       .insert({ user_id: userId, role: 'assistant', content: reason, failed: true, via });
@@ -134,14 +134,14 @@ export async function converse(opts: {
 
   await typing?.();
 
-  const result = await askAbood({ admin, userId, message, today, tz, provider, geminiKey });
+  const result = await askAbood({ admin, userId, message, today, tz, provider, geminiKey, owner: readOwnerAccess(env) });
   await recordUse(admin, userId, 'chat', today, onOwnKey);
 
   if (!result.ok) {
     const reason =
       result.failure === 'quota'
-        ? 'Out of model requests for now. Try again later.'
-        : 'I could not answer that just now. Try again in a minute.';
+        ? "i've hit my limit for the moment. try me again in a bit."
+        : "that didn't go through on my end. send it again in a minute?";
     await admin
       .from('chat_messages')
       .insert({ user_id: userId, role: 'assistant', content: `${reason} ${result.message}`.slice(0, 1_000), failed: true, via });
@@ -168,6 +168,6 @@ export async function converse(opts: {
   // is memory nobody can correct.
   const learned = await learn(admin, userId, result.remember, geminiKey, via).catch(() => []);
   if (learned.length) {
-    await send(`Noted: ${learned.join(' ')}`);
+    await send(`(i'll remember that: ${learned.map(asAside).join('; ')})`);
   }
 }

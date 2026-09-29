@@ -38,6 +38,15 @@ const STATE = join(CONFIG_DIR, 'state.json');
 const DB = join(HOME, 'Library', 'Messages', 'chat.db');
 
 const POLL_MS = 2_000;
+/*
+ * People text in bursts: "hey", "so", "something happened today". Answering
+ * each bubble as it lands is the most machine-like thing a chat partner can
+ * do, so a burst is read whole: once something arrives, wait until the person
+ * has been quiet for a few seconds (never longer than BURST_MAX_MS in all) and
+ * answer everything they said at once.
+ */
+const BURST_QUIET_MS = 4_000;
+const BURST_MAX_MS = 25_000;
 const HEARTBEAT_MS = 5 * 60_000;
 /** chat.style for a one-to-one conversation (43 is a group). */
 const DIRECT = 45;
@@ -125,9 +134,42 @@ async function incoming(after) {
       and m.service = 'iMessage'
       and c.style = ${DIRECT}
       and m.item_type = 0
+      and coalesce(m.associated_message_type, 0) = 0
     order by m.ROWID
     limit 50
   `);
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Everything new, read as bursts: waits out a person who is still typing, then
+ * returns one entry per sender with their texts joined in order. The ids are
+ * kept so the caller can advance its position past all of them.
+ *
+ * `associated_message_type` above keeps tapbacks out — a heart on one of
+ * Abood's texts arrives as a message reading 'Loved "…"', and replying to a
+ * reaction is a tell no person would give.
+ */
+async function bursts(after) {
+  let rows = await incoming(after);
+  if (!rows.length) return [];
+  const started = Date.now();
+  while (Date.now() - started < BURST_MAX_MS) {
+    await sleep(BURST_QUIET_MS);
+    const more = await incoming(rows[rows.length - 1].id);
+    if (!more.length) break;
+    rows = [...rows, ...more];
+  }
+  const byHandle = new Map();
+  for (const m of rows) {
+    const text = (m.text ?? decodeAttributedBody(m.body) ?? '').replace(/\uFFFC/g, '').trim();
+    const b = byHandle.get(m.handle) ?? { handle: m.handle, texts: [], last: 0 };
+    if (text) b.texts.push(text);
+    b.last = Math.max(b.last, m.id);
+    byHandle.set(m.handle, b);
+  }
+  return { last: rows[rows.length - 1].id, groups: [...byHandle.values()] };
 }
 
 /**
@@ -260,16 +302,19 @@ async function main() {
 
   for (;;) {
     try {
-      for (const m of await incoming(state.last)) {
-        state.last = m.id;
+      const got = await bursts(state.last);
+      if (got.groups) {
+        // Advanced before answering: a message that crashes the server is
+        // skipped next time, not answered in a loop.
+        state.last = got.last;
         saveState(state);
-
-        const text = (m.text ?? decodeAttributedBody(m.body) ?? '').replace(/￼/g, '').trim();
-        const { replies = [] } = await post(config, { kind: 'message', handle: m.handle, text });
-        await sendAll(m.handle, replies, config.address);
-        if (replies.length) {
-          log(`answered ${m.handle.replace(/.(?=.{4})/g, '•')}`);
-          await reportDelivery(m.handle);
+        for (const b of got.groups) {
+          const { replies = [] } = await post(config, { kind: 'message', handle: b.handle, text: b.texts.join('\n') });
+          await sendAll(b.handle, replies, config.address);
+          if (replies.length) {
+            log(`answered ${b.handle.replace(/.(?=.{4})/g, '•')}`);
+            await reportDelivery(b.handle);
+          }
         }
       }
     } catch (e) {

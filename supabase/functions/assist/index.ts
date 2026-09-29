@@ -18,7 +18,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { geminiProvider } from '../_shared/llm/gemini.ts';
 import { BREAKDOWN_INSTRUCTION, BREAKDOWN_SCHEMA, validateBreakdown } from '../_shared/breakdown.ts';
 import { SYLLABUS_INSTRUCTION, SYLLABUS_SCHEMA, validateSyllabus } from '../_shared/syllabus.ts';
-import { askAbood, learn } from '../_shared/abood.ts';
+import { askAbood, learn, readOwnerAccess } from '../_shared/abood.ts';
 import {
   SUMMARY_INSTRUCTION,
   SUMMARY_SCHEMA,
@@ -469,6 +469,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       tz: accountTz,
       provider: chatProvider,
       geminiKey: gemini,
+      owner: readOwnerAccess(env),
     });
 
     // Counted after the call is made rather than before, so a failed request
