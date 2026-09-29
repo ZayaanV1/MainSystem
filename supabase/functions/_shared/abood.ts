@@ -439,8 +439,16 @@ export function scopesFor(message: string, previous?: string | null): Set<Scope>
  * asks a planner question outright. And once they are opening up, the
  * conversation stays there until they ask for something concrete.
  */
+/*
+ * Feelings, not topics. This used to match "life", "friends", "family",
+ * "talk", "honestly", "future", "sleep" — so "honestly me and my friends
+ * went to the lake" arrived as a confession, with a note telling the model to
+ * listen and not advise, and a model told not to engage with the content
+ * asks about feelings instead. That was the "what's the deepest part of it"
+ * reply. A friend's name or a family member is conversation, not a crisis.
+ */
 const PERSONAL =
-  /\b(feel\w*|felt|sad|down|low|lonely|alone|anxious|anxiety|panic\w*|depress\w*|overwhelm\w*|stress\w*|burn(t|ed)?\s?out|exhausted|drained|tired of|numb|empty|lost|stuck|hopeless|worthless|cry\w*|tears|hurt\w*|upset|angry|mad at|frustrat\w*|scared|afraid|fear\w*|worr\w*|insecur\w*|confiden\w*|ashamed|shame|guilt\w*|regret\w*|embarrass\w*|jealous|hate (my|myself|it)|love|miss(ing)?|heart\w*|break\s?up|broke up|relationship|girlfriend|boyfriend|gf|bf|crush|dating|friends?|friendship|family|mom|mum|dad|parents?|brother|sister|home\s?sick|life|myself|thoughts?|thinking about|overthink\w*|deep|honest(ly)?|vent\w*|rant|talk|confess|secret|purpose|meaning|future|pointless|motivat\w*|therap\w*|mental|adhd|sleep|can't sleep|idk what|i don'?t know (what|why|how)|be real|can i tell you)\b/i;
+  /\b(feel\w*|felt|sad|lonely|anxious|anxiety|panic\w*|depress\w*|overwhelm\w*|stress(ed|ing)?|burn(t|ed)?\s?out|exhausted|drained|tired of|hopeless|worthless|cry\w*|crie[ds]|tears|hurt(s|ing)?|upset|angry|mad at|pissed|frustrat\w*|scared|afraid|worried|worrying|insecure|ashamed|guilty|regret\w*|embarrass\w*|jealous|hate (my|myself)|break\s?up|broke up|dumped|home\s?sick|miss(ing)? (my|her|him|them|home)|overthink\w*|vent|rant|therap\w*|mental health|can'?t sleep|no motivation|(doing|good) enough|pointless|i don'?t know (what to do|why i)|be real with you|can i tell you)\b/i;
 
 /** A plain request for planner facts or a planner change, even mid-confidence. */
 const PLANNER_ASK =
@@ -453,18 +461,80 @@ export function modeFor(message: string, previous?: string | null): Mode {
   if (PERSONAL.test(message)) return 'confide';
   // A reply inside a confidence ("yeah", "it's just a lot") is still one.
   if (previous && PERSONAL.test(previous) && !PLANNER_ASK.test(previous)) return 'confide';
-  return scopesFor(message, previous).size ? 'planner' : 'chat';
+  // A planner word in a STATEMENT is a story, not a query: "went to the lake
+  // today" matched WORK on "today" and was answered as a schedule question,
+  // with the to-do list attached and the conversation cut to six turns.
+  // Chat mode still sees a snapshot and can ask for the full planner.
+  return scopesFor(message, previous).size && ASKS.test(message) ? 'planner' : 'chat';
 }
 
+/** Is this a question at all? */
+const ASKS = /\?|^\s*(what|when|where|which|who|how|did|do|does|is|are|am|can|could|should|will|would|have|has|any)\b/i;
+
 const CONFIDE_NOTE = [
-  'MODE: THEY ARE OPENING UP.',
-  'This is talking, not planning. Listen first, and be specific to what they actually said. Do not default to',
-  'reflect-then-ask: pick the move that fits this moment (an observation, a real take, naming what is underneath,',
-  'or just staying with it) and use a question only if it is a new one that this message earns. Do not offer fixes,',
-  'plans or productivity advice unless they ask, and if you are not sure whether they want ideas or just to be heard,',
-  'ask that once. Do not mention assignments, deadlines, classes, their schedule or anything to get done — even if',
-  'you think it is related — unless they bring it up.',
+  'MODE: SOMETHING PERSONAL.',
+  'Reply to what they actually said: the events, the people, the words they used, and anything they asked.',
+  'Say what you honestly think about it. No question about their feelings, no asking what the hardest or',
+  'deepest part is. No fixes or productivity advice unless they ask. Do not mention assignments, deadlines,',
+  'classes, their schedule or anything to get done unless they bring it up.',
 ].join(' ');
+
+/*
+ * Questions that ask someone to rank, locate or dig into their feelings —
+ * "what hits the hardest?", "what's the most pressing or deepest aspect of
+ * it?", "how does that make you feel?". Asked for by name: "make it read
+ * what I'm actually saying and reply to my actual conversation instead of
+ * asking what's the most pressing or deepest aspect of it". A counsellor's
+ * move that ignores the message it answers. Only questions are matched, so a
+ * statement that uses the same words is left alone.
+ */
+const PROBES = [
+  /\b(hardest|toughest|worst|deepest|heaviest|biggest|most pressing|most)\b[^?]{0,40}\b(part|thing|aspect|bit|piece|side)\b/i,
+  /\b(part|thing|aspect|bit|piece)\b[^?]{0,30}\b(hits?|gets? to you|bothers? you|weighs? on you|sits? with you|stings?|eats at you)\b/i,
+  /\bwhat\b[^?]{0,25}\b(hits?|gets? to you|bothers? you|weighs? on you|eats at you)\b[^?]{0,25}\b(hardest|most|worst|deepest)\b/i,
+  /\bhow (does|did|do|is) (that|this|it) (make|makes|made|making) you feel\b/i,
+  /\bhow (are|do|did) you feel(ing)? about (that|this|it)\b/i,
+  /\b(underneath|beneath|at the root of|at the core of) (it|that|this|all)\b/i,
+  /\bwhat comes up for you\b/i,
+  /\bwhere (do you think )?(is )?(that|this) (is )?coming from\b/i,
+];
+
+function questionsIn(reply: string): string[] {
+  return reply
+    .split(/(?<=[.?!])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s.endsWith('?'));
+}
+
+export function feelingProbes(reply: string): string[] {
+  return questionsIn(reply).filter((q) => PROBES.some((p) => p.test(q)));
+}
+
+/** The reply with its feeling probes removed, or '' if nothing else was said. */
+export function withoutFeelingProbes(reply: string): string {
+  const probes = new Set(feelingProbes(reply));
+  if (!probes.size) return reply;
+  const bubbles = reply
+    .split(/\n\s*\n/)
+    .map((bubble) =>
+      bubble
+        .split(/(?<=[.?!])\s+/)
+        .filter((s) => !probes.has(s.trim()))
+        .join(' ')
+        .trim(),
+    )
+    .filter(Boolean);
+  return bubbles.join('\n\n');
+}
+
+function probeCorrection(asked: string[]): string {
+  return [
+    `YOUR FIRST DRAFT ASKED: ${asked.map((q) => `"${q}"`).join(' ')} — that asks them to dig into their feelings instead of replying to what they said.`,
+    'Write it again: respond to the actual content of their message and the conversation, and say what you think.',
+    'No question about their feelings; if you ask anything, make it a plain question about the facts.',
+    '',
+  ].join('\n');
+}
 
 /**
  * How Abood's own recent replies ended, handed back to it.
@@ -480,7 +550,8 @@ export function spentQuestions(turns: { role: string; content: string }[]): stri
     if (t.role === 'user') continue;
     for (const sentence of t.content.split(/(?<=[.?!])\s+|\n+/)) {
       const s = sentence.trim();
-      if (s.endsWith('?') && s.length > 8) out.push(s.slice(0, 140));
+      // A probe is never listed: naming it again only keeps it in the model's mouth.
+      if (s.endsWith('?') && s.length > 8 && !PROBES.some((p) => p.test(s))) out.push(s.slice(0, 140));
     }
   }
   return out.slice(-4);
@@ -502,7 +573,7 @@ const TEXTURES = [
   'This turn: pick up something they told you earlier (under WHAT YOU REMEMBER) if it genuinely connects; if nothing does, do not force it.',
   'This turn: a touch of dry humour if it fits the mood, and only if it is kind. Skip it if they are hurting.',
   'This turn: go a bit longer and more thoughtful than usual, like a friend who has been thinking about it.',
-  'This turn: name the thing underneath what they said as a statement, not a question, and leave it there.',
+  'This turn: respond to the most specific detail in what they said, the one a friend would pick up on.',
   'This turn: match their energy exactly, whether that is flat, wired or playful.',
   'This turn: say what you find interesting or telling about what they said, in your own words.',
   'This turn: offer one concrete, specific thing a friend might suggest or notice, lightly, and let them take it or leave it.',
@@ -694,7 +765,11 @@ export async function askAbood(opts: {
     ? `WHAT YOU REMEMBER ABOUT THEM (from earlier conversations; use it to be helpful, never recite it)\n${memory.map((f) => `- ${f}`).join('\n')}\n`
     : '';
 
-  const ask = async (scopes: Set<Scope> | undefined, bare = false) => {
+  let lastScopes: Set<Scope> | undefined;
+  let lastBare = false;
+  const ask = async (scopes: Set<Scope> | undefined, bare = false, correction = '') => {
+    lastScopes = scopes;
+    lastBare = bare;
     const planner = mode === 'planner';
     const context = await gatherContext(admin, userId, today, tz, {
       scopes,
@@ -715,6 +790,7 @@ export async function askAbood(opts: {
       mode !== 'planner' ? `${textureFor(message, kept.length)}\n` : '',
       owner ? `${OWNER_NOTE}\n` : '',
       sinceLast ? `(They are writing this ${sinceLast}, after the conversation above.)` : '',
+      correction,
       `THEY NOW SAY: ${message}`,
     ].join('\n');
 
@@ -752,7 +828,24 @@ export async function askAbood(opts: {
   }
 
   if (!result.ok) return { ok: false, failure: result.failure, message: result.message };
-  const reply = validateChat(result.value, context.knownIds, context.aliases, context.titles);
+  let reply = validateChat(result.value, context.knownIds, context.aliases, context.titles);
+
+  // The prompt says not to ask them to rank or dig into their feelings, and
+  // the prompt alone has lost that argument before. A reply that does it
+  // anyway is written again once, told exactly what it asked; if the second
+  // one does it too, the question is cut and the rest of the reply stands.
+  if (mode !== 'planner') {
+    const asked = feelingProbes(reply.reply);
+    if (asked.length) {
+      const again = await ask(lastScopes, lastBare, probeCorrection(asked));
+      if (again.result.ok) {
+        const second = validateChat(again.result.value, again.context.knownIds, again.context.aliases, again.context.titles);
+        if (second.reply.trim()) ({ result, context } = again), (reply = second);
+      }
+      const cut = withoutFeelingProbes(reply.reply);
+      if (cut) reply = { ...reply, reply: cut };
+    }
+  }
   if (!owner && leaksInstruction(reply.reply)) {
     return { ok: true, provider: result.provider, ...reply, reply: DEFLECTION, action: null, referenced: [], remember: [] };
   }

@@ -688,6 +688,18 @@ thread; pauses are written in and the model is told never to treat a gap as a
 lapse. Conversation keeps 12 turns (planner questions 6). System copy ("Noted:",
 "I could not answer") speaks in Abood's voice.
 
+**It still asked "what's the most pressing or deepest aspect of it".** The
+first fix told the model not to repeat itself; four causes survived it. The
+prompt still framed Abood as "a therapist's ear" that names "the thing
+underneath". The ban quoted the bad questions, which primed them. `PERSONAL`
+matched topics ("friends", "family", "life", "talk", "honestly") so ordinary
+chat arrived as a confession with a note forbidding advice, and a model told
+not to engage with the content probes feelings instead. And any statement
+containing "today" was classed as a planner question. The prompt now leads
+with answering what was actually said; `PERSONAL` matches feelings only;
+planner mode needs a question; and `feelingProbes` catches the question in
+code — one rewrite with the draft named, then the question is cut.
+
 **How Abood works is private except to the owner, decided in code.** Asked for
 as a codeword; a codeword alone is a password a model cannot verify, so owner
 mode needs the account in `ABOOD_OWNER_IDS` AND the word in

@@ -269,11 +269,9 @@ describe('spentQuestions', () => {
       { role: 'user', content: 'the loneliness' },
       { role: 'assistant', content: 'okay. what part gets to you most? and when did it start?' },
     ];
-    expect(spentQuestions(turns)).toEqual([
-      'what hits the hardest?',
-      'what part gets to you most?',
-      'and when did it start?',
-    ]);
+    // Feeling probes are banned outright, so they are never handed back as
+    // examples; only ordinary questions are listed as spent.
+    expect(spentQuestions(turns)).toEqual(['and when did it start?']);
     expect(spentQuestions([])).toEqual([]);
   });
 });
@@ -367,5 +365,37 @@ describe('a chosen voice', () => {
     expect(voiceNote('bro')).toContain('CLOSE FRIEND');
     expect(isVoice('bro')).toBe(true);
     expect(isVoice('pirate')).toBe(false);
+  });
+});
+
+describe('replying to what they said, not probing their feelings', () => {
+  it('catches the questions that were complained about, and leaves real ones alone', async () => {
+    const { feelingProbes, withoutFeelingProbes, modeFor } = await import('../../supabase/functions/_shared/abood');
+    for (const q of [
+      'what hits the hardest?',
+      'what hits the hardest, what hits the most?',
+      "what's the most pressing or deepest aspect of it?",
+      'which part of that gets to you most?',
+      'how does that make you feel?',
+      "what do you think is underneath it?",
+    ]) expect(feelingProbes(q), q).toEqual([q]);
+
+    for (const q of [
+      'wait, did she actually say that to your face?',
+      'you home or still out by the lake?',
+      'did you end up celebrating or just crashing after?',
+      // A statement using the words is not a question.
+      'honestly the worst part is he never even replied.',
+    ]) expect(feelingProbes(q), q).toEqual([]);
+
+    expect(withoutFeelingProbes("nah that's actually unfair of him. you covered for him twice.\n\nwhat hits the hardest?")).toBe(
+      "nah that's actually unfair of him. you covered for him twice.",
+    );
+    expect(withoutFeelingProbes('what hits the hardest?')).toBe('');
+
+    // Talking about friends or family is conversation, not a confession.
+    expect(modeFor('honestly me and my friends went to the lake today')).toBe('chat');
+    expect(modeFor('my mom made biryani for the whole family')).toBe('chat');
+    expect(modeFor('i feel like my friends are pulling away')).toBe('confide');
   });
 });
