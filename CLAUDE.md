@@ -696,15 +696,27 @@ anything reaches the prompt. A reply reproducing any twelve words running
 from the instruction is replaced, whatever the model was talked into. Crisis
 line copy no longer assumes Canada.
 
-**A chosen voice (0033).** Asked to mimic a previous companion bot "one to
-one" from its iMessage history. `app_settings.abood_voice` is `plain` for
-every account unless changed; `bro` (Settings > How Abood talks) is that bot's
-register — slang, "bro", specific hype, teasing about real habits, meeting a
-one-word text in kind, brushing off questions about itself. Per account,
-because it is one person's taste. Three things in that history were
-deliberately NOT copied: the same morning template daily for weeks, "zero logs
-for food, adderall or uni" on every check-in (score-keeping, ignored until the
-bot itself said it was not landing), and promises it could not keep.
+**A chosen voice (0033) and the morning text (0034).** Asked to mimic a
+previous companion bot "one to one" from its iMessage history.
+`app_settings.abood_voice` is `plain` for every account unless changed; `bro`
+(Settings > How Abood talks) is that bot's full register, catalogued in
+`chat.ts`: its vocabulary, the either/or question that guesses at your life,
+verdict-then-substance reactions, people and habits by name, decisive small
+calls, long "real rundown" answers when asked, the shrug-and-swerve on
+questions about itself, and dropping the slang when something is heavy. Per
+account, because it is one person's taste.
+
+Its morning text was first left out as repetitive and then asked for back by
+name — the sameness is the point. `abood_morning` sends it once a day at a
+chosen hour (three-hour catch-up, claimed by `abood_morning_sent_on`). The
+schedule is built in code (`_shared/morning.ts`), the model only words it, and
+a reply naming any time the calendar did not give is replaced by a plain
+version that is right without a model. `readTitle` moved to `_shared/title.ts`
+so the morning reads a class the way the Week view draws it.
+
+Still not copied: "zero logs for food, adderall or uni" on every check-in
+(score-keeping, ignored until the bot itself said it was not landing) and
+promises it could not keep.
 
 ### Abood by iMessage, through a Mac — Sep 2026
 

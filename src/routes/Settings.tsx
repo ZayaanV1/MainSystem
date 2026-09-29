@@ -979,6 +979,30 @@ function AboodTextsFirst({ userId }: { userId: string }) {
                 </select>
               </div>
             )}
+            <div className="flex flex-col gap-3 border-t border-ink-600 pt-4">
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Morning text">
+                <Chip selected={!s.morning} onClick={() => void change({ ...s, morning: false })}>No morning text</Chip>
+                <Chip selected={s.morning} onClick={() => void change({ ...s, morning: true })}>Morning text</Chip>
+              </div>
+              {s.morning && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="kicker" htmlFor="morning-hour">At</label>
+                  <select
+                    id="morning-hour"
+                    className="well w-auto px-3 type-body"
+                    value={s.morningHour}
+                    onChange={(e) => void change({ ...s, morningHour: Number(e.target.value) })}
+                  >
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <option key={h} value={h}>{hourLabel(h)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <p className="type-note text-text-mid">
+                Once a day: good morning, what is on today with its times, and a send-off.
+              </p>
+            </div>
             {note && <p className="type-note text-text-mid">{note}</p>}
           </div>
         )}

@@ -753,8 +753,7 @@ export async function askAbood(opts: {
 
   if (!result.ok) return { ok: false, failure: result.failure, message: result.message };
   const reply = validateChat(result.value, context.knownIds, context.aliases, context.titles);
-  const voice = voiceNote(opts.voice);
-  if (!owner && (leaksInstruction(reply.reply) || (voice && leaksInstruction(reply.reply, voice)))) {
+  if (!owner && leaksInstruction(reply.reply)) {
     return { ok: true, provider: result.provider, ...reply, reply: DEFLECTION, action: null, referenced: [], remember: [] };
   }
   return { ok: true, provider: result.provider, ...reply };
