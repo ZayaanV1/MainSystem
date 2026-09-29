@@ -168,3 +168,45 @@ describe('a label that leaks into the reply', () => {
     expect(out.reply).toBe('Assignment 2 is due friday, and COEN 212 Lab is at 2.');
   });
 });
+
+describe('catching a reply that sounds like a script', () => {
+  it('flags the lines a tester failed Abood on, verbatim', async () => {
+    const { scripted } = await import('../../supabase/functions/_shared/chat');
+    expect(scripted('i hear you ran into your dad again.\n\nwhat part of that sticks with you the most?')).not.toEqual([]);
+    expect(scripted("freezing water, huh? how did that make you feel watching him?")).not.toEqual([]);
+    expect(scripted("what's coming up for you when you hear that you've 'wasted' his money?")).not.toEqual([]);
+    expect(scripted('nice one, 94 is solid. you must be feeling good about that.')).not.toEqual([]);
+    expect(scripted('have you tried bringing it up before? how did they react?')).toEqual([
+      'asks 2 questions; at most one',
+    ]);
+  });
+
+  it('flags a question already asked, and closing on a question twice running', async () => {
+    const { scripted } = await import('../../supabase/functions/_shared/chat');
+    const earlier = ["maybe frame it as a check-in. what's the easiest way you could bring it up?"];
+    expect(scripted('what is the easiest way to bring it up without being the nag?', earlier).join()).toMatch(/repeats/);
+    expect(scripted('ok but did he say anything back?', ['wait what did he say?']).join()).toMatch(/again/);
+  });
+
+  it('flags a sign-off or a line said again in an earlier reply', async () => {
+    const { scripted } = await import('../../supabase/functions/_shared/chat');
+    expect(scripted('damn. if you want to talk through it, i\'m here.').join()).toMatch(/sign-off/);
+    expect(
+      scripted('nobody wants to be that guy. you could keep your food in your room for a week.', [
+        'real talk, you could keep your food in your room for a week and see if he notices.',
+      ]).join(),
+    ).toMatch(/says again/);
+  });
+
+  it('passes a reply that talks like a friend', async () => {
+    const { scripted } = await import('../../supabase/functions/_shared/chat');
+    expect(scripted('94?? on the 212 final? bro that is huge')).toEqual([]);
+    expect(
+      scripted(
+        "honestly that's rough from your own dad.\n\nyou weren't wasting his money, you were failing courses that weren't working for you. switching was the responsible move.",
+        ['damn, again? what set it off this time?'],
+      ),
+    ).toEqual([]);
+    expect(scripted('might what?')).toEqual([]);
+  });
+});

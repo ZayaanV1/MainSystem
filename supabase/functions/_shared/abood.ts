@@ -1,5 +1,5 @@
 import { buildContext, type BuildOptions, type Scope } from './context.ts';
-import { CHAT_INSTRUCTION, CHAT_SCHEMA, validateChat, type ChatReply } from './chat.ts';
+import { CHAT_INSTRUCTION, CHAT_SCHEMA, scripted, validateChat, type ChatReply } from './chat.ts';
 import type { LlmProvider } from './llm/types.ts';
 
 /**
@@ -418,24 +418,27 @@ const PERSONAL =
 
 /** A plain request for planner facts or a planner change, even mid-confidence. */
 const PLANNER_ASK =
-  /\b(when('?s| is| are| do)|what('?s| is) due|due (today|tonight|tomorrow|this|next)|deadline|what do i have|what have i got|do i have (any|a|an)|what now|what should i (do|work on|start)|how (much|many) (time|protein|calories|kcal|left)|add (a|an|it|this|that)|remind me|mark (it|that|as)|tick|log (my|a|this|that)|my (schedule|calendar|checklist)|[A-Z]{3,4}\s?\d{3})\b/i;
+  /\b(when('?s| is| are| do)|what('?s| is) due|due (today|tonight|tomorrow|this|next)|deadline|what do i have|what have i got|do i have (any|a|an)|what now|what should i (do|work on|start)|how (much|many) (time|protein|calories|kcal|left)|add (a|an|it|this|that)|remind me|mark (it|that|as)|tick|log (my|a|this|that)|my (schedule|calendar|checklist))\b/i;
+
+/** A course code: a confidence about a course may use what the planner knows about it. */
+const COURSE = /\b[A-Z]{3,4}\s?\d{3}\b/i;
 
 export type Mode = 'confide' | 'chat' | 'planner';
 
 export function modeFor(message: string, previous?: string | null): Mode {
   if (PLANNER_ASK.test(message)) return 'planner';
   if (PERSONAL.test(message)) return 'confide';
+  if (COURSE.test(message)) return 'planner';
   // A reply inside a confidence ("yeah", "it's just a lot") is still one.
   if (previous && PERSONAL.test(previous) && !PLANNER_ASK.test(previous)) return 'confide';
   return scopesFor(message, previous).size ? 'planner' : 'chat';
 }
 
 const CONFIDE_NOTE = [
-  'MODE: THEY ARE OPENING UP.',
-  'This is talking, not planning. Listen first. Reflect what you heard in your own words, name the feeling if it helps,',
-  'and ask one open question that goes a layer deeper. Do not offer fixes, plans or productivity advice unless they ask,',
-  'and if you are not sure whether they want ideas or just to be heard, ask. Do not mention assignments, deadlines,',
-  'classes, their schedule or anything to get done — even if you think it is related — unless they bring it up.',
+  'MODE: THEY ARE TALKING, NOT PLANNING.',
+  'Be a friend, not a worksheet: react to what they actually said, give your honest take, and answer any question',
+  'they asked. A question from you is optional, never a formula. Leave assignments, deadlines, classes, their',
+  'schedule and anything to get done out of it unless they bring it up.',
 ].join(' ');
 
 /** Events a fortnight ahead unless the message reaches further. */
@@ -484,7 +487,7 @@ export async function askAbood(opts: {
 
   const mode = modeFor(message, previousQuestion);
 
-  const ask = async (scopes: Set<Scope> | undefined, bare = false) => {
+  const ask = async (scopes: Set<Scope> | undefined, bare = false, redo = '') => {
     const planner = mode === 'planner';
     const context = await gatherContext(admin, userId, today, tz, {
       scopes,
@@ -500,6 +503,7 @@ export async function askAbood(opts: {
       priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
       mode === 'confide' ? `${CONFIDE_NOTE}\n` : '',
       `THEY NOW SAY: ${message}`,
+      redo,
     ].join('\n');
 
     const result = await provider.complete<unknown>({
@@ -525,16 +529,57 @@ export async function askAbood(opts: {
   };
 
   const scopes = mode === 'planner' ? scopesFor(message, previousQuestion) : new Set<Scope>();
-  let { result, context } = await ask(mode === 'planner' && scopes.size === 0 ? undefined : scopes, mode === 'confide');
+  // The arguments of whichever call produced the answer, so a rewrite sees the same data.
+  // Opening up about a named course ("stressed about math 205", "should i drop it") gets that course's work and
+  // standing, so an honest take can rest on facts; any other confidence gets no planner at all.
+  const aboutCourse = mode === 'confide' && (COURSE.test(message) || (!!previousQuestion && COURSE.test(previousQuestion)));
+  let used: [Set<Scope> | undefined, boolean] = aboutCourse
+    ? [new Set<Scope>(['work']), false]
+    : [mode === 'planner' && scopes.size === 0 ? undefined : scopes, mode === 'confide'];
+  let { result, context } = await ask(...used);
 
   // A snapshot (or nothing) that was not enough: ask again with the whole
   // planner, once. Rare by design, and it costs one extra call only when a
   // conversation turned out to need the planner.
   if (result.ok && scopes.size === 0 && mode !== 'planner') {
     const first = validateChat(result.value, context.knownIds, context.aliases, context.titles);
-    if (first.needsPlanner) ({ result, context } = await ask(undefined));
+    if (first.needsPlanner) {
+      used = [undefined, false];
+      ({ result, context } = await ask(...used));
+    }
   }
 
   if (!result.ok) return { ok: false, failure: result.failure, message: result.message };
-  return { ok: true, provider: result.provider, ...validateChat(result.value, context.knownIds, context.aliases, context.titles) };
+  let reply = validateChat(result.value, context.knownIds, context.aliases, context.titles);
+
+  /*
+   * A reply that reads like a script is rewritten once, with the model told
+   * exactly what gave it away. Costs a second call only when the first one
+   * failed; a planner answer is exempt, since "what do I have" is allowed
+   * to sound like a list.
+   */
+  if (mode !== 'planner') {
+    const earlier = kept.filter((t) => t.role === 'assistant').slice(-3).map((t) => t.content);
+    const problems = scripted(reply.reply, earlier);
+    if (problems.length) {
+      const redo = [
+        '',
+        'YOU ALREADY DRAFTED THIS REPLY, AND IT SOUNDS SCRIPTED:',
+        reply.reply,
+        '',
+        `What gave it away: ${problems.join('; ')}.`,
+        'Write it again the way a real close friend would text back — react to the specifics, say what you actually think,',
+        'and only ask something if you are genuinely curious about a concrete detail.',
+      ].join('\n');
+      const second = await ask(...used, redo);
+      if (second.result.ok) {
+        const retried = validateChat(second.result.value, second.context.knownIds, second.context.aliases, second.context.titles);
+        if (scripted(retried.reply, earlier).length < problems.length) {
+          reply = retried;
+          result = second.result;
+        }
+      }
+    }
+  }
+  return { ok: true, provider: result.provider, ...reply };
 }

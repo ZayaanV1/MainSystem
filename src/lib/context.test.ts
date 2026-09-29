@@ -270,7 +270,7 @@ describe('academic standing', () => {
         { course: 'PHYS 205', weightKnown: 25, weightMarked: 0, earned: 0 },
       ],
     });
-    expect(c.text).toContain('worth 25% of the course');
+    expect(c.text).toContain('this item alone is worth 25% of the final grade');
     expect(c.text).toContain('MATH 205: 10% of the grade is on the calendar, 5% of it marked, 4 points banked (80% on what is marked)');
     expect(c.text).toContain('PHYS 205: 25% of the grade is on the calendar, 0% of it marked, none marked yet');
   });

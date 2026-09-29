@@ -220,6 +220,10 @@ describe('sending Abood only what a message needs', () => {
     expect(modeFor('what is due this week?')).toBe('planner');
     expect(modeFor('did i take my adderall')).toBe('planner');
     expect(modeFor('hey whats up')).toBe('chat');
+    // Stress about a course is a confidence, not a request for study tips.
+    expect(modeFor("i'm stressed about math 205")).toBe('confide');
+    expect(modeFor('should i drop it or push through', "i'm stressed about math 205")).toBe('confide');
+    expect(modeFor('is coen 212 on campus')).toBe('planner');
   });
 
   it('shows no planner at all in a bare context', async () => {

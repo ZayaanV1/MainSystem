@@ -233,7 +233,7 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
       const bits = [
         a.course ? `course ${a.course}` : '',
         a.effort_minutes ? `${a.effort_minutes} min of work` : '',
-        typeof a.weight_percent === 'number' ? `worth ${a.weight_percent}% of the course` : '',
+        typeof a.weight_percent === 'number' ? `this item alone is worth ${a.weight_percent}% of the final grade` : '',
         a.status !== 'todo' ? a.status : '',
         age !== null && age >= 1 ? `on the list ${age} ${age === 1 ? 'day' : 'days'}` : '',
       ].filter(Boolean);
