@@ -4,6 +4,9 @@ import {
   forgetFact,
   imessageLink,
   loadCheckins,
+  loadVoice,
+  saveVoice,
+  type AboodVoice,
   saveCheckins,
   type CheckinSettings,
   loadMemory,
@@ -230,6 +233,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
 
       <IMessageAbood userId={userId} />
 
+      <AboodVoicePicker userId={userId} />
       <AboodTextsFirst userId={userId} />
 
       <AboodMemory />
@@ -862,6 +866,49 @@ function IMessageAbood({ userId }: { userId: string }) {
 
 const hourLabel = (h: number) => (h === 0 || h === 24 ? 'midnight' : h === 12 ? 'noon' : h < 12 ? `${h}am` : `${h - 12}pm`);
 
+/** How Abood talks, in the app, by text and when it texts first. */
+function AboodVoicePicker({ userId }: { userId: string }) {
+  const [voice, setVoice] = useState<AboodVoice | null | undefined>(undefined);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    void loadVoice().then(setVoice);
+  }, []);
+
+  async function change(next: AboodVoice) {
+    setVoice(next);
+    setNote(null);
+    const ok = await saveVoice(userId, next);
+    setNote(ok ? 'Saved.' : 'Couldn’t save that. Try again.');
+  }
+
+  if (voice === undefined) return null;
+
+  return (
+    <section className="mb-8">
+      <SectionHead title="How Abood talks" />
+      <Card className="p-4">
+        {voice === null ? (
+          <p className="type-note text-text-mid">Couldn&rsquo;t load this setting.</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="How Abood talks">
+              <Chip selected={voice === 'plain'} onClick={() => void change('plain')}>Plain</Chip>
+              <Chip selected={voice === 'bro'} onClick={() => void change('bro')}>Close friend</Chip>
+            </div>
+            <p className="type-note text-text-mid">
+              {voice === 'bro'
+                ? 'Slang, calls you bro, hypes your wins and gives you a hard time about the rest. Drops it when something is heavy.'
+                : 'Casual and warm, without slang.'}
+            </p>
+            {note && <p className="type-note text-text-mid">{note}</p>}
+          </div>
+        )}
+      </Card>
+    </section>
+  );
+}
+
 /**
  * When Abood texts first. "When I've gone quiet" is one check-in per silence;
  * a rhythm is every N hours inside a window, and stops after two in a row go
@@ -932,6 +979,30 @@ function AboodTextsFirst({ userId }: { userId: string }) {
                 </select>
               </div>
             )}
+            <div className="flex flex-col gap-3 border-t border-ink-600 pt-4">
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Morning text">
+                <Chip selected={!s.morning} onClick={() => void change({ ...s, morning: false })}>No morning text</Chip>
+                <Chip selected={s.morning} onClick={() => void change({ ...s, morning: true })}>Morning text</Chip>
+              </div>
+              {s.morning && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="kicker" htmlFor="morning-hour">At</label>
+                  <select
+                    id="morning-hour"
+                    className="well w-auto px-3 type-body"
+                    value={s.morningHour}
+                    onChange={(e) => void change({ ...s, morningHour: Number(e.target.value) })}
+                  >
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <option key={h} value={h}>{hourLabel(h)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <p className="type-note text-text-mid">
+                Once a day: good morning, what is on today with its times, and a send-off.
+              </p>
+            </div>
             {note && <p className="type-note text-text-mid">{note}</p>}
           </div>
         )}

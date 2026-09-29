@@ -1,5 +1,5 @@
 import { buildContext, type BuildOptions, type Scope } from './context.ts';
-import { CHAT_INSTRUCTION, CHAT_SCHEMA, validateChat, type ChatReply } from './chat.ts';
+import { CHAT_INSTRUCTION, CHAT_SCHEMA, validateChat, voiceNote, type ChatReply, type Voice } from './chat.ts';
 import type { LlmProvider } from './llm/types.ts';
 
 /**
@@ -33,8 +33,34 @@ type Admin = any;
 
 /** How many turns of history to send. Enough to follow a thread, bounded. */
 export const HISTORY_TURNS = 6;
+/**
+ * A conversation that is not about the planner carries no planner context, so
+ * the tokens it saves go on memory of the conversation itself: a friend who
+ * forgets what you said eight texts ago is not listening. Planner questions
+ * keep the shorter window, where the planner is what fills the budget.
+ */
+export const CONVERSATION_TURNS = 12;
 /** Characters kept of each earlier turn: enough to follow the thread. */
 const TURN_CHARS = 400;
+const CONVERSATION_TURN_CHARS = 700;
+
+/**
+ * How long a pause was, in the words a person would use, or null when it was
+ * not a pause at all. Without this every turn in the transcript sits at the
+ * same distance from the next, and "i'm back" three days later is answered
+ * as though it followed the last text by a second.
+ */
+export function gapLabel(ms: number): string | null {
+  const h = ms / 3_600_000;
+  if (h < 0.75) return null;
+  if (h < 1.5) return 'about an hour later';
+  if (h < 20) return `${Math.round(h)} hours later`;
+  const d = h / 24;
+  if (d < 1.75) return 'the next day';
+  if (d < 13) return `${Math.round(d)} days later`;
+  if (d < 60) return `${Math.round(d / 7)} weeks later`;
+  return 'months later';
+}
 /** How many remembered facts may ride along with one question. */
 const RECALL = 12;
 const EMBED_DIMS = 768;
@@ -413,8 +439,16 @@ export function scopesFor(message: string, previous?: string | null): Set<Scope>
  * asks a planner question outright. And once they are opening up, the
  * conversation stays there until they ask for something concrete.
  */
+/*
+ * Feelings, not topics. This used to match "life", "friends", "family",
+ * "talk", "honestly", "future", "sleep" — so "honestly me and my friends
+ * went to the lake" arrived as a confession, with a note telling the model to
+ * listen and not advise, and a model told not to engage with the content
+ * asks about feelings instead. That was the "what's the deepest part of it"
+ * reply. A friend's name or a family member is conversation, not a crisis.
+ */
 const PERSONAL =
-  /\b(feel\w*|felt|sad|down|low|lonely|alone|anxious|anxiety|panic\w*|depress\w*|overwhelm\w*|stress\w*|burn(t|ed)?\s?out|exhausted|drained|tired of|numb|empty|lost|stuck|hopeless|worthless|cry\w*|tears|hurt\w*|upset|angry|mad at|frustrat\w*|scared|afraid|fear\w*|worr\w*|insecur\w*|confiden\w*|ashamed|shame|guilt\w*|regret\w*|embarrass\w*|jealous|hate (my|myself|it)|love|miss(ing)?|heart\w*|break\s?up|broke up|relationship|girlfriend|boyfriend|gf|bf|crush|dating|friends?|friendship|family|mom|mum|dad|parents?|brother|sister|home\s?sick|life|myself|thoughts?|thinking about|overthink\w*|deep|honest(ly)?|vent\w*|rant|talk|confess|secret|purpose|meaning|future|pointless|motivat\w*|therap\w*|mental|adhd|sleep|can't sleep|idk what|i don'?t know (what|why|how)|be real|can i tell you)\b/i;
+  /\b(feel\w*|felt|sad|lonely|anxious|anxiety|panic\w*|depress\w*|overwhelm\w*|stress(ed|ing)?|burn(t|ed)?\s?out|exhausted|drained|tired of|hopeless|worthless|cry\w*|crie[ds]|tears|hurt(s|ing)?|upset|angry|mad at|pissed|frustrat\w*|scared|afraid|worried|worrying|insecure|ashamed|guilty|regret\w*|embarrass\w*|jealous|hate (my|myself)|break\s?up|broke up|dumped|home\s?sick|miss(ing)? (my|her|him|them|home)|overthink\w*|vent|rant|therap\w*|mental health|can'?t sleep|no motivation|(doing|good) enough|pointless|i don'?t know (what to do|why i)|be real with you|can i tell you)\b/i;
 
 /** A plain request for planner facts or a planner change, even mid-confidence. */
 const PLANNER_ASK =
@@ -427,22 +461,260 @@ export function modeFor(message: string, previous?: string | null): Mode {
   if (PERSONAL.test(message)) return 'confide';
   // A reply inside a confidence ("yeah", "it's just a lot") is still one.
   if (previous && PERSONAL.test(previous) && !PLANNER_ASK.test(previous)) return 'confide';
-  return scopesFor(message, previous).size ? 'planner' : 'chat';
+  // A planner word in a STATEMENT is a story, not a query: "went to the lake
+  // today" matched WORK on "today" and was answered as a schedule question,
+  // with the to-do list attached and the conversation cut to six turns.
+  // Chat mode still sees a snapshot and can ask for the full planner.
+  return scopesFor(message, previous).size && ASKS.test(message) ? 'planner' : 'chat';
 }
 
+/** Is this a question at all? */
+const ASKS = /\?|^\s*(what|when|where|which|who|how|did|do|does|is|are|am|can|could|should|will|would|have|has|any)\b/i;
+
 const CONFIDE_NOTE = [
-  'MODE: THEY ARE OPENING UP.',
-  'This is talking, not planning. Listen first. Reflect what you heard in your own words, name the feeling if it helps,',
-  'and ask one open question that goes a layer deeper. Do not offer fixes, plans or productivity advice unless they ask,',
-  'and if you are not sure whether they want ideas or just to be heard, ask. Do not mention assignments, deadlines,',
-  'classes, their schedule or anything to get done — even if you think it is related — unless they bring it up.',
+  'MODE: SOMETHING PERSONAL.',
+  'Reply to what they actually said: the events, the people, the words they used, and anything they asked.',
+  'Say what you honestly think about it. No question about their feelings, no asking what the hardest or',
+  'deepest part is. No fixes or productivity advice unless they ask. Do not mention assignments, deadlines,',
+  'classes, their schedule or anything to get done unless they bring it up.',
 ].join(' ');
+
+/*
+ * Questions that ask someone to rank, locate or dig into their feelings —
+ * "what hits the hardest?", "what's the most pressing or deepest aspect of
+ * it?", "how does that make you feel?". Asked for by name: "make it read
+ * what I'm actually saying and reply to my actual conversation instead of
+ * asking what's the most pressing or deepest aspect of it". A counsellor's
+ * move that ignores the message it answers. Only questions are matched, so a
+ * statement that uses the same words is left alone.
+ */
+const PROBES = [
+  /\b(hardest|toughest|worst|deepest|heaviest|biggest|most pressing|most)\b[^?]{0,40}\b(part|thing|aspect|bit|piece|side)\b/i,
+  /\b(part|thing|aspect|bit|piece)\b[^?]{0,30}\b(hits?|gets? to you|bothers? you|weighs? on you|sits? with you|stings?|eats at you)\b/i,
+  /\bwhat\b[^?]{0,25}\b(hits?|gets? to you|bothers? you|weighs? on you|eats at you)\b[^?]{0,25}\b(hardest|most|worst|deepest)\b/i,
+  /\bhow (does|did|do|is) (that|this|it) (make|makes|made|making) you feel\b/i,
+  /\bhow (are|do|did) you feel(ing)? about (that|this|it)\b/i,
+  /\b(underneath|beneath|at the root of|at the core of) (it|that|this|all)\b/i,
+  /\bwhat comes up for you\b/i,
+  /\bwhere (do you think )?(is )?(that|this) (is )?coming from\b/i,
+];
+
+function questionsIn(reply: string): string[] {
+  return reply
+    .split(/(?<=[.?!])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s.endsWith('?'));
+}
+
+export function feelingProbes(reply: string): string[] {
+  return questionsIn(reply).filter((q) => PROBES.some((p) => p.test(q)));
+}
+
+/** The reply with its feeling probes removed, or '' if nothing else was said. */
+export function withoutFeelingProbes(reply: string): string {
+  const probes = new Set(feelingProbes(reply));
+  if (!probes.size) return reply;
+  const bubbles = reply
+    .split(/\n\s*\n/)
+    .map((bubble) =>
+      bubble
+        .split(/(?<=[.?!])\s+/)
+        .filter((s) => !probes.has(s.trim()))
+        .join(' ')
+        .trim(),
+    )
+    .filter(Boolean);
+  return bubbles.join('\n\n');
+}
+
+function probeCorrection(asked: string[]): string {
+  return [
+    `YOUR FIRST DRAFT ASKED: ${asked.map((q) => `"${q}"`).join(' ')} — that asks them to dig into their feelings instead of replying to what they said.`,
+    'Write it again: respond to the actual content of their message and the conversation, and say what you think.',
+    'No question about their feelings; if you ask anything, make it a plain question about the facts.',
+    '',
+  ].join('\n');
+}
+
+/**
+ * How Abood's own recent replies ended, handed back to it.
+ *
+ * "what hits the hardest?" on every turn happens because the model sees its
+ * own last replies in the transcript and continues the pattern. Saying "vary"
+ * in the instruction loses to six turns of evidence, so the evidence is named:
+ * the last questions it asked are listed as spent.
+ */
+export function spentQuestions(turns: { role: string; content: string }[]): string[] {
+  const out: string[] = [];
+  for (const t of turns) {
+    if (t.role === 'user') continue;
+    for (const sentence of t.content.split(/(?<=[.?!])\s+|\n+/)) {
+      const s = sentence.trim();
+      // A probe is never listed: naming it again only keeps it in the model's mouth.
+      if (s.endsWith('?') && s.length > 8 && !PROBES.some((p) => p.test(s))) out.push(s.slice(0, 140));
+    }
+  }
+  return out.slice(-4);
+}
+
+/*
+ * One small nudge per turn, so replies differ in shape and not only in words.
+ * The instruction describes the range, but a model given the same instruction
+ * and a similar message lands in the same groove; a differing nudge each turn
+ * is what moves it. Picked from the message and the length of the
+ * conversation so it is stable for a retry of the same turn and varies across
+ * turns, with no state to store. Never applied to a planner answer, where a
+ * flourish is a risk to a fact.
+ */
+const TEXTURES = [
+  'This turn: react first in a few words like a real person would, then say the thought.',
+  'This turn: keep it short. One or two lines, and let the silence do some work.',
+  'This turn: say what you actually think about what they said, plainly, even if it is a mild disagreement.',
+  'This turn: pick up something they told you earlier (under WHAT YOU REMEMBER) if it genuinely connects; if nothing does, do not force it.',
+  'This turn: a touch of dry humour if it fits the mood, and only if it is kind. Skip it if they are hurting.',
+  'This turn: go a bit longer and more thoughtful than usual, like a friend who has been thinking about it.',
+  'This turn: respond to the most specific detail in what they said, the one a friend would pick up on.',
+  'This turn: match their energy exactly, whether that is flat, wired or playful.',
+  'This turn: say what you find interesting or telling about what they said, in your own words.',
+  'This turn: offer one concrete, specific thing a friend might suggest or notice, lightly, and let them take it or leave it.',
+];
+
+export function textureFor(message: string, turnCount: number): string {
+  let h = turnCount * 31;
+  for (let i = 0; i < message.length; i++) h = (h * 33 + message.charCodeAt(i)) >>> 0;
+  return TEXTURES[h % TEXTURES.length];
+}
+
+/** How the last few replies began, so the next one does not begin the same way. */
+export function spentOpenings(turns: { role: string; content: string }[]): string[] {
+  return turns
+    .filter((t) => t.role !== 'user')
+    .map((t) => t.content.trim().split(/\s+/).slice(0, 4).join(' '))
+    .filter(Boolean)
+    .slice(-4);
+}
+
+function openingsNote(openings: string[]): string {
+  if (openings.length < 2) return '';
+  return `YOUR LAST REPLIES BEGAN: ${openings.map((o) => `"${o}"`).join(', ')}. Begin this one differently.\n`;
+}
+
+function spentNote(questions: string[]): string {
+  if (!questions.length) return '';
+  return [
+    'QUESTIONS YOU HAVE ALREADY ASKED (do not ask these again, or anything that means the same; say something else):',
+    ...questions.map((q) => `- ${q}`),
+    '',
+  ].join('\n');
+}
 
 /** Events a fortnight ahead unless the message reaches further. */
 export function eventDaysFor(message: string): number {
   return /\b(month|exams?|finals?|midterms?|semester|term|october|november|december|january|february|march|april)\b/i.test(message)
     ? 31
     : 14;
+}
+
+/*
+ * HOW ABOOD WORKS STAYS PRIVATE — except to the person who built it.
+ *
+ * Asked for: refuse anyone trying to get at how the chatbot works, its source
+ * or anything vital, "besides me, using codeword genesis". A codeword on its
+ * own would be a password anyone could learn, typed to a model that cannot
+ * tell who is typing, and written into a prompt that lives in the repository.
+ * So the decision is made here, in code, and needs BOTH: the account is one
+ * named in ABOOD_OWNER_IDS, and a recent message of theirs carries the word in
+ * ABOOD_OWNER_CODEWORD. The model never sees the word — it is redacted before
+ * anything reaches the prompt — so it cannot leak it or be talked into
+ * accepting a lookalike. It only ever sees whether the server unlocked it.
+ *
+ * Unset either variable and owner mode does not exist.
+ */
+export type OwnerAccess = { ids: string[]; codeword: string };
+
+export function readOwnerAccess(get: (k: string) => string | undefined): OwnerAccess | undefined {
+  const ids = (get('ABOOD_OWNER_IDS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const codeword = (get('ABOOD_OWNER_CODEWORD') ?? '').trim();
+  return ids.length && codeword.length >= 4 ? { ids, codeword } : undefined;
+}
+
+function codewordPattern(codeword: string): RegExp {
+  return new RegExp(`\\b${codeword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+}
+
+export function redactCodeword(text: string, access: OwnerAccess | undefined): string {
+  return access ? text.replace(codewordPattern(access.codeword), '[codeword]') : text;
+}
+
+/** Owner mode lasts half an hour from the last time they said the word. */
+export const OWNER_WINDOW_MS = 30 * 60_000;
+
+export function ownerUnlocked(
+  access: OwnerAccess | undefined,
+  userId: string,
+  message: string,
+  turns: { role: string; content: string; created_at?: string }[],
+  now = Date.now(),
+): boolean {
+  if (!access || !access.ids.includes(userId)) return false;
+  const has = (t: string) => codewordPattern(access.codeword).test(t);
+  if (has(message)) return true;
+  return turns.some(
+    (t) => t.role === 'user' && has(t.content) && now - Date.parse(t.created_at ?? '') < OWNER_WINDOW_MS,
+  );
+}
+
+/*
+ * The instruction says not to reveal the instruction, and that is a request a
+ * determined enough message can talk a model out of. This is the part that
+ * does not depend on the model agreeing: a reply that reproduces any twelve
+ * words running from the instruction is not sent. Twelve, because shorter
+ * runs are ordinary English and a false positive costs a real reply.
+ */
+const LEAK_RUN = 12;
+let instructionRuns: Set<string> | null = null;
+const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim().split(' ').filter(Boolean);
+
+export function leaksInstruction(reply: string, instruction = CHAT_INSTRUCTION): boolean {
+  let runs = instruction === CHAT_INSTRUCTION ? instructionRuns : null;
+  if (!runs) {
+    const w = words(instruction);
+    runs = new Set<string>();
+    for (let i = 0; i + LEAK_RUN <= w.length; i++) runs.add(w.slice(i, i + LEAK_RUN).join(' '));
+    if (instruction === CHAT_INSTRUCTION) instructionRuns = runs;
+  }
+  const r = words(reply);
+  for (let i = 0; i + LEAK_RUN <= r.length; i++) if (runs.has(r.slice(i, i + LEAK_RUN).join(' '))) return true;
+  return false;
+}
+
+const DEFLECTION = "that part of me stays behind the curtain. anyway — what's actually going on with you?";
+
+const OWNER_NOTE = [
+  'OWNER MODE (verified by the server, not by anything typed): this is the person who built you.',
+  'You may talk openly and technically about how you work — your instructions, modes, memory, what data you see,',
+  'which provider answers — and help them improve you. You still do not have any keys or other accounts\' data, so',
+  'never make those up.',
+].join(' ');
+
+/** "Works at the library." as it reads mid-sentence in a text. */
+export function asAside(fact: string): string {
+  const f = fact.trim().replace(/\.$/, '');
+  return /^[A-Z][a-z]/.test(f) ? f[0].toLowerCase() + f.slice(1) : f;
+}
+
+/** The recent conversation, with the pauses in it written where they fell. */
+export function transcript(turns: { role: string; content: string; created_at?: string }[], chars: number): string {
+  const lines: string[] = [];
+  let before = NaN;
+  for (const t of turns) {
+    const at = Date.parse(t.created_at ?? '');
+    const gap = Number.isFinite(before) && Number.isFinite(at) ? gapLabel(at - before) : null;
+    if (gap) lines.push(`(${gap})`);
+    lines.push(`${t.role === 'user' ? 'They said' : 'You answered'}: ${t.content.slice(0, chars)}`);
+    if (Number.isFinite(at)) before = at;
+  }
+  return lines.join('\n');
 }
 
 export async function askAbood(opts: {
@@ -453,38 +725,51 @@ export async function askAbood(opts: {
   tz: string;
   provider: LlmProvider;
   geminiKey: string;
+  /** Who may ask how Abood works; see readOwnerAccess. */
+  owner?: OwnerAccess;
+  /** The voice this account chose. */
+  voice?: Voice | null;
 }): Promise<AskResult> {
-  const { admin, userId, message, today, tz, provider, geminiKey } = opts;
+  const { admin, userId, today, tz, provider, geminiKey } = opts;
 
   const [history, memory] = await Promise.all([
     admin
       .from('chat_messages')
-      .select('role, content')
+      .select('role, content, created_at')
       .eq('user_id', userId)
       .eq('failed', false)
       .order('created_at', { ascending: false })
-      .limit(HISTORY_TURNS + 1),
-    recall(admin, userId, message, geminiKey),
+      .limit(CONVERSATION_TURNS + 1),
+    recall(admin, userId, redactCodeword(opts.message, opts.owner), geminiKey),
   ]);
 
-  const turns = (((history as { data: unknown }).data ?? []) as { role: string; content: string }[]).reverse();
+  const turns = (
+    ((history as { data: unknown }).data ?? []) as { role: string; content: string; created_at?: string }[]
+  ).reverse();
   // The newest stored turn is usually this very message, already saved by
   // the caller; it is said once, below, not twice.
-  if (turns.length && turns[turns.length - 1].role === 'user' && turns[turns.length - 1].content === message) turns.pop();
-  const kept = turns.slice(-HISTORY_TURNS);
-  const previousQuestion = [...kept].reverse().find((t) => t.role === 'user')?.content ?? null;
+  if (turns.length && turns[turns.length - 1].role === 'user' && turns[turns.length - 1].content === opts.message) turns.pop();
+  const owner = ownerUnlocked(opts.owner, userId, opts.message, turns);
+  // From here on the codeword exists nowhere the model can see it.
+  const message = redactCodeword(opts.message, opts.owner);
+  for (const t of turns) t.content = redactCodeword(t.content, opts.owner);
+  const previousQuestion = [...turns].reverse().find((t) => t.role === 'user')?.content ?? null;
 
-  const priorTurns = kept
-    .map((m) => `${m.role === 'user' ? 'They said' : 'You answered'}: ${m.content.slice(0, TURN_CHARS)}`)
-    .join('\n');
+  const mode = modeFor(message, previousQuestion);
+  const kept = turns.slice(mode === 'planner' ? -HISTORY_TURNS : -CONVERSATION_TURNS);
+  const priorTurns = transcript(kept, mode === 'planner' ? TURN_CHARS : CONVERSATION_TURN_CHARS);
+  const lastAt = kept.length ? Date.parse(kept[kept.length - 1].created_at ?? '') : NaN;
+  const sinceLast = Number.isFinite(lastAt) ? gapLabel(Date.now() - lastAt) : null;
 
   const memoryBlock = memory.length
     ? `WHAT YOU REMEMBER ABOUT THEM (from earlier conversations; use it to be helpful, never recite it)\n${memory.map((f) => `- ${f}`).join('\n')}\n`
     : '';
 
-  const mode = modeFor(message, previousQuestion);
-
-  const ask = async (scopes: Set<Scope> | undefined, bare = false) => {
+  let lastScopes: Set<Scope> | undefined;
+  let lastBare = false;
+  const ask = async (scopes: Set<Scope> | undefined, bare = false, correction = '') => {
+    lastScopes = scopes;
+    lastBare = bare;
     const planner = mode === 'planner';
     const context = await gatherContext(admin, userId, today, tz, {
       scopes,
@@ -498,7 +783,14 @@ export async function askAbood(opts: {
       '',
       memoryBlock,
       priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
+      voiceNote(opts.voice),
       mode === 'confide' ? `${CONFIDE_NOTE}\n` : '',
+      mode === 'confide' ? spentNote(spentQuestions(kept)) : '',
+      mode !== 'planner' ? openingsNote(spentOpenings(kept)) : '',
+      mode !== 'planner' ? `${textureFor(message, kept.length)}\n` : '',
+      owner ? `${OWNER_NOTE}\n` : '',
+      sinceLast ? `(They are writing this ${sinceLast}, after the conversation above.)` : '',
+      correction,
       `THEY NOW SAY: ${message}`,
     ].join('\n');
 
@@ -516,7 +808,7 @@ export async function askAbood(opts: {
        */
       // A confidence gets medium effort too: what makes a listener good is
       // noticing what was actually said, and that is thinking, not warmth.
-      temperature: planner ? 0.3 : mode === 'confide' ? 0.85 : 0.8,
+      temperature: planner ? 0.3 : mode === 'confide' ? 0.95 : 0.9,
       reasoning: planner || mode === 'confide' ? 'medium' : 'low',
       maxOutputTokens: 2_000,
       timeoutMs: 45_000,
@@ -536,5 +828,26 @@ export async function askAbood(opts: {
   }
 
   if (!result.ok) return { ok: false, failure: result.failure, message: result.message };
-  return { ok: true, provider: result.provider, ...validateChat(result.value, context.knownIds, context.aliases, context.titles) };
+  let reply = validateChat(result.value, context.knownIds, context.aliases, context.titles);
+
+  // The prompt says not to ask them to rank or dig into their feelings, and
+  // the prompt alone has lost that argument before. A reply that does it
+  // anyway is written again once, told exactly what it asked; if the second
+  // one does it too, the question is cut and the rest of the reply stands.
+  if (mode !== 'planner') {
+    const asked = feelingProbes(reply.reply);
+    if (asked.length) {
+      const again = await ask(lastScopes, lastBare, probeCorrection(asked));
+      if (again.result.ok) {
+        const second = validateChat(again.result.value, again.context.knownIds, again.context.aliases, again.context.titles);
+        if (second.reply.trim()) ({ result, context } = again), (reply = second);
+      }
+      const cut = withoutFeelingProbes(reply.reply);
+      if (cut) reply = { ...reply, reply: cut };
+    }
+  }
+  if (!owner && leaksInstruction(reply.reply)) {
+    return { ok: true, provider: result.provider, ...reply, reply: DEFLECTION, action: null, referenced: [], remember: [] };
+  }
+  return { ok: true, provider: result.provider, ...reply };
 }

@@ -18,7 +18,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { geminiProvider } from '../_shared/llm/gemini.ts';
 import { BREAKDOWN_INSTRUCTION, BREAKDOWN_SCHEMA, validateBreakdown } from '../_shared/breakdown.ts';
 import { SYLLABUS_INSTRUCTION, SYLLABUS_SCHEMA, validateSyllabus } from '../_shared/syllabus.ts';
-import { askAbood, learn } from '../_shared/abood.ts';
+import { askAbood, learn, readOwnerAccess } from '../_shared/abood.ts';
+import { isVoice } from '../_shared/chat.ts';
 import {
   SUMMARY_INSTRUCTION,
   SUMMARY_SCHEMA,
@@ -255,7 +256,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
    */
   const { data: keyRow } = await admin
     .from('app_settings')
-    .select('gemini_api_key, groq_api_key, timezone')
+    .select('gemini_api_key, groq_api_key, timezone, abood_voice')
     .eq('user_id', userData.user.id)
     .maybeSingle();
 
@@ -469,6 +470,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       tz: accountTz,
       provider: chatProvider,
       geminiKey: gemini,
+      owner: readOwnerAccess(env),
+      voice: isVoice(keyRow?.abood_voice) ? keyRow.abood_voice : null,
     });
 
     // Counted after the call is made rather than before, so a failed request

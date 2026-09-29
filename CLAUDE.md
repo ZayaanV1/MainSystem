@@ -670,6 +670,66 @@ Found while measuring: given bare dates, the model worked out weekdays itself
 and got them wrong ("due Sun Oct 2" for a Friday). Every stamp in the context
 now carries its weekday. Verified live: correct weekdays, ~2s replies.
 
+### Abood, more human — and private about itself — Sep 2026
+
+"monotone and repetitive … it doesn't actually act like a therapist". The
+prompt ended every confidence in a question and gave one example question,
+which the model repeated forever; its own transcript then reinforced it.
+Replies now rotate between moves (an observation, a take, naming what is
+underneath, staying with it, a question), and the questions already asked are
+listed back as spent. A stable character, a per-turn "texture" nudge and the
+openings of recent replies give variety in shape, never on planner answers.
+
+Most of what read as a bot was transport, not prompt. The bridge answered
+each bubble of a burst separately and replied to tapbacks; it now waits out a
+burst (4 s quiet, 25 s cap) and filters `associated_message_type`. The
+transcript had no timestamps, so "hey" three days later continued yesterday's
+thread; pauses are written in and the model is told never to treat a gap as a
+lapse. Conversation keeps 12 turns (planner questions 6). System copy ("Noted:",
+"I could not answer") speaks in Abood's voice.
+
+**It still asked "what's the most pressing or deepest aspect of it".** The
+first fix told the model not to repeat itself; four causes survived it. The
+prompt still framed Abood as "a therapist's ear" that names "the thing
+underneath". The ban quoted the bad questions, which primed them. `PERSONAL`
+matched topics ("friends", "family", "life", "talk", "honestly") so ordinary
+chat arrived as a confession with a note forbidding advice, and a model told
+not to engage with the content probes feelings instead. And any statement
+containing "today" was classed as a planner question. The prompt now leads
+with answering what was actually said; `PERSONAL` matches feelings only;
+planner mode needs a question; and `feelingProbes` catches the question in
+code — one rewrite with the draft named, then the question is cut.
+
+**How Abood works is private except to the owner, decided in code.** Asked for
+as a codeword; a codeword alone is a password a model cannot verify, so owner
+mode needs the account in `ABOOD_OWNER_IDS` AND the word in
+`ABOOD_OWNER_CODEWORD` within the last 30 minutes. The word is redacted before
+anything reaches the prompt. A reply reproducing any twelve words running
+from the instruction is replaced, whatever the model was talked into. Crisis
+line copy no longer assumes Canada.
+
+**A chosen voice (0033) and the morning text (0034).** Asked to mimic a
+previous companion bot "one to one" from its iMessage history.
+`app_settings.abood_voice` is `plain` for every account unless changed; `bro`
+(Settings > How Abood talks) is that bot's full register, catalogued in
+`chat.ts`: its vocabulary, the either/or question that guesses at your life,
+verdict-then-substance reactions, people and habits by name, decisive small
+calls, long "real rundown" answers when asked, the shrug-and-swerve on
+questions about itself, and dropping the slang when something is heavy. Per
+account, because it is one person's taste.
+
+Its morning text was first left out as repetitive and then asked for back by
+name — the sameness is the point. `abood_morning` sends it once a day at a
+chosen hour (three-hour catch-up, claimed by `abood_morning_sent_on`). The
+schedule is built in code (`_shared/morning.ts`), the model only words it, and
+a reply naming any time the calendar did not give is replaced by a plain
+version that is right without a model. `readTitle` moved to `_shared/title.ts`
+so the morning reads a class the way the Week view draws it.
+
+Still not copied: "zero logs for food, adderall or uni" on every check-in
+(score-keeping, ignored until the bot itself said it was not landing) and
+promises it could not keep.
+
 ### Abood by iMessage, through a Mac — Sep 2026
 
 Apple has no iMessage API, so `bridge/imessage/bridge.mjs` runs on a Mac

@@ -150,7 +150,7 @@ async function handle(admin: Admin, update: Update): Promise<void> {
       await say(
         chatId,
         linked
-          ? `Connected. This chat is now your planner.\n\n${HELP}`
+          ? `we're connected. this is me now.\n\n${HELP}`
           : 'That link has expired or was already used. Open Settings in the planner and tap Connect Telegram again.',
       );
       return;
