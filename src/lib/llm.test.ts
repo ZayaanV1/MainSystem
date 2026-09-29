@@ -277,3 +277,19 @@ describe('spentQuestions', () => {
     expect(spentQuestions([])).toEqual([]);
   });
 });
+
+describe('reply texture', () => {
+  it('varies across turns, is stable for the same turn, and reports how recent replies began', async () => {
+    const { textureFor, spentOpenings } = await import('../../supabase/functions/_shared/abood');
+    expect(textureFor('i had a rough day', 4)).toBe(textureFor('i had a rough day', 4));
+    const seen = new Set(Array.from({ length: 12 }, (_, i) => textureFor('i had a rough day', i)));
+    expect(seen.size).toBeGreaterThan(3);
+    expect(
+      spentOpenings([
+        { role: 'user', content: 'hi' },
+        { role: 'assistant', content: 'that sounds like a lot to carry alone' },
+        { role: 'assistant', content: 'okay wait, back up a second' },
+      ]),
+    ).toEqual(['that sounds like a', 'okay wait, back up']);
+  });
+});

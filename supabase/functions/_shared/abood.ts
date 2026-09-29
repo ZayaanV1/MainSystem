@@ -460,6 +460,48 @@ export function spentQuestions(turns: { role: string; content: string }[]): stri
   return out.slice(-4);
 }
 
+/*
+ * One small nudge per turn, so replies differ in shape and not only in words.
+ * The instruction describes the range, but a model given the same instruction
+ * and a similar message lands in the same groove; a differing nudge each turn
+ * is what moves it. Picked from the message and the length of the
+ * conversation so it is stable for a retry of the same turn and varies across
+ * turns, with no state to store. Never applied to a planner answer, where a
+ * flourish is a risk to a fact.
+ */
+const TEXTURES = [
+  'This turn: react first in a few words like a real person would, then say the thought.',
+  'This turn: keep it short. One or two lines, and let the silence do some work.',
+  'This turn: say what you actually think about what they said, plainly, even if it is a mild disagreement.',
+  'This turn: pick up something they told you earlier (under WHAT YOU REMEMBER) if it genuinely connects; if nothing does, do not force it.',
+  'This turn: a touch of dry humour if it fits the mood, and only if it is kind. Skip it if they are hurting.',
+  'This turn: go a bit longer and more thoughtful than usual, like a friend who has been thinking about it.',
+  'This turn: name the thing underneath what they said as a statement, not a question, and leave it there.',
+  'This turn: match their energy exactly, whether that is flat, wired or playful.',
+  'This turn: say what you find interesting or telling about what they said, in your own words.',
+  'This turn: offer one concrete, specific thing a friend might suggest or notice, lightly, and let them take it or leave it.',
+];
+
+export function textureFor(message: string, turnCount: number): string {
+  let h = turnCount * 31;
+  for (let i = 0; i < message.length; i++) h = (h * 33 + message.charCodeAt(i)) >>> 0;
+  return TEXTURES[h % TEXTURES.length];
+}
+
+/** How the last few replies began, so the next one does not begin the same way. */
+export function spentOpenings(turns: { role: string; content: string }[]): string[] {
+  return turns
+    .filter((t) => t.role !== 'user')
+    .map((t) => t.content.trim().split(/\s+/).slice(0, 4).join(' '))
+    .filter(Boolean)
+    .slice(-4);
+}
+
+function openingsNote(openings: string[]): string {
+  if (openings.length < 2) return '';
+  return `YOUR LAST REPLIES BEGAN: ${openings.map((o) => `"${o}"`).join(', ')}. Begin this one differently.\n`;
+}
+
 function spentNote(questions: string[]): string {
   if (!questions.length) return '';
   return [
@@ -531,6 +573,8 @@ export async function askAbood(opts: {
       priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
       mode === 'confide' ? `${CONFIDE_NOTE}\n` : '',
       mode === 'confide' ? spentNote(spentQuestions(kept)) : '',
+      mode !== 'planner' ? openingsNote(spentOpenings(kept)) : '',
+      mode !== 'planner' ? `${textureFor(message, kept.length)}\n` : '',
       `THEY NOW SAY: ${message}`,
     ].join('\n');
 
@@ -548,7 +592,7 @@ export async function askAbood(opts: {
        */
       // A confidence gets medium effort too: what makes a listener good is
       // noticing what was actually said, and that is thinking, not warmth.
-      temperature: planner ? 0.3 : mode === 'confide' ? 0.85 : 0.8,
+      temperature: planner ? 0.3 : mode === 'confide' ? 0.95 : 0.9,
       reasoning: planner || mode === 'confide' ? 'medium' : 'low',
       maxOutputTokens: 2_000,
       timeoutMs: 45_000,
