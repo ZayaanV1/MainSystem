@@ -358,3 +358,14 @@ describe('how Abood works stays private', () => {
     expect(leaksInstruction("honestly that sounds like you're tired of being the one who always texts first. did he ever say why?")).toBe(false);
   });
 });
+
+describe('a chosen voice', () => {
+  it('adds the close-friend voice only when chosen, and never as the default', async () => {
+    const { voiceNote, isVoice } = await import('../../supabase/functions/_shared/chat');
+    expect(voiceNote(null)).toBe('');
+    expect(voiceNote('plain')).toBe('');
+    expect(voiceNote('bro')).toContain('CLOSE FRIEND');
+    expect(isVoice('bro')).toBe(true);
+    expect(isVoice('pirate')).toBe(false);
+  });
+});

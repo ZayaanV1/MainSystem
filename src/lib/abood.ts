@@ -141,3 +141,20 @@ export async function saveCheckins(userId: string, s: CheckinSettings): Promise<
     .eq('user_id', userId);
   return !error;
 }
+
+/**
+ * How Abood talks. 'plain' is everyone's default; 'bro' is a close friend's
+ * register, opt-in because it is one person's taste.
+ */
+export type AboodVoice = 'plain' | 'bro';
+
+export async function loadVoice(): Promise<AboodVoice | null> {
+  const { data, error } = await supabase.from('app_settings').select('abood_voice').maybeSingle();
+  if (error || !data) return null;
+  return data.abood_voice === 'bro' ? 'bro' : 'plain';
+}
+
+export async function saveVoice(userId: string, voice: AboodVoice): Promise<boolean> {
+  const { error } = await supabase.from('app_settings').update({ abood_voice: voice }).eq('user_id', userId);
+  return !error;
+}

@@ -696,6 +696,16 @@ anything reaches the prompt. A reply reproducing any twelve words running
 from the instruction is replaced, whatever the model was talked into. Crisis
 line copy no longer assumes Canada.
 
+**A chosen voice (0033).** Asked to mimic a previous companion bot "one to
+one" from its iMessage history. `app_settings.abood_voice` is `plain` for
+every account unless changed; `bro` (Settings > How Abood talks) is that bot's
+register — slang, "bro", specific hype, teasing about real habits, meeting a
+one-word text in kind, brushing off questions about itself. Per account,
+because it is one person's taste. Three things in that history were
+deliberately NOT copied: the same morning template daily for weeks, "zero logs
+for food, adderall or uni" on every check-in (score-keeping, ignored until the
+bot itself said it was not landing), and promises it could not keep.
+
 ### Abood by iMessage, through a Mac — Sep 2026
 
 Apple has no iMessage API, so `bridge/imessage/bridge.mjs` runs on a Mac

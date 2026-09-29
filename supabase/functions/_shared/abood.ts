@@ -1,5 +1,5 @@
 import { buildContext, type BuildOptions, type Scope } from './context.ts';
-import { CHAT_INSTRUCTION, CHAT_SCHEMA, validateChat, type ChatReply } from './chat.ts';
+import { CHAT_INSTRUCTION, CHAT_SCHEMA, validateChat, voiceNote, type ChatReply, type Voice } from './chat.ts';
 import type { LlmProvider } from './llm/types.ts';
 
 /**
@@ -656,6 +656,8 @@ export async function askAbood(opts: {
   geminiKey: string;
   /** Who may ask how Abood works; see readOwnerAccess. */
   owner?: OwnerAccess;
+  /** The voice this account chose. */
+  voice?: Voice | null;
 }): Promise<AskResult> {
   const { admin, userId, today, tz, provider, geminiKey } = opts;
 
@@ -706,6 +708,7 @@ export async function askAbood(opts: {
       '',
       memoryBlock,
       priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
+      voiceNote(opts.voice),
       mode === 'confide' ? `${CONFIDE_NOTE}\n` : '',
       mode === 'confide' ? spentNote(spentQuestions(kept)) : '',
       mode !== 'planner' ? openingsNote(spentOpenings(kept)) : '',
@@ -750,7 +753,8 @@ export async function askAbood(opts: {
 
   if (!result.ok) return { ok: false, failure: result.failure, message: result.message };
   const reply = validateChat(result.value, context.knownIds, context.aliases, context.titles);
-  if (!owner && leaksInstruction(reply.reply)) {
+  const voice = voiceNote(opts.voice);
+  if (!owner && (leaksInstruction(reply.reply) || (voice && leaksInstruction(reply.reply, voice)))) {
     return { ok: true, provider: result.provider, ...reply, reply: DEFLECTION, action: null, referenced: [], remember: [] };
   }
   return { ok: true, provider: result.provider, ...reply };

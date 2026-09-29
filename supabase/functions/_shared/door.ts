@@ -1,4 +1,5 @@
 import { asAside, askAbood, learn, readOwnerAccess } from './abood.ts';
+import { isVoice } from './chat.ts';
 import { geminiProvider } from './llm/gemini.ts';
 import { groqProvider } from './llm/groq.ts';
 import { withFallback } from './llm/chain.ts';
@@ -100,7 +101,7 @@ export async function converse(opts: {
 
   const { data: settings } = await admin
     .from('app_settings')
-    .select('gemini_api_key, groq_api_key, timezone')
+    .select('gemini_api_key, groq_api_key, timezone, abood_voice')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -134,7 +135,7 @@ export async function converse(opts: {
 
   await typing?.();
 
-  const result = await askAbood({ admin, userId, message, today, tz, provider, geminiKey, owner: readOwnerAccess(env) });
+  const result = await askAbood({ admin, userId, message, today, tz, provider, geminiKey, owner: readOwnerAccess(env), voice: isVoice(settings?.abood_voice) ? settings.abood_voice : null });
   await recordUse(admin, userId, 'chat', today, onOwnKey);
 
   if (!result.ok) {

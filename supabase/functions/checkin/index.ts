@@ -22,6 +22,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { gatherContext, recall } from '../_shared/abood.ts';
+import { isVoice, voiceNote } from '../_shared/chat.ts';
 import { textsOf } from '../_shared/door.ts';
 import { geminiProvider } from '../_shared/llm/gemini.ts';
 import { groqProvider } from '../_shared/llm/groq.ts';
@@ -189,6 +190,7 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
     input: [
       context.text,
       '',
+      voiceNote(isVoice(settings.abood_voice) ? settings.abood_voice : null),
       memory.length ? `WHAT YOU REMEMBER\n${memory.map((f) => `- ${f}`).join('\n')}\n` : '',
       history ? `YOUR LAST CONVERSATION (about ${hours} hours ago)\n${history}` : '',
     ].join('\n'),
@@ -244,7 +246,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: accounts } = await admin
     .from('app_settings')
-    .select('user_id, timezone, gemini_api_key, groq_api_key, abood_checkin_every_hours, abood_checkin_from, abood_checkin_until')
+    .select('user_id, timezone, gemini_api_key, groq_api_key, abood_checkin_every_hours, abood_checkin_from, abood_checkin_until, abood_voice')
     .eq('abood_checkins', true);
 
   const results: Record<string, string> = {};
