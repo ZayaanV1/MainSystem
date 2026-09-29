@@ -259,3 +259,21 @@ describe('withFallback and a per-minute throttle', () => {
     expect((await withFallback(daily, good).complete({ instruction: '', input: '', schema: {} })).ok).toBe(false);
   });
 });
+
+describe('spentQuestions', () => {
+  it('lists the questions Abood already asked, newest last, and ignores the user and statements', async () => {
+    const { spentQuestions } = await import('../../supabase/functions/_shared/abood');
+    const turns = [
+      { role: 'user', content: 'did you ever ask why?' },
+      { role: 'assistant', content: 'that sounds heavy.\n\nwhat hits the hardest?' },
+      { role: 'user', content: 'the loneliness' },
+      { role: 'assistant', content: 'okay. what part gets to you most? and when did it start?' },
+    ];
+    expect(spentQuestions(turns)).toEqual([
+      'what hits the hardest?',
+      'what part gets to you most?',
+      'and when did it start?',
+    ]);
+    expect(spentQuestions([])).toEqual([]);
+  });
+});

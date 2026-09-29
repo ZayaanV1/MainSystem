@@ -432,11 +432,42 @@ export function modeFor(message: string, previous?: string | null): Mode {
 
 const CONFIDE_NOTE = [
   'MODE: THEY ARE OPENING UP.',
-  'This is talking, not planning. Listen first. Reflect what you heard in your own words, name the feeling if it helps,',
-  'and ask one open question that goes a layer deeper. Do not offer fixes, plans or productivity advice unless they ask,',
-  'and if you are not sure whether they want ideas or just to be heard, ask. Do not mention assignments, deadlines,',
-  'classes, their schedule or anything to get done — even if you think it is related — unless they bring it up.',
+  'This is talking, not planning. Listen first, and be specific to what they actually said. Do not default to',
+  'reflect-then-ask: pick the move that fits this moment (an observation, a real take, naming what is underneath,',
+  'or just staying with it) and use a question only if it is a new one that this message earns. Do not offer fixes,',
+  'plans or productivity advice unless they ask, and if you are not sure whether they want ideas or just to be heard,',
+  'ask that once. Do not mention assignments, deadlines, classes, their schedule or anything to get done — even if',
+  'you think it is related — unless they bring it up.',
 ].join(' ');
+
+/**
+ * How Abood's own recent replies ended, handed back to it.
+ *
+ * "what hits the hardest?" on every turn happens because the model sees its
+ * own last replies in the transcript and continues the pattern. Saying "vary"
+ * in the instruction loses to six turns of evidence, so the evidence is named:
+ * the last questions it asked are listed as spent.
+ */
+export function spentQuestions(turns: { role: string; content: string }[]): string[] {
+  const out: string[] = [];
+  for (const t of turns) {
+    if (t.role === 'user') continue;
+    for (const sentence of t.content.split(/(?<=[.?!])\s+|\n+/)) {
+      const s = sentence.trim();
+      if (s.endsWith('?') && s.length > 8) out.push(s.slice(0, 140));
+    }
+  }
+  return out.slice(-4);
+}
+
+function spentNote(questions: string[]): string {
+  if (!questions.length) return '';
+  return [
+    'QUESTIONS YOU HAVE ALREADY ASKED (do not ask these again, or anything that means the same; say something else):',
+    ...questions.map((q) => `- ${q}`),
+    '',
+  ].join('\n');
+}
 
 /** Events a fortnight ahead unless the message reaches further. */
 export function eventDaysFor(message: string): number {
@@ -499,6 +530,7 @@ export async function askAbood(opts: {
       memoryBlock,
       priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
       mode === 'confide' ? `${CONFIDE_NOTE}\n` : '',
+      mode === 'confide' ? spentNote(spentQuestions(kept)) : '',
       `THEY NOW SAY: ${message}`,
     ].join('\n');
 
