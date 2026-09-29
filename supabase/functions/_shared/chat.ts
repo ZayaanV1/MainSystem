@@ -285,7 +285,11 @@ const words = (text: string) =>
   new Set((text.toLowerCase().replace(/'s\b/g, '').match(/[a-z']{3,}/g) ?? []).filter((w) => !FILLER.has(w)));
 
 /** What makes this reply sound scripted, given what was said before. Empty is good. */
-export function scripted(reply: string, earlierReplies: string[] = []): string[] {
+export function scripted(raw: string, rawEarlier: string[] = []): string[] {
+  // Models write curly apostrophes as often as straight ones; "i’m here" must not slip past "i'm here".
+  const plain = (t: string) => t.replace(/[\u2018\u2019\u02bc]/g, "'");
+  const reply = plain(raw);
+  const earlierReplies = rawEarlier.map(plain);
   const problems = SCRIPTED.filter(([re]) => re.test(reply)).map(([, name]) => `uses ${name}`);
   const questions = questionsIn(reply);
   if (questions.length > 1) problems.push(`asks ${questions.length} questions; at most one`);

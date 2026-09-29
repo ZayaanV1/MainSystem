@@ -191,6 +191,7 @@ describe('catching a reply that sounds like a script', () => {
   it('flags a sign-off or a line said again in an earlier reply', async () => {
     const { scripted } = await import('../../supabase/functions/_shared/chat');
     expect(scripted('damn. if you want to talk through it, i\'m here.').join()).toMatch(/sign-off/);
+    expect(scripted('happy to toss some ideas, otherwise i\u2019m here to listen.').join()).toMatch(/sign-off/);
     expect(
       scripted('nobody wants to be that guy. you could keep your food in your room for a week.', [
         'real talk, you could keep your food in your room for a week and see if he notices.',
