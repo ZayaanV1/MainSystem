@@ -9,8 +9,8 @@ import type { LlmFailure, LlmProvider, LlmRequest, LlmResult } from './types.ts'
  *
  * A note that belongs in the code rather than only in a conversation: on the
  * free tier Google may use submitted content to improve its products. What
- * gets sent here is food descriptions and, with photo logging, pictures of
- * meals. That was an accepted trade, but it is the reason this file is one
+ * gets sent here is task titles, syllabi and, as a fallback, chat questions.
+ * That was an accepted trade, but it is the reason this file is one
  * implementation of an interface rather than the interface itself — moving to
  * Groq or a paid tier should cost one file.
  */
@@ -82,8 +82,8 @@ async function availableModels(apiKey: string): Promise<string[]> {
  *
  *   flash-lite, then flash — this app makes small, frequent, structured calls
  *   and the cheap tiers are what a shared free key survives on.
- *   pro last, because it works and is the wrong default for parsing a line of
- *   typed food.
+ *   pro last, because it works and is the wrong default for breaking down a
+ *   single task.
  *
  * Previews and experimental builds are skipped. Falling back to something
  * explicitly labelled unstable is how an app that just recovered from one
@@ -166,7 +166,7 @@ export function geminiProvider(apiKey: string): LlmProvider {
             /*
              * Recover rather than report.
              *
-             * A retired model name took the whole app down: food parsing, the
+             * A retired model name took the whole app down: task breakdown, the
              * syllabus importer, the briefing and the chatbot all returned
              * "set GEMINI_MODEL to a current model" — advice nobody can act on
              * from inside the app, for a fault the app could have fixed
@@ -241,7 +241,7 @@ export function geminiProvider(apiKey: string): LlmProvider {
         } catch {
           // Deliberately not repaired heuristically. A response that is not the
           // shape demanded is a failure — guessing at it is how malformed data
-          // reaches a food log.
+          // reaches the planner.
           return {
             ok: false,
             failure: 'malformed',

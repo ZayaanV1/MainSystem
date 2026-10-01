@@ -2,12 +2,12 @@
  * assist — the Phase 4 planner-side model calls.
  *
  * Two tasks behind one function: breaking an assignment into first moves, and
- * pulling deadlines out of a syllabus. They share a deploy, a quota and the
- * same contract as parse-food:
+ * pulling deadlines out of a syllabus. They share a deploy, a quota and one
+ * contract:
  *
  *   It returns a proposal. It does not write it.
  *
- * That is rule 6 again, and it matters more here than for food. A syllabus
+ * That is rule 6, and it matters most for the syllabus. A syllabus
  * import that silently writes fourteen rows, one of them dated by a guessed
  * year, produces a calendar that looks complete and is not — which is worse
  * than the empty one it replaced.
@@ -42,10 +42,10 @@ const APP_URL = env('APP_URL');
 /**
  * How many model calls a day the chatbot may make before it stands down.
  *
- * The chatbot and the diet parser share one free-tier quota, and they are not
- * equally important: logging food is a thing the app exists to do, and asking
- * it a question is a convenience. So the chatbot stops first and says why,
- * rather than both hitting the wall together halfway through a meal.
+ * The chatbot shares one free-tier quota with the syllabus reader, the task
+ * breakdown and the briefing, and it is the path most easily run up. So it has
+ * its own ceiling and stops with a sentence saying so, rather than draining
+ * the pool the other paths draw on.
  *
  * Deliberately not derived from Google's published limits. Those change, are
  * per-model, and are not visible from here — a number invented from them would
@@ -55,7 +55,7 @@ const APP_URL = env('APP_URL');
 const CHAT_CALLS_PER_DAY = Number(Deno.env.get('CHAT_CALLS_PER_DAY') ?? '40');
 
 
-/** A syllabus PDF. Larger than a meal photo, and they do run long. */
+/** A syllabus PDF. They do run long. */
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
 const MAX_TEXT_LENGTH = 8_000;
 
@@ -79,7 +79,7 @@ function corsFor(req: Request): Record<string, string> {
 /**
  * Every failure ends with something the person can still do.
  *
- * This function and the food parser share one free-tier quota, so running out
+ * Every path in this function shares one free-tier quota, so running out
  * is a normal Tuesday. The fallback differs by task: a breakdown can be typed
  * as subtasks, a syllabus has to be entered by hand, and saying so is more
  * use than a generic apology.
@@ -262,8 +262,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   /*
    * A key in the wrong field is ignored rather than trusted. Google's keys
    * start "AIza", Groq's "gsk_"; a Groq key saved as the account's Gemini key
-   * overrode the working shared key and made every Gemini call — food, the
-   * syllabus, the briefing — fail as "API key not valid". Found on the live
+   * overrode the working shared key and made every Gemini call — the
+   * syllabus, the briefing, chat's fallback — fail as "API key not valid". Found on the live
    * account, where the same Groq key sat in both fields.
    */
   const rawGemini = (keyRow?.gemini_api_key as string | null)?.trim() || null;
@@ -283,13 +283,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
    * The chatbot may run somewhere else entirely.
    *
    * Chosen per TASK rather than globally, because the providers are not
-   * interchangeable: Groq's chat models are text-only, and the diet parser
-   * sends photographs of plates and of nutrition labels. A global switch would
-   * quietly break photo logging the moment a Groq key was pasted — and break
-   * it by answering confidently about an image that was never sent, which is
-   * the exact failure the spec calls worse than no answer at all.
+   * interchangeable: Groq's chat models are text-only, and the syllabus reader
+   * sends PDFs. A global switch would quietly break PDF import the moment a
+   * Groq key was pasted.
    *
-   * So vision stays on Gemini and conversation moves to Groq when a key
+   * So documents stay on Gemini and conversation moves to Groq when a key
    * exists. An account's own key wins over the shared one, as everywhere else.
    */
   const rawGroq = (keyRow?.groq_api_key as string | null)?.trim() || null;
@@ -448,7 +446,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     /*
      * The daily budget exists to stop one account draining a shared free tier
-     * before anyone else can log a meal. An account paying its own way is not
+     * before anyone else can use it. An account paying its own way is not
      * competing with anybody, so the reserve simply does not apply to it.
      */
     if (!chatOnOwnKey && (usage?.count ?? 0) >= CHAT_CALLS_PER_DAY) {
@@ -456,7 +454,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         ok: false,
         failure: 'quota',
         reason:
-          'That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow.',
+          'That is enough questions for today. It resets tomorrow, and everything else works as usual.',
       });
     }
 

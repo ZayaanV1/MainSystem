@@ -222,9 +222,9 @@ export function RepeatingWork({ open, onClose, userId, courses, onCreated }: Rep
 
         {/*
           The preview. Every date, before anything is written — rule 6 applies
-          to a pattern exactly as it does to parsed food or an extracted
-          syllabus, and a recurrence you cannot check is one you will not trust
-          enough to rely on.
+          to a pattern exactly as it does to an extracted syllabus, and a
+          recurrence you cannot check is one you will not trust enough to rely
+          on.
         */}
         <Card className="p-4">
           {days.length === 0 ? (

@@ -4,7 +4,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
  * Pressable — a row that is a button.
  *
  * Ten places in this app render a list item whose whole surface is the tap
- * target: an inbox entry to triage, a saved meal to log, a search result to
+ * target: an inbox entry to triage, a search result to
  * open, a checklist item to edit. Each one had grown its own set of layout
  * classes, and they had already drifted — some were `items-center`, some
  * `items-start`, some `items-baseline`, some had `w-full` and some did not, so
@@ -64,7 +64,7 @@ export function Pressable({
       {...rest}
       className={[
         // Deliberately no gap and no padding: those genuinely differ per row
-        // (a search result is not spaced like a saved meal), and a default
+        // (a search result is not spaced like an inbox entry), and a default
         // here would be silently overridden by callers passing their own,
         // which is undefined behaviour in Tailwind rather than a cascade.
         'flex w-full text-left',

@@ -13,8 +13,7 @@
  * still come through — they are real work, and the app already has a place for
  * work with no date — but they arrive visibly undated.
  *
- * Everything is confirmed before it is written. Rule 6 applies here exactly as
- * it does to food.
+ * Everything is confirmed before it is written. That is rule 6.
  */
 
 export type SyllabusKind = 'assignment' | 'exam' | 'presentation';

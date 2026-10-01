@@ -43,7 +43,7 @@ export function textsOf(reply: string, max = 4): string[] {
 }
 
 export const HELP = [
-  'Ask me anything about your work, classes, checklist or food, and I answer from what is in your planner.',
+  'Ask me anything about your work, classes or checklist, and I answer from what is in your planner.',
   '',
   'memory  what I remember about you',
   'forget  clear what I remember',
@@ -118,13 +118,13 @@ export async function converse(opts: {
   const onOwnKey = Boolean(ownGroq || (!groqKey && ownGemini));
 
   // The same daily budget as the app's chat, so a second door is not a way
-  // round the reserve kept for logging food.
+  // round it.
   const budget = await checkBudget(admin, userId, 'chat', today, onOwnKey);
 
   await admin.from('chat_messages').insert({ user_id: userId, role: 'user', content: message, via });
 
   if (!budget.allowed) {
-    const reason = 'That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow.';
+    const reason = 'That is enough questions for today. It resets tomorrow, and everything else works as usual.';
     await admin
       .from('chat_messages')
       .insert({ user_id: userId, role: 'assistant', content: reason, failed: true, via });

@@ -47,15 +47,15 @@ const EMBED_DIMS = 768;
  * them silently would break the moment it was called with the wrong id, and
  * there is exactly one user to get wrong.
  *
- * All of it is bounded. Open work only, a month of events, today's food, the
- * last handful of weigh-ins — a context that grew with the food log would
- * eventually cost more per question than the answer is worth.
+ * All of it is bounded. Open work only, a month of events, today's checklist —
+ * a context that grew with the history would eventually cost more per
+ * question than the answer is worth.
  */
 // deno-lint-ignore no-explicit-any
 export async function gatherContext(admin: any, userId: string, today: string, tz: string, opts: BuildOptions = {}) {
   const monthOut = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [assignments, events, checklist, completions, entries, targets, meals, weights, weighted] =
+  const [assignments, events, checklist, completions, weighted] =
     await Promise.all([
       admin
         .from('assignments')
@@ -79,30 +79,6 @@ export async function gatherContext(admin: any, userId: string, today: string, t
         .eq('active', true)
         .order('sort_order', { ascending: true }),
       admin.from('checklist_completions').select('item_id').eq('user_id', userId).eq('local_day', today),
-      admin
-        .from('food_entries')
-        .select('food_items(name, calories, protein_g, carbs_g, fat_g)')
-        .eq('user_id', userId)
-        .eq('local_day', today),
-      admin
-        .from('macro_targets')
-        .select('*')
-        .eq('user_id', userId)
-        .lte('effective_from', today)
-        .order('effective_from', { ascending: false })
-        .limit(1),
-      admin
-        .from('saved_meals')
-        .select('id, name, items')
-        .eq('user_id', userId)
-        .order('last_used_at', { ascending: false, nullsFirst: false })
-        .limit(12),
-      admin
-        .from('bodyweight')
-        .select('local_day, kg')
-        .eq('user_id', userId)
-        .order('local_day', { ascending: false })
-        .limit(5),
       // Every piece of weighted work, done or not: standing is what has been
       // decided against what the course is made of, and finished work is
       // exactly the part an open-work query leaves out.
@@ -121,24 +97,6 @@ export async function gatherContext(admin: any, userId: string, today: string, t
   const doneToday = new Set(
     ((completions.data ?? []) as { item_id: string }[]).map((c) => c.item_id),
   );
-
-  const items = ((entries.data ?? []) as { food_items: Record<string, unknown>[] | null }[]).flatMap(
-    (e) => e.food_items ?? [],
-  );
-
-  interface Totals { calories: number; protein_g: number; carbs_g: number; fat_g: number }
-
-  const totals = items.reduce<Totals>(
-    (acc, i) => ({
-      calories: acc.calories + num(i.calories),
-      protein_g: acc.protein_g + num(i.protein_g),
-      carbs_g: acc.carbs_g + num(i.carbs_g),
-      fat_g: acc.fat_g + num(i.fat_g),
-    }),
-    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-  );
-
-  const t = targets.data?.[0];
 
   // Per course, the same subtraction the Courses screen does: weight on the
   // calendar, how much of it has a mark, and the points already banked. No
@@ -197,35 +155,6 @@ export async function gatherContext(admin: any, userId: string, today: string, t
       done_today: doneToday.has(c.id),
       doses_remaining: c.tracks_doses ? num(c.doses_remaining) : null,
     })),
-    food: {
-      totals,
-      targets: t
-        ? {
-            calories: [num(t.calories_min), num(t.calories_max)],
-            protein: [num(t.protein_min), num(t.protein_max)],
-            carbs: [num(t.carbs_min), num(t.carbs_max)],
-            fat: [num(t.fat_min), num(t.fat_max)],
-          }
-        : null,
-      items: items.map((i) => ({
-        name: String(i.name ?? ''),
-        calories: num(i.calories),
-        protein_g: num(i.protein_g),
-      })),
-    },
-    // deno-lint-ignore no-explicit-any
-    savedMeals: ((meals.data ?? []) as any[]).map((m) => {
-      // deno-lint-ignore no-explicit-any
-      const mi = (m.items ?? []) as any[];
-      return {
-        id: m.id,
-        name: m.name,
-        calories: mi.reduce((sum, i) => sum + num(i.calories), 0),
-        protein_g: mi.reduce((sum, i) => sum + num(i.protein_g), 0),
-      };
-    }),
-    // deno-lint-ignore no-explicit-any
-    weights: ((weights.data ?? []) as any[]).map((w) => ({ local_day: w.local_day, kg: num(w.kg) })),
     grades: [...byCourse].map(([course, c]) => ({
       course,
       weightKnown: Math.round(c.known * 100) / 100,
@@ -372,8 +301,6 @@ export type AskResult =
 
 const WORK =
   /\b(due|deadlines?|assignments?|homework|hw|quiz(zes)?|exams?|midterms?|finals?|tests?|labs?|lectures?|class(es)?|tutorials?|courses?|projects?|essays?|papers?|reports?|submit\w*|stud(y|ying|ied)|work|busy|free|schedule\w*|calendar|plan\w*|week\w*|today|tonight|tomorrow|yesterday|mon(day)?|tue(s(day)?)?|wed(nesday)?|thu(rs(day)?)?|fri(day)?|sat(urday)?|sun(day)?|next|when|late|overdue|behind|grade\w*|marks?|semester|term|prof(essor)?s?|school|uni(versity)?|campus|room|what now|what's on|agenda|remind\w*|add|ticked|done)\b|\b[A-Z]{3,4}\s?\d{3}\b/i;
-const FOOD =
-  /\b(eat|ate|eating|food|meals?|lunch|dinner|breakfast|snacks?|protein|calories?|kcal|carbs?|fats?|macros?|weigh\w*|weight|kg|lbs?|hungry|cook\w*|recipes?|diet|bulk\w*|cut(ting)?|log(ged)?)\b/i;
 const CHECKLIST =
   /\b(checklist|meds?|medication|pills?|doses?|adderall|creatine|vitamins?|supplements?|habits?|routine|took|take|ticked|tick)\b/i;
 
@@ -390,7 +317,6 @@ export function scopesFor(message: string, previous?: string | null): Set<Scope>
   const scopes = new Set<Scope>();
   const read = (text: string) => {
     if (WORK.test(text)) scopes.add('work');
-    if (FOOD.test(text)) scopes.add('food');
     if (CHECKLIST.test(text)) scopes.add('checklist');
   };
   read(message);
@@ -418,7 +344,7 @@ const PERSONAL =
 
 /** A plain request for planner facts or a planner change, even mid-confidence. */
 const PLANNER_ASK =
-  /\b(when('?s| is| are| do)|what('?s| is) due|due (today|tonight|tomorrow|this|next)|deadline|what do i have|what have i got|do i have (any|a|an)|what now|what should i (do|work on|start)|how (much|many) (time|protein|calories|kcal|left)|add (a|an|it|this|that)|remind me|mark (it|that|as)|tick|log (my|a|this|that)|my (schedule|calendar|checklist))\b/i;
+  /\b(when('?s| is| are| do)|what('?s| is) due|due (today|tonight|tomorrow|this|next)|deadline|what do i have|what have i got|do i have (any|a|an)|what now|what should i (do|work on|start)|how (much|many) (time|left)|add (a|an|it|this|that)|remind me|mark (it|that|as)|tick|my (schedule|calendar|checklist))\b/i;
 
 /** A course code: a confidence about a course may use what the planner knows about it. */
 const COURSE = /\b[A-Z]{3,4}\s?\d{3}\b/i;

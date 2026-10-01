@@ -8,9 +8,6 @@ const base: ContextInput = {
   assignments: [],
   events: [],
   checklist: [],
-  food: { totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, targets: null, items: [] },
-  savedMeals: [],
-  weights: [],
 };
 
 const ctx = (o: Partial<ContextInput>) => buildContext({ ...base, ...o });
@@ -21,40 +18,8 @@ describe('buildContext', () => {
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2026-09-01T03:59:00Z', due_has_time: true, status: 'todo', effort_minutes: 120 }],
       events: [{ id: 'e1', title: 'Midterm', kind: 'exam', starts_at: '2026-10-22T22:00:00Z', all_day: false }],
       checklist: [{ id: 'c1', title: 'Adderall', done_today: true, doses_remaining: 28 }],
-      savedMeals: [{ id: 'm1', name: 'Shake', calories: 270, protein_g: 34 }],
     });
-    expect([...knownIds].sort()).toEqual(['a1', 'c1', 'e1', 'm1']);
-  });
-
-  it('does not put weigh-in days in the id set', () => {
-    // Nothing can be cited or acted on by date, and letting a date pass the
-    // id check would weaken the one guard against a fabricated reference.
-    const { knownIds } = ctx({ weights: [{ local_day: '2026-08-18', kg: 74.6 }] });
-    expect(knownIds.size).toBe(0);
-  });
-
-  it('states what is left of each macro so the model never does arithmetic', () => {
-    // "How much protein have I got left" is the question it will be asked
-    // most, and a model doing subtraction is a model that can be wrong.
-    const { text } = ctx({
-      food: {
-        totals: { calories: 2000, protein_g: 98, carbs_g: 200, fat_g: 40 },
-        targets: { calories: [2900, 3100], protein: [160, 175], carbs: [350, 400], fat: [70, 80] },
-        items: [],
-      },
-    });
-    expect(text).toContain('left to reach the bottom of each range: 900 kcal, protein 62 g');
-  });
-
-  it('never states a negative remainder once a target is met', () => {
-    const { text } = ctx({
-      food: {
-        totals: { calories: 3200, protein_g: 190, carbs_g: 420, fat_g: 90 },
-        targets: { calories: [2900, 3100], protein: [160, 175], carbs: [350, 400], fat: [70, 80] },
-        items: [],
-      },
-    });
-    expect(text).toContain('left to reach the bottom of each range: 0 kcal, protein 0 g, carbs 0 g, fat 0 g');
+    expect([...knownIds].sort()).toEqual(['a1', 'c1', 'e1']);
   });
 
   it('says a section is empty rather than omitting it', () => {
@@ -64,8 +29,6 @@ describe('buildContext', () => {
     expect(text).toContain('(nothing open)');
     expect(text).toContain('(none in the next month)');
     expect(text).toContain('(nothing due today)');
-    expect(text).toContain('(none saved)');
-    expect(text).toContain('(none recorded)');
   });
 
   it('renders a deadline in local time, not UTC', () => {
@@ -201,9 +164,6 @@ describe('buildContext, trimmed', () => {
       { id: '33333333-3333-3333-3333-333333333333', title: 'Far exam', kind: 'exam', starts_at: '2026-10-25T14:00:00Z', all_day: false },
     ],
     checklist: [{ id: '44444444-4444-4444-4444-444444444444', title: 'Creatine', done_today: false, doses_remaining: null }],
-    food: { totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, targets: null, items: [] },
-    savedMeals: [{ id: '55555555-5555-5555-5555-555555555555', name: 'Oats', calories: 400, protein_g: 20 }],
-    weights: [],
   };
 
   it('labels items briefly and can map every label back', () => {
@@ -211,15 +171,15 @@ describe('buildContext, trimmed', () => {
     expect(c.text).not.toContain('1111-1111');
     expect(c.text).toContain('[w1] Quiz 4');
     expect(c.aliases?.get('w1')).toBe('11111111-1111-1111-1111-111111111111');
-    expect(c.aliases?.get('m1')).toBe('55555555-5555-5555-5555-555555555555');
-    expect([...c.knownIds].sort()).toEqual(['c1', 'e1', 'e2', 'm1', 'w1']);
+    expect(c.aliases?.get('c1')).toBe('44444444-4444-4444-4444-444444444444');
+    expect([...c.knownIds].sort()).toEqual(['c1', 'e1', 'e2', 'w1']);
   });
 
   it('includes only the sections asked for', () => {
-    const c = buildContext(input, { scopes: new Set(['food'] as const) });
-    expect(c.text).toContain('FOOD TODAY');
+    const c = buildContext(input, { scopes: new Set(['checklist'] as const) });
+    expect(c.text).toContain('DAILY CHECKLIST');
     expect(c.text).not.toContain('OPEN WORK');
-    expect(c.text).not.toContain('DAILY CHECKLIST');
+    expect(c.text).not.toContain('UPCOMING EVENTS');
   });
 
   it('bounds events to the window it is given', () => {
@@ -231,7 +191,7 @@ describe('buildContext, trimmed', () => {
   it('gives conversation a snapshot of what is next, not the whole planner', () => {
     const c = buildContext(input, { scopes: new Set(), shortIds: true });
     expect(c.text).toContain('PLANNER SNAPSHOT');
-    expect(c.text).not.toContain('SAVED MEALS');
+    expect(c.text).not.toContain('DAILY CHECKLIST');
     expect(c.text.length).toBeLessThan(400);
   });
 });
@@ -248,9 +208,6 @@ describe('how far away each date is', () => {
       ],
       events: [],
       checklist: [],
-      food: { totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, targets: null, items: [] },
-      savedMeals: [],
-      weights: [],
     });
     expect(c.text).toContain('Assignment 2 — due Fri 2026-10-02 23:59 (in 4 days)');
     expect(c.text).toContain('WeBWorK 3 — due Mon 2026-09-28 23:59 (today)');
@@ -263,8 +220,6 @@ describe('academic standing', () => {
       today: '2026-09-28', now: '10:00', timezone: 'America/Toronto',
       assignments: [{ id: 'a', title: 'Midterm prep', due_at: null, due_has_time: false, status: 'todo', effort_minutes: null, weight_percent: 25 }],
       events: [], checklist: [],
-      food: { totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, targets: null, items: [] },
-      savedMeals: [], weights: [],
       grades: [
         { course: 'MATH 205', weightKnown: 10, weightMarked: 5, earned: 4 },
         { course: 'PHYS 205', weightKnown: 25, weightMarked: 0, earned: 0 },

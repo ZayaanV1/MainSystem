@@ -66,7 +66,7 @@ describe('courseGrades', () => {
   });
 
   it('does not accumulate float error across a term', () => {
-    // Same rule the macros follow. A course of eighths totalling 99.97 looks
+    // Weights are summed exactly. A course of eighths totalling 99.97 looks
     // like a data-entry error when it is an arithmetic one.
     const eighths = Array.from({ length: 8 }, (_, i) =>
       work({ id: `w${i}`, weight_percent: 12.5, grade_percent: 100 }),

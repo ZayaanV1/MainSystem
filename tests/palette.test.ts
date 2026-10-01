@@ -4,14 +4,14 @@ import { readFileSync } from 'node:fs';
 /**
  * Structural guards on the palette itself.
  *
- * The colour law separates four systems, and until now the only mechanical
+ * The colour law separates three systems, and until now the only mechanical
  * guard was "no colour literal outside tokens.css" — which stops a hex code
  * escaping but says nothing about whether the values inside the file still
- * mean four distinct things.
+ * mean three distinct things.
  *
- * They stopped meaning four distinct things once the brand became a colour.
+ * They stopped meaning distinct things once the brand became a colour.
  * Burnt orange landed in the middle of the old warm urgency ramp, and the
- * first phthalo green landed five degrees from the protein ring. Both were
+ * first phthalo green landed five degrees from a ring colour. Both were
  * invisible reading the file and obvious the moment the numbers were
  * computed, which is exactly the class of bug this project keeps finding by
  * measuring rather than assuming.
@@ -67,42 +67,12 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const MACROS = ['m-calories', 'm-protein', 'm-carbs', 'm-fat'];
-
 describe('the token file is readable at all', () => {
   it('parses the tokens these assertions depend on', () => {
     // Guards the guard: a regex that stopped matching would make every
     // assertion below vacuously pass.
     expect(token('accent')).toMatch(/^#[0-9a-f]{6}$/i);
     expect(token('accent-2')).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(MACROS.map(token)).toHaveLength(4);
-  });
-});
-
-describe('the brand stays clear of the macro rings', () => {
-  /**
-   * The requirement that produced the blue-shade phthalo. The brand had to
-   * clear every macro WITHOUT any macro moving, so the constraint binds on
-   * --accent-2 and never on --m-*.
-   *
-   * Fifteen degrees is the floor. Protein sits at nineteen, which is the
-   * tightest pair in the palette and the reason --accent-2 is 184 degrees
-   * rather than the 170 of a yellow-shade phthalo.
-   */
-  it.each(MACROS)('phthalo is at least 15 degrees from --%s', (macro) => {
-    expect(hueGap(token('accent-2'), token(macro))).toBeGreaterThanOrEqual(15);
-  });
-
-  it.each(MACROS)('the readable phthalo is at least 15 degrees from --%s', (macro) => {
-    // -lit is the variant that appears as text and thin marks, which is
-    // where a hue collision would actually be read.
-    expect(hueGap(token('accent-2-lit'), token(macro))).toBeGreaterThanOrEqual(15);
-  });
-
-  it('ember is nowhere near a macro either', () => {
-    for (const macro of MACROS) {
-      expect(hueGap(token('accent'), token(macro))).toBeGreaterThanOrEqual(15);
-    }
   });
 });
 

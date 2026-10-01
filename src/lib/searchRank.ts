@@ -8,7 +8,7 @@ import type { DayKey } from './time';
  * here are the part worth pinning; the queries are a round trip.
  */
 
-export type SearchKind = 'assignment' | 'event' | 'inbox' | 'course' | 'food';
+export type SearchKind = 'assignment' | 'event' | 'inbox' | 'course';
 
 export interface SearchHit {
   kind: SearchKind;
@@ -56,9 +56,8 @@ export function score(hit: SearchHit, query: string): number {
 /**
  * One row per thing.
  *
- * Food is searched per item and reported per entry, so a meal containing both
- * "chicken breast" and "chicken stock" would otherwise appear twice pointing
- * at the same place.
+ * A query can match the same row more than once, and two hits pointing at
+ * the same place are one result, not two.
  */
 export function dedupe(hits: SearchHit[]): SearchHit[] {
   const seen = new Set<string>();

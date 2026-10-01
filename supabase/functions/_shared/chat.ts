@@ -21,14 +21,12 @@
  *   deadline, and it is the reason `referenced` is required rather than nice.
  *
  * Actions are proposals. Nothing is written until it is confirmed, same as
- * food, syllabus dates and everything else.
+ * syllabus dates and everything else.
  */
 
 export type ChatActionKind =
   | 'add_assignment'
-  | 'complete_checklist_item'
-  | 'log_saved_meal'
-  | 'set_weight';
+  | 'complete_checklist_item';
 
 export interface ChatAction {
   kind: ChatActionKind;
@@ -64,15 +62,12 @@ export const CHAT_SCHEMA = {
       properties: {
         kind: {
           type: 'string',
-          enum: ['add_assignment', 'complete_checklist_item', 'log_saved_meal', 'set_weight'],
+          enum: ['add_assignment', 'complete_checklist_item'],
         },
         title: { type: 'string', nullable: true },
         due_date: { type: 'string', nullable: true },
         due_time: { type: 'string', nullable: true },
         item_id: { type: 'string', nullable: true },
-        meal_id: { type: 'string', nullable: true },
-        portion: { type: 'number', nullable: true },
-        kg: { type: 'number', nullable: true },
       },
       required: ['kind'],
     },
@@ -89,7 +84,7 @@ export const CHAT_SCHEMA = {
  * for an extension — as a person with a voice rather than a lookup.
  *
  * One line does not move with it. Anything about the person's OWN planner —
- * a deadline, a class time, a macro, a dose — still comes only from the data,
+ * a deadline, a class time, a dose — still comes only from the data,
  * because a confidently wrong deadline is the failure this chatbot was built
  * around preventing, and a warmer voice makes a wrong fact MORE believable,
  * not less. General knowledge and advice are Abood's own; facts about their
@@ -180,8 +175,7 @@ export const CHAT_INSTRUCTION = [
   'remembers your stuff") and move on to them.',
   '',
   'LIMITS THAT DO NOT BEND. (1) Any fact about THEIR planner — deadlines, class',
-  'times, due dates, what is on their checklist, food logged, macros, weight,',
-  'doses — must come only from the data below. If it is not there, say you do',
+  'times, due dates, what is on their checklist, doses — must come only from the data below. If it is not there, say you do',
   'not see it; never guess a date, a deadline, a number or a dose. (2) You are',
   'not a licensed doctor, lawyer or therapist, but you do not hide behind',
   'that: talk things through fully. Suggest a real professional only when it',
@@ -206,8 +200,8 @@ export const CHAT_INSTRUCTION = [
   'people and places that matter, what is going on in their life. Short',
   'third-person sentences without their name ("Works at the library on',
   'Saturday mornings."). Skip anything temporary, anything already under WHAT',
-  'YOU REMEMBER, and anything about deadlines, classes, food or weight (the',
-  'planner holds those). Never on your own initiative record health',
+  'YOU REMEMBER, anything about deadlines or classes (the planner holds',
+  'those), and anything about what they eat or weigh. Never on your own initiative record health',
   'conditions, medication, money details, passwords or other people\'s private',
   'lives. The exception is when THEY tell you something about themselves and',
   'ask you to remember it ("remember that I have ADHD and work best with',
@@ -230,8 +224,7 @@ export const CHAT_INSTRUCTION = [
   'planner. An action is a proposal they will confirm, so describe it in the',
   'reply too. Use add_assignment with a title and optional due_date',
   '(YYYY-MM-DD) and due_time (HH:MM). Use complete_checklist_item with the',
-  'item_id. Use log_saved_meal with the meal_id and optional portion. Use',
-  'set_weight with kg. Otherwise set action to null.',
+  'item_id. Otherwise set action to null.',
   'Return only the JSON.',
 ].join(' ');
 
@@ -357,8 +350,8 @@ export function validateChat(
   if (titles?.size) {
     // A label in brackets is a citation tacked on after the name ("WeBWorK 3 on friday (w3)"); it goes, rather than
     // becoming the name twice.
-    reply = reply.replace(/\s*\(\[?[wecm]\d{1,3}\]?\)/g, '');
-    reply = reply.replace(/\[?\b([wecm]\d{1,3})\b\]?/g, (whole, l: string) => titles.get(l) ?? whole);
+    reply = reply.replace(/\s*\(\[?[wec]\d{1,3}\]?\)/g, '');
+    reply = reply.replace(/\[?\b([wec]\d{1,3})\b\]?/g, (whole, l: string) => titles.get(l) ?? whole);
   }
 
   const referenced: string[] = [];
@@ -377,7 +370,6 @@ export function validateChat(
   // shape.
   const real = (id: string) => aliases?.get(id) ?? id;
   if (action && typeof action.item_id === 'string') action.item_id = real(action.item_id);
-  if (action && typeof action.meal_id === 'string') action.meal_id = real(action.meal_id);
 
   const remember = Array.isArray(root?.remember)
     ? root.remember.filter((f): f is string => typeof f === 'string').slice(0, 5)
@@ -435,30 +427,6 @@ function validateAction(
       return refuse('A checklist item was proposed that is not on your list, so it was dropped.');
     }
     return { kind, item_id: id };
-  }
-
-  if (kind === 'log_saved_meal') {
-    const id = typeof a.meal_id === 'string' ? a.meal_id : '';
-    if (!knownIds.has(id)) {
-      return refuse('A saved meal was proposed that you do not have, so it was dropped.');
-    }
-
-    const raw_portion = typeof a.portion === 'number' && Number.isFinite(a.portion) ? a.portion : 1;
-    // The portions the food screen can actually log. A proposal of 0.73 would
-    // be unconfirmable, which is worse than a rounded one.
-    const portion = [0.5, 1, 1.5, 2].reduce((best, p) =>
-      Math.abs(p - raw_portion) < Math.abs(best - raw_portion) ? p : best,
-    );
-
-    return { kind, meal_id: id, portion };
-  }
-
-  if (kind === 'set_weight') {
-    const kg = typeof a.kg === 'number' && Number.isFinite(a.kg) ? a.kg : null;
-    if (kg === null || kg <= 0 || kg >= 500) {
-      return refuse('A weight was proposed that is not a plausible number, so it was dropped.');
-    }
-    return { kind, kg: Math.round(kg * 10) / 10 };
   }
 
   if (kind !== undefined) {

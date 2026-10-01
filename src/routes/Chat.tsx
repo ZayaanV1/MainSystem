@@ -7,7 +7,6 @@ import { useAuth } from '../lib/auth';
 import { askChat } from '../lib/assist';
 import { clearChat, loadChat, markActionTaken, saveMessage, type ChatMessage } from '../lib/chat';
 import { addAssignment, assignmentDueAt, setCompletion, type Course } from '../lib/planner';
-import { loadDay, logSavedMeal, setWeight } from '../lib/diet';
 import { todayKey } from '../lib/time';
 
 /**
@@ -21,7 +20,7 @@ import { todayKey } from '../lib/time';
  * dropped before this screen sees them.
  *
  * Nothing is written without confirmation. An action arrives as a proposal
- * with a button, exactly like a parsed meal or an extracted syllabus date, and
+ * with a button, exactly like an extracted syllabus date, and
  * declining leaves the proposal in the transcript rather than erasing it.
  */
 export function Chat({ courses, onBack, onChanged }: {
@@ -94,7 +93,7 @@ export function Chat({ courses, onBack, onChanged }: {
     setLearned(result.learned);
     if (result.remaining <= 0) {
       setSpent(
-        'That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow.',
+        'That is enough questions for today. It resets tomorrow, and everything else works as usual.',
       );
     }
 
@@ -137,13 +136,8 @@ export function Chat({ courses, onBack, onChanged }: {
         });
       } else if (kind === 'complete_checklist_item') {
         await setCompletion(userId, String(action.item_id), todayKey(), true);
-      } else if (kind === 'log_saved_meal') {
-        const day = await loadDay();
-        const meal = day.savedMeals.find((m) => m.id === action.meal_id);
-        if (!meal) throw new Error('That saved meal is gone.');
-        await logSavedMeal(userId, todayKey(), meal, Number(action.portion ?? 1));
-      } else if (kind === 'set_weight') {
-        await setWeight(userId, todayKey(), Number(action.kg));
+      } else {
+        throw new Error('That kind of change is no longer part of the app.');
       }
 
       await markActionTaken(message.id);
@@ -179,7 +173,7 @@ export function Chat({ courses, onBack, onChanged }: {
         {messages.length === 0 && (
           <EmptyState>
             <span>
-              Ask about your own work, food or checklist. It only knows what is in this app, and
+              Ask about your own work, classes or checklist. It only knows what is in this app, and
               says so when it does not know.
             </span>
           </EmptyState>
@@ -236,11 +230,13 @@ export function Chat({ courses, onBack, onChanged }: {
             {m.proposed_action && (
               <div className="mat mat-raised mt-2 flex flex-col gap-2 p-4">
                 <p className="kicker">{m.action_taken ? 'Done' : 'Proposed'}</p>
-                <p className="type-note text-text-low">
-                  {m.action_taken ? 'Done.' : 'Nothing is saved until you tap this.'}
-                </p>
+                {(m.action_taken || ACTIONABLE.has(m.proposed_action.kind as string)) && (
+                  <p className="type-note text-text-low">
+                    {m.action_taken ? 'Done.' : 'Nothing is saved until you tap this.'}
+                  </p>
+                )}
                 <p className="type-body text-text-hi">{describe(m.proposed_action, courses)}</p>
-                {!m.action_taken && (
+                {!m.action_taken && ACTIONABLE.has(m.proposed_action.kind as string) && (
                   <div>
                     <Button
                       variant="primary"
@@ -316,13 +312,19 @@ export function Chat({ courses, onBack, onChanged }: {
 
       {remaining !== null && remaining > 0 && remaining <= 10 && (
         <p className="mb-6 px-4 type-note text-text-low">
-          {remaining} more questions today. The rest of the daily model budget is kept for logging
-          food.
+          {remaining} more questions today.
         </p>
       )}
     </main>
   );
 }
+
+/**
+ * The proposals this screen can still carry out. Older transcripts can hold
+ * food and weight proposals from before the diet tracker was removed; they stay
+ * readable, but without a button that would do nothing.
+ */
+const ACTIONABLE = new Set(['add_assignment', 'complete_checklist_item']);
 
 /** A proposal in words, so the button is never the only description of it. */
 function describe(action: Record<string, unknown>, courses: Course[]): string {
@@ -335,11 +337,7 @@ function describe(action: Record<string, unknown>, courses: Course[]): string {
     return `Add "${action.title}"${when}.`;
   }
   if (kind === 'complete_checklist_item') return 'Tick that off for today.';
-  if (kind === 'log_saved_meal') {
-    const portion = Number(action.portion ?? 1);
-    return `Log that meal${portion === 1 ? '' : `, ${portion} portions`}.`;
-  }
-  if (kind === 'set_weight') return `Record today's weight as ${action.kg} kg.`;
+  if (!ACTIONABLE.has(kind)) return 'An older suggestion. That kind of change is no longer part of the app.';
 
   void courses;
   return 'Do that.';

@@ -187,7 +187,6 @@ describe('sending Abood only what a message needs', () => {
     const { scopesFor } = await import('../../supabase/functions/_shared/abood');
     const s = (m: string, prev?: string) => [...scopesFor(m, prev)].sort();
     expect(s('What is due this week?')).toEqual(['work']);
-    expect(s('how much protein have i had today')).toEqual(['food', 'work']);
     expect(s('did i take my adderall')).toEqual(['checklist']);
     expect(s('When is my COEN 212 lab?')).toEqual(['work']);
     expect(s('hey whats up')).toEqual([]);
@@ -236,9 +235,6 @@ describe('sending Abood only what a message needs', () => {
         assignments: [{ id: 'a1', title: 'WeBWorK 3', due_at: '2026-10-10T03:59:00Z', due_has_time: true, status: 'todo', effort_minutes: null }],
         events: [],
         checklist: [],
-        food: { totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }, targets: null, items: [] },
-        savedMeals: [],
-        weights: [],
       },
       { bare: true, shortIds: true },
     );

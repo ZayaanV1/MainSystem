@@ -24,10 +24,9 @@ const KIND_LABEL: Record<SearchHit['kind'], string> = {
   event: 'Events',
   inbox: 'Inbox',
   course: 'Courses',
-  food: 'Food',
 };
 
-const ORDER: SearchHit['kind'][] = ['assignment', 'event', 'inbox', 'course', 'food'];
+const ORDER: SearchHit['kind'][] = ['assignment', 'event', 'inbox', 'course'];
 
 export function Search({
   onBack,
@@ -108,7 +107,7 @@ export function Search({
 
       <div className="flex-1">
         {query.trim().length < 2 ? (
-          <EmptyState>Type two letters. Searches work, events, the inbox, courses and food.</EmptyState>
+          <EmptyState>Type two letters. Searches work, events, the inbox and courses.</EmptyState>
         ) : hits === null || searching ? (
           <p className="px-4 type-note text-text-low">Looking…</p>
         ) : hits.length === 0 ? (

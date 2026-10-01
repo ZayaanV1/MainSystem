@@ -9,7 +9,7 @@ import { supabase } from './supabase';
  * no server round-trip beyond the reads.
  *
  * The table list is explicit rather than discovered, so a future table has to
- * be consciously added here. An export that silently omits your food log is
+ * be consciously added here. An export that silently omits your coursework is
  * worse than no export.
  */
 

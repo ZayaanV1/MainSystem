@@ -32,7 +32,7 @@ import { formatDay } from '../lib/time';
  *
  * NOTHING IS WRITTEN UNTIL IT IS CONFIRMED
  *
- * Rule 6, same as parsed food and extracted syllabus dates. Everything is
+ * Rule 6, same as extracted syllabus dates. Everything is
  * previewed, everything can be excluded individually, and what the parser
  * could not read is stated rather than quietly missing.
  */

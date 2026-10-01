@@ -84,7 +84,7 @@ describe('day length — the boundaries stay airtight when a day is not 24h', ()
 
   it('an entry logged in the repeated hour still belongs to that day', () => {
     // 01:30 EDT and 01:30 EST both occur on 1 Nov. Neither may leak into
-    // 31 Oct or 2 Nov, or a day's food log silently loses an entry.
+    // 31 Oct or 2 Nov, or a day's checklist silently loses a tick.
     const firstPass = utc('2026-11-01T05:30:00Z'); // 01:30 EDT
     const secondPass = utc('2026-11-01T06:30:00Z'); // 01:30 EST
     expect(localDayKey(firstPass)).toBe('2026-11-01');

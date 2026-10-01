@@ -54,10 +54,9 @@
 
      --accent-2 (phthalo green, PG7 blue shade) does the secondary work and
      the atmosphere — ground washes, the bed behind a glass surface, empty
-     states. It is deliberately the BLUE shade of the pigment rather than the
-     yellow: at 184° it clears the protein ring at 165° by nineteen degrees,
-     which is what keeps the brand out of the macro system without moving a
-     single macro. A yellow-shade phthalo sat five degrees off protein.
+     states. It is the BLUE shade of the pigment rather than the yellow,
+     chosen when it had to clear a macro ring colour that has since been
+     removed along with the diet tracker.
 
      -deep and -mid are gradient stops. -lit is the only variant light enough
      to be read as TEXT or drawn as a thin mark; the fill itself is far too
@@ -109,23 +108,6 @@
   --t-critical: #e45a76; /* under 48h */
   --t-overdue: #ff3b5c; /* past due  */
   --t-done: #2ed4a0; /* finished, and allowed to look it */
-
-  /* ---- macros: cool jewel. Ring strokes only. UNCHANGED. ---------------
-     Left exactly as they were, deliberately. The brand moved to clear these;
-     these did not move to accommodate the brand. Each carries a lighter
-     companion used as the far stop of a gradient along the arc, which is
-     what gives a ring depth instead of a flat band of colour. The pair is
-     always the same hue — a gradient that drifts in hue would make two rings
-     ambiguous where they overlap.
-     -------------------------------------------------------------------- */
-  --m-calories: #7a5af8;
-  --m-calories-lit: #a78bfa;
-  --m-protein: #00d9a3;
-  --m-protein-lit: #5eead4;
-  --m-carbs: #2e9bff;
-  --m-carbs-lit: #7cc4ff;
-  --m-fat: #ff4d9d;
-  --m-fat-lit: #ff8fc0;
 
   /* ---- courses: fixed set of 8, desaturated. Marks, never fills. ------- */
   --c-1: #8a9bb8;
@@ -193,7 +175,7 @@
 
   /* ---- focus ----------------------------------------------------------- */
   /* A fifth system, and deliberately none of the other four: focus must not
-     be mistaken for a brand surface, a status or a macro. */
+     be mistaken for a brand surface, a status or a course. */
   --focus-ring: #8fa8d8;
 
   /* ============ non-colour tokens ====================================== */
@@ -360,15 +342,6 @@
     --t-overdue: #d5203e;
     --t-done: #017a58;
 
-    --m-calories: #5b39d9;
-    --m-calories-lit: #7a5af8;
-    --m-protein: #009d76;
-    --m-protein-lit: #00d9a3;
-    --m-carbs: #1372cc;
-    --m-carbs-lit: #2e9bff;
-    --m-fat: #d81b74;
-    --m-fat-lit: #ff4d9d;
-
     --c-1: #7988a2;
     --c-2: #88a288;
     --c-3: #a28d79;
@@ -451,15 +424,6 @@
   --t-overdue: #d5203e;
   --t-done: #017a58;
 
-  --m-calories: #5b39d9;
-  --m-calories-lit: #7a5af8;
-  --m-protein: #009d76;
-  --m-protein-lit: #00d9a3;
-  --m-carbs: #1372cc;
-  --m-carbs-lit: #2e9bff;
-  --m-fat: #d81b74;
-  --m-fat-lit: #ff4d9d;
-
   --c-1: #7988a2;
   --c-2: #88a288;
   --c-3: #a28d79;
@@ -531,11 +495,6 @@
   --t-critical: var(--text-low);
   --t-overdue: var(--text-low);
 
-  --m-calories: var(--text-low);
-  --m-protein: var(--text-low);
-  --m-carbs: var(--text-low);
-  --m-fat: var(--text-low);
-
   --c-1: var(--text-low);
   --c-2: var(--text-low);
   --c-3: var(--text-low);
@@ -578,22 +537,9 @@
       active nav label, a 3px indicator. Reaching for --accent-2 in those
       places produces text that is invisible on the ground it sits on.
 
-   MEASURED SEPARATION between the brand and the macro rings, which is a
-   requirement rather than a preference — the brand had to clear the macros
-   without any macro moving:
-
-      phthalo vs calories   68 degrees
-      phthalo vs protein    19 degrees   <- the binding constraint
-      phthalo vs carbs      25 degrees
-      phthalo vs fat       149 degrees
-
-   Protein is the tight one and is why --accent-2 is the blue shade of the
-   pigment. A yellow-shade phthalo (#0e5247, 170 degrees) sat five degrees off
-   protein and was rejected for it.
-
-   Ember and --t-overdue are 28 degrees apart, which is closer than any pair
-   above. They are separated by ROLE instead: ember only ever fills a control,
-   overdue only ever draws a 3px edge bar and a written label. Neither can
+   Ember and --t-overdue are 28 degrees apart, the closest pair in the
+   palette. They are separated by ROLE instead: ember only ever fills a
+   control, overdue only ever draws a 3px edge bar and a written label. Neither can
    appear in the other's shape, so the two can never be read as the same
    signal. This is the reason the urgency ramp moved off the warm axis when
    burnt orange was chosen.

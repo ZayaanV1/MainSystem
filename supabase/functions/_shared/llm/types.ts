@@ -1,9 +1,9 @@
 /**
  * The LLM boundary.
  *
- * One interface, shared by the diet parser and the Phase 5 chatbot. The
- * provider is a detail: swapping Gemini for Groq should be a new file
- * implementing this and a changed environment variable, never a change to a
+ * One interface, shared by the syllabus reader, the briefing and the
+ * chatbot. The provider is a detail: swapping Gemini for Groq should be a new
+ * file implementing this and a changed environment variable, never a change to a
  * caller.
  *
  * Two things are deliberately part of the contract rather than left to each
@@ -12,9 +12,9 @@
  *   Structured output is required, not requested. A model that returns prose
  *   where JSON was expected is a failure, not something to parse heuristically.
  *
- *   Quota exhaustion is a named outcome, not an exception. The diet parser and
- *   the chatbot share one free-tier quota, and the app has to say "the parser
- *   is out of requests until tomorrow, type it in by hand" rather than
+ *   Quota exhaustion is a named outcome, not an exception. Every model path
+ *   shares one free-tier quota, and the app has to say "this is out of
+ *   requests until tomorrow, add it by hand" rather than
  *   presenting a generic error or, worse, silently doing nothing.
  */
 
@@ -58,7 +58,7 @@ export interface LlmRequest {
   /**
    * How long to wait before giving up.
    *
-   * Per-request because the jobs are not comparable: a line of typed food
+   * Per-request because the jobs are not comparable: a task breakdown
    * comes back in a couple of seconds, and a syllabus PDF is a different
    * order of work entirely. One timeout tuned for the first silently makes
    * the second impossible.

@@ -9,9 +9,9 @@ import { addDays, daysBetween, localDayKey, localHourMinute, type DayKey } from 
  * becomes an honest "I don't have that" rather than a guess.
  *
  * It is also a cost feature: this is rebuilt on every message, and a context
- * that grew with the food log would eventually cost more than the answer.
+ * that grew with the history would eventually cost more than the answer.
  * Everything here is bounded — open work, the next month of events, today's
- * food, the last few weigh-ins.
+ * checklist.
  *
  * Ids are included on purpose. They are what the reply cites, what the app
  * checks a proposed action against, and what the UI re-reads from the database
@@ -42,13 +42,6 @@ export interface ContextInput {
   }[];
   events: { id: string; title: string; kind: string; starts_at: string; all_day: boolean; course?: string | null }[];
   checklist: { id: string; title: string; done_today: boolean; doses_remaining: number | null }[];
-  food: {
-    totals: { calories: number; protein_g: number; carbs_g: number; fat_g: number };
-    targets: { calories: [number, number]; protein: [number, number]; carbs: [number, number]; fat: [number, number] } | null;
-    items: { name: string; calories: number; protein_g: number }[];
-  };
-  savedMeals: { id: string; name: string; calories: number; protein_g: number }[];
-  weights: { local_day: DayKey; kg: number }[];
   /** Academic standing per course: weight decided against weight on the calendar. */
   grades?: { course: string; weightKnown: number; weightMarked: number; earned: number }[];
 }
@@ -68,7 +61,7 @@ export interface BuiltContext {
 }
 
 /** Which parts of the planner a message needs. */
-export type Scope = 'work' | 'food' | 'checklist';
+export type Scope = 'work' | 'checklist';
 
 export interface BuildOptions {
   /**
@@ -77,7 +70,7 @@ export interface BuildOptions {
    */
   scopes?: Set<Scope>;
   /**
-   * Label items w1, e1, c1, m1 instead of their 36-character ids. A uuid
+   * Label items w1, e1, c1 instead of their 36-character ids. A uuid
    * costs a dozen tokens and there can be seventy of them in one prompt; the
    * labels cost two, and are translated back afterwards.
    */
@@ -282,48 +275,6 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
   }
   lines.push('');
 
-  }
-
-  if (want('food')) {
-  lines.push('FOOD TODAY');
-  const t = input.food.totals;
-  lines.push(`  eaten so far: ${n(t.calories)} kcal, protein ${n(t.protein_g)} g, carbs ${n(t.carbs_g)} g, fat ${n(t.fat_g)} g`);
-  if (input.food.targets) {
-    const g = input.food.targets;
-    lines.push(`  targets: ${g.calories[0]}-${g.calories[1]} kcal, protein ${g.protein[0]}-${g.protein[1]} g, carbs ${g.carbs[0]}-${g.carbs[1]} g, fat ${g.fat[0]}-${g.fat[1]} g`);
-    // Precomputed so the model never has to do arithmetic to answer "how much
-    // protein have I got left", which is the question it will be asked most.
-    lines.push(
-      `  left to reach the bottom of each range: ${Math.max(0, n(g.calories[0] - t.calories))} kcal, ` +
-        `protein ${Math.max(0, n(g.protein[0] - t.protein_g))} g, ` +
-        `carbs ${Math.max(0, n(g.carbs[0] - t.carbs_g))} g, ` +
-        `fat ${Math.max(0, n(g.fat[0] - t.fat_g))} g`,
-    );
-  } else {
-    lines.push('  targets: none set');
-  }
-  for (const i of input.food.items) {
-    lines.push(`  - ${i.name}: ${n(i.calories)} kcal, ${n(i.protein_g)} g protein`);
-  }
-  lines.push('');
-
-  lines.push('SAVED MEALS');
-  if (input.savedMeals.length === 0) {
-    lines.push('  (none saved)');
-  } else {
-    for (const m of input.savedMeals) {
-      const id = label(m.id, 'm', m.name);
-      lines.push(`  [${id}] ${m.name} — ${n(m.calories)} kcal, ${n(m.protein_g)} g protein per portion`);
-    }
-  }
-  lines.push('');
-
-  lines.push('RECENT WEIGH-INS');
-  if (input.weights.length === 0) {
-    lines.push('  (none recorded)');
-  } else {
-    for (const w of input.weights) lines.push(`  ${w.local_day}: ${n(w.kg)} kg`);
-  }
   }
 
   return { text: lines.join('\n'), knownIds, aliases, titles };

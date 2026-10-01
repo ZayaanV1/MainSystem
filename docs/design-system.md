@@ -20,6 +20,8 @@ Dark mode is the primary mode and gets designed first. Light mode is derived fro
 
 This app has three things that want colour — time pressure, macros, and courses. If they share a vocabulary, colour stops meaning anything. They are separated by **temperature and by role**, and the separation is absolute:
 
+> **Oct 2026:** the diet tracker was removed, and with it the macro rings, the `--m-*` tokens and the `Ring` component. The macro rows below are historical; the colour law now separates urgency, courses and the brand.
+
 | System | Family | May be used as |
 |---|---|---|
 | Time / urgency | warm earth | edge bars, text, icon tint |

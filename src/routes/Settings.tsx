@@ -343,8 +343,9 @@ function CalendarFeed({ userId }: { userId: string }) {
 /**
  * Your own Gemini key.
  *
- * Without one, food parsing and Abood draw on a single shared free tier, which
- * means one heavy account can exhaust food logging for everyone else. Your own
+ * Without one, the syllabus reader, task breakdowns and Abood draw on a single
+ * shared free tier, which means one heavy account can exhaust it for everyone
+ * else. Your own
  * key decouples that completely: your usage is yours, your limits are yours,
  * and the daily question budget stops applying because you are not competing
  * with anybody.
@@ -368,7 +369,7 @@ function ApiKey({ userId }: { userId: string }) {
     setBusy(true);
     setMessage(null);
     // Checked before it is stored: a Groq key saved here overrode the shared
-    // Gemini key and broke food parsing, the syllabus reader and the briefing
+    // Gemini key and broke the syllabus reader, the breakdowns and the briefing
     // with "API key not valid", with nothing on screen to say why.
     if (next?.trim().startsWith('gsk_')) {
       setMessage('That is a Groq key. Paste it under Abood’s model below; this field takes a Google Gemini key, which starts with AIza.');
@@ -394,7 +395,7 @@ function ApiKey({ userId }: { userId: string }) {
     <section className="mb-8">
       <SectionHead title="Your own AI key" />
       <p className="type-note mb-3 max-w-prose px-4 text-text-low">
-        Food parsing and Abood share one free allowance across everyone using this app. Add your
+        The syllabus reader and Abood share one free allowance across everyone using this app. Add your
         own Gemini key and you get your own limits instead, with no daily cap on questions. It is
         stored for your account only, and the app never reads it back.
       </p>
@@ -502,8 +503,8 @@ function Appearance() {
  *
  * Typed confirmation rather than a second button. "Delete" then "Delete for
  * good" is right for one assignment, where the cost of a mistake is one row
- * you can retype; it is not enough for a term of coursework, a food diary and
- * a weight history that no export can bring back once it is gone. Typing the
+ * you can retype; it is not enough for a term of coursework and grades that no
+ * export can bring back once it is gone. Typing the
  * word is a deliberate speed bump, and it is the only place in this app that
  * has one.
  *
@@ -536,7 +537,7 @@ function DeleteAccount() {
         {!open ? (
           <>
             <p className="type-body mb-4 text-text-mid">
-              Removes your account and everything in it — coursework, food, weight,
+              Removes your account and everything in it — coursework, calendars, checklist,
               settings. This cannot be undone, and an export taken afterwards is not
               possible.
             </p>
@@ -587,9 +588,9 @@ function DeleteAccount() {
  *
  * Deliberately its own section rather than a second field inside the Gemini
  * one, because they do different jobs and saying so prevents the obvious wrong
- * assumption. Groq's chat models take no images, so photo food logging stays
- * on Gemini no matter what is set here — and a single "AI key" field would
- * imply otherwise and quietly break photographs.
+ * assumption. Groq's chat models take no documents, so the syllabus reader
+ * stays on Gemini no matter what is set here — and a single "AI key" field
+ * would imply otherwise and quietly break PDF import.
  *
  * Write-only, like the other. The app asks whether a key is set and never
  * reads one back.
@@ -633,8 +634,8 @@ function GroqKey({ userId }: { userId: string }) {
           console.groq.com.
         </p>
         <p className="type-note mb-4 text-text-low">
-          Food photos keep using Gemini either way — Groq&rsquo;s chat models
-          don&rsquo;t accept images.
+          Syllabus PDFs keep using Gemini either way — Groq&rsquo;s chat models
+          don&rsquo;t accept documents.
         </p>
 
         <Field

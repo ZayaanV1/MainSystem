@@ -233,7 +233,7 @@ export function Today({
     void loadCalibrationPairs().then(setPairs);
   }, [data]);
 
-  // One root attribute collapses every urgency and macro colour to muted
+  // One root attribute collapses every urgency and course colour to muted
   // ground. No component below knows the mode exists, which is why it cannot
   // be forgotten when a new screen is added.
   const lowBattery = Boolean(data?.lowBattery);

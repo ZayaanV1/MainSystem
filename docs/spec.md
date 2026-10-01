@@ -99,6 +99,8 @@ These override feature completeness where they conflict.
 
 ### Phase 3 — Diet tracker
 
+> **Removed, Oct 2026.** The diet tracker was built and later taken out of the app entirely (code, edge function and tables — migration 0033). Kept here as the original brief. See `CLAUDE.md`.
+
 **Input:** I type or paste food in natural language — "2 eggs, 150g chicken breast, a scoop of Revolution Nutrition Hi-Way, 500ml Natrel Plus milk" — and the app parses it into structured items with calories, protein, carbs, and fat.
 
 - Use a free-tier LLM API (Google Gemini's free tier is the leading candidate; Groq is an alternative). State the free-tier limits you believe apply and warn me to verify them. **Abstract the provider behind one swappable module** — the chatbot in Phase 5 uses the same one.
@@ -167,7 +169,7 @@ Use this unless you have a concrete reason to deviate, in which case explain it:
 - **Backend/DB:** Supabase free tier — Postgres, auth, row-level security, edge functions
 - **Scheduled job:** pg_cron or equivalent free scheduler invoking an edge function
 - **AI:** free-tier LLM API behind one swappable module, shared by the diet parser and the chatbot
-- **Food data:** USDA FoodData Central + Open Food Facts
+- **Food data:** USDA FoodData Central + Open Food Facts (both removed with the diet tracker, Oct 2026)
 
 Flag any free-tier gotchas you know of — inactivity pausing, request caps, egress limits — up front, not after I've built on them.
 

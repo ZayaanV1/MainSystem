@@ -17,8 +17,8 @@ import {
  * Split by route.
  *
  * The whole app used to be one 736 KB chunk — 217 KB gzipped — so opening
- * Today downloaded and parsed the chatbot, the syllabus importer, the barcode
- * scanner's UI, the trend charts and every screen nobody had asked for. Rule 1
+ * Today downloaded and parsed the chatbot, the syllabus importer, the calendar
+ * views and every screen nobody had asked for. Rule 1
  * gives Today two seconds on whatever phone is in someone's hand, and most of
  * that budget was being spent before a single deadline rendered.
  *
@@ -36,7 +36,6 @@ const Week = lazy(() => import('./routes/Week').then((m) => ({ default: m.Week }
 const Month = lazy(() => import('./routes/Month').then((m) => ({ default: m.Month })));
 const Chat = lazy(() => import('./routes/Chat').then((m) => ({ default: m.Chat })));
 const Search = lazy(() => import('./routes/Search').then((m) => ({ default: m.Search })));
-const Diet = lazy(() => import('./routes/Diet').then((m) => ({ default: m.Diet })));
 const AssignmentEditor = lazy(() => import('./routes/AssignmentEditor').then((m) => ({ default: m.AssignmentEditor })));
 const Settings = lazy(() => import('./routes/Settings').then((m) => ({ default: m.Settings })));
 const Specimen = lazy(() => import('./routes/Specimen').then((m) => ({ default: m.Specimen })));
@@ -55,7 +54,7 @@ import { FocusResult } from './components/FocusResult';
  * linkable from outside — a notification deep link into a specific assignment
  * would be the moment.
  */
-type Screen = 'today' | 'week' | 'month' | 'plan' | 'food' | 'ask' | 'search' | 'settings';
+type Screen = 'today' | 'week' | 'month' | 'plan' | 'ask' | 'search' | 'settings';
 
 /**
  * The rail's contents.
@@ -74,7 +73,6 @@ const NAV: NavItem<Screen>[] = [
   { id: 'today', label: 'Today', icon: icon('M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0') },
   { id: 'week', label: 'Week', icon: icon('M3 9h18M8 3v4M16 3v4M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2') },
   { id: 'month', label: 'Month', icon: icon('M3 10h18M7 3v4M17 3v4M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2M8 14h.01M12 14h.01M16 14h.01') },
-  { id: 'food', label: 'Diet tracker', short: 'Diet', icon: icon('M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8') },
   { id: 'search', label: 'Search', icon: icon('M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35') },
   { id: 'ask', label: 'Abood', icon: icon('M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z') },
   { id: 'plan', label: 'Courses', icon: icon('M4 6h16M4 12h10M4 18h7') },
@@ -264,8 +262,6 @@ function Shell() {
         return (
           <Month data={data} onBack={home} onOpenAssignment={setOpenAssignment} onChanged={bumped} />
         );
-      case 'food':
-        return <Diet onBack={home} />;
       case 'search':
         return (
           <Search

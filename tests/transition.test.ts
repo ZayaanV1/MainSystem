@@ -9,7 +9,7 @@ import { directionBetween } from '../src/lib/transition';
  * result.
  */
 
-const NAV = ['today', 'week', 'month', 'plan', 'food', 'ask'] as const;
+const NAV = ['today', 'week', 'month', 'plan', 'ask'] as const;
 
 describe('which way a screen travels', () => {
   it('moves forward down the nav order', () => {

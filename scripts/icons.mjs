@@ -2,9 +2,7 @@
 /**
  * Generates the app icons.
  *
- * The mark is the day dial: a ring with a gap, which is the same visual idea
- * the macro rings and the checklist ring use. One idea, reused, so the icon on
- * the home screen is recognisably the thing inside the app.
+ * The mark is the day dial: a ring with a gap — a day partly done.
  *
  * Written as a raw PNG encoder rather than pulling in an image library,
  * because a single flat-colour glyph does not justify a dependency that has to
@@ -85,7 +83,7 @@ function draw(size, { inset = 1 } = {}) {
   const gapStart = -Math.PI / 2 - 0.42;
   const gapEnd = -Math.PI / 2 + 0.42;
 
-  // The filled portion, in the protein hue: a ring showing real progress
+  // The filled portion, in green: a ring showing real progress
   // rather than a decorative circle.
   const fillUntil = -Math.PI / 2 + Math.PI * 1.15;
 

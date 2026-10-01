@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { localDayKey, type DayKey } from './time';
+import { localDayKey } from './time';
 import { pattern, rankHits, type SearchHit } from './searchRank';
 
 export type { SearchHit, SearchKind } from './searchRank';
@@ -8,9 +8,9 @@ export type { SearchHit, SearchKind } from './searchRank';
  * Finding anything, from one box.
  *
  * The problem this solves is specific: by week ten a term has a few hundred
- * rows across five tables, and "where did I put that" becomes its own task.
+ * rows across four tables, and "where did I put that" becomes its own task.
  * A search that only covered assignments would send you hunting through the
- * other four.
+ * other three.
  *
  * Ranked so exact-ish title matches come before incidental ones, and open work
  * before finished work — the overwhelmingly common reason to search is to act
@@ -23,7 +23,7 @@ export async function search(query: string, limit = 20): Promise<SearchHit[]> {
 
   const like = pattern(q);
 
-  const [assignments, events, inbox, courses, food] = await Promise.all([
+  const [assignments, events, inbox, courses] = await Promise.all([
     supabase
       .from('assignments')
       .select('id, title, due_at, status, courses(code, name)')
@@ -40,13 +40,6 @@ export async function search(query: string, limit = 20): Promise<SearchHit[]> {
       .ilike('body', like)
       .limit(limit),
     supabase.from('courses').select('id, name, code').or(`name.ilike.${like},code.ilike.${like}`).limit(limit),
-    // Food is searched by item name but reported against its entry, so a hit
-    // opens the meal rather than a single ingredient with no context.
-    supabase
-      .from('food_items')
-      .select('id, name, entry_id, food_entries(local_day)')
-      .ilike('name', like)
-      .limit(limit),
   ]);
 
   const hits: SearchHit[] = [];
@@ -100,26 +93,6 @@ export async function search(query: string, limit = 20): Promise<SearchHit[]> {
       title: c.code ? `${c.code} — ${c.name}` : c.name,
       detail: 'course',
       day: null,
-      done: false,
-    });
-  }
-
-  for (const f of (food.data ?? []) as unknown as {
-    id: string;
-    name: string;
-    entry_id: string;
-    // PostgREST returns an embedded to-one relation as an object on some
-    // paths and a one-element array on others. Both are handled rather than
-    // one being assumed, because the wrong guess is a silently missing date.
-    food_entries?: { local_day: string } | { local_day: string }[] | null;
-  }[]) {
-    const entry = Array.isArray(f.food_entries) ? f.food_entries[0] : f.food_entries;
-    hits.push({
-      kind: 'food',
-      id: f.entry_id,
-      title: f.name,
-      detail: 'food',
-      day: (entry?.local_day as DayKey) ?? null,
       done: false,
     });
   }

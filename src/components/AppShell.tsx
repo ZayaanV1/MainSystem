@@ -24,12 +24,12 @@ export interface NavItem<T extends string> {
   /**
    * A shorter form for the phone tab bar.
    *
-   * The rail has room for "Diet tracker"; a fifth of a phone's width does not,
+   * The rail has room for a long label; a fifth of a phone's width does not,
    * and a wrapped label knocks every tab out of alignment. Falls back to
    * `label` where the full name already fits.
    */
   short?: string;
-  /** Drawn rather than imported: eight glyphs is not worth an icon dependency. */
+  /** Drawn rather than imported: seven glyphs is not worth an icon dependency. */
   icon: ReactNode;
 }
 

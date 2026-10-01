@@ -8,7 +8,7 @@ import { validateChat } from '../../supabase/functions/_shared/chat';
  * it would look exactly as legitimate as a real one.
  */
 
-const known = new Set(['a-1', 'item-1', 'meal-1']);
+const known = new Set(['a-1', 'item-1']);
 
 describe('validateChat', () => {
   it('keeps a plain answer', () => {
@@ -89,50 +89,25 @@ describe('validateChat', () => {
       expect(r.action).toBeNull();
       expect(r.warnings[0]).toMatch(/not on your list/);
     });
-
-    it('refuses a saved meal that does not exist', () => {
-      const r = validateChat(
-        { reply: 'x', referenced: [], action: { kind: 'log_saved_meal', meal_id: 'nope' } },
-        known,
-      );
-      expect(r.action).toBeNull();
-    });
-
-    it('rounds a portion to one the food screen can log', () => {
-      const r = validateChat(
-        { reply: 'x', referenced: [], action: { kind: 'log_saved_meal', meal_id: 'meal-1', portion: 0.73 } },
-        known,
-      );
-      expect(r.action).toMatchObject({ portion: 0.5 });
-    });
-
-    it('defaults a missing portion to one', () => {
-      const r = validateChat(
-        { reply: 'x', referenced: [], action: { kind: 'log_saved_meal', meal_id: 'meal-1' } },
-        known,
-      );
-      expect(r.action).toMatchObject({ portion: 1 });
-    });
-  });
-
-  describe('set_weight', () => {
-    it('accepts a plausible weight', () => {
-      const r = validateChat({ reply: 'x', referenced: [], action: { kind: 'set_weight', kg: 74.62 } }, known);
-      expect(r.action).toEqual({ kind: 'set_weight', kg: 74.6 });
-    });
-
-    it('refuses an implausible one', () => {
-      for (const kg of [0, -5, 900]) {
-        const r = validateChat({ reply: 'x', referenced: [], action: { kind: 'set_weight', kg } }, known);
-        expect(r.action).toBeNull();
-      }
-    });
   });
 
   it('refuses an action this app cannot do', () => {
     const r = validateChat({ reply: 'x', referenced: [], action: { kind: 'delete_everything' } }, known);
     expect(r.action).toBeNull();
     expect(r.warnings[0]).toMatch(/cannot do/);
+  });
+
+  it('refuses the food and weight actions the diet tracker used to offer', () => {
+    // An older model reply, or a model that remembers the old schema, must not
+    // reach a confirmation screen with a button that would do nothing.
+    for (const action of [
+      { kind: 'log_saved_meal', meal_id: 'item-1' },
+      { kind: 'set_weight', kg: 74.6 },
+    ]) {
+      const r = validateChat({ reply: 'x', referenced: [], action }, known);
+      expect(r.action).toBeNull();
+      expect(r.warnings[0]).toMatch(/cannot do/);
+    }
   });
 
   it('survives a malformed response without throwing', () => {
@@ -144,14 +119,14 @@ describe('validateChat', () => {
 
 describe('validateChat with short labels', () => {
   it('translates labels back to real ids, and still refuses unknown ones', () => {
-    const aliases = new Map([['m1', 'real-meal-uuid'], ['w2', 'real-work-uuid']]);
+    const aliases = new Map([['c1', 'real-item-uuid'], ['w2', 'real-work-uuid']]);
     const out = validateChat(
-      { reply: 'Log the oats?', referenced: ['w2', 'w9'], action: { kind: 'log_saved_meal', meal_id: 'm1' }, remember: ['Prefers oats in the morning.'], needs_planner: false },
-      new Set(['m1', 'w2']),
+      { reply: 'Tick the creatine?', referenced: ['w2', 'w9'], action: { kind: 'complete_checklist_item', item_id: 'c1' }, remember: ['Prefers oats in the morning.'], needs_planner: false },
+      new Set(['c1', 'w2']),
       aliases,
     );
     expect(out.referenced).toEqual(['real-work-uuid']);
-    expect(out.action).toMatchObject({ kind: 'log_saved_meal', meal_id: 'real-meal-uuid' });
+    expect(out.action).toMatchObject({ kind: 'complete_checklist_item', item_id: 'real-item-uuid' });
     expect(out.remember).toEqual(['Prefers oats in the morning.']);
     expect(out.warnings.length).toBe(1);
   });

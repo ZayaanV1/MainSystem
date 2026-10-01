@@ -1384,8 +1384,8 @@ export async function deleteAccount(): Promise<{ error: string | null }> {
  * bug report or a stray log.
  *
  * A separate column rather than a shared "api key" because the two providers
- * are not interchangeable — Groq's chat models take no images, so food parsing
- * stays on Gemini whatever is set here.
+ * are not interchangeable — Groq's chat models take no documents, so the
+ * syllabus reader stays on Gemini whatever is set here.
  */
 export async function hasOwnGroqKey(): Promise<boolean> {
   const { data } = await supabase.from('app_settings').select('groq_api_key').limit(1);

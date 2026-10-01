@@ -5,7 +5,6 @@ import { CheckRow } from '../components/CheckRow';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
 import { Field } from '../components/Field';
-import { Ring } from '../components/Ring';
 import { Sheet } from '../components/Sheet';
 import { PromptInput } from '../components/kit/PromptInput';
 import { ThinkingText } from '../components/kit/ThinkingText';
@@ -16,8 +15,8 @@ import { ThinkingText } from '../components/kit/ThinkingText';
  * Kept because a design system without a page showing every primitive in every
  * state drifts within two phases. This is where you check that a new component
  * belongs before it lands in a screen, and where the colour law is verifiable
- * by eye: urgency colours only on edges and labels, macro colours only on
- * rings, course colours only as marks.
+ * by eye: urgency colours only on edges and labels, course colours only as
+ * marks.
  */
 
 const URGENCY = [
@@ -52,55 +51,6 @@ export function Specimen() {
           {lowBattery ? 'Exit low battery' : 'Low battery'}
         </Button>
       </div>
-
-      <Section title="Ring — macros, with target bands">
-        <div className="grid grid-cols-2 gap-6 px-4">
-          <Ring
-            label="Calories"
-            value={2940}
-            max={3100}
-            band={{ min: 2900, max: 3100 }}
-            colorVar="--m-calories"
-            unit="kcal"
-            targetLabel="2,900-3,100"
-          />
-          <Ring
-            label="Protein"
-            value={168}
-            max={175}
-            band={{ min: 160, max: 175 }}
-            colorVar="--m-protein"
-            unit="g"
-            targetLabel="160-175 g"
-          />
-          <Ring
-            label="Carbs"
-            value={210}
-            max={400}
-            band={{ min: 350, max: 400 }}
-            colorVar="--m-carbs"
-            unit="g"
-            targetLabel="350-400 g"
-          />
-          {/* Over target. Reads as information, continues past the band as a
-              thinner arc, and does not turn red — because there is no red. */}
-          <Ring
-            label="Fat"
-            value={96}
-            max={80}
-            band={{ min: 70, max: 80 }}
-            colorVar="--m-fat"
-            unit="g"
-            targetLabel="70-80 g"
-          />
-        </div>
-      </Section>
-
-      <Section title="Ring — checklist completion, same geometry">
-        <div className="px-4">
-          <Ring label="Checklist" value={3} max={5} colorVar="--t-done" targetLabel="3 of 5" />
-        </div>
-      </Section>
 
       <Section title="Time / urgency — edges and labels only">
         <Card>
@@ -209,7 +159,7 @@ export function Specimen() {
             value=""
             onChange={() => {}}
             onSubmit={() => {}}
-            disabledReason="That is enough questions for today — the rest of the daily model budget is kept for logging food. It resets tomorrow."
+            disabledReason="That is enough questions for today. It resets tomorrow, and everything else works as usual."
             label="Specimen composer, spent"
           />
         </div>

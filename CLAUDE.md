@@ -56,7 +56,7 @@ is the one with the least work in it.
 3. **No streak-shaming.** No streak counters, no broken-streak states, no guilt copy, no "you missed 3 days." Missed days appear neutrally and are trivially back-fillable. This rule has been violated by well-meaning refactors before — check yourself against it whenever you add a history or stats view.
 4. **No pure red in the UI.** Overdue is `--t-overdue` (clay rose). See the colour law below.
 5. **Never silently lose data.** Optimistic UI is fine; a failed sync must be visible and recoverable.
-6. **Never silently write.** AI-parsed food, AI-extracted syllabus dates, and chatbot actions are all shown for confirmation before they touch the database.
+6. **Never silently write.** AI-extracted syllabus dates, task breakdowns and chatbot actions are all shown for confirmation before they touch the database.
 7. **Local time is `America/Toronto`.** A "day" is the user's local day, never UTC. Must survive DST.
 
 ## Copy voice
@@ -69,13 +69,13 @@ Plain, active, sentence case. Errors say what happened and what to do, and don't
 
 ## The colour law
 
-Three systems want colour, and they are separated by temperature. Do not blur them.
+Two systems want colour, and they are separated by temperature. Do not blur them.
 
 - **Time / urgency** — warm earth ramp. Edge bars, text, icon tint.
-- **Macros** — cool jewel tones. Ring strokes only.
-- **Courses** — desaturated pastels. 3px left edge or 6px dot only, never a fill.
+- **Courses** — desaturated pastels. 3px left edge or 6px dot only, never a fill (widened for calendar blocks — see "Week block styles").
 
-Macro colours never appear on a task. Urgency colours never appear on a ring.
+A third system, macros (cool jewel tones, ring strokes only), existed until the
+diet tracker was removed in Oct 2026. Its tokens went with it.
 
 **No colour value may be written anywhere except `tokens.css`.** No hex codes in components, no arbitrary Tailwind values like `bg-[#1D1F28]`. If a colour is needed that doesn't exist, propose adding it to the token file and say why — don't inline it. This single rule is what keeps a seven-phase build from looking like seven apps.
 
@@ -85,7 +85,7 @@ Macro colours never appear on a task. Urgency colours never appear on a ring.
 
 ## Scope — do not add these
 
-Full note-taking · gamification, points, levels, badges · workout tracking · personal finances.
+Full note-taking · gamification, points, levels, badges · workout tracking · personal finances · food, macro or bodyweight tracking (built in Phase 3, removed Oct 2026).
 
 If asked to add one mid-build, push back and say why before complying. Scope creep is the most likely cause of this project never shipping.
 
@@ -102,11 +102,11 @@ If asked to add one mid-build, push back and say why before complying. Scope cre
 
 ## Stack
 
-React + Vite + TypeScript + Tailwind, PWA · Supabase (Postgres, auth, RLS, edge functions) · Cloudflare Pages or Vercel · scheduled edge function for the 07:00 digest · one swappable LLM module shared by the diet parser and the chatbot · USDA FoodData Central + Open Food Facts.
+React + Vite + TypeScript + Tailwind, PWA · Supabase (Postgres, auth, RLS, edge functions) · Cloudflare Pages or Vercel · scheduled edge function for the 07:00 digest · one swappable LLM module shared by the syllabus reader, task breakdown, briefing and chatbot.
 
 Free tiers were the rule while this served one person, and they do not survive
-contact with many. One shared Gemini key funds every user's food parsing and
-every user's chat; Supabase's free row and bandwidth limits are a single pool.
+contact with many. One shared Gemini key funds every user's syllabus reading
+and every user's chat; Supabase's free row and bandwidth limits are a single pool.
 
 Until there is a decision on this, treat the free tier as a hard constraint and
 say plainly when a feature would breach it — but do not design as though it
@@ -116,9 +116,7 @@ design input, not an afterthought.
 ## Conventions
 
 - Dates: store UTC timestamps, render in `America/Toronto`, compute "today" from local date.
-- Money-like precision for macros: store grams as numeric, don't accumulate float error across a day.
-- Changing a macro target must never retroactively alter historical days — targets are versioned by effective date.
-- AI-estimated entries carry an `is_estimate` flag and render visually distinct from exact ones.
+- Exact precision for anything summed (grade weights): store as numeric, don't accumulate float error.
 - Every table has RLS enabled. Data must not be publicly readable.
 
 ---
@@ -152,7 +150,8 @@ every user. None of the below needs re-architecting.
    which is detected and reported honestly rather than stranding someone
    waiting for an email about an account they already have.
 
-3. **The macro targets are one person's.** Migration 0010 seeded 2,900-3,100
+3. ~~**The macro targets are one person's.**~~ MOOT, Oct 2026: the diet
+   tracker and its tables were removed. ORIGINAL: Migration 0010 seeded 2,900-3,100
    kcal and 160-175 g of protein at migration time. Verified 19 Aug that a new
    account correctly gets NONE, and the diet screen already handles that
    honestly. What is still undecided is whether it should stay absent until
@@ -216,7 +215,7 @@ everything escalates nothing does. A reminder about something already ticked is
 never sent — verified live in both directions, with the dedupe record cleared
 first so only the done-check could suppress it.
 
-### Phase 3 — diet tracker. DONE, 19 Aug 2026
+### Phase 3 — diet tracker. DONE, 19 Aug 2026. REMOVED, Oct 2026 — see below
 
 Every Phase 3 item ships except camera barcode scanning, which was a deliberate
 call rather than an omission — see below.
@@ -274,9 +273,8 @@ Gaps read "not weighed", never zero, and no direction is graded.
   served from our own origin rather than the library's default CDN, which
   would have put a third-party round trip in the middle of scanning a packet
   in a shop. Typing the digits stays available throughout.
-- **Photo logging is verified through the API but not through the camera.** A
-  real Gemini vision response came back correctly, low-confidence and all, from
-  a generated image. The iOS file picker itself has never been exercised.
+- ~~**Photo logging is verified through the API but not through the camera.**~~
+  MOOT, Oct 2026: removed with the diet tracker.
 
 ### Phase 4 — AI leverage. DONE, 19 Aug 2026
 
@@ -644,6 +642,39 @@ university's to set. A Moodle PAGE (course, dashboard, calendar view) is
 caught by name, like the Google browser-bar link, with the menu path to the
 real export address. Both verified against the deployed function.
 
+### The diet tracker is gone — Oct 2026
+
+Asked for: "get rid of the meal planning infrastructure entirely … it doesn't
+fit well in a production grade app." The scope chosen was all of it — food
+log, macro targets and rings, saved meals, protein-gap suggestions, weigh-ins
+and the trend chart, barcode and photo logging, USDA and Open Food Facts
+lookups, and the `parse-food` edge function. This is a tool for keeping
+academic work in order, and food tracking was the largest part of it that was
+not — the same reading Phase 7 applied to the mood check-in.
+
+- **Tables dropped, not abandoned** (0033): `food_entries`, `food_items`,
+  `saved_meals`, `macro_targets`, `bodyweight` and the `food_source` enum. A
+  table nothing reads still holds personal data and still reads as a feature.
+  Anyone wanting their history has to export before 0033 runs.
+- **Abood lost its food scope**: no food, saved meals or weigh-ins in the
+  context, and `log_saved_meal` / `set_weight` are no longer actions — the
+  validator refuses them as unknown. Older transcripts can still hold such a
+  proposal; Chat shows it without a "Do it" button rather than one that would
+  do nothing.
+- **The budget's rationale changed.** Chat's stand-down used to say the rest
+  was "kept for logging food". With no food path, it says everything else
+  still works. The `food` budget kind and `FOOD_CALLS_PER_DAY` are gone.
+- **`Ring` and the `--m-*` tokens went too.** Ring was only ever rendered by
+  the Diet screen (the specimen page aside), so leaving it would be exactly
+  the unreachable-component case `ActivityRings` was deleted for. So were the
+  palette tests that kept the brand clear of the macro hues.
+- `zxing-wasm` is no longer a dependency.
+
+**Deploy order matters.** Ship the app and the edge functions first, then run
+0033 — an old client hitting a dropped table would fail its reads. And delete
+the deployed `parse-food` function by hand (`supabase functions delete
+parse-food`); removing it from the repo does not undeploy it.
+
 ### Abood, cheaper per message — Sep 2026
 
 Asked for after Abood became a companion on a free Groq key (8,000 tokens a
@@ -876,7 +907,10 @@ navigations cache-first, so the fixed build only reached the phone on the
 SECOND open; navigations are network-first with a two-second timeout, falling
 back to the cached shell offline.
 
-### A documented deviation from the colour law
+### A documented deviation from the colour law — MOOT, Oct 2026
+
+The trend chart this describes was removed with the diet tracker. Kept for the
+reasoning.
 
 The colour law says macro colours appear as **ring strokes only**. The weekly
 trend chart uses `--m-calories` for the calorie bars and target band and

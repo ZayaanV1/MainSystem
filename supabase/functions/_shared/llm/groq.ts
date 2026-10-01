@@ -9,11 +9,10 @@ import type { LlmFailure, LlmProvider, LlmRequest, LlmResult } from './types.ts'
  *
  * WHY ONLY THE CHATBOT
  *
- * Groq's chat models are text-only. The diet parser sends photographs — a
- * plate of food, a nutrition label — and a provider that silently dropped the
- * image would answer confidently about a meal it never saw, which is the worst
- * available failure on that path. So food parsing stays on Gemini and the
- * chatbot moves here, and the choice is made per TASK rather than globally.
+ * Groq's chat models are text-only. The syllabus reader sends PDFs, and a
+ * provider that silently dropped the document would answer confidently about
+ * a syllabus it never saw, which is the worst available failure on that path.
+ * So document reading stays on Gemini and the chatbot moves here, and the choice is made per TASK rather than globally.
  *
  * THE API IS OPENAI-SHAPED
  *

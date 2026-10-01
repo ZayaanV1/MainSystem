@@ -31,9 +31,7 @@ import type { SyllabusItem } from '../../supabase/functions/_shared/syllabus';
  * a real button, not a greyed-out link in the corner.
  *
  * Nothing here is a question the app could answer itself. It does not ask for
- * a timezone (the browser knows), a name (it is never shown), or macro targets
- * (the diet screen is honest about having none, and most people will never
- * open it).
+ * a timezone (the browser knows) or a name (it is never shown).
  *
  * It ends by putting a real semester in the app, not by congratulating anyone.
  * The syllabus importer is the shortest path from empty to useful that exists

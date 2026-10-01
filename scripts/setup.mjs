@@ -224,19 +224,17 @@ ok('secrets set');
 step(5, 'Deploying the edge functions');
 supabase(['functions', 'deploy', 'dispatch']);
 ok('dispatch deployed');
-// parse-food is deployed here too. It was once left out, and the failure was
-// invisible in the right way to waste an evening: the app showed "couldn't
-// reach the parser", which reads as a network problem, when the function
-// simply was not there.
-supabase(['functions', 'deploy', 'parse-food']);
-ok('parse-food deployed');
+// Every function the app calls is deployed here. One was once left out, and
+// the failure was invisible in the right way to waste an evening: the app
+// said it "couldn't reach" it, which reads as a network problem, when the
+// function simply was not there.
 supabase(['functions', 'deploy', 'assist']);
 ok('assist deployed');
 supabase(['functions', 'deploy', 'calendar']);
 ok('calendar deployed');
 // feeds keeps subscribed calendars live; telegram is Abood by text message.
 // Both were added after this script was written and neither was deployed by
-// it — the same gap that once left parse-food 404ing.
+// it — the same gap that once left a function 404ing.
 supabase(['functions', 'deploy', 'feeds']);
 ok('feeds deployed');
 supabase(['functions', 'deploy', 'telegram']);

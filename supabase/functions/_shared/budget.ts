@@ -4,23 +4,22 @@
  * THE BUG THIS FIXES
  *
  * The policy was written down and half-implemented. `chat` was capped at 40
- * calls a day and stood down with a sentence saying the rest of the budget was
- * "kept for food" — while `parse-food` had no guard at all, and neither did
- * the daily briefing, the task breakdown or the syllabus import. Three of the
- * four paths on this key were unbounded, and the one that was bounded was the
- * convenience.
+ * calls a day while the other paths on the same key — the daily briefing, the
+ * task breakdown, the syllabus import and, at the time, food parsing — had no
+ * guard at all. Most of the paths on this key were unbounded, and the one that
+ * was bounded was the convenience.
  *
- * So the reserve protected nothing. One account photographing meals all day
- * exhausted the shared key for every account, and the chatbot politely
- * declined to spend a quota that was already gone.
+ * So the reserve protected nothing: one busy account could exhaust the shared
+ * key for every account, and the chatbot politely declined to spend a quota
+ * that was already gone.
  *
  * WHY THE CAPS DIFFER
  *
- * They are ordered by how close each path sits to the thing the app is for.
- * Logging food is something the app exists to do; asking it a question is a
- * convenience; importing a syllabus is a once-a-term action with a large and
- * expensive input. A single number across all four would either starve food
- * logging or fail to constrain anything.
+ * They are ordered by how often each path is legitimately needed. Asking a
+ * question is frequent; breaking down a task is occasional; importing a
+ * syllabus is a once-a-term action with a large and expensive input. A single
+ * number across all of them would either starve the frequent ones or fail to
+ * constrain anything.
  *
  * WHO IS EXEMPT
  *
@@ -28,7 +27,7 @@
  * pool, so no cap applies to it. That is the whole point of the setting.
  */
 
-export type AiKind = 'chat' | 'food' | 'summary' | 'breakdown' | 'syllabus';
+export type AiKind = 'chat' | 'summary' | 'breakdown' | 'syllabus';
 
 const envNumber = (name: string, fallback: number): number => {
   const raw = Deno.env.get(name);
@@ -46,8 +45,6 @@ const envNumber = (name: string, fallback: number): number => {
  */
 export function caps(): Record<AiKind, number> {
   return {
-    // The highest, deliberately. This is the app's job.
-    food: envNumber('FOOD_CALLS_PER_DAY', 60),
     chat: envNumber('CHAT_CALLS_PER_DAY', 40),
     // Fires on opening the app, but is fingerprint-cached, so a day of normal
     // use costs a handful. The cap is here to bound a pathological loop.
@@ -98,8 +95,8 @@ export async function checkBudget(
 
   /*
    * A failed read fails OPEN, and that is a deliberate trade rather than an
-   * oversight. Refusing to log a meal because the usage table could not be
-   * read would break the app's core job to protect a quota, on the evidence
+   * oversight. Refusing to read a syllabus because the usage table could not
+   * be read would break the app's job to protect a quota, on the evidence
    * of a query that did not work. The cap is a cost control, not a safety
    * control, and a cost control should not take the product down with it.
    */
@@ -125,14 +122,10 @@ export async function recordUse(
 /**
  * The sentence shown when a path stands down.
  *
- * Says what happened and when it resets, does not apologise, and names what
- * the remaining budget is being held for — a limit with no stated reason
- * reads as the app being broken.
+ * Says what happened and when it resets, does not apologise, and says that the
+ * rest of the app is unaffected — a limit with no stated scope reads as the
+ * app being broken.
  */
-export function standDownMessage(kind: AiKind): string {
-  const held =
-    kind === 'food'
-      ? 'Add it by hand and it will be logged exactly the same.'
-      : 'The rest of today’s budget is kept for logging food.';
-  return `That is all the AI help for today. It resets at midnight. ${held}`;
+export function standDownMessage(_kind: AiKind): string {
+  return 'That is all the AI help for today. It resets at midnight. Everything else works as usual.';
 }
