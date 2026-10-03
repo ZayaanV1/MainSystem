@@ -76,6 +76,11 @@ export function useSwipe({ onLeft, onRight }: SwipeActions) {
       // Vertical wins ties. A list is scrolled far more often than it is
       // swiped, and stealing a scroll is the more annoying mistake.
       axis.current = Math.abs(moveX) > Math.abs(moveY) ? 'x' : 'y';
+      // Captured only once the gesture is known to be a swipe. Capturing on
+      // press would retarget the click of an ordinary tap away from the
+      // slip's own buttons; capturing here keeps the moves coming even when
+      // the finger outruns the row.
+      if (axis.current === 'x') e.currentTarget.setPointerCapture?.(e.pointerId);
     }
 
     if (axis.current !== 'x') return;
@@ -99,6 +104,15 @@ export function useSwipe({ onLeft, onRight }: SwipeActions) {
   }
 
   return {
+    /**
+     * The row's touch-action, which must be set with the handlers.
+     *
+     * Without it the browser may claim a horizontal drag as a pan and send
+     * pointercancel a few pixels in, so the swipe never reaches the threshold
+     * on a phone. `pan-y` leaves vertical scrolling to the browser and the
+     * horizontal axis to this hook; pinch-zoom stays available.
+     */
+    touchAction: enabled ? ('pan-y pinch-zoom' as const) : undefined,
     /** Spread onto the row. */
     handlers: enabled
       ? {

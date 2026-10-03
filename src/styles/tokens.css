@@ -108,6 +108,10 @@
   --t-critical: #e45a76; /* under 48h */
   --t-overdue: #ff3b5c; /* past due  */
   --t-done: #2ed4a0; /* finished, and allowed to look it */
+  /* Part of a day finished, for the history grid. A real alpha rather than a
+     bg-t-done/40 utility, which compiles to color-mix and falls back to SOLID
+     green on iOS 16.0-16.1 — making partial days identical to complete ones. */
+  --t-done-partial: rgb(46 212 160 / 0.4);
 
   /* ---- courses: fixed set of 8, desaturated. Marks, never fills. ------- */
   --c-1: #8a9bb8;
@@ -341,6 +345,7 @@
     --t-critical: #c83557;
     --t-overdue: #d5203e;
     --t-done: #017a58;
+    --t-done-partial: rgb(1 122 88 / 0.4);
 
     --c-1: #7988a2;
     --c-2: #88a288;
@@ -423,6 +428,7 @@
   --t-critical: #c83557;
   --t-overdue: #d5203e;
   --t-done: #017a58;
+  --t-done-partial: rgb(1 122 88 / 0.4);
 
   --c-1: #7988a2;
   --c-2: #88a288;

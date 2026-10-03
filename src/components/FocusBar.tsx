@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from './Button';
 import {
   clearSession,
@@ -39,6 +39,25 @@ interface FocusBarProps {
 export function FocusBar({ onFinish }: FocusBarProps) {
   const [session, setSession] = useState<FocusSession | null>(() => readSession());
   const [, tick] = useState(0);
+  const bar = useRef<HTMLDivElement>(null);
+
+  /*
+   * The bar's height, published for the layout. It was fixed over the page
+   * with nothing making room for it: 12px of it sat under the floating tab
+   * bar, and it covered Abood's composer and the last row of every list.
+   * --focus-bar-h feeds the page's bottom clearance and the composer's dock.
+   */
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (!session || !bar.current) {
+      root.style.removeProperty('--focus-bar-h');
+      return;
+    }
+    root.style.setProperty('--focus-bar-h', `${bar.current.offsetHeight + 8}px`);
+    return () => {
+      root.style.removeProperty('--focus-bar-h');
+    };
+  }, [session]);
 
   /*
    * The clock is re-rendered every second, but elapsed is always DERIVED from
@@ -83,8 +102,11 @@ export function FocusBar({ onFinish }: FocusBarProps) {
 
   return (
     <div
+      ref={bar}
       // Above the tab bar, below a sheet. Fixed so it survives every screen.
-      className="fx-glass fixed inset-x-0 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom))] z-40 flex items-center gap-3 border-t border-ink-600 px-4 py-2 lg:bottom-0"
+      // Floats just over the tab bar at the same width and shape, so the two
+      // read as one stack of controls instead of a slab half under a pill.
+      className="fx-glass fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+var(--sp-3)+var(--tab-bar)+var(--sp-2))] z-40 flex items-center gap-3 rounded-card border border-ink-600 px-4 py-2 lg:inset-x-0 lg:bottom-0 lg:rounded-none lg:border-x-0 lg:border-b-0"
     >
       <span
         // Polite and atomic: it changes every second, and announcing each tick

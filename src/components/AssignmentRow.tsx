@@ -159,6 +159,7 @@ export function AssignmentRow({
         data-block={cv ? true : undefined}
         style={{
           ...tint,
+          touchAction: swipe.touchAction,
           transform: swipe.dx === 0 ? undefined : `translate3d(${swipe.dx}px, 0, 0)`,
           // No transition while the finger is down: the slip must track the
           // finger exactly, and easing it makes the gesture feel like lag.

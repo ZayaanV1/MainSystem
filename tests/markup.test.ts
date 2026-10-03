@@ -206,3 +206,45 @@ describe('routes build from the kit rather than from raw markup', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('translucent colour is a token, never a color-mix utility', () => {
+  /*
+   * A Tailwind opacity modifier on a colour (bg-t-done/40) compiles to
+   * color-mix with an OPAQUE fallback — the base colour at full strength. On
+   * iOS 16.0 and 16.1 that fallback is what renders: the glass tab bar once
+   * shipped as a solid cream slab this way, and History's partial days drew
+   * the same green as complete ones. Translucency lives in tokens.css as a
+   * real rgb() alpha instead.
+   */
+  it('puts no /NN alpha on a colour utility', () => {
+    const offenders: string[] = [];
+    const alpha =
+      /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|decoration|divide|placeholder|caret|accent|shadow)-(?:ink|text|t|c|accent|on|focus|white|black)[a-z0-9-]*\/\d{1,3}\b/g;
+
+    for (const file of MARKUP) {
+      const source = readFileSync(file, 'utf8');
+      for (const m of source.matchAll(alpha)) {
+        const line = source.slice(0, m.index).split('\n').length;
+        offenders.push(`${file}:${line} ${m[0]}`);
+      }
+    }
+
+    expect(offenders, `use a token with a real alpha instead:\n${offenders.join('\n')}`).toEqual([]);
+  });
+});
+
+describe('a swipe always sets its touch-action', () => {
+  /*
+   * Pointer events alone are not a swipe on a phone: unless the row says
+   * touch-action: pan-y, the browser may claim a sideways drag as a pan and
+   * cancel the pointer a few pixels in, so the gesture never commits. Any
+   * component using the hook must carry the value it returns.
+   */
+  it('passes touchAction wherever useSwipe is used', () => {
+    const offenders = MARKUP.filter((file) => {
+      const source = readFileSync(file, 'utf8');
+      return /\buseSwipe\(/.test(source) && !/touchAction:\s*\w+\.touchAction/.test(source);
+    });
+    expect(offenders).toEqual([]);
+  });
+});

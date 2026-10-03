@@ -7,6 +7,7 @@ import { clearCache, getCache, putCache } from './readcache';
 import { normaliseLink } from './link';
 export { normaliseLink } from './link';
 import {
+  addDays,
   endOfDayUTC,
   localDayKey,
   localHourMinute,
@@ -182,6 +183,17 @@ export interface TodayData {
 export const BACKFILL_DAYS = 5;
 
 /**
+ * How far ahead Today reads events.
+ *
+ * It read every future event, which for one account with a synced timetable
+ * was 350 rows running to April 2027 on every open — and PostgREST caps a
+ * response at 1,000, past which the furthest events would have vanished from
+ * Month without a word. Today and Week need days; Month fetches its own range
+ * when it is paged beyond this.
+ */
+export const EVENT_WINDOW_DAYS = 60;
+
+/**
  * Reads the account's timezone and points the time layer at it.
  *
  * Must finish before anything else loads. Every "today" in the app resolves
@@ -318,11 +330,15 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
       .from('events')
       .select('id, course_id, title, kind, starts_at, ends_at, all_day, location, feed_id, calendar_feeds(label)')
       .gte('starts_at', startOfDayUTC(today).toISOString())
+      .lt('starts_at', endOfDayUTC(addDays(today, EVENT_WINDOW_DAYS)).toISOString())
       .order('starts_at', { ascending: true }),
 
+    // Steps of open work only. Every step ever written came back on every
+    // open, a set that only grows.
     supabase
       .from('subtasks')
-      .select('id, assignment_id, title, done, position')
+      .select('id, assignment_id, title, done, position, assignments!inner(status)')
+      .neq('assignments.status', 'done')
       .order('position', { ascending: true }),
 
     supabase
@@ -337,8 +353,12 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     supabase.from('app_settings').select('low_battery').limit(1),
 
     // Every deferral row for open work. Counted here rather than stored, so
-    // the number can never drift from what actually happened.
-    supabase.from('deferrals').select('assignment_id'),
+    // the number can never drift from what actually happened. Finished work's
+    // history is not needed to decide what is stuck.
+    supabase
+      .from('deferrals')
+      .select('assignment_id, assignments!inner(status)')
+      .neq('assignments.status', 'done'),
   ]);
 
   /**
@@ -390,7 +410,9 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     events: ((events.data ?? []) as unknown as (PlannerEvent & {
       calendar_feeds?: { label: string } | null;
     })[]).map(({ calendar_feeds, ...e }) => ({ ...e, source: calendar_feeds?.label ?? null })),
-    subtasks: (subtasks.data ?? []) as Subtask[],
+    subtasks: ((subtasks.data ?? []) as unknown as (Subtask & { assignments?: unknown })[]).map(
+      ({ assignments: _embedded, ...s }) => s,
+    ),
     completedToday: (completedToday.data ?? []) as Assignment[],
     deferrals,
     lowBattery: Boolean((settings.data ?? [])[0]?.low_battery),
@@ -411,6 +433,25 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
  * Search finds finished work too, and Today only holds what is open — so a
  * finished result tapped from Search used to open nothing at all.
  */
+/**
+ * Events in a range of local days, for Month paged past Today's window.
+ *
+ * Same shape as Today's events, with the subscribed calendar's name flattened
+ * in, so Month can merge the two without knowing where either came from.
+ */
+export async function loadEvents(from: DayKey, to: DayKey): Promise<PlannerEvent[]> {
+  const { data } = await supabase
+    .from('events')
+    .select('id, course_id, title, kind, starts_at, ends_at, all_day, location, feed_id, calendar_feeds(label)')
+    .gte('starts_at', startOfDayUTC(from).toISOString())
+    .lt('starts_at', endOfDayUTC(to).toISOString())
+    .order('starts_at', { ascending: true });
+
+  return ((data ?? []) as unknown as (PlannerEvent & { calendar_feeds?: { label: string } | null })[]).map(
+    ({ calendar_feeds, ...e }) => ({ ...e, source: calendar_feeds?.label ?? null }),
+  );
+}
+
 export async function loadAssignment(id: string): Promise<Assignment | null> {
   const { data } = await supabase
     .from('assignments')

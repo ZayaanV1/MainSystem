@@ -72,7 +72,7 @@ export function LoadFailure({ failed, onRetry, retrying = false }: LoadFailurePr
       // what the rest of the screen MEANS — a reader who misses it will read
       // an incomplete day as a complete one.
       role="alert"
-      className="mx-4 mb-4 flex flex-col gap-3 rounded-card border border-t-critical/40 bg-ink-800 px-4 py-3"
+      className="mx-4 mb-4 flex flex-col gap-3 rounded-card border border-ink-500 bg-ink-800 px-4 py-3"
     >
       <div className="flex flex-col gap-1">
         <p className="type-label text-text-hi">

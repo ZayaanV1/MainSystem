@@ -368,7 +368,7 @@ function DaySection({
              "Nothing on this day" is a gap in the week, and a gap is better
              drawn than written — it also keeps the rail's rhythm even. */
           <div aria-hidden className="flex h-14 items-center">
-            <div className="h-px w-full bg-ink-600/50" />
+            <div className="h-px w-full bg-ink-600 opacity-50" />
           </div>
         ) : (
           <>

@@ -1,4 +1,14 @@
 @import 'tailwindcss';
+/* Tailwind generates a class for any class-like string in any file it scans,
+   docs included: CLAUDE.md's example of a forbidden colour, bg-[#1D1F28],
+   was shipping in the compiled CSS. Only the app's own source is scanned. */
+@source not "../CLAUDE.md";
+@source not "../PRODUCT.md";
+@source not "../SETUP.md";
+@source not "../docs";
+@source not "../tests";
+@source not "../supabase";
+@source not "../design-canvas";
 @import './styles/tokens.css';
 @import './styles/calendar.css';
 @import './styles/material.css';
@@ -84,6 +94,7 @@
   --color-t-critical: var(--t-critical);
   --color-t-overdue: var(--t-overdue);
   --color-t-done: var(--t-done);
+  --color-t-done-partial: var(--t-done-partial);
 
   --color-c-1: var(--c-1);
   --color-c-2: var(--c-2);
@@ -541,7 +552,7 @@
   /* Clearance for the tab bar, which now floats 12px off the bottom edge
      rather than sitting on it — so the page needs that gap back plus the
      same breathing room it had before. */
-  padding-bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1.75rem);
+  padding-bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1.75rem + var(--focus-bar-h, 0px));
 }
 
 @media (width >= 64rem) {
@@ -1183,13 +1194,16 @@
  * would fade the border with it and the row would appear to breathe rather
  * than the block inside it.
  */
+/* Opacity, not background-color: a colour change repaints the block every
+   frame, where opacity is handed to the compositor and costs the main thread
+   nothing while the real data is being fetched. */
 @keyframes skeleton-pulse {
-  0%, 100% { background-color: var(--ink-700); }
-  50% { background-color: var(--ink-600); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 
 .skeleton {
-  background-color: var(--ink-700);
+  background-color: var(--ink-600);
   animation: skeleton-pulse 1.6s var(--ease-out) infinite;
 }
 

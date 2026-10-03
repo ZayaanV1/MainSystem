@@ -92,7 +92,7 @@ function TabBar<T extends string>({
     <>
       {more && (
         <div
-          className="fixed inset-0 z-40 bg-ink-900/70 lg:hidden"
+          className="sheet-scrim fixed inset-0 z-40 lg:hidden"
           onClick={() => setMore(false)}
           aria-hidden
         />

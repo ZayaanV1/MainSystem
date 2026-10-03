@@ -52,7 +52,7 @@ const FILL: Record<DayFill, string> = {
   // ink-600 rather than the sheet's own ink-700, which made it invisible and
   // indistinguishable from a day that asked nothing.
   open: 'bg-ink-600',
-  partial: 'bg-t-done/40',
+  partial: 'bg-t-done-partial',
   complete: 'bg-t-done',
 };
 

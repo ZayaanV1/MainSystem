@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { readTitle } from '../lib/blocks';
 import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
@@ -7,14 +7,17 @@ import { EmptyState } from '../components/EmptyState';
 import { EventSlip } from '../components/EventSlip';
 import { SectionHead } from '../components/SectionHead';
 import {
+  EVENT_WINDOW_DAYS,
   courseVar,
+  loadEvents,
   setAssignmentStatus,
   subtaskProgress,
   type Assignment,
   type Course,
+  type PlannerEvent,
   type TodayData,
 } from '../lib/planner';
-import { formatDay, todayKey, type DayKey } from '../lib/time';
+import { addDays, formatDay, todayKey, type DayKey } from '../lib/time';
 import { buildMonth, load, monthLabel, shiftMonth, startOfMonth, type MonthCell } from '../lib/month';
 
 /**
@@ -64,12 +67,42 @@ export function Month({
 
   const courses = data?.courses ?? [];
 
+  /*
+   * Today reads events for a bounded window (EVENT_WINDOW_DAYS). Paged past
+   * it, Month reads the rest of its own grid, so a term's later months still
+   * show their exams and classes.
+   */
+  const range = useMemo(() => {
+    const days = buildMonth(anchor, [], [], today).weeks.flat().map((c) => c.day);
+    return { first: days[0], last: days[days.length - 1] };
+  }, [anchor, today]);
+  const windowEnd = addDays(today, EVENT_WINDOW_DAYS);
+  const [extra, setExtra] = useState<PlannerEvent[]>([]);
+
+  useEffect(() => {
+    if (range.last <= windowEnd) {
+      setExtra([]);
+      return;
+    }
+    let live = true;
+    const from = range.first > today ? range.first : today;
+    void loadEvents(from, range.last).then((rows) => {
+      if (live) setExtra(rows);
+    });
+    return () => {
+      live = false;
+    };
+  }, [range, windowEnd, today]);
+
   const grid = useMemo(() => {
     const keep = <T extends { course_id: string | null }>(rows: T[]) =>
       courseFilter ? rows.filter((r) => r.course_id === courseFilter) : rows;
+    const loaded = data?.events ?? [];
+    const seen = new Set(loaded.map((e) => e.id));
+    const events = [...loaded, ...extra.filter((e) => !seen.has(e.id))];
 
-    return buildMonth(anchor, keep(data?.assignments ?? []), keep(data?.events ?? []), today);
-  }, [anchor, data, courseFilter, today]);
+    return buildMonth(anchor, keep(data?.assignments ?? []), keep(events), today);
+  }, [anchor, data, extra, courseFilter, today]);
 
   const courseFor = (id: string | null) => courses.find((c) => c.id === id);
   const progressFor = (id: string) => subtaskProgress(data?.subtasks ?? [], id);

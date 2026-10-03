@@ -382,7 +382,7 @@ export function Today({
         />
       )}
 
-      <Briefing dep={loaded} />
+      <Briefing dep={loaded} today={today} />
 
       {/*
         Two columns once there is room, split by kind rather than by size: the
@@ -788,8 +788,10 @@ function DayStrip({
             aria-pressed={isSelected}
             aria-label={isToday ? `Today, ${formatDay(d)}` : formatDay(d)}
             className={[
-              'fx-depth',
-          'flex h-9 w-9 flex-col items-center justify-center rounded-pill type-caption',
+              // 36px to the eye, 44px to the thumb: hit-expand reaches the tap
+              // floor without making five pills crowd the section head.
+              'fx-depth hit-expand',
+              'flex h-9 w-9 flex-col items-center justify-center rounded-pill type-caption',
               'min-h-0',
               isSelected ? 'bg-ink-600 text-text-hi' : 'text-text-low',
             ].join(' ')}
@@ -859,8 +861,24 @@ function weekdayName(day: DayKey): string {
   return WEEKDAY_NAMES[new Date(`${day}T12:00:00Z`).getUTCDay()];
 }
 
-function Briefing({ dep }: { dep: TodayData | null }) {
-  const [text, setText] = useState('');
+function Briefing({ dep, today }: { dep: TodayData | null; today: DayKey }) {
+  const cacheKey = `planner.briefing:${today}`;
+  /*
+   * Today's briefing as last seen on this device, shown from the first frame.
+   *
+   * It used to render nothing until the model answered and then open with a
+   * grid-template-rows animation — 420ms of re-laying-out the whole page,
+   * every frame, at the exact moment the screen was being read. With the
+   * day's text cached, every open after the first shows it at once and the
+   * late answer only replaces it if something changed.
+   */
+  const [text, setText] = useState(() => readBriefing(cacheKey));
+  const section = useRef<HTMLElement>(null);
+  const shownAtOpen = useRef(Boolean(text));
+
+  useEffect(() => {
+    setText(readBriefing(cacheKey));
+  }, [cacheKey]);
 
   /*
    * Re-asked whenever the day's data reloads — ticking something off should
@@ -876,17 +894,52 @@ function Briefing({ dep }: { dep: TodayData | null }) {
 
     let live = true;
     void dailySummary(activeTimezone()).then((r) => {
-      if (live && r.ok) setText(r.summary);
+      if (!live || !r.ok) return;
+      setText(r.summary);
+      try {
+        if (r.summary) localStorage.setItem(cacheKey, r.summary);
+        else localStorage.removeItem(cacheKey);
+      } catch {
+        // Storage refused: the briefing still shows, it just arrives late
+        // next time too.
+      }
     });
     return () => {
       live = false;
     };
-  }, [dep]);
+  }, [dep, cacheKey]);
+
+  /*
+   * The first arrival of the day, staged on the compositor. The page lays out
+   * once with the card in place; the card fades down into it and everything
+   * below starts where it was and slides to where it now belongs — transform
+   * only, so no frame of the move re-runs layout. Reduced motion: it simply
+   * appears.
+   */
+  useLayoutEffect(() => {
+    const el = section.current;
+    if (!text || !el || shownAtOpen.current) return;
+    shownAtOpen.current = true;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    const ease = 'cubic-bezier(0.2, 0, 0, 1)';
+    const shift = el.getBoundingClientRect().height + parseFloat(getComputedStyle(el).marginBottom || '0');
+    el.animate(
+      [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 280, easing: ease },
+    );
+    for (let next = el.nextElementSibling; next; next = next.nextElementSibling) {
+      (next as HTMLElement).animate(
+        [{ transform: `translateY(${-shift}px)` }, { transform: 'none' }],
+        { duration: 360, easing: ease },
+      );
+    }
+  }, [text]);
 
   if (!text) return null;
 
   return (
-    <section className="arrive mb-6 px-4">
+    <section ref={section} className="mb-6 px-4">
       {/*
         The one hero surface on the busiest screen in the app. Everything
         else on Today is a `flat` Card — a list of work, a checklist, the
@@ -904,6 +957,14 @@ function Briefing({ dep }: { dep: TodayData | null }) {
       </Card>
     </section>
   );
+}
+
+function readBriefing(key: string): string {
+  try {
+    return localStorage.getItem(key) ?? '';
+  } catch {
+    return '';
+  }
 }
 
 function Ahead({
