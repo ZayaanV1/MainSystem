@@ -123,3 +123,55 @@ describe('every table written is also read', () => {
     ).toEqual([]);
   });
 });
+
+describe('every exported function is called', () => {
+  /*
+   * The third shape of the same failure, found by the Oct 2026 audit: a
+   * function written, exported, often tested — and called by nothing. The
+   * outbox's recovery (clearOutbox) sat unreachable while a refused write
+   * jammed every write behind it; the time calibration (adjustedEstimate) was
+   * measured and never applied; a calendar rename (renameFeed) worked and no
+   * screen offered it. Tests do not make a function reachable; only the app
+   * calling it does.
+   *
+   * A name counts as used if any other source file mentions it, or its own
+   * file does past the definition (exported for a test, used inside). The
+   * allowance below is for helpers that exist for the test harness, each
+   * with its reason.
+   */
+  const TEST_HARNESS_ONLY: Record<string, string> = {
+    clearOutbox: 'resets the queue between outbox tests; nothing in the app may empty it wholesale',
+  };
+
+  const LIB = [...CORPUS.keys()].filter(
+    (f) => /src\/lib\/[^/]+\.ts$/.test(f) || /src\/components\/.+\.tsx?$/.test(f),
+  );
+  const EVERYWHERE = [
+    ...CORPUS.entries(),
+    ...FUNCTIONS.map((f) => [f, readFileSync(f, 'utf8')] as const),
+  ];
+
+  it('leaves no export that only a test, or nothing, calls', () => {
+    const dead: string[] = [];
+
+    for (const file of LIB) {
+      const source = CORPUS.get(file) as string;
+      const names = [...source.matchAll(/^export (?:async )?(?:function|const) ([a-z][A-Za-z0-9_]*)/gm)].map((m) => m[1]);
+
+      for (const name of names) {
+        if (name in TEST_HARNESS_ONLY) continue;
+        // A fresh non-global pattern for .test(): a /g one keeps lastIndex
+        // between calls and silently misses matches in later files.
+        const word = new RegExp(`\\b${name}\\b`);
+        const elsewhere = EVERYWHERE.some(([other, text]) => other !== file && word.test(text));
+        const inside = (source.match(new RegExp(`\\b${name}\\b`, 'g')) ?? []).length > 1;
+        if (!elsewhere && !inside) dead.push(`${file}: ${name}`);
+      }
+    }
+
+    expect(
+      dead,
+      'Exported and never called by the app. Wire each one into a real screen or delete it.',
+    ).toEqual([]);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { courseGrades, gradeSummary, byWeight } from './grades';
+import { courseGrades, gradeSummary } from './grades';
 import type { Assignment } from './planner';
 
 const work = (o: Partial<Assignment> & { id: string }): Assignment => ({
@@ -107,28 +107,6 @@ describe('gradeSummary', () => {
   it('says so plainly when everything is marked', () => {
     const g = courseGrades([work({ id: 'only', weight_percent: 100, grade_percent: 71 })]);
     expect(gradeSummary(g)).toBe('71 of 100 points banked. Everything on the calendar is marked.');
-  });
-});
-
-describe('byWeight', () => {
-  it('puts the heaviest first', () => {
-    const out = byWeight([
-      work({ id: 'lab', weight_percent: 10 }),
-      work({ id: 'final', weight_percent: 50 }),
-      work({ id: 'mid', weight_percent: 30 }),
-    ]);
-    expect(out.map((a) => a.id)).toEqual(['final', 'mid', 'lab']);
-  });
-
-  it('sorts unweighted work last rather than as zero', () => {
-    // "No weight recorded" and "worth nothing" are different facts. Treating
-    // the first as the second buries exactly the work whose syllabus has not
-    // been imported yet.
-    const out = byWeight([
-      work({ id: 'unknown' }),
-      work({ id: 'tiny', weight_percent: 1 }),
-    ]);
-    expect(out.map((a) => a.id)).toEqual(['tiny', 'unknown']);
   });
 });
 

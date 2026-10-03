@@ -57,7 +57,7 @@ is the one with the least work in it.
 4. **No pure red in the UI.** Overdue is `--t-overdue` (clay rose). See the colour law below.
 5. **Never silently lose data.** Optimistic UI is fine; a failed sync must be visible and recoverable.
 6. **Never silently write.** AI-extracted syllabus dates, task breakdowns and chatbot actions are all shown for confirmation before they touch the database.
-7. **Local time is `America/Toronto`.** A "day" is the user's local day, never UTC. Must survive DST.
+7. **Time is the account's own zone.** A "day" is the user's local day in `app_settings.timezone`, never UTC and never a hardcoded city. Must survive DST. Server-side time functions take a zone with no default, so a call without one fails to compile (Oct 2026). Formerly "Local time is `America/Toronto`", from the single-user build.
 
 ## Copy voice
 
@@ -115,7 +115,7 @@ design input, not an afterthought.
 
 ## Conventions
 
-- Dates: store UTC timestamps, render in `America/Toronto`, compute "today" from local date.
+- Dates: store UTC timestamps, render in the account's zone, compute "today" from the local date. (Was `America/Toronto` until the app became multi-user.)
 - Exact precision for anything summed (grade weights): store as numeric, don't accumulate float error.
 - Every table has RLS enabled. Data must not be publicly readable.
 
@@ -926,6 +926,130 @@ Every value on that screen is also written out in the list below the chart, so
 colour is not the only signal. Say if you want this narrowed to the letter of
 the rule and the chart redrawn.
 
+### Phase A — audit and fixes, Oct 2026
+
+A read-only audit of every route, component, edge function and migration on
+3 Oct, run against the code and the live database rather than this file, then
+five fix batches approved and shipped the same day. Thirty-four findings; the
+full ranked report is the artifact "Life Planner audit". What follows is what
+changed and why.
+
+**The outbox could be jammed for good, and normal use did it.** The drain
+stopped at the first error and retried that write for ever, so one write the
+server would never accept held every later write hostage — optimistic on
+screen, never sent, gone on the next reload — and `clearOutbox` existed with
+no screen calling it. Ticking the same checklist item on two devices was
+enough (the unique `item_id, local_day`), and so was restoring a course whose
+name had been taken. Failures are now classified: transient ones stop the
+queue and back off; permanent ones are set aside with everything that depended
+on them, named in plain words in a review sheet with Try again and Discard,
+and the queue carries on. A duplicate insert counts as done; every insert
+carries a device-made id, so a retry after a lost response cannot duplicate;
+Web Locks keep two tabs from draining together; entries carry the account that
+queued them, so a shared laptop never replays one account's writes as
+another's.
+
+**One optimistic layer, replayed from the outbox.** Only checklist ticks used
+to be optimistic, each screen keeping its own set of taps in flight. Marking
+work done, deferring, capturing, triaging and steps all waited for a reload
+after the write reached the server — half a second to two online, never
+offline, where a captured thought did not appear in the inbox although seeing
+it appear is capture's only confirmation. The two private sets were wrong on
+their own terms: Today's only added, so a double tap showed done when it was
+not; Fill-in-a-day's was never cleared, so once a tick synced it inverted the
+correct server state — and the second tap queued the duplicate that jammed the
+outbox. `lib/optimistic.ts` replays every queued write, and every write that
+landed after the data was read, over the loaded day. Every step is idempotent,
+so the overlap with a reload can never double anything.
+
+**Today stays mounted, so it has to notice the date.** iOS keeps an installed
+app alive overnight; resumed in the morning, Today showed yesterday, and once
+anything re-rendered the selected checklist day stayed on yesterday, so the
+morning medication tick was recorded as a back-fill of the day before. Today
+now recomputes the day on the minute and on resume, rolls the selection over,
+and re-reads after a long absence. A timed deadline is late the minute it
+passes rather than at midnight.
+
+**Two database functions let anyone with the public key act on any account.**
+`ensure_ics_token` and `record_ai_use` were SECURITY DEFINER, took the user id
+from the caller, never checked it, and were executable by `anon` — Supabase
+grants EXECUTE on every new public function to anon by default, and `revoke
+from public` does not undo it. Confirmed live with `has_function_privilege`;
+neither was called. 0034 fixes both, and two migration tests fail the build if
+a definer function is ever executable by anon, or callable by an account while
+accepting a user id. The test harness used to grant table privileges AFTER the
+migrations, silently re-granting whatever a migration revoked; it now applies
+Supabase's default privileges first, as production does.
+
+**"Write-only" keys were read back.** The app checked whether a Gemini or Groq
+key was set by selecting the key, so the raw keys reached the browser on every
+Settings open. The columns are no longer selectable by the account
+(column-level grants; a table-wide grant would override a column revoke) and
+`own_key_status()` answers yes or no.
+
+**The iMessage bridge belongs to an account.** It was one global row every
+signed-in account could read: each saw the owner's bridge address and a
+Connect button that would have linked their phone to the owner's Mac. Settings
+now issues a bridge key, shown once, whose hash identifies the account, and
+the function answers, links and queues check-ins for that account alone. The
+running bridge's old shared secret was accepted once for the single account
+with linked phones, and the bridge moved itself onto the new scheme on its next
+heartbeat — verified in production.
+
+**The Toronto default was still answering.** `_shared/time.ts` exported
+`TZ = 'America/Toronto'` and defaulted every function to it. Removing the
+default made the compiler list every call without a zone: the weekly review
+counted Toronto days for every account, Abood's "sitting for N days" did the
+same, and two fallbacks hardcoded Toronto. All fixed; the fallback is now UTC.
+
+**Grade standing was missing the largest part of every course.** Exams and
+presentations are imported as events, and the importer wrote their weight into
+a note because events had nowhere to keep it, so a midterm and a final worth
+sixty or seventy percent never reached the grade bar. Onboarding dropped
+assignment weights too — the same bug this file records fixing, back on a
+second path. Events now carry a weight and a mark (0035), and Grades lists each
+weighted exam with a field for its mark, since an exam has no editor.
+
+**The briefing called lectures assignments due.** It took the first fifteen
+events by start time and labelled anything not an exam "assignment" under DUE
+TODAY. With a synced timetable those fifteen were lectures, and an exam later
+in the week fell off the list. Classes now arrive as today's timetable,
+attended rather than due; exams are fetched on their own.
+
+**Smaller, each verified:** the account's time zone can be changed in Settings
+(it was set once from the first device and fixed for good); a failed timezone
+read no longer overwrites the account's zone; Search results that looked
+pressable now all act, finished work opens, a failed search says so and a
+comma no longer breaks the course filter; Abood's Clear asks first and says it
+reaches Telegram and iMessage; an unsaved question keeps its draft; proposal
+dates carry their weekday; Escape closes only the top sheet; a 0% grade is
+kept and a link without https:// no longer blocks Save; the calibration that
+was measured and never applied now sizes the forecast and What now; first run
+stopped suggesting the first user's own "Medication" and "Creatine"; swipe rows
+set `touch-action: pan-y`, without which a phone may cancel the gesture as a
+pan; the briefing renders from the day's cache and no longer animates
+grid-template-rows over the page; the skeleton pulses on opacity; Today reads a
+60-day window of events instead of every future one (350 rows for one account,
+against a 1,000-row cap); a calendar can be renamed.
+
+**Guards added**, each verified to FAIL against a planted violation first:
+outbox refusals set aside and duplicates counted as done; the optimistic
+replay; definer functions and anon; definer functions taking a user id; key
+columns unreadable while every other column stays readable; bridge rows
+private to their owner; server time calls without a zone (compile time); a
+`/NN` alpha colour utility, which compiles to color-mix with an opaque iOS
+16.0-16.1 fallback; a swipe without its touch-action; and an exported function
+that nothing but a test calls.
+
+**Not done, and why.** Migration 0033 (dropping the diet tables) is held: the
+audit said all five tables were empty, but only two had been counted, and
+`macro_targets` holds one row — one account's old calorie and protein bands.
+The `parse-food` function is deleted. Not verified on a real phone: swipe, the
+iOS keyboard over sheet inputs, safe areas. Found and not fixed, because it was
+not part of the approved work: the Mac's bridge never collects queued check-in
+texts (sixteen waiting since 29 Sep), most likely because that Mac runs an
+older `bridge.mjs` without the outbox poll.
+
 ### Bugs found by verifying rather than assuming
 
 Each of these was invisible in the UI and only surfaced by reading what
@@ -1010,6 +1134,13 @@ actually reached the database. Worth remembering as a working method.
   Row shaping is now one tested function, `itemRows`, that writes every key on
   every row including the nulls. Found by seeding a real day and noticing the
   ring did not match the arithmetic.
+- **Fill-in-a-day inverted a synced tick, and the retap jammed every write.**
+  Its private set of taps in flight was never cleared, so once the outbox
+  drained and Today re-read, the server's "done" was flipped to "not done" on
+  screen. Tapping again queued a duplicate insert, the unique key refused it,
+  and the outbox — which then stopped at the first error for ever — held every
+  later write behind it. Found by reading the component against the outbox,
+  not by anything failing.
 - **The service worker never registered**, for three days, with no error
   anywhere. `cache.addAll` is atomic, so one asset failing to cache killed the
   whole install; the worker never activated and `serviceWorker.ready` hung

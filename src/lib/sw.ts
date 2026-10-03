@@ -32,10 +32,6 @@ function set(next: SwState) {
   for (const fn of listeners) fn(state);
 }
 
-export function swState(): SwState {
-  return state;
-}
-
 export function subscribeSw(fn: (s: SwState) => void): () => void {
   listeners.add(fn);
   fn(state);

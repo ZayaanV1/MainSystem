@@ -1,5 +1,3 @@
-import type { Assignment } from './planner';
-
 /**
  * Anything that carries a share of a course grade: an assignment, or an exam
  * or presentation imported as an event (see migration 0035).
@@ -112,20 +110,4 @@ export function gradeSummary(g: CourseGrades): string | null {
   return `${banked}. ${left}% still to be marked${
     g.unmarked > 0 ? `, across ${g.unmarked} ${g.unmarked === 1 ? 'item' : 'items'}` : ''
   }.`;
-}
-
-/**
- * Sorts weighted work by what it is worth, heaviest first.
- *
- * The useful ordering when a week has more in it than fits. Unweighted work
- * sorts last rather than as zero — "no weight recorded" and "worth nothing"
- * are different facts, and treating the first as the second would bury exactly
- * the items a syllabus has not been imported for.
- */
-export function byWeight(assignments: Assignment[]): Assignment[] {
-  return [...assignments].sort((a, b) => {
-    const aw = typeof a.weight_percent === 'number' ? a.weight_percent : -1;
-    const bw = typeof b.weight_percent === 'number' ? b.weight_percent : -1;
-    return bw - aw;
-  });
 }

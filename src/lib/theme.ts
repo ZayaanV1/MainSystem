@@ -39,14 +39,6 @@ export function readTheme(): ThemeChoice {
   }
 }
 
-/** What the page is actually showing right now, with `system` resolved. */
-export function resolveTheme(choice: ThemeChoice): 'light' | 'dark' {
-  if (choice !== 'system') return choice;
-  return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: light)').matches
-    ? 'light'
-    : 'dark';
-}
-
 export function applyTheme(choice: ThemeChoice): void {
   const root = document.documentElement;
 

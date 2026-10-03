@@ -10,6 +10,7 @@ import {
   previewFeed,
   refreshFeed,
   removeFeed,
+  renameFeed,
   type CalendarFeed,
   type FeedPreview,
 } from '../lib/feeds';
@@ -53,6 +54,8 @@ export function CalendarFeeds({ onChanged }: CalendarFeedsProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  /** The feed being renamed, and the name as typed so far. */
+  const [renaming, setRenaming] = useState<{ id: string; label: string } | null>(null);
 
   const reload = useCallback(async () => {
     const { feeds: rows, error } = await loadFeeds();
@@ -81,6 +84,25 @@ export function CalendarFeeds({ onChanged }: CalendarFeedsProps) {
     const r = await refreshFeed(feed.id);
     setBusy(null);
     if (!r.ok) setNote(r.reason ?? 'That didn’t work. Try again.');
+    await reload();
+    onChanged();
+  }
+
+  /*
+   * A calendar's name is what Week shows beside each of its events when more
+   * than one calendar is subscribed. It was taken from the feed and could not
+   * be changed — renameFeed was written and no screen offered it — so two
+   * Google calendars could both arrive as "Personal".
+   */
+  async function rename() {
+    if (!renaming) return;
+    const r = await renameFeed(renaming.id, renaming.label);
+    if (r.error) {
+      setNote(r.error);
+      return;
+    }
+    setRenaming(null);
+    setNote(null);
     await reload();
     onChanged();
   }
@@ -128,7 +150,33 @@ export function CalendarFeeds({ onChanged }: CalendarFeedsProps) {
 
                 <FeedStatus feed={feed} />
 
-                {confirmRemove === feed.id ? (
+                {renaming?.id === feed.id ? (
+                  <form
+                    className="flex flex-wrap items-center gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void rename();
+                    }}
+                  >
+                    <label htmlFor={`feed-name-${feed.id}`} className="sr-only">
+                      Name for this calendar
+                    </label>
+                    <input
+                      id={`feed-name-${feed.id}`}
+                      value={renaming.label}
+                      onChange={(e) => setRenaming({ id: feed.id, label: e.target.value })}
+                      maxLength={80}
+                      autoFocus
+                      className="well min-w-0 flex-1 px-3 type-body"
+                    />
+                    <Button type="submit" variant="primary" size="sm" disabled={!renaming.label.trim()}>
+                      Save
+                    </Button>
+                    <Button variant="quiet" size="sm" onClick={() => setRenaming(null)}>
+                      Cancel
+                    </Button>
+                  </form>
+                ) : confirmRemove === feed.id ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="type-note text-text-mid">
                       Remove it and its {feed.event_total}{' '}
@@ -155,6 +203,13 @@ export function CalendarFeeds({ onChanged }: CalendarFeedsProps) {
                       onClick={() => void refresh(feed)}
                     >
                       {busy === feed.id ? 'Checking' : 'Refresh now'}
+                    </Button>
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      onClick={() => setRenaming({ id: feed.id, label: feed.label })}
+                    >
+                      Rename
                     </Button>
                     <Button variant="quiet" size="sm" onClick={() => setConfirmRemove(feed.id)}>
                       Remove
