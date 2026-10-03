@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  rolloverDay,
   addDays,
   daysBetween,
   daysUntil,
@@ -223,5 +224,23 @@ describe('formatter reuse', () => {
       wallClockToUTC('2026-11-01', i % 24, i % 60, 0, i % 2 ? 'America/Toronto' : 'Europe/London');
     }
     expect(performance.now() - t0).toBeLessThan(400);
+  });
+});
+
+describe('rolling the checklist day over', () => {
+  it('follows today when today was selected', () => {
+    expect(rolloverDay('2026-10-02', '2026-10-03', '2026-10-02', 5)).toBe('2026-10-03');
+  });
+
+  it('keeps a day picked on purpose while it is still in the strip', () => {
+    expect(rolloverDay('2026-10-02', '2026-10-03', '2026-09-30', 5)).toBe('2026-09-30');
+  });
+
+  it('drops a picked day that has fallen out of the strip', () => {
+    expect(rolloverDay('2026-10-02', '2026-10-03', '2026-09-28', 5)).toBe('2026-10-03');
+  });
+
+  it('changes nothing when the day has not moved', () => {
+    expect(rolloverDay('2026-10-03', '2026-10-03', '2026-10-01', 5)).toBe('2026-10-01');
   });
 });

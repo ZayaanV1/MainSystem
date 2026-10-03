@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -47,7 +48,10 @@ import {
   type InboxItem,
   type TodayData,
 } from '../lib/planner';
-import { activeTimezone, addDays, formatDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
+import { activeTimezone, addDays, formatDay, rolloverDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
+import { applyPending } from '../lib/optimistic';
+import { useOutbox } from '../lib/useOutbox';
+import { useNow } from '../lib/useNow';
 import { announce } from '../lib/announce';
 import { revealList } from '../lib/motion';
 import { onFeedsChanged } from '../lib/feeds';
@@ -66,17 +70,19 @@ import { usePullToRefresh } from '../lib/usePullToRefresh';
  */
 export function Today({
   onData,
+  refresh = 0,
 }: {
   onData?: (d: TodayData) => void;
+  /** Bumped by the shell after another screen writes, to re-read in place. */
+  refresh?: number;
 }) {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
   const [askingTime, setAskingTime] = useState<Assignment | null>(null);
   const [pairs, setPairs] = useState<{ estimated: number; actual: number }[]>([]);
 
-  const [data, setData] = useState<TodayData | null>(null);
+  const [loaded, setLoaded] = useState<TodayData | null>(null);
   const [day, setDay] = useState<DayKey>(todayKey());
-  const [pendingToggles, setPendingToggles] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<NotificationHealth | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
   const [triaging, setTriaging] = useState<InboxItem | null>(null);
@@ -85,15 +91,42 @@ export function Today({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
-  const today = todayKey();
-  const reload = useCallback(
-    () =>
-      loadToday(today).then((d) => {
-        setData(d);
-        onData?.(d);
-      }),
-    [today, onData],
+  /*
+   * Today, recomputed on the minute and whenever the app comes back to the
+   * front. It was read once per render, and this screen stays mounted for the
+   * life of the app — which on an installed iPhone app can be days. Resumed
+   * the next morning it showed yesterday's date, yesterday's labels and
+   * yesterday's checklist, and a tick landed on yesterday.
+   */
+  const now = useNow();
+  const today = todayKey(now);
+
+  const lastToday = useRef(today);
+  useEffect(() => {
+    const previous = lastToday.current;
+    if (previous === today) return;
+    lastToday.current = today;
+    setDay((selected) => rolloverDay(previous, today, selected, BACKFILL_DAYS));
+  }, [today]);
+
+  const reload = useCallback(() => loadToday(today).then(setLoaded), [today]);
+
+  /*
+   * What the screen shows: the last read plus every write that has not landed
+   * in it yet. See lib/optimistic.ts — this is what makes a tick, a defer or a
+   * capture appear the instant it is made, online or not.
+   */
+  const outbox = useOutbox();
+  const data = useMemo(
+    () => (loaded ? applyPending(loaded, outbox.writes, today) : null),
+    [loaded, outbox.writes, today],
   );
+
+  // Every other screen reads the day through the shell, so it gets the same
+  // optimistic view rather than a copy that lags this one.
+  useEffect(() => {
+    if (data) onData?.(data);
+  }, [data, onData]);
 
   /**
    * Retry is separate from reload so the button can show that it is working.
@@ -120,6 +153,21 @@ export function Today({
   useEffect(() => {
     void reload();
     void fetchHealth().then(setHealth);
+  }, [reload, refresh]);
+
+  /*
+   * Back after a while away: re-read. The minute clock above only notices a
+   * new DAY; a laptop lid closed over lunch would otherwise reopen on whatever
+   * was true at noon, including anything changed from the phone meanwhile.
+   */
+  useEffect(() => {
+    let hiddenAt = 0;
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') hiddenAt = Date.now();
+      else if (hiddenAt && Date.now() - hiddenAt > 2 * 60_000) void reload();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [reload]);
 
   // A subscribed calendar changed. Reload in place — NOT via the app's
@@ -191,12 +239,10 @@ export function Today({
   const items = dueOn(data?.items ?? [], day);
   const status = health ? describeHealth(health) : null;
 
-  const isDone = (itemId: string) => {
-    const key = completionKey(itemId, day);
-    // An in-flight tap wins over the last fetched state, so the row never
-    // flickers back while the write is still in the queue.
-    return pendingToggles.has(key) ? !done.has(key) : done.has(key);
-  };
+  // The optimistic layer already folds queued ticks into `completions`, so a
+  // second tap reads the first one and queues the opposite write — the row
+  // and the server can no longer disagree about a double tap.
+  const isDone = (itemId: string) => done.has(completionKey(itemId, day));
 
   const allDone = items.length > 0 && items.every((i) => isDone(i.id));
 
@@ -213,25 +259,18 @@ export function Today({
   const inboxCleared = hadInbox.current && (data?.inbox.length ?? 0) === 0;
 
   async function toggle(itemId: string) {
-    const key = completionKey(itemId, day);
     const next = !isDone(itemId);
-
-    setPendingToggles((p) => new Set(p).add(key));
     const label = items.find((i) => i.id === itemId)?.title ?? 'Item';
     announce(next ? `${label} ticked` : `${label} unticked`);
     await setCompletion(userId, itemId, day, next, today);
   }
 
-  // Clear optimistic state whenever fresh data lands.
-  useEffect(() => {
-    setPendingToggles(new Set());
-  }, [data]);
-
   // Reloaded alongside the day, so recording a time updates the calibration
-  // without a refresh. Cheap: at most sixty rows of two integers.
+  // without a refresh. Cheap: at most sixty rows of two integers. Keyed on the
+  // READ, not the optimistic view, which changes on every tap.
   useEffect(() => {
     void loadCalibrationPairs().then(setPairs);
-  }, [data]);
+  }, [loaded]);
 
   // One root attribute collapses every urgency and course colour to muted
   // ground. No component below knows the mode exists, which is why it cannot
@@ -251,7 +290,6 @@ export function Today({
       <LowBattery
         data={data}
         onExit={() => void exitLowBattery()}
-        onChanged={reload}
         isDone={isDone}
         onToggleItem={(id) => void toggle(id)}
       />
@@ -323,7 +361,7 @@ export function Today({
       )}
       {data && <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />}
 
-      <CaptureBox userId={userId} onCaptured={reload} />
+      <CaptureBox userId={userId} />
 
       {data && (
         <NowNext
@@ -333,7 +371,7 @@ export function Today({
         />
       )}
 
-      <Briefing dep={data} />
+      <Briefing dep={loaded} />
 
       {/*
         Two columns once there is room, split by kind rather than by size: the
@@ -434,7 +472,6 @@ export function Today({
           completions={data?.completions ?? []}
           userId={userId}
           onClose={() => setHistoryOpen(false)}
-          onChanged={reload}
         />
       )}
 
@@ -635,7 +672,7 @@ export function Today({
  * appearing in the inbox below is the confirmation, and a toast would just be
  * something else to dismiss.
  */
-function CaptureBox({ userId, onCaptured }: { userId: string; onCaptured: () => void }) {
+function CaptureBox({ userId }: { userId: string }) {
   const [text, setText] = useState('');
   const input = useRef<HTMLInputElement>(null);
 
@@ -647,8 +684,10 @@ function CaptureBox({ userId, onCaptured }: { userId: string; onCaptured: () => 
     setText('');
     input.current?.focus();
 
+    // No reload: the optimistic layer puts the thought in the inbox the
+    // moment it is on disk. A reload here raced the sync and read the inbox
+    // before the write had reached it.
     await capture(userId, body);
-    onCaptured();
   }
 
   return (

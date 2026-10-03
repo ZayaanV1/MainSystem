@@ -61,32 +61,32 @@ export function History({
   completions,
   userId,
   onClose,
-  onChanged,
 }: {
   items: ChecklistItem[];
+  /** Already includes queued ticks — see lib/optimistic.ts. */
   completions: CompletionRecord[];
   userId: string;
   onClose: () => void;
-  onChanged: () => void;
 }) {
   const today = todayKey();
   const [selected, setSelected] = useState<DayKey | null>(null);
-  const [pending, setPending] = useState<Set<string>>(new Set());
 
   const weeks = asWeeks(buildHistory(items, completions, today));
 
   const doneKeys = new Set(completions.map((c) => completionKey(c.item_id, c.local_day)));
-  const isDone = (itemId: string, day: DayKey) => {
-    const key = completionKey(itemId, day);
-    return pending.has(key) ? !doneKeys.has(key) : doneKeys.has(key);
-  };
+  /*
+   * Read straight from the completions, which carry queued ticks already.
+   *
+   * This kept a private set of taps in flight and never cleared it. Once a
+   * tick synced and Today re-read, the server said done and the set inverted
+   * it to not done; tapping again queued a duplicate that failed the unique
+   * key and, before the outbox learned to set such writes aside, stopped every
+   * write behind it.
+   */
+  const isDone = (itemId: string, day: DayKey) => doneKeys.has(completionKey(itemId, day));
 
   async function toggle(itemId: string, day: DayKey) {
-    const key = completionKey(itemId, day);
-    const next = !isDone(itemId, day);
-    setPending((p) => new Set(p).add(key));
-    await setCompletion(userId, itemId, day, next, today);
-    onChanged();
+    await setCompletion(userId, itemId, day, !isDone(itemId, day), today);
   }
 
   const dayItems = selected ? itemsFor(items, selected) : [];

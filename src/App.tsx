@@ -5,7 +5,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { withTransition, directionBetween } from './lib/transition';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
-import { startOutbox, subscribeOutbox, type OutboxState } from './lib/outbox';
+import { setOutboxOwner, startOutbox } from './lib/outbox';
+import { SyncBanner } from './components/SyncBanner';
 import { refreshSubscription } from './lib/notifications';
 import {
   adoptAccountTimezone,
@@ -92,36 +93,6 @@ function NotConfigured() {
   );
 }
 
-/**
- * The sync banner.
- *
- * Rule 5: never silently lose data. Queued writes are invisible by design —
- * that is the point of optimistic UI — so the one moment they must become
- * visible is when they stop going through.
- */
-function SyncBanner() {
-  const [state, setState] = useState<OutboxState>({ pending: 0, error: null, syncing: false });
-
-  useEffect(() => subscribeOutbox(setState), []);
-
-  // Two conditions, not one. An error is obvious, but the worse case is work
-  // sitting in the queue with nothing wrong reported — which is exactly what a
-  // stalled flush looked like: durable on disk, never sent, entirely silent.
-  // Queued-and-not-syncing means offline or stuck, and both deserve saying.
-  const stalled = state.pending > 0 && !state.syncing;
-  if (!state.error && !stalled) return null;
-
-  const waiting = `${state.pending} change${state.pending === 1 ? '' : 's'} waiting.`;
-
-  return (
-    <div role="status" className="border-b border-ink-600 bg-ink-700 px-4 py-3">
-      <p className={`type-note ${state.error ? 'text-t-critical' : 'text-text-mid'}`}>
-        {state.error ? `${state.error} ${waiting}` : `Offline. ${waiting}`}
-      </p>
-    </div>
-  );
-}
-
 function Shell() {
   const { session, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>('today');
@@ -192,6 +163,12 @@ function Shell() {
    */
   const [firstRun, setFirstRun] = useState<boolean | null>(null);
 
+  // Writes are tagged with the account that queued them, so a shared device
+  // never replays one account's changes as another's.
+  useEffect(() => {
+    void setOutboxOwner(session?.user.id ?? null);
+  }, [session]);
+
   useEffect(() => {
     if (!session) return;
 
@@ -254,13 +231,12 @@ function Shell() {
             data={data}
             onBack={home}
             onOpenAssignment={setOpenAssignment}
-            onChanged={bumped}
             onPlan={() => navigate('plan')}
           />
         );
       case 'month':
         return (
-          <Month data={data} onBack={home} onOpenAssignment={setOpenAssignment} onChanged={bumped} />
+          <Month data={data} onBack={home} onOpenAssignment={setOpenAssignment} />
         );
       case 'search':
         return (
@@ -328,8 +304,10 @@ function Shell() {
       {/* Today stays mounted so returning to it is instant and the capture box
           never loses what is half-typed in it. */}
       <div hidden={screen !== 'today'}>
-        <ErrorBoundary key={revision}>
-          <Today key={revision} onData={setData} />
+        {/* Re-read in place when another screen writes, never remounted: a
+            remount threw away anything half-typed in the capture box. */}
+        <ErrorBoundary>
+          <Today refresh={revision} onData={setData} />
         </ErrorBoundary>
       </div>
 

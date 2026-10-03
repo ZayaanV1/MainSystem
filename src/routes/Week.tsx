@@ -42,13 +42,11 @@ export function Week({
   data,
   onBack,
   onOpenAssignment,
-  onChanged,
   onPlan,
 }: {
   data: TodayData | null;
   onBack: () => void;
   onOpenAssignment: (a: Assignment) => void;
-  onChanged: () => void;
   /** Takes you where work is added. Used only by the empty state. */
   onPlan: () => void;
 }) {
@@ -98,7 +96,10 @@ export function Week({
   const courseFor = (id: string | null) => courses.find((c) => c.id === id);
   const progressFor = (id: string) => subtaskProgress(data?.subtasks ?? [], id);
   const toggle = (a: Assignment) =>
-    void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done').then(onChanged);
+    // No reload: the optimistic layer moves the row at once, and Today
+    // re-reads when the write lands. Reloading here remounted Today and threw
+    // away anything half-typed in its capture box.
+    void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done');
 
   // The calendar's name earns space only when there is more than one to tell
   // apart. With a single subscribed calendar it is the same word on every row.

@@ -7,6 +7,7 @@ import { Sheet } from '../components/Sheet';
 import { breakDownTask } from '../lib/assist';
 import {
   addSubtask,
+  assignmentDueAt,
   courseVar,
   deleteAssignment,
   deleteSubtask,
@@ -119,8 +120,11 @@ export function AssignmentEditor({
 
   // Previewed live, so the effect of an effort estimate is visible while it is
   // being typed rather than discovered later on the Today screen.
+  // The real instant it will be stored at, so the label cannot disagree with
+  // the row: noon UTC read as "overdue" from 8 a.m. in Toronto once lateness
+  // started counting from the instant.
   const previewDue = fields.due_day
-    ? new Date(`${fields.due_day}T12:00:00Z`)
+    ? new Date(assignmentDueAt(fields.due_day, fields.due_time) as string)
     : null;
   const urgency = urgencyFor(previewDue, { done: assignment.status === 'done' });
   const start: DayKey | null = startBy(previewDue, fields.effort_minutes);

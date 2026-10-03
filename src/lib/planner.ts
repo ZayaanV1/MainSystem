@@ -144,6 +144,13 @@ export interface TodayData {
    * about how current the deadlines are.
    */
   cachedAt: number | null;
+  /**
+   * When the reads were issued, in epoch ms.
+   *
+   * The optimistic layer replays writes that reached the server at or after
+   * this moment, because this read cannot be relied on to contain them.
+   */
+  loadedAt: number;
   items: ChecklistItem[];
   completions: Completion[];
   inbox: InboxItem[];
@@ -186,7 +193,23 @@ export const BACKFILL_DAYS = 5;
  * Called once from the shell, awaited before the first render.
  */
 export async function adoptAccountTimezone(userId: string): Promise<string> {
-  const { data } = await supabase.from('app_settings').select('timezone').limit(1);
+  const { data, error } = await supabase.from('app_settings').select('timezone').limit(1);
+
+  /*
+   * A failed read is not an answer. It used to read as "nobody has chosen",
+   * which switched the session to the device's zone and WROTE that over the
+   * account's — so a token refreshing at launch could silently replace a zone
+   * someone had set on purpose, or the term's zone kept while travelling. The
+   * same shape as the onboarding check fixed in September.
+   *
+   * Instead: the zone last confirmed on this device, or failing that the
+   * device's own, for this session only. Nothing is written.
+   */
+  if (error) {
+    const zone = readCachedZone() ?? detectedTimezone();
+    setActiveTimezone(zone);
+    return zone;
+  }
 
   const stored = (data ?? [])[0]?.timezone as string | undefined;
 
@@ -197,12 +220,47 @@ export async function adoptAccountTimezone(userId: string): Promise<string> {
   if (!stored) {
     const detected = detectedTimezone();
     setActiveTimezone(detected);
+    cacheZone(detected);
     await supabase.from('app_settings').update({ timezone: detected }).eq('user_id', userId);
     return detected;
   }
 
   setActiveTimezone(stored);
+  cacheZone(stored);
   return stored;
+}
+
+const ZONE_KEY = 'planner.timezone';
+
+/** The account's zone as last confirmed on this device. */
+export function readCachedZone(): string | null {
+  try {
+    return localStorage.getItem(ZONE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function cacheZone(zone: string) {
+  try {
+    localStorage.setItem(ZONE_KEY, zone);
+  } catch {
+    // Storage refused: the next launch reads the account again, which is fine.
+  }
+}
+
+/**
+ * Changes the account's zone.
+ *
+ * Written straight through, not queued: the scheduler reads it for the next
+ * digest, and every date on screen is recomputed from it the moment it lands.
+ */
+export async function saveTimezone(userId: string, zone: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('app_settings').update({ timezone: zone }).eq('user_id', userId);
+  if (error) return { error: error.message };
+  setActiveTimezone(zone);
+  cacheZone(zone);
+  return { error: null };
 }
 
 export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> {
@@ -211,6 +269,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
   // day as untouched — a month of completed days rendered as a wall of blanks,
   // which is precisely the shaming display rule 3 forbids, produced by nothing
   // but a query limit.
+  const loadedAt = Date.now();
   const window = recentDays(today, Math.max(BACKFILL_DAYS, HISTORY_DAYS));
 
   const [items, completions, inbox, courses, assignments, events, subtasks, completedToday, settings, deferralRows] =
@@ -316,7 +375,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
    */
   if (failed.length === 10) {
     const hit = await getCache<TodayData>(`today:${today}`);
-    if (hit) return { ...hit.value, failed: [], cachedAt: hit.at };
+    if (hit) return { ...hit.value, failed: [], cachedAt: hit.at, loadedAt: hit.at };
   }
 
   const result: TodayData = {
@@ -336,6 +395,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     deferrals,
     lowBattery: Boolean((settings.data ?? [])[0]?.low_battery),
     cachedAt: null,
+    loadedAt,
   };
 
   // Only a complete day is worth keeping. Caching a partial one would mean a

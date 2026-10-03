@@ -4,6 +4,7 @@ import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
 import { Sheet } from '../components/Sheet';
 import {
+  assignmentDueAt,
   courseVar,
   dismissInboxItem,
   triageToAssignment,
@@ -87,7 +88,9 @@ export function Triage({
     }
   }
 
-  const previewDue = fields.due_day ? new Date(`${fields.due_day}T12:00:00Z`) : null;
+  const previewDue = fields.due_day
+    ? new Date(assignmentDueAt(fields.due_day, fields.due_time) as string)
+    : null;
   const urgency = urgencyFor(previewDue, {});
   const start = startBy(previewDue, fields.effort_minutes);
 

@@ -96,8 +96,19 @@ export function urgencyFor(
 
   const days = daysUntil(dueAt, now, timezone);
 
+  /*
+   * Late the minute it passes, not at midnight.
+   *
+   * This compared calendar days only, so a lab due at 10:00 still read "Due
+   * today" in the critical colour at 15:00, screen readers heard "Due today",
+   * and nothing treated it as late until the date rolled over. An untimed
+   * deadline is stored at 23:59, so for those the instant and the day agree
+   * and nothing changes.
+   */
+  const passed = dueAt.getTime() < now.getTime();
+
   const state: UrgencyState =
-    days < 0
+    days < 0 || passed
       ? 'overdue'
       : days <= thresholds.critical_days
         ? 'critical'

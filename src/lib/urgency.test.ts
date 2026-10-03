@@ -192,3 +192,28 @@ describe('startByIsDue', () => {
     expect(startByIsDue(null, NOW)).toBe(false);
   });
 });
+
+describe('a deadline that has passed earlier today', () => {
+  // 10:00 in Toronto (EDT) is 14:00 UTC; 15:00 is 19:00 UTC.
+  const due = new Date('2026-10-02T14:00:00Z');
+  const tz = 'America/Toronto';
+
+  it('is late the minute it passes, not at midnight', () => {
+    const u = urgencyFor(due, { now: new Date('2026-10-02T19:00:00Z'), timezone: tz });
+    expect(u.state).toBe('overdue');
+    expect(u.label).toBe('Overdue');
+    expect(u.days).toBe(0);
+  });
+
+  it('is still due today a minute before', () => {
+    const u = urgencyFor(due, { now: new Date('2026-10-02T13:59:00Z'), timezone: tz });
+    expect(u.state).toBe('critical');
+    expect(u.label).toBe('Due today');
+  });
+
+  it('leaves an untimed deadline due all day, because it is stored at 23:59', () => {
+    const endOfDay = new Date('2026-10-03T03:59:00Z'); // 23:59 EDT on the 2nd
+    const u = urgencyFor(endOfDay, { now: new Date('2026-10-02T23:00:00Z'), timezone: tz });
+    expect(u.label).toBe('Due today');
+  });
+});

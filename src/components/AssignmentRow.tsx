@@ -69,7 +69,14 @@ function countdown(
       return { big: '—', unit: 'no date' };
     case 'overdue': {
       const late = Math.abs(u.days ?? 0);
-      return late === 0 ? { big: '0', unit: 'overdue' } : { big: String(late), unit: late === 1 ? 'day late' : 'days late' };
+      if (late > 0) return { big: String(late), unit: late === 1 ? 'day late' : 'days late' };
+      // Passed earlier today: the time it was due is the useful number.
+      if (due && hasTime) {
+        const t = formatTime(due);
+        const m = /^(\d{1,2}:\d{2})\s*(.*)$/u.exec(t);
+        return m ? { big: m[1], unit: `${m[2]} · late`.trim() } : { big: t, unit: 'late' };
+      }
+      return { big: '0', unit: 'late' };
     }
     default:
       if (u.days === 0) {

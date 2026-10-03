@@ -34,13 +34,11 @@ import { formatDay, todayKey } from '../lib/time';
 export function LowBattery({
   data,
   onExit,
-  onChanged,
   isDone,
   onToggleItem,
 }: {
   data: TodayData;
   onExit: () => void;
-  onChanged: () => void;
   isDone: (itemId: string) => boolean;
   onToggleItem: (itemId: string) => void;
 }) {
@@ -103,7 +101,7 @@ export function LowBattery({
                 void setAssignmentStatus(
                   (work as Assignment).id,
                   (work as Assignment).status === 'done' ? 'todo' : 'done',
-                ).then(onChanged)
+                )
               }
             />
           </div>

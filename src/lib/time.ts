@@ -121,3 +121,24 @@ export const formatTime = (instant: Date, tz: string = active) =>
 
 export const formatDay = (day: shared.DayKey, tz: string = active) =>
   shared.formatDay(day, tz);
+
+/**
+ * Which checklist day to show once "today" has moved on.
+ *
+ * Today stays mounted for the life of the app, and iOS keeps an installed app
+ * alive overnight. The selected day used to be set once, so after a resume the
+ * morning's medication tick was written to yesterday. When the day rolls over,
+ * a selection that was "today" follows it; a day picked on purpose to back-fill
+ * stays picked while it is still in the strip.
+ */
+export function rolloverDay(
+  previousToday: shared.DayKey,
+  today: shared.DayKey,
+  selected: shared.DayKey,
+  stripDays: number,
+): shared.DayKey {
+  if (previousToday === today) return selected;
+  if (selected === previousToday) return today;
+  const age = shared.daysBetween(selected, today);
+  return age >= 0 && age < stripDays ? selected : today;
+}

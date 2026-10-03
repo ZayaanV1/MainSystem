@@ -49,12 +49,10 @@ export function Month({
   data,
   onBack,
   onOpenAssignment,
-  onChanged,
 }: {
   data: TodayData | null;
   onBack: () => void;
   onOpenAssignment: (a: Assignment) => void;
-  onChanged: () => void;
 }) {
   const today = todayKey();
   const [anchor, setAnchor] = useState<DayKey>(startOfMonth(today));
@@ -73,7 +71,10 @@ export function Month({
   const courseFor = (id: string | null) => courses.find((c) => c.id === id);
   const progressFor = (id: string) => subtaskProgress(data?.subtasks ?? [], id);
   const toggle = (a: Assignment) =>
-    void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done').then(onChanged);
+    // No reload: the optimistic layer moves the row at once, and Today
+    // re-reads when the write lands. Reloading here remounted Today and threw
+    // away anything half-typed in its capture box.
+    void setAssignmentStatus(a.id, a.status === 'done' ? 'todo' : 'done');
 
   const openCell = selected
     ? grid.weeks.flat().find((c) => c.day === selected) ?? null
