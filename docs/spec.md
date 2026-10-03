@@ -1,5 +1,8 @@
 # Prompt for Claude Opus 5 — Personal Life Planner
 
+> **History.** The original single-user brief, Aug 2026. The rules that apply now
+> are in `CLAUDE.md`, which records each place this brief was changed and why.
+
 > Copy everything below the line into a fresh Claude conversation.
 
 ---

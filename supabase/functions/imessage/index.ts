@@ -37,6 +37,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { HELP, converse } from '../_shared/door.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
+/** A queued check-in older than this is expired rather than delivered. */
+const CHECKIN_FRESH_MS = 6 * 60 * 60 * 1000;
+
 /** The shared secret from before bridges belonged to accounts. See above. */
 const LEGACY_SECRET = env('IMESSAGE_BRIDGE_SECRET');
 
@@ -152,6 +155,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
    */
   if (body.kind === 'outbox') {
     await heartbeat(admin, ownerId);
+
+    // A check-in is about the moment it was written. One that waited days
+    // for a Mac that was off — sixteen did, through early October, while a
+    // bridge without the outbox poll ran — would arrive as a burst of stale
+    // "how did this morning go?" texts. Older than CHECKIN_FRESH_MS, it
+    // expires unsent; the record of it stays in the transcript.
+    await admin
+      .from('imessage_outbox')
+      .delete()
+      .eq('user_id', ownerId)
+      .lt('created_at', new Date(Date.now() - CHECKIN_FRESH_MS).toISOString());
+
     const { data } = await admin
       .from('imessage_outbox')
       .delete()

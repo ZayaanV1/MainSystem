@@ -1,5 +1,14 @@
 # Design system — Phase 0.5
 
+> **Superseded in part, Oct 2026.** The current rules live in `CLAUDE.md`
+> ("The colour law" and "Motion and design"). What changed: the "Instrument"
+> direction's restrained motion, "no looping or ambient animation" and "no
+> skeleton shimmer" gave way to a named motion system at the display's native
+> refresh rate; "dark is primary, light is derived" gave way to light and dark
+> designed as a pair for every theme; Space Grotesk was replaced by Schibsted
+> Grotesk; the macro rings and the Ring primitive were removed with the diet
+> tracker. The rest is kept below as the original reasoning.
+
 Build this **before** Phase 1. Every later phase imports from it and introduces nothing new.
 
 ---

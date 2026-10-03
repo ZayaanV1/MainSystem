@@ -21,31 +21,40 @@ would this be wrong? If yes, it is wrong now. If it would merely be
 unpolished, that is fine and it can wait.
 
 What has NOT changed is what the app is for: getting academic work and daily
-obligations in order with as little friction as possible. The design rules
-below were written for one person and they survive the move, because low
-friction and never scolding the user are good product principles, not personal
-accommodations.
+obligations in order, and making a student who has Notion, Todoist, Google
+Calendar and MyStudyLife choose this instead. Never scolding the user survives
+the move to a product because it is a good product principle, not a personal
+accommodation.
 
-Full spec: `docs/spec.md` · Design tokens: `docs/design-system.md`
+Full spec: `docs/spec.md` (the original brief, kept as history) · Design
+tokens: `docs/design-system.md` · Current brief: the workhorse upgrade, Oct 2026.
 
 ---
 
 ## The thing to understand first
 
-The hard part of this project is not the features. It's that the app has to
-stay openable in a bad week. A technically correct planner that feels like a
-chore is a failed planner, and the failure is silent — it just stops getting
-opened one day and never gets opened again. For a product, that failure has a
-name: churn, and it happens before anyone writes a review explaining why.
+A technically correct planner that feels like a chore is a failed planner, and
+the failure is silent — it stops getting opened one day and never gets opened
+again. For a product that failure has a name, churn, and it happens before
+anyone writes a review explaining why.
 
-So when a tradeoff comes up between "more capable" and "less friction," take
-less friction. Every time.
+The answer is not a thinner app. **Depth arrives through progressive
+disclosure; the default path never gains a required step.** That is the only
+friction test: what the common action costs, not how much the app can do. A
+power feature one tap away costs the person who never taps it nothing. A
+required step on the way to ticking something off costs everyone, every day.
+
+Formerly: "when a tradeoff comes up between 'more capable' and 'less
+friction,' take less friction. Every time." Changed 3 Oct 2026, on the
+owner's instruction to adjust the rules holding the work back. In practice that
+sentence worked as a veto on capability — and it was argued from a user's mood
+or a bad week, which rule 11 now forbids. The insight it protected is kept,
+and stated as the test above.
 
 Being a product adds a second rule of the same kind: **nothing may assume the
 user is the person who built it.** No seeded personal data, no hardcoded
 timezone, no target that is somebody's actual bulk. A new account opening the
-app for the first time is now the most important screen in the build, and it
-is the one with the least work in it.
+app for the first time is the most important screen in the build.
 
 ---
 
@@ -53,71 +62,96 @@ is the one with the least work in it.
 
 1. **Default view is Today.** Opening the app answers "what do I do right now" in under two seconds with no navigation.
 2. **Minimum required fields at capture.** Every mandatory field is a chance for the thought to evaporate before it's recorded. If a field can be optional, it is.
-3. **No streak-shaming.** No streak counters, no broken-streak states, no guilt copy, no "you missed 3 days." Missed days appear neutrally and are trivially back-fillable. This rule has been violated by well-meaning refactors before — check yourself against it whenever you add a history or stats view.
-4. **No pure red in the UI.** Overdue is `--t-overdue` (clay rose). See the colour law below.
+3. **Streaks are an optional module, off until the user turns it on.** Nobody who has not switched it on ever sees a streak, a count, or any copy about one. When on: computed from completion rows, never stored as a counter; missed days still appear neutrally and back-filling still counts; no broken-streak guilt copy, ever. Points, levels and badges stay out of scope. Formerly a blanket ban ("No streak-shaming"); changed by the owner's Oct 2026 brief. The ban's reasoning still governs everyone who has not opted in, and history views are still where this rule gets broken — check yourself there.
+4. **No pure red in the UI.** Overdue is `--t-overdue`. See the colour law below.
 5. **Never silently lose data.** Optimistic UI is fine; a failed sync must be visible and recoverable.
 6. **Never silently write.** AI-extracted syllabus dates, task breakdowns and chatbot actions are all shown for confirmation before they touch the database.
 7. **Time is the account's own zone.** A "day" is the user's local day in `app_settings.timezone`, never UTC and never a hardcoded city. Must survive DST. Server-side time functions take a zone with no default, so a call without one fails to compile (Oct 2026). Formerly "Local time is `America/Toronto`", from the single-user build.
+8. **Built for one, architected for many.** If a second account signing up tomorrow would make it wrong, it is wrong now. RLS on every table, `auth.uid() = user_id`, and no definer function that takes a user id from its caller.
+9. **Build the ambitious version.** Never scale a feature or a design back with reasoning about the user's mood, energy or "a bad week". Argue against something only on engineering or design merit — cost, performance, a real collision with another part of the system. `prefers-reduced-motion` stays supported, as an operating-system accessibility setting.
+10. **Abood is a companion, not a director.** When the user opens up, Abood does not steer to assignments. It talks like a close friend with a good therapist's instincts, never textbook reflective listening. `scripted()` in `_shared/chat.ts` and `modeFor()` in `_shared/abood.ts` enforce this mechanically; do not weaken either.
+11. **No inert or redundant features.** Everything added is reachable from a real screen and verified to do what it says. `tests/reachable.test.ts` fails the build on a component nothing renders, a table nothing reads, and an export nothing but a test calls.
 
 ## Copy voice
 
-Plain, active, sentence case. Errors say what happened and what to do, and don't apologize. Empty states are neutral or an invitation — never a lament. No emoji. No exclamation marks.
+Plain, active, sentence case. Errors say what happened and what to do, and don't apologize. Empty states are neutral or an invitation — never a lament. No emoji. No exclamation marks — kept deliberately when the rules were revisited in Oct 2026: a calm, confident voice is part of what makes the app read as a finished product rather than an eager one.
 
-**Praise is allowed, for a moment — never for a streak.** Warmth when something is finished is welcome: "that's everything for today" costs nothing and cannot be taken away. What stays banned is praise that accumulates into something losable — "5 days running", "best week yet", "don't break the chain" — because the moment it breaks it becomes the reason not to open the app. Acknowledge the day; never keep score across days.
+**Praise is allowed, for a moment.** Warmth when something is finished is welcome: "that's everything for today" costs nothing and cannot be taken away. Praise that accumulates into something losable — "5 days running", "best week yet" — appears only inside the streaks module, only for someone who turned it on, and even there a break is stated neutrally and never as a loss ("Started again today", never "You lost your streak").
 
 ---
 
 ## The colour law
 
-Two systems want colour, and they are separated by temperature. Do not blur them.
+The systems that carry meaning are separated by **role** first and hue second. Do not blur them.
 
-- **Time / urgency** — warm earth ramp. Edge bars, text, icon tint.
-- **Courses** — desaturated pastels. 3px left edge or 6px dot only, never a fill (widened for calendar blocks — see "Week block styles").
+- **Time / urgency** — one ramp that gains intensity as a deadline closes. Text, numerals, edge bars and icon tint; never a fill. The shipped ramp is rose (`tokens.css`); the original brief said "warm earth", and which one each theme uses is decided by eye, live, in the design-system work — not by reading hex values.
+- **Courses** — desaturated pastels. Marks (a 3px edge, a 6px dot, a ring) and translucent washes on a course's own surfaces — slips, tiles, calendar blocks — never an opaque fill, and always under text that keeps its contrast.
+- **Brand** — each theme's own pair (the first is phthalo and burnt orange). Filled surfaces and atmosphere only; never a status.
 
-A third system, macros (cool jewel tones, ring strokes only), existed until the
-diet tracker was removed in Oct 2026. Its tokens went with it.
+**Every theme obeys the same roles with its own values.** All values live in `tokens.css` as token sets per theme and mode; a theme re-tunes the urgency ramp and the course pastels so they stay distinguishable and readable on its own surfaces, and `tests/palette.test.ts` fails the build if any text or urgency pairing drops below WCAG 2.1 AA in any theme or mode.
 
-**No colour value may be written anywhere except `tokens.css`.** No hex codes in components, no arbitrary Tailwind values like `bg-[#1D1F28]`. If a colour is needed that doesn't exist, propose adding it to the token file and say why — don't inline it. This single rule is what keeps a seven-phase build from looking like seven apps.
+**No colour value may be written anywhere except `tokens.css`.** No hex codes in components, no arbitrary Tailwind colours, and no `/NN` opacity modifier on a colour utility (it compiles to color-mix, whose opaque fallback broke iOS 16.0-16.1). Translucency is a token with a real alpha. If a colour is needed that doesn't exist, add it to the token file and say why.
 
-**Colour is never the only signal.** Every urgency state carries a text label; every ring carries a written value.
+**Colour is never the only signal.** Every urgency state carries a text label; every mark that encodes something has words beside it.
+
+Formerly "two systems, separated by temperature: urgency a warm earth ramp, courses a 3px edge or 6px dot only". Restated Oct 2026 for themes, and to describe what had actually shipped: the ramp was already rose and course washes had already been allowed on calendar blocks.
 
 ---
 
 ## Scope — do not add these
 
-Full note-taking · gamification, points, levels, badges · workout tracking · personal finances · food, macro or bodyweight tracking (built in Phase 3, removed Oct 2026).
+Points, levels, badges · workout tracking · personal finances · food, macro or bodyweight tracking (built in Phase 3, removed Oct 2026) · a general-purpose notes app.
 
-If asked to add one mid-build, push back and say why before complying. Scope creep is the most likely cause of this project never shipping.
+Streaks are no longer on this list; they are an opt-in module (rule 3). Notes tied to academic work — working notes on an assignment, a course page holding the syllabus, links and grade breakdown — are a product question being put to the owner, not an exclusion. If asked to add something on this list mid-build, push back and say why before complying.
 
 ---
 
 ## Working agreement
 
-- Build in phases, in order. Ship one phase working end-to-end before starting the next.
+- **Propose, then build.** Investigate freely — read, run, measure, query read-only, prototype. Change nothing in the repo, the database, deployed functions or settings until the owner has approved that specific change. Visual work is proposed as a live prototype the owner can open on a phone, with alternatives to switch between. Approved work is then built, pushed to `main`, deployed (edge functions and migrations included) and verified on the live URL without asking again. Destructive steps get their own explicit yes even inside an approved batch.
+- **Challenge rules openly.** Nothing in this file is beyond challenge. Name the rule, what it costs, the evidence, and a replacement worded to go straight in here. Never break or route around a rule quietly; until the owner changes it, follow it.
 - Complete files. Never `// ... rest unchanged`.
-- After each phase: what changed, what I need to do (accounts, keys, commands), **what is not yet working**, and the suggested next step.
-- Prefer boring, well-understood dependencies. Every dependency is a thing that can break at 2am when the app is the only thing holding the week together.
+- After each piece of work: what changed, what the owner needs to do, **what is still not working or unverified**, and the suggested next step.
+- **Performance has a budget**, because the app must run at the display's native rate: 8.3 ms per animated frame at 120Hz (6.9 ms at 144Hz), with a solid 60fps floor on mid-range phones; eager JavaScript at or under 150 KB gzip (197 KB as of 3 Oct 2026 — to be met); every list query bounded. Measure with traces at the real refresh rate rather than describing anything as smooth. Formerly "Don't optimize prematurely. One user, a few thousand rows" — changed Oct 2026; the unbounded 350-row event query was that sentence in practice.
+- Prefer boring, well-understood dependencies, and one of each kind: one animation engine, not two.
 - If something in the spec is ambiguous or looks wrong, say so before building it.
-- Don't optimize prematurely. One user, a few thousand rows.
+
+## Motion and design
+
+The app has to look, move and feel like a product from Google or Apple. That is the point of the work, not polish saved for the end.
+
+- **Compositor only.** Animate `transform` and `opacity`. Never animate layout (height, grid tracks, top/left) or paint-heavy properties every frame.
+- **Native refresh rate.** Never assume 60fps: JavaScript animation is driven off frame timestamps, never a fixed per-frame step, so it runs at the right speed at 60, 120 or 144Hz. No layout, paint or main-thread work inside an animated frame.
+- **A named motion system**, applied everywhere: a small set of physically plausible springs and easings with names, settling without overshoot on a press. Animations are interruptible — a tap mid-transition never stalls. Gestures follow the finger 1:1 and settle with momentum. Entrances are staged and exits are as considered as entrances (formerly "leaving is a cut"). Shared-element transitions carry an item from list to detail; the View Transitions API is used where it helps.
+- **Touch first.** Hover transforms only behind `(hover: hover) and (pointer: fine)`. Presses scale in place, respond instantly, and never lift then dip or shift layout.
+- **Light and dark are designed as a pair** for every theme. Dark is never an inverted light, and light is never a derived dark (formerly "dark is primary; light is derived" in design-system.md). Follow-the-system switches live.
+- **The approved language** — cloisonné glass with lit rims and glow, the Edmondson ticket, the Swiss timetable, display-scale tabular numerals, information encoded in shape — is the starting point, and may be pushed further. Flat, default-looking surfaces are the failure mode.
+- `prefers-reduced-motion` is honoured everywhere: motion collapses to instant state changes, nothing is lost.
+
+Formerly, design-system.md's direction "Instrument": restrained motion, no looping or ambient animation, no skeleton shimmer, and glass rationed to one control per screen. Superseded Oct 2026 — it capped the app below the standard it is now held to.
 
 ## Stack
 
-React + Vite + TypeScript + Tailwind, PWA · Supabase (Postgres, auth, RLS, edge functions) · Cloudflare Pages or Vercel · scheduled edge function for the 07:00 digest · one swappable LLM module shared by the syllabus reader, task breakdown, briefing and chatbot.
+React + Vite + TypeScript + Tailwind, PWA · Supabase (Postgres, auth, RLS, edge functions) · Vercel · scheduled edge functions for the digest, feeds and check-ins · one swappable LLM module (Groq first, Gemini fallback) shared by the syllabus reader, task breakdown, briefing and chatbot.
 
 Free tiers were the rule while this served one person, and they do not survive
-contact with many. One shared Gemini key funds every user's syllabus reading
-and every user's chat; Supabase's free row and bandwidth limits are a single pool.
+contact with many. One shared key funds every user's model calls unless an
+account brings its own; Supabase's free row and bandwidth limits are a single pool.
 
 Until there is a decision on this, treat the free tier as a hard constraint and
 say plainly when a feature would breach it — but do not design as though it
-scales, and do not quietly assume a paid tier either. Per-user cost is now a
+scales, and do not quietly assume a paid tier either. Per-user cost is a
 design input, not an afterthought.
 
 ## Conventions
 
 - Dates: store UTC timestamps, render in the account's zone, compute "today" from the local date. (Was `America/Toronto` until the app became multi-user.)
+- **Every screen and every open item has a URL.** Navigation goes through history so the back gesture works everywhere, notifications and the share sheet can open a specific thing, and a list-to-detail transition has two real ends. Hand-rolled, no router dependency. Adopted Oct 2026; the app still routes by component state until this is built (`App.tsx`).
+- **Grade tools compute exactly what is asked and show the arithmetic.** "What do I need on the final", what-if scenarios — never a colour for a good or bad mark, never a verdict. Formerly "no projection, no running average, no verdict", which blocked the tools themselves.
+- **Nothing important is hidden by default; the user may hide what they choose.** Customisation never deletes data — turning a module off hides it, turning it on restores everything. (The original brief said "nothing important is hidden behind a tap", which would have forbidden a Today the user arranges.)
 - Exact precision for anything summed (grade weights): store as numeric, don't accumulate float error.
 - Every table has RLS enabled. Data must not be publicly readable.
+- Every list query is bounded; PostgREST caps a response at 1,000 rows and truncates silently past it.
 
 ---
 
@@ -194,7 +228,9 @@ ids anywhere in `src/` or the functions.
 
 ## Current status
 
-Phase: **7 — extras. DONE**, 19 Aug 2026. All seven phases done 17-19 Aug.
+Phase: **the workhorse upgrade.** Phase A (audit and fixes) DONE 3 Oct 2026 —
+see "Phase A — audit and fixes" below. Phase B (the design system, raised to
+top-tier) is next. The original seven build phases were done 17-19 Aug 2026.
 
 ### Phase 2 — digest and survival. DONE, 18 Aug 2026
 
@@ -1041,14 +1077,29 @@ private to their owner; server time calls without a zone (compile time); a
 16.0-16.1 fallback; a swipe without its touch-action; and an exported function
 that nothing but a test calls.
 
-**Not done, and why.** Migration 0033 (dropping the diet tables) is held: the
-audit said all five tables were empty, but only two had been counted, and
-`macro_targets` holds one row — one account's old calorie and protein bands.
-The `parse-food` function is deleted. Not verified on a real phone: swipe, the
-iOS keyboard over sheet inputs, safe areas. Found and not fixed, because it was
-not part of the approved work: the Mac's bridge never collects queued check-in
+**Deployment, and a claim corrected before it did harm.** The audit said all
+five diet tables were empty; only two had been counted, and `macro_targets`
+held one row — one account's old calorie and protein bands. 0033 was held,
+the owner was told, and it ran on 3 Oct once they confirmed. The `parse-food`
+function is deleted. A count is not a count of everything until every table in
+the claim has been queried — the same lesson as the wrong-identifier grep.
+
+**Still open.** Not verified on a real phone: swipe, the iOS keyboard over
+sheet inputs, safe areas. The Mac's bridge never collected queued check-in
 texts (sixteen waiting since 29 Sep), most likely because that Mac runs an
-older `bridge.mjs` without the outbox poll.
+older `bridge.mjs` without the outbox poll; texts older than six hours now
+expire at collection instead of arriving as a burst, so updating the Mac
+(`git pull`, re-run `install.sh` with a key from Settings) is safe.
+
+**The rules were revisited the same day**, on the owner's instruction to
+adjust whatever held the work back. Each changed rule above carries a
+"Formerly" note with what it replaced and why: the friction veto became the
+progressive-disclosure test; streaks became an opt-in module; the colour law
+was restated for themes and for what had actually shipped; "don't optimize
+prematurely" became a performance budget; the calm-instrument motion limits
+became the motion system; light-derived-from-dark became designed pairs;
+routing by URL, grade tools that compute without grading, and user-chosen
+hiding were adopted as conventions. The exclamation-mark ban was kept.
 
 ### Bugs found by verifying rather than assuming
 

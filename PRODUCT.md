@@ -66,8 +66,9 @@ is already on the user's lock screen.
   and never silently write (AI-extracted syllabus dates, task breakdowns and
   chatbot actions are all shown for confirmation before touching the
   database).
-- No streak-shaming: no streak counters, no broken-streak states, no guilt
-  copy. Missed days appear neutrally and are trivially back-fillable.
+- Streaks are an opt-in module, off for every account until turned on; nobody
+  else sees a streak or any copy about one. Missed days appear neutrally and
+  are trivially back-fillable, and a break is never presented as a loss.
 - No pure red anywhere in the UI (overdue uses a clay-rose token instead).
 - Deliverable email, billing, support, and abuse handling are explicitly out
   of scope for now. What is not deferred is the *shape* of the code, schema,
@@ -84,8 +85,11 @@ is already on the user's lock screen.
 - The colour law: the colour systems (urgency, courses, and the brand) are
   kept separated by temperature and role and never blur into one another. No colour value
   may be written anywhere except the token file.
-- No further visual reference, era, material, or font has been locked in.
-  Visual direction beyond the above is open for a later design pass.
+- The approved visual language: cloisonné glass (material surfaces with a lit
+  hairline rim and a glow), the Edmondson railway ticket, the Swiss printed
+  timetable, phthalo green and burnt orange, display-scale tabular numerals and
+  information encoded in shape. Schibsted Grotesk and Public Sans. It is the
+  starting point for a theme system, not a ceiling.
 
 ## Evidence on Hand
 
@@ -97,9 +101,10 @@ authoritative operating history, not marketing copy.
 
 ## Product Principles
 
-1. When a tradeoff comes up between "more capable" and "less friction," take
-   less friction — every time. The hard part of this project was never the
-   features; it's staying openable in a bad week.
+1. Depth arrives through progressive disclosure; the default path never gains a
+   required step. That is the friction test — what the common action costs,
+   not how much the app can do. (Formerly "take less friction, every time",
+   which worked as a veto on capability; changed Oct 2026.)
 2. Nothing may assume the user is the person who built it. No seeded
    personal data, no hardcoded timezone, no default that is somebody's own. A new account's first screen is the most important one in the
    build and the one with the least work in it.
