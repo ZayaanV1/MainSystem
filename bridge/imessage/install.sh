@@ -1,11 +1,13 @@
 #!/bin/sh
 # Installs the iMessage bridge as a login item on this Mac.
 #
-#   bridge/imessage/install.sh [apple-id-the-bridge-answers-on]
+#   bridge/imessage/install.sh <apple-id-the-bridge-answers-on> <bridge-key>
 #
-# Safe to re-run: it reuses the secret it made the first time, so the
-# planner and the Mac keep agreeing. Needs .env.setup (for the project ref
-# and the Supabase access token) and the supabase CLI via npx.
+# The bridge key comes from the planner: Settings > iMessage > Make a bridge
+# key. It ties this Mac to that one account — the bridge answers only phones
+# linked to it and collects only its check-ins. Safe to re-run; with no key
+# given it keeps the one already configured. Needs .env.setup for the project
+# ref.
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -15,6 +17,7 @@ PLIST="$HOME/Library/LaunchAgents/com.planner.abood-bridge.plist"
 LOG="$HOME/Library/Logs/abood-bridge.log"
 NODE=$(node -e "process.stdout.write(require('fs').realpathSync(process.execPath))")
 ADDRESS="${1:-}"
+KEY="${2:-}"
 
 set -a; . "$ROOT/.env.setup"; set +a
 URL="https://$SUPABASE_PROJECT_REF.supabase.co/functions/v1/imessage"
@@ -25,13 +28,17 @@ if [ -f "$CONFIG" ]; then
   SECRET=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).secret||'')" "$CONFIG")
   [ -z "$ADDRESS" ] && ADDRESS=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).address||'')" "$CONFIG")
 fi
-[ -z "$SECRET" ] && SECRET=$(openssl rand -hex 32)
+[ -n "$KEY" ] && SECRET="$KEY"
+if [ -z "$SECRET" ]; then
+  echo "No bridge key. In the planner: Settings > iMessage > Make a bridge key, then run:"
+  echo "  bridge/imessage/install.sh <apple-id> <bridge-key>"
+  exit 1
+fi
 
 node -e 'const [p,u,s,a]=process.argv.slice(1); require("fs").writeFileSync(p, JSON.stringify({url:u,secret:s,address:a||null},null,2))' "$CONFIG" "$URL" "$SECRET" "$ADDRESS"
 chmod 600 "$CONFIG"
 
-( cd "$ROOT" && npx --yes supabase secrets set IMESSAGE_BRIDGE_SECRET="$SECRET" --project-ref "$SUPABASE_PROJECT_REF" >/dev/null )
-echo "✓ planner knows the bridge's secret"
+echo "✓ bridge key saved for this Mac"
 
 mkdir -p "$(dirname "$PLIST")"
 cat > "$PLIST" <<PL

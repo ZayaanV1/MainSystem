@@ -65,6 +65,8 @@ export async function telegramLink(userId: string): Promise<{ url: string } | { 
 }
 
 export interface BridgeStatus {
+  /** Whether this account has a bridge at all (a key has been issued). */
+  exists: boolean;
   /** The Apple ID people text, once the Mac has reported it. */
   address: string | null;
   /** Checked in within the last ten minutes (it reports every five). */
@@ -76,17 +78,31 @@ export interface BridgeStatus {
 
 export async function bridgeStatus(): Promise<BridgeStatus | null> {
   const [bridge, links] = await Promise.all([
-    supabase.from('imessage_bridge').select('address, last_seen').maybeSingle(),
+    // This account's own bridge. Another account's is invisible to it.
+    supabase.from('imessage_bridges').select('address, last_seen').maybeSingle(),
     supabase.from('imessage_links').select('handle').order('created_at'),
   ]);
   if (bridge.error || links.error) return null;
   const lastSeen = (bridge.data?.last_seen as string | null) ?? null;
   return {
+    exists: Boolean(bridge.data),
     address: (bridge.data?.address as string | null) ?? null,
     lastSeen,
     online: lastSeen !== null && Date.now() - Date.parse(lastSeen) < 10 * 60_000,
     handles: ((links.data ?? []) as { handle: string }[]).map((l) => l.handle),
   };
+}
+
+/**
+ * A new key for this account's bridge, shown once.
+ *
+ * Only its hash is stored, so it cannot be shown again; making a new one
+ * disconnects whichever Mac held the old one.
+ */
+export async function issueBridgeKey(): Promise<{ key: string } | { error: string }> {
+  const { data, error } = await supabase.rpc('issue_bridge_token');
+  if (error || typeof data !== 'string') return { error: 'Could not make a bridge key. Try again.' };
+  return { key: data };
 }
 
 export async function unlinkHandle(handle: string): Promise<boolean> {

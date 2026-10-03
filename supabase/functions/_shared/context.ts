@@ -221,7 +221,7 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
       // honest answer is that the data does not say — which is true, and
       // useless. Age is a fair reading of it and is a real number, unlike
       // anything the model could infer from a title.
-      const age = a.created_at ? daysBetween(localDayKey(new Date(a.created_at)), input.today) : null;
+      const age = a.created_at ? daysBetween(localDayKey(new Date(a.created_at), input.timezone), input.today) : null;
 
       const bits = [
         a.course ? `course ${a.course}` : '',

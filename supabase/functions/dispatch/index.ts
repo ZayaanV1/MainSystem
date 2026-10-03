@@ -116,7 +116,7 @@ interface SettingsRow extends DigestSettings {
  * cron, so it fetches four small windows rather than anything open-ended.
  */
 // deno-lint-ignore no-explicit-any
-async function gatherWeekly(admin: any, userId: string, today: string) {
+async function gatherWeekly(admin: any, userId: string, today: string, tz: string) {
   const weekAgo = addDays(today, -7);
   const weekAhead = addDays(today, 7);
 
@@ -126,23 +126,23 @@ async function gatherWeekly(admin: any, userId: string, today: string) {
       .select('title')
       .eq('user_id', userId)
       .eq('status', 'done')
-      .gte('completed_at', startOfDayUTC(weekAgo).toISOString())
-      .lte('completed_at', endOfDayUTC(today).toISOString())
+      .gte('completed_at', startOfDayUTC(weekAgo, tz).toISOString())
+      .lte('completed_at', endOfDayUTC(today, tz).toISOString())
       .limit(20),
     admin
       .from('assignments')
       .select('title, due_at, effort_minutes')
       .eq('user_id', userId)
       .neq('status', 'done')
-      .gt('due_at', endOfDayUTC(today).toISOString())
-      .lte('due_at', endOfDayUTC(weekAhead).toISOString())
+      .gt('due_at', endOfDayUTC(today, tz).toISOString())
+      .lte('due_at', endOfDayUTC(weekAhead, tz).toISOString())
       .limit(40),
     admin
       .from('assignments')
       .select('title, due_at')
       .eq('user_id', userId)
       .neq('status', 'done')
-      .lt('due_at', startOfDayUTC(today).toISOString())
+      .lt('due_at', startOfDayUTC(today, tz).toISOString())
       .limit(20),
     admin.from('deferrals').select('assignment_id').eq('user_id', userId),
     admin.from('assignments').select('id, title').eq('user_id', userId).neq('status', 'done'),
@@ -165,13 +165,13 @@ async function gatherWeekly(admin: any, userId: string, today: string) {
     // deno-lint-ignore no-explicit-any
     upcoming: ((upcoming.data ?? []) as any[]).map((a) => ({
       title: a.title,
-      due_day: localDayKey(new Date(a.due_at)),
+      due_day: localDayKey(new Date(a.due_at), tz),
       effort_minutes: a.effort_minutes,
     })),
     // deno-lint-ignore no-explicit-any
     overdue: ((overdue.data ?? []) as any[]).map((a) => ({
       title: a.title,
-      due_day: localDayKey(new Date(a.due_at)),
+      due_day: localDayKey(new Date(a.due_at), tz),
     })),
     stuck,
   };
@@ -282,7 +282,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const decision = decideWeekly(settings, now, (count ?? 0) > 0);
       if (!decision.send) continue;
 
-      const msg = buildWeekly(await gatherWeekly(admin, settings.user_id, decision.localDay));
+      const msg = buildWeekly(await gatherWeekly(admin, settings.user_id, decision.localDay, settings.timezone));
       const outcome = await deliver(deps, settings.user_id, 'weekly', decision.localDay, msg);
 
       results.push({
@@ -327,7 +327,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .eq('user_id', userId)
     .single();
 
-  const timezone = settings?.timezone ?? 'America/Toronto';
+  // No zone chosen yet means the app has never been opened on a device; UTC
+  // is at least honest about not knowing, where a city would be a guess.
+  const timezone = settings?.timezone ?? 'UTC';
   const localDay = localDayKey(now, timezone);
 
   const msg = renderTestMessage(localDay, timezone, APP_URL);

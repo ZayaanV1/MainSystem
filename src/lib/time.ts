@@ -37,9 +37,9 @@ export { addDays, daysBetween, isoWeekday } from '../../supabase/functions/_shar
  */
 function browserZone(): string {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || shared.TZ;
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   } catch {
-    return shared.TZ;
+    return 'UTC';
   }
 }
 

@@ -463,12 +463,21 @@ export async function loadAllCourses(): Promise<Course[]> {
  * screenshot, a bug report or a stray log.
  */
 export async function hasOwnApiKey(): Promise<boolean> {
-  const { data } = await supabase
-    .from('app_settings')
-    .select('gemini_api_key')
-    .limit(1);
+  return (await ownKeyStatus()).gemini;
+}
 
-  return Boolean((data ?? [])[0]?.gemini_api_key);
+/**
+ * Whether each key is set — the only question the app asks about them.
+ *
+ * This used to select the key columns themselves, so the raw keys reached the
+ * browser on every Settings open while the copy promised they never would.
+ * The columns are no longer readable by the account at all (migration 0034);
+ * a function answers yes or no.
+ */
+async function ownKeyStatus(): Promise<{ gemini: boolean; groq: boolean }> {
+  const { data } = await supabase.rpc('own_key_status');
+  const row = (Array.isArray(data) ? data[0] : data) as { gemini?: boolean; groq?: boolean } | null;
+  return { gemini: Boolean(row?.gemini), groq: Boolean(row?.groq) };
 }
 
 /** Sets or clears it. Passing null goes back to the shared key. */
@@ -492,11 +501,10 @@ export async function setOwnApiKey(
  * `rotate` is the revoke button: the old link stops working immediately, which
  * matters because that URL is readable by anyone who has it.
  */
-export async function calendarFeedUrl(userId: string, rotate = false): Promise<string | null> {
-  const { data, error } = await supabase.rpc('ensure_ics_token', {
-    p_user_id: userId,
-    p_rotate: rotate,
-  });
+export async function calendarFeedUrl(rotate = false): Promise<string | null> {
+  // Always the caller's own account: the function takes no user id, so it
+  // cannot be pointed at anyone else's feed (migration 0034).
+  const { data, error } = await supabase.rpc('ensure_ics_token', { p_rotate: rotate });
 
   if (error || !data) return null;
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calendar?token=${data}`;
@@ -1448,8 +1456,7 @@ export async function deleteAccount(): Promise<{ error: string | null }> {
  * syllabus reader stays on Gemini whatever is set here.
  */
 export async function hasOwnGroqKey(): Promise<boolean> {
-  const { data } = await supabase.from('app_settings').select('groq_api_key').limit(1);
-  return Boolean((data ?? [])[0]?.groq_api_key);
+  return (await ownKeyStatus()).groq;
 }
 
 /** Sets or clears it. Passing null returns the chatbot to the shared key. */

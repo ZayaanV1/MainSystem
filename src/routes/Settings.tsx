@@ -3,6 +3,7 @@ import {
   bridgeStatus,
   forgetFact,
   imessageLink,
+  issueBridgeKey,
   loadCheckins,
   saveCheckins,
   type CheckinSettings,
@@ -234,7 +235,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
 
       <AboodMemory />
 
-      <CalendarFeed userId={userId} />
+      <CalendarFeed />
 
       <Appearance />
 
@@ -273,7 +274,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
  * link reaches can read your deadlines until it is rotated. Saying that
  * plainly, next to the button that reveals it, is the whole safeguard.
  */
-function CalendarFeed({ userId }: { userId: string }) {
+function CalendarFeed() {
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -281,7 +282,7 @@ function CalendarFeed({ userId }: { userId: string }) {
   async function reveal(rotate = false) {
     setBusy(true);
     setCopied(false);
-    const next = await calendarFeedUrl(userId, rotate);
+    const next = await calendarFeedUrl(rotate);
     setUrl(next);
     setBusy(false);
   }
@@ -785,7 +786,11 @@ function AboodMemory() {
 }
 
 /**
- * Abood by iMessage, through the Mac bridge.
+ * Abood by iMessage, through a Mac this account runs.
+ *
+ * Each account has its own bridge now. It used to be one global row every
+ * account could read, so a new account saw the owner's Apple ID address and a
+ * Connect button that would have linked their phone to the owner's Mac.
  *
  * Says plainly whether the Mac is up, because a bridge that is off looks
  * exactly like an Abood that is ignoring you.
@@ -793,6 +798,9 @@ function AboodMemory() {
 function IMessageAbood({ userId }: { userId: string }) {
   const [status, setStatus] = useState<BridgeStatus | null | undefined>(undefined);
   const [url, setUrl] = useState<string | null>(null);
+  const [key, setKey] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const reload = useCallback(() => void bridgeStatus().then(setStatus), []);
@@ -808,24 +816,69 @@ function IMessageAbood({ userId }: { userId: string }) {
     else setUrl(r.url);
   }
 
+  async function makeKey() {
+    setMessage(null);
+    setReplacing(false);
+    const r = await issueBridgeKey();
+    if ('error' in r) setMessage(r.error);
+    else {
+      setKey(r.key);
+      reload();
+    }
+  }
+
+  const command = key ? `bridge/imessage/install.sh <apple-id-abood-answers-on> ${key}` : '';
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   return (
     <section className="mb-8">
       <SectionHead title="iMessage" />
       <Card className="p-4">
         <p className="type-body mb-3 text-text-mid">
-          The same Abood in Messages, answered by a Mac running the planner&rsquo;s bridge.
+          The same Abood in Messages, answered by a Mac you run with the planner&rsquo;s bridge on it.
         </p>
         <p className="type-note mb-4 text-text-low">
           {status === undefined
             ? 'Checking.'
             : status === null
               ? 'Couldn’t check the bridge.'
-              : !status.lastSeen
-                ? 'No Mac is running the bridge yet.'
-                : status.online
-                  ? `The bridge is up${status.address ? `, answering on ${status.address}` : ''}.`
-                  : 'The bridge Mac is offline or asleep, so messages will wait until it is back.'}
+              : !status.exists
+                ? 'No bridge yet. Make a key, then run the installer on the Mac that should answer.'
+                : !status.lastSeen
+                  ? 'Your bridge has a key, but no Mac has checked in with it yet.'
+                  : status.online
+                    ? `Your bridge is up${status.address ? `, answering on ${status.address}` : ''}.`
+                    : 'Your bridge Mac is offline or asleep, so messages wait until it is back.'}
         </p>
+
+        {key && (
+          <div className="mb-4 flex flex-col gap-2">
+            <span className="kicker">Run this on the bridge Mac</span>
+            <input
+              readOnly
+              value={command}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-label="Installer command"
+              className="well type-quote text-text-mid"
+            />
+            <p className="type-note text-t-approaching">
+              This key is shown once. Anyone with it can answer as your Abood, so keep it on that Mac.
+            </p>
+            <div>
+              <Button variant="quiet" size="sm" onClick={() => void copy()}>
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {status && status.handles.length > 0 && (
           <div className="mb-4 flex flex-col gap-2">
@@ -841,19 +894,44 @@ function IMessageAbood({ userId }: { userId: string }) {
           </div>
         )}
 
-        {status?.address &&
-          (url ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <a href={url} className="btn btn-primary px-5 type-label">
-                Open Messages
-              </a>
-              <span className="type-note text-text-low">Send the message it writes for you, from the phone you want linked.</span>
-            </div>
-          ) : (
-            <Button variant="secondary" onClick={() => void connect()}>
-              Connect this phone
+        <div className="flex flex-wrap items-center gap-3">
+          {status?.address &&
+            (url ? (
+              <>
+                <a href={url} className="btn btn-primary px-5 type-label">
+                  Open Messages
+                </a>
+                <span className="type-note text-text-low">Send the message it writes for you, from the phone you want linked.</span>
+              </>
+            ) : (
+              <Button variant="secondary" onClick={() => void connect()}>
+                Connect this phone
+              </Button>
+            ))}
+
+          {status && !status.exists && !key && (
+            <Button variant="secondary" onClick={() => void makeKey()}>
+              Make a bridge key
             </Button>
-          ))}
+          )}
+
+          {status?.exists && !key &&
+            (replacing ? (
+              <>
+                <Button variant="secondary" size="sm" onClick={() => void makeKey()}>
+                  Replace it
+                </Button>
+                <Button variant="quiet" size="sm" onClick={() => setReplacing(false)}>
+                  Keep the current key
+                </Button>
+                <span className="type-note text-text-low">The Mac using the old key stops answering until it is reinstalled.</span>
+              </>
+            ) : (
+              <Button variant="quiet" size="sm" onClick={() => setReplacing(true)}>
+                New bridge key
+              </Button>
+            ))}
+        </div>
 
         {message && <p className="mt-3 type-note text-text-mid">{message}</p>}
       </Card>

@@ -129,7 +129,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const userId = settings.user_id as string;
-  const timezone = (settings.timezone as string) ?? 'America/Toronto';
+  // UTC rather than a city when the account has never set a zone.
+  const timezone = (settings.timezone as string) ?? 'UTC';
 
   const from = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString();
   const to = new Date(Date.now() + LOOKAHEAD_DAYS * 86_400_000).toISOString();

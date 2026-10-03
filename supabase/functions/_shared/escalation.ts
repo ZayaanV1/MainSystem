@@ -38,7 +38,7 @@ export function shouldEscalate(event: EscalatableEvent): boolean {
 export function dueForEscalation(
   events: EscalatableEvent[],
   today: DayKey,
-  timezone?: string,
+  timezone: string,
 ): EscalatableEvent[] {
   const tomorrow = addDays(today, 1);
 
@@ -58,7 +58,7 @@ export function dueForEscalation(
 export function renderEscalation(
   events: EscalatableEvent[],
   today: DayKey,
-  timezone?: string,
+  timezone: string,
   appUrl?: string,
 ): OutboundMessage {
   const tomorrow = addDays(today, 1);

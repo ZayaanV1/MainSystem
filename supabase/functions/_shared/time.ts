@@ -18,7 +18,18 @@
  * No dependencies. Intl is in every browser and in Deno.
  */
 
-export const TZ = 'America/Toronto';
+/*
+ * There is no default zone, on purpose. Every function below takes the zone
+ * it should answer in, and the compiler refuses a call without one.
+ *
+ * This module once exported TZ = 'America/Toronto' and defaulted every
+ * parameter to it, correct while there was one user in one city. After the
+ * app became multi-user that default kept answering for anyone a caller
+ * forgot to pass a zone for: the chatbot in September, the weekly review and
+ * Abood's "sitting for N days" in October — invisible from Toronto every
+ * time. The browser wrapper (src/lib/time.ts) supplies the account's zone;
+ * the server passes each account's own.
+ */
 
 /** A local calendar date, 'YYYY-MM-DD'. Never a timestamp. */
 export type DayKey = string;
@@ -65,7 +76,7 @@ function formatter(
  * it asks Intl what the offset actually was at that moment rather than
  * assuming a fixed one.
  */
-function tzOffsetMs(instant: Date, tz: string = TZ): number {
+function tzOffsetMs(instant: Date, tz: string): number {
   const dtf = formatter('offset', tz, 'en-US', {
     hourCycle: 'h23',
     year: 'numeric',
@@ -88,7 +99,7 @@ function tzOffsetMs(instant: Date, tz: string = TZ): number {
 }
 
 /** The local calendar date containing `instant`. */
-export function localDayKey(instant: Date = new Date(), tz: string = TZ): DayKey {
+export function localDayKey(instant: Date, tz: string): DayKey {
   const dtf = formatter('day', tz, 'en-US', {
     year: 'numeric',
     month: '2-digit',
@@ -104,7 +115,7 @@ export function localDayKey(instant: Date = new Date(), tz: string = TZ): DayKey
 }
 
 /** Today, as the user's local calendar date. */
-export function todayKey(now: Date = new Date(), tz: string = TZ): DayKey {
+export function todayKey(now: Date, tz: string): DayKey {
   return localDayKey(now, tz);
 }
 
@@ -117,7 +128,7 @@ export function todayKey(now: Date = new Date(), tz: string = TZ): DayKey {
  */
 export function localHourMinute(
   instant: Date = new Date(),
-  tz: string = TZ,
+  tz: string,
 ): { hour: number; minute: number } {
   const dtf = formatter('hourMinute', tz, 'en-US', {
     hourCycle: 'h23',
@@ -143,7 +154,7 @@ export function minutesSinceLocal(
   hour: number,
   minute: number,
   now: Date = new Date(),
-  tz: string = TZ,
+  tz: string,
 ): number {
   const local = localHourMinute(now, tz);
   return local.hour * 60 + local.minute - (hour * 60 + minute);
@@ -165,7 +176,7 @@ export function wallClockToUTC(
   hour = 0,
   minute = 0,
   second = 0,
-  tz: string = TZ,
+  tz: string,
 ): Date {
   const [y, m, d] = day.split('-').map(Number);
   const naive = Date.UTC(y, m - 1, d, hour, minute, second);
@@ -177,7 +188,7 @@ export function wallClockToUTC(
 }
 
 /** The UTC instant at which the local day begins (local midnight). */
-export function startOfDayUTC(day: DayKey, tz: string = TZ): Date {
+export function startOfDayUTC(day: DayKey, tz: string): Date {
   return wallClockToUTC(day, 0, 0, 0, tz);
 }
 
@@ -188,7 +199,7 @@ export function startOfDayUTC(day: DayKey, tz: string = TZ): Date {
  * so a fall-back day is correctly 25 hours long and nothing logged in the
  * repeated hour falls outside its own day.
  */
-export function endOfDayUTC(day: DayKey, tz: string = TZ): Date {
+export function endOfDayUTC(day: DayKey, tz: string): Date {
   return startOfDayUTC(addDays(day, 1), tz);
 }
 
@@ -234,12 +245,12 @@ export function daysBetween(from: DayKey, to: DayKey): number {
  * rather than hours on purpose: something due at 9am tomorrow and something
  * due at 11pm tomorrow are both "tomorrow" to a person looking at a list.
  */
-export function daysUntil(due: Date, now: Date = new Date(), tz: string = TZ): number {
+export function daysUntil(due: Date, now: Date, tz: string): number {
   return daysBetween(localDayKey(now, tz), localDayKey(due, tz));
 }
 
 /** Is this stored timestamp on the user's current local day? */
-export function isToday(instant: Date, now: Date = new Date(), tz: string = TZ): boolean {
+export function isToday(instant: Date, now: Date, tz: string): boolean {
   return localDayKey(instant, tz) === localDayKey(now, tz);
 }
 
@@ -247,18 +258,18 @@ export function isToday(instant: Date, now: Date = new Date(), tz: string = TZ):
  * The offset abbreviation in effect at an instant — 'EST' or 'EDT'.
  * Used when showing the user a time whose zone might be in question.
  */
-export function zoneAbbrev(instant: Date = new Date(), tz: string = TZ): string {
+export function zoneAbbrev(instant: Date, tz: string): string {
   const parts = formatter('abbrev', tz, 'en-US', { timeZoneName: 'short' }).formatToParts(instant);
   return parts.find((p) => p.type === 'timeZoneName')?.value ?? '';
 }
 
 /** Render a stored instant as local wall-clock time, e.g. '7:00 a.m.' */
-export function formatTime(instant: Date, tz: string = TZ): string {
+export function formatTime(instant: Date, tz: string): string {
   return formatter('time', tz, 'en-CA', { hour: 'numeric', minute: '2-digit' }).format(instant);
 }
 
 /** Render a day key for display, e.g. 'Sat, Aug 15'. */
-export function formatDay(day: DayKey, tz: string = TZ): string {
+export function formatDay(day: DayKey, tz: string): string {
   return formatter('dayLabel', tz, 'en-CA', {
     weekday: 'short',
     month: 'short',

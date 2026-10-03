@@ -88,7 +88,9 @@ async function tgSend(chatId: string, text: string) {
 async function channelFor(admin: Admin, userId: string) {
   const [{ data: link }, { data: bridge }, { data: tg }] = await Promise.all([
     admin.from('imessage_links').select('handle').eq('user_id', userId).order('created_at').limit(1),
-    admin.from('imessage_bridge').select('last_seen').maybeSingle(),
+    // The account's own bridge: a Mac someone else runs never carries this
+    // account's check-ins.
+    admin.from('imessage_bridges').select('last_seen').eq('user_id', userId).maybeSingle(),
     admin.from('notification_channels').select('config').eq('user_id', userId).eq('kind', 'telegram').eq('enabled', true).limit(1),
   ]);
   const bridgeUp = bridge?.last_seen && Date.now() - Date.parse(bridge.last_seen) < 10 * 60_000;
@@ -216,7 +218,7 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
   });
 
   if (channel.via === 'imessage') {
-    await admin.from('imessage_outbox').insert(texts.map((body) => ({ handle: channel.handle, body })));
+    await admin.from('imessage_outbox').insert(texts.map((body) => ({ user_id: userId, handle: channel.handle, body })));
   } else {
     for (const [i, t] of textsOf(texts.join('\n\n')).entries()) {
       if (i > 0) await new Promise((r) => setTimeout(r, 900));

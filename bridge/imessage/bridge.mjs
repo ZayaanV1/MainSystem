@@ -51,7 +51,7 @@ function loadConfig() {
   }
   const c = JSON.parse(readFileSync(CONFIG, 'utf8'));
   if (!c.url || !c.secret || !c.address) {
-    log('Config is missing the url, the secret or Abood\'s address. Run: bridge/imessage/install.sh <abood-apple-id>');
+    log('Config is missing the url, the bridge key or Abood\'s address. Run: bridge/imessage/install.sh <abood-apple-id> <bridge-key from Settings>');
     process.exit(1);
   }
   return c;

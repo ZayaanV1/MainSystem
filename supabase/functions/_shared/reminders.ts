@@ -52,7 +52,7 @@ export function checklistRemindersDue(
   completedIds: Set<string>,
   localDay: DayKey,
   now: Date,
-  timezone?: string,
+  timezone: string,
 ): RemindableItem[] {
   return items.filter((item) => {
     if (!item.remind_at) return false;

@@ -52,6 +52,25 @@ const PLATFORM_STUB = `
   create role anon;
   create role service_role;
 
+  -- Supabase's default privileges, applied BEFORE the migrations as they are
+  -- in production: every new table is granted to authenticated, and every new
+  -- function is executable by anon and authenticated. Granting after the
+  -- migrations (as this harness once did) silently re-granted whatever a
+  -- migration had revoked, so a column revoke could never be tested.
+  grant usage on schema public to anon, authenticated;
+  alter default privileges in schema public
+    grant select, insert, update, delete on tables to authenticated;
+  alter default privileges in schema public
+    grant execute on functions to anon, authenticated;
+
+  -- pgcrypto's random bytes, which the calendar-token function draws on.
+  create schema if not exists extensions;
+  create function extensions.gen_random_bytes(n int) returns bytea
+  language sql volatile as $$
+    select decode(string_agg(md5(random()::text), ''), 'hex')
+      from generate_series(1, (n + 15) / 16)
+  $$;
+
   -- Vault stores secrets encrypted and exposes them through a decrypting view.
   -- Reproduced here as a table pair with the same names and function
   -- signatures, so setup_dispatch runs against it unmodified.
@@ -192,14 +211,9 @@ beforeAll(async () => {
     }
   }
 
-  // Supabase grants table privileges to `authenticated` automatically via
-  // default privileges on the public schema. Reproduce that here, because it
-  // is what makes RLS — rather than a missing GRANT — the thing that denies.
-  // Without it these tests would pass for the wrong reason.
-  await db.exec(`
-    grant usage on schema public to authenticated;
-    grant select, insert, update, delete on all tables in schema public to authenticated;
-  `);
+  // Table privileges for `authenticated` come from the default privileges in
+  // PLATFORM_STUB, so RLS — rather than a missing GRANT — is what denies, and
+  // a privilege a migration revokes stays revoked.
 
   await db.exec(`
     insert into auth.users (id, email) values
@@ -227,7 +241,7 @@ describe('migrations apply', () => {
       'deferrals',
       'delivery_log',
       'events',
-      'imessage_bridge',
+      'imessage_bridges',
       'imessage_links',
       'imessage_outbox',
       'inbox_items',
@@ -1142,5 +1156,132 @@ describe('Abood memory and the Telegram link', () => {
     });
     // Codes are redeemed by the webhook alone; not even their maker reads them back.
     expect(seen.rows).toHaveLength(0);
+  });
+});
+
+
+describe('privileged functions', () => {
+  it('lets nobody run a SECURITY DEFINER function without signing in', async () => {
+    // The class behind the audit's C4: Supabase grants EXECUTE on every new
+    // public function to anon, and a definer function runs with the owner's
+    // rights. Each one must be revoked from anon explicitly.
+    const res = await db.query<{ proname: string }>(
+      `select p.proname from pg_proc p
+        where p.pronamespace = 'public'::regnamespace
+          and p.prosecdef
+          and has_function_privilege('anon', p.oid, 'execute')`,
+    );
+    expect(res.rows.map((r) => r.proname)).toEqual([]);
+  });
+
+  it('never lets a signed-in caller name the account a definer function acts on', async () => {
+    // A definer function the app can call must take its account from
+    // auth.uid(). One that accepts a uuid lets any account act on any other.
+    const res = await db.query<{ proname: string }>(
+      `select p.proname from pg_proc p
+        where p.pronamespace = 'public'::regnamespace
+          and p.prosecdef
+          and has_function_privilege('authenticated', p.oid, 'execute')
+          and 'uuid'::regtype = any (p.proargtypes::regtype[])`,
+    );
+    expect(res.rows.map((r) => r.proname)).toEqual([]);
+  });
+
+  it('issues a calendar token for the caller and nobody else', async () => {
+    const tokenA = await asUser(USER_A, async () => {
+      const r = await db.query<{ t: string }>(`select public.ensure_ics_token() as t`);
+      return r.rows[0].t;
+    });
+    expect(tokenA.length).toBeGreaterThan(20);
+    await db.exec(`update public.app_settings set ics_token = '${tokenA}' where user_id = '${USER_A}'`);
+
+    const res = await db.query<{ user_id: string; ics_token: string | null }>(
+      `select user_id, ics_token from public.app_settings order by user_id`,
+    );
+    const byUser = Object.fromEntries(res.rows.map((r) => [r.user_id, r.ics_token]));
+    expect(byUser[USER_A]).toBe(tokenA);
+    expect(byUser[USER_B] ?? null).toBeNull();
+  });
+
+  it('refuses a calendar token to an unauthenticated caller', async () => {
+    await expect(asUser('', () => db.query(`select public.ensure_ics_token()`))).rejects.toThrow(/not authenticated/);
+  });
+});
+
+describe('API keys are write-only', () => {
+  it('hides the key columns from the account while every other column stays readable', async () => {
+    await db.exec(`update public.app_settings set gemini_api_key = 'AIza-secret' where user_id = '${USER_A}'`);
+
+    await expect(
+      asUser(USER_A, () => db.query(`select gemini_api_key from public.app_settings`)),
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      asUser(USER_A, () => db.query(`select groq_api_key from public.app_settings`)),
+    ).rejects.toThrow(/permission denied/);
+
+    // Every other column must still be selectable, or a new column added
+    // without a grant would break the app quietly. This is that check.
+    const cols = await db.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+        where table_schema = 'public' and table_name = 'app_settings'
+          and column_name not in ('gemini_api_key', 'groq_api_key')`,
+    );
+    const list = cols.rows.map((c) => c.column_name).join(', ');
+    const rows = await asUser(USER_A, () => db.query(`select ${list} from public.app_settings`));
+    expect(rows.rows).toHaveLength(1);
+  });
+
+  it('still lets the account set and clear its own key', async () => {
+    await asUser(USER_A, async () => {
+      await db.exec(`update public.app_settings set groq_api_key = 'gsk_new' where user_id = '${USER_A}'`);
+      const r = await db.query<{ gemini: boolean; groq: boolean }>(`select * from public.own_key_status()`);
+      expect(r.rows[0]).toEqual({ gemini: true, groq: true });
+    });
+  });
+});
+
+describe('the iMessage bridge belongs to one account', () => {
+  it('issues a bridge key and stores only its hash', async () => {
+    // asUser rolls back, so the check runs inside the same transaction, as
+    // the table owner, after the key was issued as the account.
+    const result = await asUser(USER_A, async () => {
+      const r = await db.query<{ t: string }>(`select public.issue_bridge_token() as t`);
+      const token = r.rows[0].t;
+      await db.exec('reset role');
+      const stored = await db.query<{ ok: boolean }>(
+        `select token_hash = encode(sha256(convert_to('${token}', 'UTF8')), 'hex') as ok
+           from public.imessage_bridges where user_id = '${USER_A}'`,
+      );
+      return { token, ok: stored.rows[0]?.ok };
+    });
+    expect(result.token).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.ok).toBe(true);
+  });
+
+  it('shows a bridge to its owner alone, and never its hash', async () => {
+    await db.exec(
+      `insert into public.imessage_bridges (user_id, token_hash, address)
+       values ('${USER_A}', 'hash-a', 'abood@example.com')`,
+    );
+
+    const seenByB = await asUser(USER_B, () => db.query(`select address from public.imessage_bridges`));
+    expect(seenByB.rows).toHaveLength(0);
+
+    const seenByA = await asUser(USER_A, () =>
+      db.query<{ address: string }>(`select address from public.imessage_bridges`),
+    );
+    expect(seenByA.rows[0].address).toBe('abood@example.com');
+
+    await expect(
+      asUser(USER_A, () => db.query(`select token_hash from public.imessage_bridges`)),
+    ).rejects.toThrow(/permission denied/);
+  });
+
+  it('does not let an account write a bridge row directly', async () => {
+    await expect(
+      asUser(USER_B, () =>
+        db.exec(`insert into public.imessage_bridges (user_id, address) values ('${USER_B}', 'x@example.com')`),
+      ),
+    ).rejects.toThrow(/permission denied/);
   });
 });
