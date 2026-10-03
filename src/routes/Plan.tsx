@@ -20,10 +20,12 @@ import {
   loadAllCourses,
   loadWeightedWork,
   setCourseArchived,
+  setEventMark,
   type Assignment,
   type Course,
+  type WeightedEvent,
 } from '../lib/planner';
-import { formatDay } from '../lib/time';
+import { formatDay, localDayKey } from '../lib/time';
 
 /**
  * Plan — where a semester gets loaded in one go.
@@ -400,6 +402,7 @@ function CourseEditor({
   const [open, setOpen] = useState(false);
   const [managing, setManaging] = useState(false);
   const [all, setAll] = useState<Course[]>([]);
+  const [archiveNote, setArchiveNote] = useState<string | null>(null);
 
   // Loaded only when the archive is opened, and reloaded after each change.
   // The normal course list already excludes archived ones, so this is the
@@ -464,6 +467,11 @@ function CourseEditor({
           <p className="mb-3 px-4 type-note text-text-low">
             Archiving hides a course from the lists. Everything you logged against it stays.
           </p>
+          {archiveNote && (
+            <p role="alert" className="mb-3 px-4 type-note text-t-approaching">
+              {archiveNote}
+            </p>
+          )}
           <div className="mat flex flex-col">
           {all.map((c) => (
             <div
@@ -475,12 +483,30 @@ function CourseEditor({
                 {c.archived && <span className="tag type-caption"> archived</span>}
               </span>
               <Button variant="quiet" size="sm"
-                onClick={() =>
+                onClick={() => {
+                  setArchiveNote(null);
+                  // Restoring a course whose name or code another active
+                  // course now uses would be refused by the database. Say so
+                  // here, by name, instead of queueing a change that fails.
+                  if (c.archived) {
+                    const taken = courses.find(
+                      (o) =>
+                        o.id !== c.id &&
+                        (norm(o.name) === norm(c.name) ||
+                          (c.code && o.code && norm(o.code) === norm(c.code))),
+                    );
+                    if (taken) {
+                      setArchiveNote(
+                        `${taken.code ?? taken.name} is already active with that name. Archive or rename it first.`,
+                      );
+                      return;
+                    }
+                  }
                   void setCourseArchived(c.id, !c.archived).then(() => {
                     refreshAll();
                     onChanged();
-                  })
-                }>
+                  });
+                }}>
                 {c.archived ? 'Restore' : 'Archive'}
               </Button>
             </div>
@@ -558,17 +584,25 @@ function CourseEditor({
  */
 function Grades({ courses }: { courses: Course[] }) {
   const [rows, setRows] = useState<Assignment[] | null>(null);
+  const [exams, setExams] = useState<WeightedEvent[]>([]);
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     const r = await loadWeightedWork();
     setRows(r.rows);
+    setExams(r.events);
     setFailed(r.failed);
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** Recorded here first, so the bar moves on the tap; the write is queued. */
+  function mark(id: string, grade: number | null) {
+    setExams((list) => list.map((e) => (e.id === id ? { ...e, grade_percent: grade } : e)));
+    void setEventMark(id, grade);
+  }
 
   // Loading and "nothing weighted" are different facts; neither is an error.
   if (rows === null) return null;
@@ -584,7 +618,14 @@ function Grades({ courses }: { courses: Course[] }) {
   }
 
   const byCourse = courses
-    .map((c) => ({ course: c, grades: courseGrades(rows.filter((r) => r.course_id === c.id)) }))
+    .map((c) => {
+      const courseExams = exams.filter((e) => e.course_id === c.id);
+      return {
+        course: c,
+        exams: courseExams,
+        grades: courseGrades([...rows.filter((r) => r.course_id === c.id), ...courseExams]),
+      };
+    })
     .filter((x) => !x.grades.empty);
 
   if (byCourse.length === 0) return null;
@@ -593,7 +634,7 @@ function Grades({ courses }: { courses: Course[] }) {
     <section className="mb-8">
       <SectionHead title="Grades" />
       <Card>
-        {byCourse.map(({ course, grades }) => {
+        {byCourse.map(({ course, grades, exams: courseExams }) => {
           const cv = courseVar(course.colour_index);
           return (
             <div
@@ -627,6 +668,17 @@ function Grades({ courses }: { courses: Course[] }) {
                 />
               </span>
               <span className="type-note text-text-mid">{gradeSummary(grades)}</span>
+
+              {/* Exams and presentations, where their marks are recorded. An
+                  assignment's mark lives in its own editor; an exam has no
+                  editor, so this is the one place its mark can go. */}
+              {courseExams.length > 0 && (
+                <div className="mt-1 flex flex-col">
+                  {courseExams.map((e) => (
+                    <ExamMark key={e.id} exam={e} onMark={(g) => mark(e.id, g)} />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -636,5 +688,55 @@ function Grades({ courses }: { courses: Course[] }) {
         prediction.
       </p>
     </section>
+  );
+}
+
+/** One weighted exam or presentation, and its mark once there is one. */
+function ExamMark({ exam, onMark }: { exam: WeightedEvent; onMark: (grade: number | null) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(exam.grade_percent === null ? '' : String(exam.grade_percent));
+  const value = draft.trim() === '' ? null : Number(draft);
+  const valid = value === null || (Number.isFinite(value) && value >= 0 && value <= 100);
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-ink-600 py-2">
+      <span className="min-w-0 type-note text-text-mid">
+        {exam.title} · {exam.weight_percent}%
+        <span className="text-text-low"> · {formatDay(localDayKey(new Date(exam.starts_at)))}</span>
+      </span>
+      {editing ? (
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            if (!valid) return;
+            onMark(value);
+            setEditing(false);
+          }}
+        >
+          <label htmlFor={`mark-${exam.id}`} className="sr-only">
+            Mark for {exam.title}, as a percentage
+          </label>
+          <input
+            id={`mark-${exam.id}`}
+            type="text"
+            inputMode="decimal"
+            value={draft}
+            onChange={(ev) => setDraft(ev.target.value)}
+            aria-invalid={!valid || undefined}
+            placeholder="%"
+            autoFocus
+            className="well w-20 px-3 type-body"
+          />
+          <Button type="submit" variant="quiet" size="sm" disabled={!valid}>
+            Save
+          </Button>
+        </form>
+      ) : (
+        <Button variant="quiet" size="sm" onClick={() => setEditing(true)}>
+          {exam.grade_percent === null ? 'Add mark' : `scored ${exam.grade_percent}%`}
+        </Button>
+      )}
+    </div>
   );
 }

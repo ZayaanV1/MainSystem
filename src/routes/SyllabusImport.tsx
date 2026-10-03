@@ -119,9 +119,9 @@ export function SyllabusImport({
           day: item.due_date as string,
           time: item.due_time,
           course_id: courseId,
-          // An event carries no weight column of its own; the note stays the
-          // honest place for it until events gain one.
-          notes: item.weight_percent ? `${item.weight_percent}% of the grade` : null,
+          // Events carry a weight since 0035, so an exam counts toward the
+          // course's standing instead of hiding in a note.
+          weight_percent: item.weight_percent,
         });
       } else {
         await addAssignment(userId, {

@@ -27,6 +27,18 @@ export function pattern(query: string): string {
 }
 
 /**
+ * A pattern made safe inside PostgREST's or() filter.
+ *
+ * A comma or a parenthesis in a bare value ends the filter early, so a query
+ * like "lab 3, part 2" broke the course search. A double-quoted value may hold
+ * them; a quote or backslash inside it is escaped with a backslash, which is
+ * also what keeps `pattern()`'s own escapes intact.
+ */
+export function orValue(like: string): string {
+  return `"${like.replace(/["\\]/g, (c) => `\\${c}`)}"`;
+}
+
+/**
  * Scores a hit against the query.
  *
  * Lower is better. The ordering that matters: something whose title starts

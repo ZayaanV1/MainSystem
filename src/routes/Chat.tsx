@@ -7,7 +7,7 @@ import { useAuth } from '../lib/auth';
 import { askChat } from '../lib/assist';
 import { clearChat, loadChat, markActionTaken, saveMessage, type ChatMessage } from '../lib/chat';
 import { addAssignment, assignmentDueAt, setCompletion, type Course } from '../lib/planner';
-import { todayKey } from '../lib/time';
+import { formatDay, formatTime, todayKey } from '../lib/time';
 
 /**
  * Ask the app about your own data.
@@ -49,6 +49,7 @@ export function Chat({ courses, onBack, onChanged }: {
    */
   const [spent, setSpent] = useState<string | null>(null);
   const [doing, setDoing] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -70,7 +71,17 @@ export function Chat({ courses, onBack, onChanged }: {
     setThinking(true);
 
     const mine = await saveMessage(userId, { role: 'user', content: text });
-    if (mine) setMessages((m) => [...(m ?? []), mine]);
+    if (!mine) {
+      // The question never reached the server, so nothing can answer it.
+      // Hand the words back rather than losing them: the draft was cleared
+      // above for the common case, and offline that meant the question was
+      // simply gone.
+      setThinking(false);
+      setDraft(text);
+      setProblem('Couldn’t send that. Check your connection and send it again.');
+      return;
+    }
+    setMessages((m) => [...(m ?? []), mine]);
 
     const result = await askChat(text);
     setThinking(false);
@@ -157,9 +168,8 @@ export function Chat({ courses, onBack, onChanged }: {
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="page-title">Abood</h1>
         <div className="flex items-baseline gap-4">
-          {messages.length > 0 && (
-            <Button variant="quiet"
-              onClick={() => void clearChat().then(() => setMessages([]))}>
+          {messages.length > 0 && !confirmClear && (
+            <Button variant="quiet" onClick={() => setConfirmClear(true)}>
               Clear
             </Button>
           )}
@@ -168,6 +178,38 @@ export function Chat({ courses, onBack, onChanged }: {
           </Button>
         </div>
       </header>
+
+      {/*
+        Confirmed in place, because it cannot be undone and it reaches further
+        than this screen: Telegram and iMessage share this one conversation.
+        It used to delete everything on a single tap of a button that sits
+        beside "Today".
+      */}
+      {confirmClear && (
+        <div role="alert" className="mx-4 mb-6 flex flex-col gap-3 rounded-card border border-ink-600 p-4">
+          <p className="type-body text-text-hi">Clear the whole conversation?</p>
+          <p className="type-note text-text-mid">
+            This removes every message, including the ones sent by Telegram and iMessage. What
+            Abood remembers about you stays; that is in Settings.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="secondary"
+              onClick={() =>
+                void clearChat().then(() => {
+                  setMessages([]);
+                  setConfirmClear(false);
+                })
+              }
+            >
+              Clear it
+            </Button>
+            <Button variant="quiet" onClick={() => setConfirmClear(false)}>
+              Keep it
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 flex flex-1 flex-col gap-4 px-4">
         {messages.length === 0 && (
@@ -326,15 +368,26 @@ export function Chat({ courses, onBack, onChanged }: {
  */
 const ACTIONABLE = new Set(['add_assignment', 'complete_checklist_item']);
 
+/**
+ * A proposed due date the way a person checks one: with its weekday.
+ *
+ * "Due 2026-10-09 at 23:59" is what was being confirmed against, and a date
+ * you are asked to approve is the worst place for a format you have to decode.
+ */
+function dueWords(date: unknown, time: unknown): string {
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return ' with no date';
+  const day = formatDay(date);
+  if (typeof time !== 'string' || !/^\d{1,2}:\d{2}$/.test(time)) return ` due ${day}`;
+  const at = assignmentDueAt(date, time);
+  return at ? ` due ${day} at ${formatTime(new Date(at))}` : ` due ${day}`;
+}
+
 /** A proposal in words, so the button is never the only description of it. */
 function describe(action: Record<string, unknown>, courses: Course[]): string {
   const kind = action.kind as string;
 
   if (kind === 'add_assignment') {
-    const when = action.due_date
-      ? ` due ${action.due_date}${action.due_time ? ` at ${action.due_time}` : ''}`
-      : ' with no date';
-    return `Add "${action.title}"${when}.`;
+    return `Add "${action.title}"${dueWords(action.due_date, action.due_time)}.`;
   }
   if (kind === 'complete_checklist_item') return 'Tick that off for today.';
   if (!ACTIONABLE.has(kind)) return 'An older suggestion. That kind of change is no longer part of the app.';

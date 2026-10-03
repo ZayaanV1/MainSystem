@@ -220,8 +220,15 @@ export function AssignmentEditor({
         */}
         <Field
           label="Where it lives"
-          type="url"
+          // Text with a URL keyboard, not type="url": the browser's own check
+          // refused "moodle.example.edu/…", the very form the placeholder
+          // suggests, and blocked Save. normaliseLink adds https:// and drops
+          // anything that is not a web address.
+          type="text"
           inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           value={fields.link ?? ''}
           onChange={(e) => set('link', e.target.value || null)}
           placeholder="moodle.example.edu/mod/assign/…"
@@ -248,7 +255,13 @@ export function AssignmentEditor({
             max={100}
             step="0.5"
             value={fields.grade_percent ?? ''}
-            onChange={(e) => set('grade_percent', Number(e.target.value) || null)}
+            // 0 is a real mark. `Number(v) || null` turned it into "not marked".
+            // (A weight of 0 stays empty: the database requires a weight above 0.)
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              const n = Number(v);
+              set('grade_percent', v === '' || !Number.isFinite(n) ? null : n);
+            }}
             hint="% you got, once marked"
           />
         </div>

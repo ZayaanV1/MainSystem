@@ -15,6 +15,7 @@ import {
   type Course,
 } from '../lib/planner';
 import type { SyllabusItem } from '../../supabase/functions/_shared/syllabus';
+import { formatDay } from '../lib/time';
 
 /**
  * The first run.
@@ -49,7 +50,15 @@ const ORDER: Step[] = ['welcome', 'courses', 'deadlines', 'daily', 'done'];
  * start by deleting from, and rule 2 is that every mandatory field is a chance
  * for the thought to evaporate — a mandatory deletion is worse.
  */
-const COMMON_DAILY = ['Medication', 'Creatine', 'Read for 20 minutes', 'Tidy desk', 'Walk'];
+// Things any student might keep daily. These were "Medication" and
+// "Creatine" — the first user's own checklist, offered to every stranger.
+const COMMON_DAILY = [
+  'Review the day’s notes',
+  'Check course sites and email',
+  'Plan tomorrow',
+  'Read for 20 minutes',
+  'Tidy the desk',
+];
 
 export function Onboarding({ userId, onDone }: { userId: string; onDone: () => void }) {
   const [step, setStep] = useState<Step>('welcome');
@@ -169,16 +178,24 @@ function Courses({
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
   async function add(e: FormEvent) {
     e.preventDefault();
     if (!name.trim() || busy) return;
 
     setBusy(true);
+    setProblem(null);
     const created = await createCourse(userId, name, (courses.length % 8) + 1, code);
     setBusy(false);
 
-    if (created) onAdded(created);
+    // A failure used to clear the fields and show nothing, so the course
+    // simply did not appear. Keep what was typed and say why.
+    if (!created) {
+      setProblem('Couldn’t add that course. It may already be on your list, or the connection dropped. Try again.');
+      return;
+    }
+    onAdded(created);
     setName('');
     setCode('');
   }
@@ -205,6 +222,7 @@ function Courses({
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="COEN 311"
+            error={problem}
           />
           <div>
             <Button type="submit" variant="quiet" disabled={!name.trim() || busy}>
@@ -284,6 +302,7 @@ function Deadlines({
           day: item.due_date as string,
           time: item.due_time,
           course_id: courseId,
+          weight_percent: item.weight_percent,
         });
       } else {
         await addAssignment(userId, {
@@ -291,6 +310,9 @@ function Deadlines({
           course_id: courseId,
           due_at: assignmentDueAt(item.due_date, item.due_time),
           due_has_time: Boolean(item.due_time),
+          // Kept, not dropped. This path lost every weight the reader found,
+          // the same bug the main importer once had.
+          weight_percent: item.weight_percent,
         });
       }
     }
@@ -331,7 +353,7 @@ function Deadlines({
               >
                 <span className="type-body text-text-hi">{i.title}</span>
                 <span className="type-note shrink-0 text-text-low">
-                  {i.due_date ?? 'no date'}
+                  {i.due_date ? formatDay(i.due_date) : 'no date'}
                 </span>
               </div>
             ))}

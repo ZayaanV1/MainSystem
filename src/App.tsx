@@ -10,10 +10,13 @@ import { SyncBanner } from './components/SyncBanner';
 import { refreshSubscription } from './lib/notifications';
 import {
   adoptAccountTimezone,
+  loadAssignment,
   needsOnboarding,
   type Assignment,
+  type InboxItem,
   type TodayData,
 } from './lib/planner';
+import type { DayKey } from './lib/time';
 /*
  * Split by route.
  *
@@ -42,6 +45,8 @@ const Settings = lazy(() => import('./routes/Settings').then((m) => ({ default: 
 const Specimen = lazy(() => import('./routes/Specimen').then((m) => ({ default: m.Specimen })));
 
 import { Onboarding } from './routes/Onboarding';
+// Already in the first chunk, because Today renders it; static here too.
+import { Triage } from './routes/Triage';
 import { useHotkeys } from './lib/useHotkeys';
 import { FocusBar } from './components/FocusBar';
 import { FocusResult } from './components/FocusResult';
@@ -109,6 +114,7 @@ function Shell() {
   const navigate = useCallback(
     (next: Screen) => {
       if (next === screen) return;
+      if (next !== 'month') setMonthDay(null);
       const order = NAV.map((item) => item.id);
       withTransition(() => setScreen(next), directionBetween(order, screen, next));
     },
@@ -130,6 +136,9 @@ function Shell() {
   });
   const [data, setData] = useState<TodayData | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
+  const [openInbox, setOpenInbox] = useState<InboxItem | null>(null);
+  /** The day Month should open on, when an event in Search was tapped. */
+  const [monthDay, setMonthDay] = useState<DayKey | null>(null);
   /**
    * A finished timer, waiting to be offered.
    *
@@ -236,16 +245,28 @@ function Shell() {
         );
       case 'month':
         return (
-          <Month data={data} onBack={home} onOpenAssignment={setOpenAssignment} />
+          <Month data={data} onBack={home} onOpenAssignment={setOpenAssignment} initialDay={monthDay} />
         );
       case 'search':
         return (
           <Search
             onBack={home}
             onOpenAssignment={(id) => {
-              const found = data?.assignments.find((a) => a.id === id);
+              const found =
+                data?.assignments.find((a) => a.id === id) ??
+                data?.completedToday.find((a) => a.id === id);
               if (found) setOpenAssignment(found);
+              else void loadAssignment(id).then((a) => a && setOpenAssignment(a));
             }}
+            onOpenDay={(day) => {
+              navigate('month');
+              setMonthDay(day);
+            }}
+            onOpenInbox={(id) => {
+              const found = data?.inbox.find((i) => i.id === id);
+              if (found) setOpenInbox(found);
+            }}
+            onOpenCourses={() => navigate('plan')}
           />
         );
       case 'ask':
@@ -322,6 +343,15 @@ function Shell() {
           userId={session.user.id}
           onClose={() => setOpenAssignment(null)}
           onSaved={() => setRevision((r) => r + 1)}
+        />
+      )}
+      {openInbox && screen !== 'today' && (
+        <Triage
+          item={openInbox}
+          courses={data?.courses ?? []}
+          userId={session.user.id}
+          onClose={() => setOpenInbox(null)}
+          onDone={() => setOpenInbox(null)}
         />
       )}
       {finishedFocus && (

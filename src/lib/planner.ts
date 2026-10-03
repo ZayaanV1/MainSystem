@@ -406,6 +406,23 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
 }
 
 /**
+ * One piece of work by id, whatever its state.
+ *
+ * Search finds finished work too, and Today only holds what is open — so a
+ * finished result tapped from Search used to open nothing at all.
+ */
+export async function loadAssignment(id: string): Promise<Assignment | null> {
+  const { data } = await supabase
+    .from('assignments')
+    .select(
+      'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at, weight_percent, grade_percent, link',
+    )
+    .eq('id', id)
+    .maybeSingle();
+  return (data as Assignment | null) ?? null;
+}
+
+/**
  * Estimate-versus-actual pairs, for calibration.
  *
  * Only finished work that carries both numbers. Everything else is silence
@@ -554,6 +571,8 @@ export async function addEvent(
     time: string | null;
     course_id?: string | null;
     notes?: string | null;
+    /** Share of the final course grade, from a syllabus. */
+    weight_percent?: number | null;
   },
 ): Promise<void> {
   const [hour, minute] = fields.time ? fields.time.split(':').map(Number) : [0, 0];
@@ -569,6 +588,7 @@ export async function addEvent(
     starts_at: startsAt.toISOString(),
     all_day: !fields.time,
     notes: fields.notes ?? null,
+    weight_percent: fields.weight_percent ?? null,
   });
 }
 
@@ -1072,16 +1092,59 @@ export async function deleteAssignment(id: string): Promise<void> {
  * planner must not quietly discard, and a grade summary that vanished at the
  * end of term would be discarding exactly the part worth keeping.
  */
-export async function loadWeightedWork(): Promise<{ rows: Assignment[]; failed: boolean }> {
-  const { data, error } = await supabase
-    .from('assignments')
-    .select(
-      'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at, weight_percent, grade_percent, link',
-    )
-    .not('weight_percent', 'is', null)
-    .order('weight_percent', { ascending: false });
+export async function loadWeightedWork(): Promise<{
+  rows: Assignment[];
+  events: WeightedEvent[];
+  failed: boolean;
+}> {
+  const [work, exams] = await Promise.all([
+    supabase
+      .from('assignments')
+      .select(
+        'id, course_id, title, due_at, due_has_time, effort_minutes, actual_minutes, status, notes, start_by_override, remind_at, weight_percent, grade_percent, link',
+      )
+      .not('weight_percent', 'is', null)
+      .order('weight_percent', { ascending: false }),
+    // Exams and presentations carry weights too (0035), and are usually the
+    // largest share of a course. Leaving them out reported a course as a
+    // third of its real size.
+    supabase
+      .from('events')
+      .select('id, course_id, title, kind, starts_at, weight_percent, grade_percent')
+      .not('weight_percent', 'is', null)
+      .order('starts_at', { ascending: true }),
+  ]);
 
-  return { rows: (data ?? []) as Assignment[], failed: Boolean(error) };
+  return {
+    rows: (work.data ?? []) as Assignment[],
+    events: (exams.data ?? []).map((e) => ({
+      ...(e as WeightedEvent),
+      weight_percent: e.weight_percent === null ? null : Number(e.weight_percent),
+      grade_percent: e.grade_percent === null ? null : Number(e.grade_percent),
+    })),
+    failed: Boolean(work.error || exams.error),
+  };
+}
+
+/** An exam or presentation that counts toward a course grade. */
+export interface WeightedEvent {
+  id: string;
+  course_id: string | null;
+  title: string;
+  kind: PlannerEvent['kind'];
+  starts_at: string;
+  weight_percent: number | null;
+  grade_percent: number | null;
+}
+
+/**
+ * Records what an exam or presentation scored, or clears it.
+ *
+ * Queued like any other write. Never inferred from anything: a mark is a fact
+ * someone types in, the same rule as an assignment's.
+ */
+export async function setEventMark(id: string, grade: number | null): Promise<void> {
+  await enqueue('events', 'update', { grade_percent: grade }, { id });
 }
 
 /* ============================================================================

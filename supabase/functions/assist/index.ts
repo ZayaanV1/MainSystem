@@ -27,8 +27,10 @@ import {
   validateSummary,
   type SummaryInput,
   type SummaryItem,
+  type SummaryClass,
+  DUE_EVENT_KINDS,
 } from '../_shared/summary.ts';
-import { addDays, endOfDayUTC, localDayKey, startOfDayUTC } from '../_shared/time.ts';
+import { addDays, endOfDayUTC, localDayKey, localHourMinute, startOfDayUTC } from '../_shared/time.ts';
 import { checkBudget, recordUse, standDownMessage, type AiKind } from '../_shared/budget.ts';
 import { groqProvider } from '../_shared/llm/groq.ts';
 import { withFallback } from '../_shared/llm/chain.ts';
@@ -114,7 +116,7 @@ function describe(i: SummaryItem): string {
 async function gatherSummary(admin: any, userId: string, today: string, tz: string): Promise<SummaryInput> {
   const weekOut = addDays(today, 7);
 
-  const [assignments, events, checklist, completions] = await Promise.all([
+  const [assignments, dueEvents, classEvents, checklist, completions] = await Promise.all([
     admin
       .from('assignments')
       .select('title, due_at, effort_minutes')
@@ -124,14 +126,28 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
       .lte('due_at', endOfDayUTC(weekOut, tz).toISOString())
       .order('due_at', { ascending: true })
       .limit(30),
+    // Exams and presentations on their own, so a week of synced lectures can
+    // never crowd one out of the list.
     admin
       .from('events')
       .select('title, kind, starts_at')
       .eq('user_id', userId)
+      .in('kind', [...DUE_EVENT_KINDS])
       .gte('starts_at', startOfDayUTC(today, tz).toISOString())
       .lte('starts_at', endOfDayUTC(weekOut, tz).toISOString())
       .order('starts_at', { ascending: true })
-      .limit(15),
+      .limit(20),
+    // Today's timetable: attended, not due.
+    admin
+      .from('events')
+      .select('title, kind, starts_at, all_day')
+      .eq('user_id', userId)
+      .not('kind', 'in', `(${DUE_EVENT_KINDS.join(',')})`)
+      .eq('all_day', false)
+      .gte('starts_at', startOfDayUTC(today, tz).toISOString())
+      .lte('starts_at', endOfDayUTC(today, tz).toISOString())
+      .order('starts_at', { ascending: true })
+      .limit(12),
     admin
       .from('checklist_items')
       .select('id, title')
@@ -159,17 +175,23 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
   }
 
   // deno-lint-ignore no-explicit-any
-  for (const e of (events.data ?? []) as any[]) {
+  for (const e of (dueEvents.data ?? []) as any[]) {
     const day = localDayKey(new Date(e.starts_at), tz);
     const item: SummaryItem = {
       title: e.title,
       due: day,
-      kind: e.kind === 'exam' ? 'exam' : e.kind === 'presentation' ? 'presentation' : 'assignment',
+      kind: e.kind === 'exam' ? 'exam' : 'presentation',
       minutes: null,
     };
     if (day === today) dueToday.push(item);
     else if (day > today) dueSoon.push(item);
   }
+
+  // deno-lint-ignore no-explicit-any
+  const classes: SummaryClass[] = ((classEvents.data ?? []) as any[]).map((e) => {
+    const { hour, minute } = localHourMinute(new Date(e.starts_at), tz);
+    return { title: e.title, at: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` };
+  });
 
   const done = new Set(((completions.data ?? []) as { item_id: string }[]).map((c) => c.item_id));
   const chores = ((checklist.data ?? []) as { id: string; title: string }[])
@@ -184,6 +206,7 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
     dueToday,
     dueSoon,
     overdue,
+    classes,
     chores,
   };
 }
@@ -530,12 +553,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       'ALREADY PAST ITS DATE',
       input.overdue.length ? input.overdue.map(describe).join('\n') : '  (nothing)',
       '',
+      'ON THE TIMETABLE TODAY (classes to attend, not work to hand in)',
+      input.classes.length ? input.classes.map((c) => `  - ${c.at} ${c.title}`).join('\n') : '  (nothing)',
+      '',
       'STILL TO DO TODAY, RECURRING',
       input.chores.length ? input.chores.map((c) => `  - ${c}`).join('\n') : '  (nothing)',
     ].join('\n');
 
     const denied = await overBudget(admin, userData.user.id, 'summary', localDayKey(new Date(), accountTz), Boolean(ownKey));
-    if (denied) return json(denied);
+    // Over today's cap, the last briefing beats no briefing: it was true when
+    // written and the screen below it is current either way.
+    if (denied) return cached?.body ? json({ ok: true, summary: cached.body, stale: true }) : json(denied);
 
     const result = await provider.complete<unknown>({
       instruction: SUMMARY_INSTRUCTION,

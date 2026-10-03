@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { localDayKey } from './time';
-import { pattern, rankHits, type SearchHit } from './searchRank';
+import { orValue, pattern, rankHits, type SearchHit } from './searchRank';
 
 export type { SearchHit, SearchKind } from './searchRank';
 
@@ -17,11 +17,15 @@ export type { SearchHit, SearchKind } from './searchRank';
  * on something, not to audit it.
  */
 
-export async function search(query: string, limit = 20): Promise<SearchHit[]> {
+export async function search(
+  query: string,
+  limit = 20,
+): Promise<{ hits: SearchHit[]; failed: boolean }> {
   const q = query.trim();
-  if (q.length < 2) return [];
+  if (q.length < 2) return { hits: [], failed: false };
 
   const like = pattern(q);
+  const quoted = orValue(like);
 
   const [assignments, events, inbox, courses] = await Promise.all([
     supabase
@@ -39,8 +43,12 @@ export async function search(query: string, limit = 20): Promise<SearchHit[]> {
       .select('id, body, created_at, triaged_at')
       .ilike('body', like)
       .limit(limit),
-    supabase.from('courses').select('id, name, code').or(`name.ilike.${like},code.ilike.${like}`).limit(limit),
+    supabase.from('courses').select('id, name, code').or(`name.ilike.${quoted},code.ilike.${quoted}`).limit(limit),
   ]);
+
+  // A failed read is not "nothing matches". Offline, every table errors, and
+  // the screen used to report that confidently as an empty result.
+  const failed = [assignments, events, inbox, courses].some((r) => r.error);
 
   const hits: SearchHit[] = [];
 
@@ -97,5 +105,5 @@ export async function search(query: string, limit = 20): Promise<SearchHit[]> {
     });
   }
 
-  return rankHits(hits, q, limit);
+  return { hits: rankHits(hits, q, limit), failed };
 }

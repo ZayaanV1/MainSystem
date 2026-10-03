@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
 import { search } from '../lib/search';
 import type { SearchHit } from '../lib/searchRank';
-import { formatDay } from '../lib/time';
+import { formatDay, type DayKey } from '../lib/time';
 
 /**
  * One box, everything in it.
@@ -31,12 +31,21 @@ const ORDER: SearchHit['kind'][] = ['assignment', 'event', 'inbox', 'course'];
 export function Search({
   onBack,
   onOpenAssignment,
+  onOpenDay,
+  onOpenInbox,
+  onOpenCourses,
 }: {
   onBack: () => void;
   onOpenAssignment: (id: string) => void;
+  /** An event: its day in Month. */
+  onOpenDay: (day: DayKey) => void;
+  /** A captured thought still to sort: triage it. */
+  onOpenInbox: (id: string) => void;
+  onOpenCourses: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [searching, setSearching] = useState(false);
 
   // Guards against an earlier query's results landing after a later one's and
@@ -58,7 +67,8 @@ export function Search({
     const timer = setTimeout(() => {
       void search(q).then((results) => {
         if (ticket !== latest.current) return;
-        setHits(results);
+        setHits(results.hits);
+        setFailed(results.failed);
         setSearching(false);
       });
     }, 250);
@@ -110,6 +120,10 @@ export function Search({
           <EmptyState>Type two letters. Searches work, events, the inbox and courses.</EmptyState>
         ) : hits === null || searching ? (
           <p className="px-4 type-note text-text-low">Looking…</p>
+        ) : failed && hits.length === 0 ? (
+          <p role="alert" className="px-4 type-note text-text-mid">
+            Couldn&rsquo;t search just now. Check your connection and try again.
+          </p>
         ) : hits.length === 0 ? (
           <EmptyState>Nothing matches "{query.trim()}".</EmptyState>
         ) : (
@@ -117,18 +131,46 @@ export function Search({
             <section key={kind} className="mb-6">
               <SectionHead title={KIND_LABEL[kind]} count={items.length} />
               <div className="mat flex flex-col">
-                {items.map((h) => (
-                  <Pressable align="baseline" className="mat-row justify-between gap-4 px-4 py-3"
-                    key={`${h.kind}:${h.id}`}
-                    onClick={() => h.kind === 'assignment' && onOpenAssignment(h.id)}>
-                    <span className={`type-body ${h.done ? 'text-text-low' : 'text-text-hi'}`}>
-                      {h.title}
-                    </span>
-                    <span className="type-note shrink-0 text-text-low">
-                      {[h.detail, h.day ? formatDay(h.day) : null].filter(Boolean).join(' · ')}
-                    </span>
-                  </Pressable>
-                ))}
+                {items.map((h) => {
+                  /*
+                    Every result that looks pressable does something. Only work
+                    used to: an event, an inbox item or a course lit up under a
+                    finger and then did nothing, and finished work did nothing
+                    either because the shell only looked among open work.
+                  */
+                  const open =
+                    h.kind === 'assignment'
+                      ? () => onOpenAssignment(h.id)
+                      : h.kind === 'event' && h.day
+                        ? () => onOpenDay(h.day as DayKey)
+                        : h.kind === 'inbox' && !h.done
+                          ? () => onOpenInbox(h.id)
+                          : h.kind === 'course'
+                            ? onOpenCourses
+                            : null;
+                  const body = (
+                    <>
+                      <span className={`type-body ${h.done ? 'text-text-low' : 'text-text-hi'}`}>
+                        {h.title}
+                      </span>
+                      <span className="type-note shrink-0 text-text-low">
+                        {[h.detail, h.day ? formatDay(h.day) : null].filter(Boolean).join(' · ')}
+                      </span>
+                    </>
+                  );
+                  return open ? (
+                    <Pressable align="baseline" className="mat-row justify-between gap-4 px-4 py-3"
+                      key={`${h.kind}:${h.id}`}
+                      onClick={open}>
+                      {body}
+                    </Pressable>
+                  ) : (
+                    // A thought already sorted into work: a record, not a control.
+                    <div key={`${h.kind}:${h.id}`} className="mat-row flex items-baseline justify-between gap-4 px-4 py-3">
+                      {body}
+                    </div>
+                  );
+                })}
               </div>
             </section>
           ))

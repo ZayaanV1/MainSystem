@@ -31,7 +31,15 @@ import { DigestSettings } from './DigestSettings';
 import {
   deleteAccount, calendarFeedUrl, hasOwnApiKey, setOwnApiKey } from '../lib/planner';
 import { supabase } from '../lib/supabase';
-import { formatDay, formatTime, localDayKey } from '../lib/time';
+import {
+  activeTimezone,
+  detectedTimezone,
+  formatDay,
+  formatTime,
+  localDayKey,
+  zoneAbbrev,
+} from '../lib/time';
+import { saveTimezone } from '../lib/planner';
 
 /**
  * Settings.
@@ -174,6 +182,8 @@ export function Settings({ onBack }: { onBack: () => void }) {
         </Card>
       </section>
 
+      <TimeZone userId={userId} />
+
       <section className="mb-8">
         <SectionHead title="Morning digest" />
         <DigestSettings />
@@ -260,6 +270,96 @@ export function Settings({ onBack }: { onBack: () => void }) {
         </Button>
       </section>
     </main>
+  );
+}
+
+/**
+ * The account's time zone.
+ *
+ * Every "today", every due label and the digest's send time are computed in
+ * it. It was set once, from whichever device opened the app first, and no
+ * screen could change it — so a student who moved for university kept the
+ * old zone, and every deadline computed from it, for good.
+ *
+ * Saving reloads the app, because every date on screen and in the outbox's
+ * optimistic layer was computed in the old zone; recomputing them one by one
+ * is how one gets missed.
+ */
+function TimeZone({ userId }: { userId: string }) {
+  const current = activeTimezone();
+  const device = detectedTimezone();
+  const [choice, setChoice] = useState(current);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const zones = (() => {
+    try {
+      const all = (Intl as typeof Intl & { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone');
+      if (all?.length) return all.includes(current) ? all : [current, ...all];
+    } catch {
+      // Older engines: offer the two zones that matter rather than nothing.
+    }
+    return [...new Set([current, device])];
+  })();
+
+  async function save(zone: string) {
+    setBusy(true);
+    setMessage(null);
+    const { error } = await saveTimezone(userId, zone);
+    if (error) {
+      setBusy(false);
+      setMessage(`Not saved. ${error}`);
+      return;
+    }
+    window.location.reload();
+  }
+
+  return (
+    <section className="mb-8">
+      <SectionHead title="Time zone" />
+      <Card className="flex flex-col gap-4 p-4">
+        <p className="type-body text-text-mid">
+          Days, deadlines and the morning digest use {current.replace(/_/g, ' ')} ({zoneAbbrev()}).
+        </p>
+
+        {device !== current && (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="type-note text-text-low">This device is set to {device.replace(/_/g, ' ')}.</p>
+            <Button variant="secondary" size="sm" disabled={busy} onClick={() => void save(device)}>
+              Use {device.replace(/_/g, ' ')}
+            </Button>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex min-w-0 flex-col gap-2">
+            <label htmlFor="zone" className="kicker">
+              Or choose
+            </label>
+            <select
+              id="zone"
+              value={choice}
+              onChange={(e) => setChoice(e.target.value)}
+              className="well w-auto max-w-full px-3 type-body"
+            >
+              {zones.map((z) => (
+                <option key={z} value={z}>
+                  {z.replace(/_/g, ' ')}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button variant="quiet" disabled={busy || choice === current} onClick={() => void save(choice)}>
+            {busy ? 'Saving' : 'Save'}
+          </Button>
+        </div>
+
+        <p className="type-note text-text-low">
+          Travelling does not change this on its own, so what is due stays put. Change it when you move.
+        </p>
+        {message && <p role="alert" className="type-note text-text-mid">{message}</p>}
+      </Card>
+    </section>
   );
 }
 

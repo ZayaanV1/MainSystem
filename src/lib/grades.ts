@@ -1,6 +1,15 @@
 import type { Assignment } from './planner';
 
 /**
+ * Anything that carries a share of a course grade: an assignment, or an exam
+ * or presentation imported as an event (see migration 0035).
+ */
+export interface Weighted {
+  weight_percent: number | null;
+  grade_percent: number | null;
+}
+
+/**
  * What a course is made of, and how much of it is still unmarked.
  *
  * WHAT THIS DELIBERATELY DOES NOT DO
@@ -43,7 +52,7 @@ export interface CourseGrades {
 /** Two decimal places, matching the numeric(5,2) columns. */
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export function courseGrades(assignments: Assignment[]): CourseGrades {
+export function courseGrades(assignments: Weighted[]): CourseGrades {
   const weighted = assignments.filter(
     (a) => typeof a.weight_percent === 'number' && a.weight_percent > 0,
   );

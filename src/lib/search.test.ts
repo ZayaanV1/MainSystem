@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { score, type SearchHit } from './searchRank';
+import { orValue, pattern, score, type SearchHit } from './searchRank';
 
 const hit = (o: Partial<SearchHit> & { title: string }): SearchHit => ({
   kind: 'assignment',
@@ -55,5 +55,17 @@ describe('search ranking', () => {
     expect(score(hit({ title: 'Lab Report' }), '  lab report  ')).toBe(
       score(hit({ title: 'lab report' }), 'lab report'),
     );
+  });
+});
+
+describe('a query inside the course filter', () => {
+  it('survives commas, parentheses and quotes', () => {
+    expect(orValue(pattern('lab 3, part 2'))).toBe('"%lab 3, part 2%"');
+    expect(orValue(pattern('intro (2)'))).toBe('"%intro (2)%"');
+    expect(orValue(pattern('say "hi"'))).toBe('"%say \\"hi\\"%"');
+  });
+
+  it('keeps the escapes that stop % and _ matching everything', () => {
+    expect(orValue(pattern('100%'))).toBe('"%100\\\\%%"');
   });
 });

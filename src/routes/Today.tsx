@@ -29,7 +29,7 @@ import { useAuth } from '../lib/auth';
 import { dueOn, recentDays, refillStatus } from '../lib/checklist';
 import { describeHealth, fetchHealth, type NotificationHealth } from '../lib/health';
 import { subscribeOutbox } from '../lib/outbox';
-import { calibration, forecast, stuckTasks } from '../lib/intelligence';
+import { adjustedEstimate, calibration, forecast, stuckTasks } from '../lib/intelligence';
 import { dailySummary } from '../lib/assist';
 import {
   BACKFILL_DAYS,
@@ -264,6 +264,17 @@ export function Today({
     announce(next ? `${label} ticked` : `${label} unticked`);
     await setCompletion(userId, itemId, day, next, today);
   }
+
+  /*
+   * How long things actually take, applied. The calibration was measured and
+   * shown as a sentence since Phase 6, and `adjustedEstimate` was written and
+   * tested — but nothing called it, so the forecast added up raw estimates
+   * while the line under it said they usually run twice over, and What now
+   * offered a "30 minute" task for a 30 minute gap that history said was an
+   * hour. Below five samples the calibration is silent and estimates stand.
+   */
+  const cal = useMemo(() => calibration(pairs), [pairs]);
+  const sized = useCallback((minutes: number | null) => adjustedEstimate(minutes, cal) ?? minutes, [cal]);
 
   // Reloaded alongside the day, so recording a time updates the calibration
   // without a refresh. Cheap: at most sixty rows of two integers. Keyed on the
@@ -522,6 +533,7 @@ export function Today({
           assignments={data?.assignments ?? []}
           courses={data?.courses ?? []}
           deferrals={data?.deferrals ?? {}}
+          sized={sized}
           onOpen={setOpenAssignment}
         />
       </div>
@@ -531,6 +543,7 @@ export function Today({
           assignments={data?.assignments ?? []}
           courses={data?.courses ?? []}
           deferrals={data?.deferrals ?? {}}
+          sized={sized}
           onOpen={setOpenAssignment}
         />
       </div>
@@ -611,7 +624,8 @@ export function Today({
       <Ahead
         assignments={data?.assignments ?? []}
         deferrals={data?.deferrals ?? {}}
-        pairs={pairs}
+        cal={cal}
+        sized={sized}
       />
 
       <section className="mb-8 flex-1">
@@ -895,17 +909,19 @@ function Briefing({ dep }: { dep: TodayData | null }) {
 function Ahead({
   assignments,
   deferrals,
-  pairs,
+  cal,
+  sized,
 }: {
   assignments: Assignment[];
   deferrals: Record<string, number>;
-  pairs: { estimated: number; actual: number }[];
+  cal: ReturnType<typeof calibration>;
+  sized: (minutes: number | null) => number | null;
 }) {
   const tasks = assignments.map((a) => ({
     id: a.id,
     title: a.title,
     due_at: a.due_at,
-    effort_minutes: a.effort_minutes,
+    effort_minutes: sized(a.effort_minutes),
     status: a.status,
     deferrals: deferrals[a.id] ?? 0,
     weight_percent: a.weight_percent,
@@ -913,7 +929,6 @@ function Ahead({
 
   const ahead = forecast(tasks);
   const stuck = stuckTasks(tasks);
-  const cal = calibration(pairs);
 
   if (!ahead.warning && stuck.length === 0 && !cal.summary) return null;
 

@@ -32,12 +32,15 @@ export function WhatNow({
   courses,
   deferrals,
   onOpen,
+  sized = (m) => m,
   alwaysOpen = false,
 }: {
   assignments: Assignment[];
   courses: Course[];
   deferrals: Record<string, number>;
   onOpen: (a: Assignment) => void;
+  /** An estimate as it usually turns out, from the calibration. */
+  sized?: (minutes: number | null) => number | null;
   /**
    * Answered without being asked.
    *
@@ -76,7 +79,7 @@ export function WhatNow({
     id: a.id,
     title: a.title,
     due_at: a.due_at,
-    effort_minutes: a.effort_minutes,
+    effort_minutes: sized(a.effort_minutes),
     status: a.status,
     deferrals: deferrals[a.id] ?? 0,
     // Without this the tie-break in whatNow can never fire, and the ranking
@@ -142,7 +145,10 @@ export function WhatNow({
             </span>
             <span className="type-note text-text-mid">{choice.because}</span>
             {picked.effort_minutes !== null && (
-              <span className="tag type-caption">{picked.effort_minutes} min</span>
+              <span className="tag type-caption">
+                {picked.effort_minutes} min
+                {sized(picked.effort_minutes) !== picked.effort_minutes && ` · usually ${sized(picked.effort_minutes)}`}
+              </span>
             )}
           </Pressable>
         </Card>

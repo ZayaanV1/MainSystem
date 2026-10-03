@@ -47,6 +47,10 @@ export function useHotkeys({ onSearch, onEscape }: Hotkeys): void {
       // Escape is the one shortcut that SHOULD work while typing — it is how
       // you get out of a field, and blocking it would trap the cursor.
       if (e.key === 'Escape') {
+        // An open sheet closes itself on Escape. Navigating as well threw away
+        // the screen underneath — an unsent message in Chat with it — so with a
+        // dialog open, Escape belongs to the dialog alone.
+        if (e.defaultPrevented || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
         onEscape?.();
         return;
       }

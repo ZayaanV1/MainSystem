@@ -131,3 +131,23 @@ describe('byWeight', () => {
     expect(out.map((a) => a.id)).toEqual(['tiny', 'unknown']);
   });
 });
+
+describe('exams and presentations', () => {
+  it('count toward the course alongside assignments', () => {
+    const g = courseGrades([
+      { weight_percent: 30, grade_percent: 80 },
+      { weight_percent: 30, grade_percent: null }, // the midterm, an event
+      { weight_percent: 40, grade_percent: null }, // the final, an event
+    ]);
+    expect(g.weightKnown).toBe(100);
+    expect(g.weightMarked).toBe(30);
+    expect(g.earned).toBe(24);
+    expect(g.unmarked).toBe(2);
+  });
+
+  it('records a mark of zero as a mark', () => {
+    const g = courseGrades([{ weight_percent: 10, grade_percent: 0 }]);
+    expect(g.weightMarked).toBe(10);
+    expect(g.unmarked).toBe(0);
+  });
+});

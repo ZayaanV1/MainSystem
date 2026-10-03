@@ -24,6 +24,13 @@ export interface SummaryItem {
   minutes: number | null;
 }
 
+/** Something on today's timetable: attended, not submitted. */
+export interface SummaryClass {
+  title: string;
+  /** Local wall-clock start, 'HH:MM'. */
+  at: string;
+}
+
 export interface SummaryInput {
   today: string;
   /** Local wall-clock time, so "this evening" means something. */
@@ -31,9 +38,21 @@ export interface SummaryInput {
   dueToday: SummaryItem[];
   dueSoon: SummaryItem[];
   overdue: SummaryItem[];
+  /**
+   * Classes and appointments today, kept apart from deadlines.
+   *
+   * Every event used to arrive as a "DUE TODAY … (assignment)" line, so with a
+   * synced timetable the model was told lectures were assignments due, and
+   * with only fifteen events fetched by start time a Thursday exam could fall
+   * off the end behind the week's lectures.
+   */
+  classes: SummaryClass[];
   /** Recurring things still outstanding today. */
   chores: string[];
 }
+
+/** The event kinds that are a deadline-like moment rather than a class. */
+export const DUE_EVENT_KINDS = ['exam', 'presentation'] as const;
 
 export const SUMMARY_SCHEMA = {
   type: 'object',
@@ -45,6 +64,8 @@ export const SUMMARY_INSTRUCTION = [
   'You write the two or three sentence briefing a student sees when they open',
   'their planner. Address them as "you".',
   'Say what today actually holds, then end with ONE suggestion about what to',
+  'Classes listed as on the timetable are attended, not handed in: never call',
+  'them due or describe them as work.',
   'do first or in what order, phrased as a suggestion and not an instruction.',
   'Only mention work that appears in the data below. Never state a date or a',
   'time that is not there. If there is nothing due, say the day is clear and',
@@ -74,6 +95,7 @@ export function fingerprint(input: SummaryInput): string {
     part(input.dueToday),
     part(input.dueSoon),
     part(input.overdue),
+    input.classes.map((c) => `${c.title}|${c.at}`).join(';'),
     input.chores.join(';'),
   ].join('#');
 }
@@ -84,6 +106,7 @@ export function isEmptyDay(input: SummaryInput): boolean {
     input.dueToday.length === 0 &&
     input.dueSoon.length === 0 &&
     input.overdue.length === 0 &&
+    input.classes.length === 0 &&
     input.chores.length === 0
   );
 }

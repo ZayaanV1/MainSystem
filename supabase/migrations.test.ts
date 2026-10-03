@@ -1285,3 +1285,21 @@ describe('the iMessage bridge belongs to one account', () => {
     ).rejects.toThrow(/permission denied/);
   });
 });
+
+describe('exam weights', () => {
+  it('lets an exam carry a weight and a mark, within the same rules as work', async () => {
+    await db.exec(
+      `insert into public.events (user_id, title, kind, starts_at, weight_percent, grade_percent)
+       values ('${USER_A}', 'Midterm', 'exam', now(), 25, 0)`,
+    );
+    await expect(
+      db.exec(`insert into public.events (user_id, title, kind, starts_at, weight_percent)
+               values ('${USER_A}', 'Bad', 'exam', now(), 0)`),
+    ).rejects.toThrow(/events_weight_percent_range/);
+    await expect(
+      db.exec(`insert into public.events (user_id, title, kind, starts_at, grade_percent)
+               values ('${USER_A}', 'Bad', 'exam', now(), 101)`),
+    ).rejects.toThrow(/events_grade_percent_range/);
+    await db.exec(`delete from public.events where title = 'Midterm'`);
+  });
+});

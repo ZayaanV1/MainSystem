@@ -12,6 +12,7 @@ const base: SummaryInput = {
   dueToday: [],
   dueSoon: [],
   overdue: [],
+  classes: [],
   chores: [],
 };
 
@@ -94,5 +95,13 @@ describe('validateSummary', () => {
     expect(validateSummary({}, withWork).summary).toBe('');
     expect(validateSummary(null, withWork).summary).toBe('');
     expect(validateSummary({ summary: '   ' }, withWork).summary).toBe('');
+  });
+});
+
+describe('classes', () => {
+  it('count as something to write about, and move the fingerprint', () => {
+    const withClass = input({ classes: [{ title: 'COEN 231 Lecture', at: '10:15' }] });
+    expect(isEmptyDay(withClass)).toBe(false);
+    expect(fingerprint(withClass)).not.toBe(fingerprint(base));
   });
 });

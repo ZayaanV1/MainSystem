@@ -49,14 +49,17 @@ export function Month({
   data,
   onBack,
   onOpenAssignment,
+  initialDay = null,
 }: {
   data: TodayData | null;
   onBack: () => void;
   onOpenAssignment: (a: Assignment) => void;
+  /** Open on this day rather than today — an event found in Search. */
+  initialDay?: DayKey | null;
 }) {
   const today = todayKey();
-  const [anchor, setAnchor] = useState<DayKey>(startOfMonth(today));
-  const [selected, setSelected] = useState<DayKey | null>(today);
+  const [anchor, setAnchor] = useState<DayKey>(startOfMonth(initialDay ?? today));
+  const [selected, setSelected] = useState<DayKey | null>(initialDay ?? today);
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
 
   const courses = data?.courses ?? [];
