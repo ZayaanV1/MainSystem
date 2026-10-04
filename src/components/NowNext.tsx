@@ -64,66 +64,60 @@ export function NowNext({
   const span = end ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000)) : null;
   // The figures large and the period small beside them. Dropping the period
   // made office hours at 5 read the same in the morning and the evening.
-  const clock = (d: Date) => {
+  const split = (d: Date) => {
     const t = formatTime(d);
     const period = t.match(/[ap]\.m\.$/u)?.[0] ?? '';
-    return (
-      <>
-        {t.slice(0, t.length - period.length).trim()}
-        {period && <small className="tt-period">{period}</small>}
-      </>
-    );
+    return { hm: t.slice(0, t.length - period.length).trim(), period };
   };
+  const at = split(start);
+  const away = current
+    ? leftNow !== null
+      ? `${leftNow < 60 ? `${leftNow} min` : durationLabel(leftNow)} left`
+      : 'Now'
+    : `in ${minutesAway < 60 ? `${minutesAway} min` : durationLabel(minutesAway)}`;
 
   /*
-   * A printed Swiss timetable (Phase B): the time as a big tabular numeral,
-   * what and where beside it, how long until it in words, a rule that fills
-   * as the class runs, and the next one after it in small type. Course glass
-   * is kept, so a lecture still reads as its course.
+   * One ribbon (the UI overview): the time large with its period, what and
+   * where beside it, how long until it at the end, and the one after it in a
+   * single line underneath. The timetable card it replaces was two full rows
+   * and a rule, 190 px of the first screen spent on where to be, above the
+   * work that screen exists to show. A class under way keeps its filling
+   * rule; course glass is kept, so a lecture still reads as its course.
    */
   return (
-    <section aria-label={current ? 'Happening now' : 'Up next'} className="mb-8 px-4">
+    <section aria-label={current ? 'Happening now' : 'Up next'}>
       <div
-        className="mat mat-raised timetable overflow-hidden"
+        className="mat mat-raised ribbon"
         data-block
-        style={{ ...tint(course), '--mat-r': 'var(--r-hero)' } as CSSProperties}
+        style={{ ...tint(course), '--mat-r': 'var(--r-card)' } as CSSProperties}
       >
-        <div className="tt-row">
-          <span className="tt-time">{clock(start)}</span>
-          <span className="tt-what">
-            <b>{read.headline}</b>
-            <span>{[read.section, place, span ? durationLabel(span) : null].filter(Boolean).join(' · ')}</span>
-          </span>
-          <span className={current ? 'now-pill' : 'tt-away'}>
-            {current
-              ? 'Now'
-              : `in ${minutesAway < 60 ? `${minutesAway} min` : durationLabel(minutesAway)}`}
-          </span>
-        </div>
+        <span className="rb-time">
+          <b>{at.hm}</b>
+          {at.period && <span>{at.period}</span>}
+        </span>
+        <span className="rb-what">
+          <b>{read.headline}</b>
+          <span>{[read.section, place, span ? durationLabel(span) : null].filter(Boolean).join(' · ')}</span>
+        </span>
+        <span className={current ? 'now-pill' : 'rb-away'}>{current ? 'Now' : away}</span>
 
         {current && progress !== null && (
-          <div className="tt-line" aria-hidden>
-            <span style={{ transform: `scaleX(${Math.max(0.04, progress)})` }} />
-          </div>
-        )}
-        {current && leftNow !== null && (
-          <p className="type-note -mt-1 text-text-mid">
-            {leftNow < 60 ? `${leftNow} min left` : `${durationLabel(leftNow)} left`}
-          </p>
+          <span className="rb-line">
+            <span className="tt-line" aria-hidden>
+              <span style={{ transform: `scaleX(${Math.max(0.04, progress)})` }} />
+            </span>
+            <span className="rb-left">{away}</span>
+          </span>
         )}
 
         {then && thenRead && (
-          <>
-            <div className="tt-rule" aria-hidden />
-            <div className="tt-row tt-then">
-              <span className="tt-time">{clock(new Date(then.starts_at))}</span>
-              <span className="tt-what">
-                <b>{thenRead.headline}</b>
-                {after > 1 && <span>{after - 1 === 1 ? 'and one more today' : `and ${after - 1} more today`}</span>}
-              </span>
-              <span className="tt-away tt-quiet">then</span>
-            </div>
-          </>
+          <span className="rb-next">
+            <b>{formatTime(new Date(then.starts_at))}</b>
+            <span className="min-w-0 truncate">{thenRead.headline}</span>
+            {after > 1 && (
+              <span className="rb-more">· {after - 1 === 1 ? 'and one more' : `and ${after - 1} more`}</span>
+            )}
+          </span>
         )}
       </div>
     </section>

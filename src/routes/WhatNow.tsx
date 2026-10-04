@@ -34,6 +34,8 @@ export function WhatNow({
   onOpen,
   sized = (m) => m,
   alwaysOpen = false,
+  open: openProp,
+  onClose,
 }: {
   assignments: Assignment[];
   courses: Course[];
@@ -55,8 +57,22 @@ export function WhatNow({
    * same decision they were stuck on.
    */
   alwaysOpen?: boolean;
+  /**
+   * Opened from outside — the What now? pill on Today's first group. When
+   * given, this renders nothing until it is true and has no button of its
+   * own, so the question sits beside the work it chooses from.
+   */
+  open?: boolean;
+  onClose?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openSelf, setOpenSelf] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : openSelf;
+  const setOpen = (next: boolean) => {
+    if (controlled) {
+      if (!next) onClose?.();
+    } else setOpenSelf(next);
+  };
   const [minutes, setMinutes] = useState<number | null>(null);
   /*
    * Every hook runs before the first return, unconditionally.
@@ -92,6 +108,7 @@ export function WhatNow({
   const picked = choice ? assignments.find((a) => a.id === choice.task.id) ?? null : null;
 
   if (!showing) {
+    if (controlled) return null;
     return (
       <div className="mb-8 px-4">
         {/*
@@ -109,7 +126,7 @@ export function WhatNow({
   }
 
   return (
-    <section className="mb-8 px-4">
+    <section className={controlled ? 'what-now-panel px-4' : 'mb-8 px-4'}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="kicker mr-1">I have</span>
         {WINDOWS.map((m) => (

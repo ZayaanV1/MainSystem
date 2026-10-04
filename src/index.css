@@ -409,7 +409,9 @@
  */
 @utility type-masthead {
   font-family: var(--font-display);
-  font-size: clamp(2.25rem, 1.5rem + 3.6vw, 3.75rem);
+  /* 40 px on a phone, on one line with the date beside it: the weekday over
+     the date on two lines was 100 px of the first screen. */
+  font-size: clamp(2.5rem, 2rem + 2vw, 3.75rem);
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 0.96;

@@ -265,11 +265,15 @@ textarea.well {
   transition-duration: 70ms;
 }
 
+/* Under the box, out of the flow: a receipt that took a line of its own
+   pushed everything below down by its height on every screen, though it is
+   only visible for a moment after a capture. */
 .capture-receipt {
   pointer-events: none;
-  height: 0;
+  position: absolute;
+  top: 100%;
+  left: 0;
   margin-top: 0.375rem;
-  overflow: visible;
 }
 
 .well[aria-invalid='true'] {
@@ -430,6 +434,208 @@ textarea.well {
 .btn-icon {
   width: var(--tap);
   padding: 0;
+}
+
+/* ---- Today: the top of the day ---------------------------------------------- */
+
+.today-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.today-date {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--text-low);
+}
+
+/* The briefing as a lede: one line until More. */
+.brief {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 3rem;
+  padding: 0.25rem 0.375rem 0.25rem 1rem;
+  --mat-r: var(--r-card);
+}
+
+.brief-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-hi);
+}
+
+.brief[data-open] {
+  align-items: flex-start;
+  padding-block: 0.625rem;
+}
+
+.brief[data-open] .brief-text {
+  white-space: normal;
+  text-wrap: pretty;
+}
+
+.brief-more {
+  flex-shrink: 0;
+  min-height: 2.5rem;
+  padding: 0 0.625rem;
+  border-radius: var(--r-pill);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-2-lit);
+  transition: transform 180ms var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+.brief-more:active {
+  transform: scale(0.94);
+  background: var(--glass-fill-hover);
+  transition-duration: 70ms;
+}
+
+/* ---- Today: work grouped by when it is due --------------------------------- */
+
+.work-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.work-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-inline: 1rem;
+}
+
+.work-group-toggle {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.25rem;
+  text-align: left;
+  transition: transform 180ms var(--ease-out);
+}
+
+.work-group-toggle:active {
+  transform: scale(0.98);
+  transition-duration: 70ms;
+}
+
+.work-group-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--text-hi);
+}
+
+.work-group-toggle .section-count {
+  font-size: 0.875rem;
+}
+
+.work-group-chev {
+  margin-left: auto;
+  color: var(--text-low);
+  transition: transform 320ms var(--ease-glide);
+}
+
+.work-group-toggle[aria-expanded='false'] .work-group-chev {
+  transform: rotate(-90deg);
+}
+
+.what-now-panel {
+  padding-block: 0.25rem 0.5rem;
+}
+
+/* ---- tick pills: Today's checklist in one row ------------------------------- */
+
+.tick-pills {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  /* Bleeds to the screen edge so the row reads as scrolling, with the first
+     pill on the content line. */
+  margin-inline: -1rem;
+  padding: 0.125rem 1rem;
+  scroll-padding-inline: 1rem;
+}
+
+.tick-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.tick-pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5625rem;
+  min-height: var(--tap);
+  padding: 0 0.875rem 0 0.5rem;
+  border-radius: var(--r-pill);
+  scroll-snap-align: start;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--text-hi);
+  background: var(--glass-fill);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    inset 0 1px 0 var(--specular);
+  transition:
+    transform 180ms var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.tick-pill:active {
+  transform: scale(0.96);
+  background: var(--glass-fill-hover);
+  transition-duration: 70ms;
+}
+
+.tick-pill .tick {
+  width: 1.625rem;
+  height: 1.625rem;
+}
+
+.tick-pill-meta {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-low);
+}
+
+.tick-pill-quiet {
+  padding-inline: 0.875rem;
+  color: var(--text-mid);
+}
+
+@media (width >= 64rem) {
+  /* A desk has the width: the row wraps instead of hiding pills off the edge
+     of a column that has room for them. */
+  .tick-pills {
+    flex-wrap: wrap;
+    overflow: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
 }
 
 /* ---- the navigation capsule ---------------------------------------------------- */
@@ -663,37 +869,35 @@ button.chip:active {
   line-height: 0.95;
 }
 
-/* ---- the timetable strip: Now / Next as a printed Swiss timetable ---------- */
+/* ---- the ribbon: where to be, now or next -----------------------------------
+   One line of the timetable: the time large with its period, what and where,
+   how long until it, and the one after underneath. Replaced a two-row card
+   with a rule between that cost 190 px of the first screen. */
 
-.timetable {
+.ribbon {
   display: grid;
-  gap: 0.875rem;
-  padding: 1.125rem 1.125rem 1rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.125rem 0.875rem;
+  padding: 0.6875rem 1rem;
 }
 
-.tt-row {
-  display: grid;
-  grid-template-columns: 4.4rem minmax(0, 1fr) auto;
+.rb-time {
+  display: flex;
   align-items: baseline;
-  gap: 0.75rem;
+  gap: 0.25rem;
 }
 
-.tt-time {
+.rb-time b {
   font-family: var(--font-display);
-  /* Proportional: this prints clock times, and tabular figures would widen
-     the colon ("3 :00"). The column's width does the aligning. */
-  font-variant-numeric: normal;
-  font-size: 1.625rem;
+  font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1;
   color: var(--text-hi);
 }
 
-.tt-period {
-  display: block;
-  margin-top: 0.25rem;
-  font-family: var(--font-sans);
+.rb-time span {
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -701,49 +905,88 @@ button.chip:active {
   color: var(--text-low);
 }
 
-.tt-what {
+.rb-what {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.125rem;
 }
 
-.tt-what b {
+.rb-what b {
+  overflow: hidden;
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 650;
   letter-spacing: -0.01em;
   line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--text-hi);
 }
 
-.tt-what span {
+.rb-what span {
+  overflow: hidden;
   font-size: 0.8125rem;
-  line-height: 1.4;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--text-low);
 }
 
-.tt-away {
+.rb-away {
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
+  line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--accent-2-lit);
 }
 
-.tt-quiet {
+/* A class under way: its rule fills, with what is left at the end. */
+.rb-line {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding-top: 0.5rem;
+}
+
+.rb-line .tt-line {
+  flex: 1;
+}
+
+.rb-left {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-mid);
+}
+
+.rb-next {
+  grid-column: 1 / -1;
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+  padding-top: 0.5rem;
+  box-shadow: inset 0 1px 0 var(--ink-600);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text-mid);
+}
+
+.rb-next b {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-weight: 650;
+  color: var(--text-hi);
+}
+
+.rb-more {
+  flex-shrink: 0;
   color: var(--text-low);
-}
-
-.tt-then .tt-time {
-  font-size: 1.0625rem;
-  color: var(--text-mid);
-}
-
-.tt-then .tt-what b {
-  font-size: 0.9375rem;
-  color: var(--text-mid);
 }
 
 .tt-line {
@@ -761,11 +1004,6 @@ button.chip:active {
   border-radius: inherit;
   background: linear-gradient(to right, var(--accent-2-mid), var(--accent-2-lit));
   transition: transform 600ms var(--ease-out);
-}
-
-.tt-rule {
-  height: 1px;
-  background: var(--ink-600);
 }
 
 /* ---- a switch -------------------------------------------------------------
@@ -915,17 +1153,19 @@ button.chip:active {
 
 /* ---- the ticket: the Phase B slip ------------------------------------------
    An Edmondson railway ticket. The countdown sits in a stub on the left,
-   behind a perforation with real notches; the stub is the done target and
-   carries a faint punch ring so it reads as one. Masked for the notches, so
-   its glow is drawn by the wrapper rather than clipped away with them. */
+   behind a perforation with real notches; the ring on the right finishes it,
+   and finishing punches the stub, the punched-out disc falling away. Masked
+   for the notches, so its glow is drawn by the wrapper rather than clipped
+   away with them. Compact since the UI overview: 72 px, title and one line of
+   facts, so a phone's first screen reaches the day's work. */
 
 .slip-ticket {
-  --stub: 4.25rem;
-  --mat-r: 1.125rem;
+  --stub: 4.125rem;
+  --mat-r: 1rem;
   display: grid;
   grid-template-columns: var(--stub) minmax(0, 1fr) auto;
   align-items: stretch;
-  min-height: 5.25rem;
+  min-height: 4.5rem;
   -webkit-mask:
     radial-gradient(circle at var(--stub) 0, transparent 7px, var(--text-hi) 7.5px) top / 100% 51% no-repeat,
     radial-gradient(circle at var(--stub) 100%, transparent 7px, var(--text-hi) 7.5px) bottom / 100% 51% no-repeat;
@@ -936,7 +1176,7 @@ button.chip:active {
 
 @media (width >= 25rem) {
   .slip-ticket {
-    --stub: 4.75rem;
+    --stub: 4.5rem;
   }
 }
 
@@ -965,6 +1205,14 @@ button.chip:active {
   transition-duration: 70ms;
 }
 
+/* Touch pushes with the left swipe; the button is for a pointer, which has
+   no swipe. */
+@media not ((hover: hover) and (pointer: fine)) {
+  .tk-defer {
+    display: none;
+  }
+}
+
 /* The ticket's glow, drawn behind it by its wrapper: the notch mask would
    clip a shadow cast by the ticket itself. */
 .slip-ticket-wrap {
@@ -986,8 +1234,8 @@ button.chip:active {
   content: '';
   position: absolute;
   left: calc(var(--stub) - 0.5px);
-  top: 11px;
-  bottom: 11px;
+  top: 9px;
+  bottom: 9px;
   width: 1px;
   background: repeating-linear-gradient(to bottom, var(--ink-500) 0 3px, transparent 3px 7px);
   pointer-events: none;
@@ -999,14 +1247,8 @@ button.chip:active {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
-  padding: 0.875rem 0.25rem 0.75rem;
-  transition: transform var(--dur-sheet) cubic-bezier(0.2, 0, 0, 1);
-}
-
-.stub:active {
-  transform: scale(0.94);
-  transition-duration: 70ms;
+  gap: 0.2rem;
+  padding: 0.5rem 0.125rem;
 }
 
 .stub-n {
@@ -1014,7 +1256,7 @@ button.chip:active {
   /* Proportional: this prints clock times, and tabular figures would widen
      the colon ("3 :00"). The column's width does the aligning. */
   font-variant-numeric: normal;
-  font-size: 1.875rem;
+  font-size: 1.625rem;
   font-weight: 700;
   letter-spacing: -0.045em;
   line-height: 0.95;
@@ -1038,21 +1280,34 @@ button.chip:active {
   }
 }
 
-.stub-n-long {
+/* A clock time and a word step down so they fit 66 px: "11:59" at the
+   numeral size runs into the perforation. */
+.stub-time {
   font-size: 1.25rem;
   letter-spacing: -0.03em;
 }
 
+.stub-time-long {
+  font-size: 1.0625rem;
+}
+
+.stub-word {
+  font-size: 1.125rem;
+  letter-spacing: -0.03em;
+}
+
 .stub-u {
-  font-size: 0.625rem;
+  font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
   line-height: 1;
   text-transform: uppercase;
   color: var(--text-low);
 }
 
-/* Where the punch goes: a faint ring, so the stub reads as the thing to tap. */
+/* Where the punch goes. Unmarked at rest (the ring on the right is the thing
+   to tap); finishing punches it. */
 .punch {
   position: absolute;
   top: 0.5rem;
@@ -1062,7 +1317,7 @@ button.chip:active {
   margin-left: -0.375rem;
   border-radius: var(--r-pill);
   box-shadow: inset 0 0 0 1.5px var(--ink-500);
-  opacity: 0.6;
+  opacity: 0;
 }
 
 .punch[data-punched] {
@@ -1094,29 +1349,50 @@ button.chip:active {
   min-width: 0;
   flex-direction: column;
   justify-content: center;
-  gap: 0.3rem;
-  padding: 0.8125rem 0.5rem 0.8125rem 1rem;
+  gap: 0.25rem;
+  padding: 0.625rem 0.25rem 0.625rem 0.875rem;
   text-align: left;
+}
+
+.slip-ticket .slip-title {
+  font-size: 0.984375rem;
 }
 
 .tk-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 0.3rem;
-  font-size: 0.8125rem;
+  gap: 0 0.375rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.35;
   color: var(--text-mid);
+}
+
+.tk-sep {
+  margin-right: 0.375rem;
+  color: var(--text-low);
 }
 
 .tk-side {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 0.375rem;
-  padding-right: 0.75rem;
+  align-items: center;
+  gap: 0.125rem;
+  padding-right: 0.25rem;
+}
+
+/* The finish ring: 48 px of target, a 28 px ring. */
+.tk-done {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  align-self: stretch;
+  min-height: var(--tap);
+}
+
+.tk-done .tick {
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 /* A small control with a full-size target: the visible chip stays compact,

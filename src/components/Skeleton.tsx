@@ -68,13 +68,17 @@ export function SkeletonList({ rows = 3, kind = 'rows' }: { rows?: number; kind?
           <div key={i} className="slip-ticket-wrap relative">
             <div className="mat slip slip-ticket">
               <span className="stub">
-                <Skeleton h={7} w="w-8" className="rounded-tight" />
-                <Skeleton h={2} w="w-9" className="mt-1" />
+                <Skeleton h={6} w="w-7" className="rounded-tight" />
+                <Skeleton h={2} w="w-8" className="mt-1" />
               </span>
               <span className="tk-body">
                 <Skeleton h={4} w={widths[i % widths.length]} />
                 <Skeleton h={3} w="w-2/5" />
-                <Skeleton h={2.5} w="w-1/5" />
+              </span>
+              <span className="tk-side">
+                <span className="tk-done">
+                  <Skeleton h={7} w="w-7" className="rounded-pill" />
+                </span>
               </span>
             </div>
           </div>

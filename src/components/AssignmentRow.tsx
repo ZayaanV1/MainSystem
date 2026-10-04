@@ -3,6 +3,8 @@ import { clearTick, drawTick, haptic, punchTicket } from '../lib/motion';
 import { useNow } from '../lib/useNow';
 import { useAppearance } from '../lib/appearance';
 import { startBy, startByIsDue, urgencyFor, type Thresholds, type Urgency } from '../lib/urgency';
+import { stubSize, ticketFace } from '../lib/ticket';
+import { durationLabel } from '../lib/blocks';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 import type { Assignment, Course } from '../lib/planner';
 import { SwipeRow } from './SwipeRow';
@@ -39,8 +41,8 @@ import { courseVar } from '../lib/planner';
  * prototype, and the glass slip described above, kept as an option under
  * rule 13. The ticket moves the countdown into a stub on the left behind a
  * perforation, so the numbers line up in one column you can read down without
- * reading a title. The stub is the done target, marked with a faint punch
- * ring; finishing punches it and the punched-out disc falls away.
+ * reading a title. The ring on the right finishes it, as on the glass slip;
+ * finishing punches the stub and the punched-out disc falls away.
  */
 
 interface AssignmentRowProps {
@@ -59,35 +61,6 @@ interface AssignmentRowProps {
   onDefer?: () => void;
   /** Steps completed, when the work has been broken down. */
   progress?: { done: number; total: number } | null;
-}
-
-/** Urgency in words, for the ticket's label line. Never colour alone. */
-const STATE_WORD: Record<Urgency['state'], string> = {
-  overdue: 'Overdue',
-  critical: 'Critical',
-  urgent: 'Urgent',
-  approaching: 'Approaching',
-  distant: 'Distant',
-  done: 'Done',
-  undated: 'No date',
-};
-
-/**
- * The ticket's countdown. Same as the glass slip's, except that work due
- * later today counts down in hours or minutes: a stub is a narrow column, and
- * the clock time is already written in the meta line beside it.
- */
-function ticketCount(u: Urgency, due: Date | null, hasTime: boolean, now: Date): { big: string; unit: string } {
-  if (u.state !== 'done' && u.state !== 'overdue' && u.days === 0 && due && hasTime) {
-    const ms = due.getTime() - now.getTime();
-    if (ms > 0) {
-      const hours = Math.floor(ms / 3_600_000);
-      if (hours >= 1) return { big: String(hours), unit: hours === 1 ? 'hour' : 'hours' };
-      const minutes = Math.max(1, Math.round(ms / 60_000));
-      return { big: String(minutes), unit: minutes === 1 ? 'minute' : 'minutes' };
-    }
-  }
-  return countdown(u, due, hasTime);
 }
 
 /**
@@ -198,7 +171,25 @@ export function AssignmentRow({
   const code = course ? (course.code ?? course.name) : null;
 
   if (style === 'ticket') {
-    const tc = ticketCount(urgency, due, assignment.due_has_time, now ?? clock);
+    /*
+     * The compact ticket, 72 px. The stub says how long, the body says what
+     * and one line of facts, and the ring on the right finishes it. The
+     * urgency word left the face: the stub's colour and its unit already say
+     * it ("1 / day late", "3:00 / p.m."), and a screen reader still hears the
+     * full label. Start-by and the link moved into the editor, where they are
+     * acted on; a slip that carried four lines of them was 130 to 180 px and
+     * put the day's work two screens down.
+     */
+    const face = ticketFace(urgency, due, assignment.due_has_time, now ?? clock);
+    const facts = [
+      code,
+      face.when,
+      assignment.effort_minutes ? durationLabel(assignment.effort_minutes) : null,
+      typeof assignment.weight_percent === 'number' ? `${assignment.weight_percent}%` : null,
+      typeof assignment.grade_percent === 'number' ? `scored ${assignment.grade_percent}%` : null,
+      progress ? `${progress.done} of ${progress.total} steps` : null,
+    ].filter((f): f is string => Boolean(f));
+
     return (
       <div className="slip-ticket-wrap relative" data-row={assignment.id} data-block={cv ? true : undefined} style={tint}>
         <SwipeRow
@@ -212,29 +203,15 @@ export function AssignmentRow({
           data-done={done || undefined}
           style={tint}
         >
-          <button
-            type="button"
-            onClick={() => {
-              haptic();
-              onToggleDone();
-            }}
-            aria-pressed={done}
-            aria-label={
-              done
-                ? `Mark ${assignment.title} not done`
-                : `Mark ${assignment.title} done, ${urgency.label.toLowerCase()}`
-            }
-            className="stub"
-            style={{ color: `var(${urgency.colourVar})` } as CSSProperties}
-          >
-            <span ref={punch} aria-hidden className="punch" data-punched={done || undefined} />
-            {/* Keyed on the number, so a change rolls the new one in like a
+          <span aria-hidden className="stub" style={{ color: `var(${urgency.colourVar})` } as CSSProperties}>
+            <span ref={punch} className="punch" data-punched={done || undefined} />
+            {/* Keyed on the figure, so a change rolls the new one in like a
                 departure board rather than swapping it. */}
-            <span key={tc.big} aria-hidden className={`stub-n stub-roll ${tc.big.length > 3 ? 'stub-n-long' : ''}`}>
-              {tc.big}
+            <span key={face.big} className={`stub-n stub-roll ${stubSize(face.big)}`}>
+              {face.big}
             </span>
-            <span aria-hidden className="stub-u">{tc.unit}</span>
-          </button>
+            <span className="stub-u">{face.unit}</span>
+          </span>
 
           <button
             type="button"
@@ -245,72 +222,70 @@ export function AssignmentRow({
             <span className={`slip-title ${done ? 'text-text-low line-through decoration-text-low' : 'text-text-hi'}`}>
               {assignment.title}
             </span>
-            {(code || dueLabel) && (
+            {facts.length > 0 && (
               <span className="tk-meta">
                 {code && cv && <span aria-hidden data-block className="chip-dot" style={tint} />}
-                {/* Each part kept whole, so a narrow phone breaks between
-                    the course, the day and the time, never inside "p.m." */}
-                {[code, ...(dueLabel ? dueLabel.split(' · ') : [])]
-                  .filter((part): part is string => Boolean(part))
-                  .map((part, i, all) => (
-                    <span key={i} className="whitespace-nowrap">
-                      {part}
-                      {i < all.length - 1 && <span aria-hidden> ·</span>}
-                    </span>
-                  ))}
+                {/* Each fact kept whole, so a narrow phone breaks between
+                    them, never inside "p.m." */}
+                {facts.map((part, i) => (
+                  <span key={i} className="whitespace-nowrap">
+                    {i > 0 && <span aria-hidden className="tk-sep">·</span>}
+                    {part}
+                  </span>
+                ))}
               </span>
             )}
             <span className="sr-only">{urgency.label}.</span>
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span aria-hidden className="kicker" style={{ color: `var(${urgency.colourVar})` }}>
-                {STATE_WORD[urgency.state]}
-              </span>
-              {typeof assignment.weight_percent === 'number' && (
-                <span className="tag type-caption">{assignment.weight_percent}% of grade</span>
-              )}
-              {typeof assignment.grade_percent === 'number' && (
-                <span className="tag type-caption">scored {assignment.grade_percent}%</span>
-              )}
-              {showStart && start && (
-                <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
-              )}
-              {progress && (
-                <span className="type-caption text-text-mid">
-                  {progress.done} of {progress.total} steps
-                </span>
-              )}
-            </span>
           </button>
 
-          {(assignment.link || (onDefer && !done && assignment.due_at)) && (
-            <span className="tk-side">
-              {assignment.link && (
-                <a
-                  href={assignment.link}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="hit-expand action-chip-sm type-caption"
-                >
-                  Open
-                </a>
-              )}
-              {onDefer && !done && assignment.due_at && (
-                <button
-                  type="button"
-                  onClick={onDefer}
-                  aria-label={`Push "${assignment.title}" to tomorrow`}
-                  title="Tomorrow"
-                  className="tk-defer"
-                >
-                  {/* An arrow onto tomorrow: the word took a third of a phone's
-                      width from the title beside it. */}
-                  <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 12h12M12 6l6 6-6 6M20 5v14" />
+          <span className="tk-side">
+            {onDefer && !done && assignment.due_at && (
+              <button
+                type="button"
+                onClick={onDefer}
+                aria-label={`Push "${assignment.title}" to tomorrow`}
+                title="Tomorrow"
+                // A pointer has no swipe, so the push is a button there; on a
+                // phone it is the left swipe, and the row keeps its width for
+                // the title.
+                className="tk-defer"
+              >
+                <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12h12M12 6l6 6-6 6M20 5v14" />
+                </svg>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                haptic();
+                onToggleDone();
+              }}
+              aria-pressed={done}
+              aria-label={
+                done
+                  ? `Mark ${assignment.title} not done`
+                  : `Mark ${assignment.title} done, ${urgency.label.toLowerCase()}`
+              }
+              className="tk-done"
+            >
+              <span ref={tickBox} aria-hidden className="tick" data-done={done || undefined}>
+                {done && (
+                  <svg viewBox="0 0 12 12" className="h-3.5 w-3.5">
+                    <path
+                      ref={tickPath}
+                      d="M2.5 6.2 L4.8 8.5 L9.5 3.8"
+                      fill="none"
+                      stroke="var(--ink-900)"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
-                </button>
-              )}
-            </span>
-          )}
+                )}
+              </span>
+            </button>
+          </span>
         </div>
         </SwipeRow>
       </div>

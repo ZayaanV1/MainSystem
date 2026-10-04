@@ -12,26 +12,27 @@ import { Button } from '../components/Button';
 import { SkeletonList } from '../components/Skeleton';
 import { CachedNotice, LoadFailure } from '../components/LoadFailure';
 import { Card } from '../components/Card';
-import { CheckRow } from '../components/CheckRow';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
 import { NowNext } from '../components/NowNext';
+import { TickPills } from '../components/TickPills';
 import { SectionHead } from '../components/SectionHead';
 import { WhatNow } from './WhatNow';
 import { ChecklistEditor } from './ChecklistEditor';
 import { AssignmentEditor } from './AssignmentEditor';
 import { Triage } from './Triage';
 import { History } from './History';
+import { ChecklistSheet } from './ChecklistSheet';
 import { LowBattery } from './LowBattery';
 import type { ChecklistItem } from '../lib/checklist';
+import { FOLDED_BY_DEFAULT, GROUP_ORDER, groupWork, type GroupId } from '../lib/todayGroups';
 import { useAuth } from '../lib/auth';
-import { dueOn, recentDays, refillStatus } from '../lib/checklist';
+import { dueOn } from '../lib/checklist';
 import { describeHealth, fetchHealth, type NotificationHealth } from '../lib/health';
 import { subscribeOutbox } from '../lib/outbox';
 import { adjustedEstimate, calibration, forecast, stuckTasks } from '../lib/intelligence';
 import { dailySummary } from '../lib/assist';
 import {
-  BACKFILL_DAYS,
   capture,
   completionKey,
   deferAssignment,
@@ -47,12 +48,12 @@ import {
   type InboxItem,
   type TodayData,
 } from '../lib/planner';
-import { activeTimezone, addDays, formatDay, rolloverDay, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
+import { activeTimezone, addDays, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 import { applyPending } from '../lib/optimistic';
 import { useOutbox } from '../lib/useOutbox';
 import { useNow } from '../lib/useNow';
 import { announce } from '../lib/announce';
-import { revealList } from '../lib/motion';
+import { closeUp, measureBelow, revealList } from '../lib/motion';
 import { CaptureBox } from '../components/CaptureBox';
 import { UndoBar } from '../components/UndoBar';
 import { usePresence } from '../lib/usePresence';
@@ -88,13 +89,16 @@ export function Today({
   const [pairs, setPairs] = useState<{ estimated: number; actual: number }[]>([]);
 
   const [loaded, setLoaded] = useState<TodayData | null>(null);
-  const [day, setDay] = useState<DayKey>(todayKey());
   const [health, setHealth] = useState<NotificationHealth | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
   const [triaging, setTriaging] = useState<InboxItem | null>(null);
-  const [editing, setEditing] = useState(false);
   const [editorFor, setEditorFor] = useState<{ item: ChecklistItem | null } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  // What now, opened from the pill on the first group (phones).
+  const [askOpen, setAskOpen] = useState(false);
+  // Which groups are folded: the reader's choice, kept on this device.
+  const [folded, setFolded] = useState<Set<GroupId>>(readFolded);
   const [retrying, setRetrying] = useState(false);
 
   /*
@@ -106,14 +110,6 @@ export function Today({
    */
   const now = useNow();
   const today = todayKey(now);
-
-  const lastToday = useRef(today);
-  useEffect(() => {
-    const previous = lastToday.current;
-    if (previous === today) return;
-    lastToday.current = today;
-    setDay((selected) => rolloverDay(previous, today, selected, BACKFILL_DAYS));
-  }, [today]);
 
   const reload = useCallback(() => loadToday(today).then(setLoaded), [today]);
 
@@ -206,10 +202,59 @@ export function Today({
   // drops it at once; its picture stays until it has animated out.
   const work = usePresence(data?.assignments ?? null, (a) => a.id);
   const inbox = usePresence(data?.inbox ?? null, (e) => e.id, { enter: true });
+
+  /*
+   * The work, grouped by when it is due (Late, Today, Tomorrow, This week,
+   * Later, No date). Built from the presence list, so a row on its way out
+   * stays in its group until it has gone; the groups have presence of their
+   * own, so a heading whose last row has left leaves on screen too.
+   */
+  const grouped = data
+    ? groupWork(work.list.map((p) => ({ p, due_at: p.item.due_at })), now, today)
+    : null;
+  const groupsShown = usePresence(grouped, (g) => g.id, { enter: true });
+  // What now? rides on the Today group, or on the first group when nothing
+  // is due today.
+  const liveGroups = (grouped ?? []).filter((g) => g.items.some((x) => !x.p.leaving));
+  const askGroup: GroupId | null =
+    liveGroups.find((g) => g.id === 'today')?.id ?? liveGroups[0]?.id ?? null;
+
   const setWorkList = (el: HTMLDivElement | null) => {
     workList.current = el;
     work.containerRef(el);
+    groupsShown.containerRef(el);
   };
+
+  /*
+   * Folding a group: everything below it closes up or makes room as a
+   * cascade rather than jumping, and the rows of a group being opened come
+   * in in order (rule 12).
+   */
+  const foldFlip = useRef<Map<HTMLElement, number> | null>(null);
+  const opened = useRef<GroupId | null>(null);
+  function toggleFold(id: GroupId, from: HTMLElement) {
+    const group = from.closest<HTMLElement>('.work-group');
+    if (group) foldFlip.current = measureBelow(group);
+    if (folded.has(id)) opened.current = id;
+    setFolded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      writeFolded(next);
+      return next;
+    });
+  }
+  useLayoutEffect(() => {
+    if (foldFlip.current) {
+      closeUp(foldFlip.current);
+      foldFlip.current = null;
+    }
+    const id = opened.current;
+    opened.current = null;
+    if (!id) return;
+    const rows = document.querySelectorAll<HTMLElement>(`#work-${id} > [data-presence]`);
+    if (rows.length > 0) revealList(Array.from(rows));
+  }, [folded]);
   /*
    * Only what is NEW comes in.
    *
@@ -228,7 +273,8 @@ export function Today({
   useLayoutEffect(() => {
     const root = workList.current;
     if (!root || !workIds) return;
-    const rows = Array.from(root.children) as HTMLElement[];
+    // The rows, inside their groups.
+    const rows = Array.from(root.querySelectorAll<HTMLElement>('.work-group > [id^="work-"] > [data-presence]'));
     const before = seenWork.current;
     seenWork.current = new Set(workIds.split(','));
     const arriving = before ? rows.filter((r) => !before.has(r.dataset.presence ?? '')) : rows;
@@ -250,15 +296,16 @@ export function Today({
   );
 
   const done = completionSet(data?.completions ?? []);
-  const items = dueOn(data?.items ?? [], day);
   const status = health ? describeHealth(health) : null;
 
   // The optimistic layer already folds queued ticks into `completions`, so a
   // second tap reads the first one and queues the opposite write — the row
   // and the server can no longer disagree about a double tap.
-  const isDone = (itemId: string) => done.has(completionKey(itemId, day));
+  const isDone = (itemId: string, day: DayKey) => done.has(completionKey(itemId, day));
 
-  const allDone = items.length > 0 && items.every((i) => isDone(i.id));
+  // Today's pills. Other days are filled in from the checklist sheet.
+  const pills = dueOn(data?.items ?? [], today);
+  const pillsDone = pills.length > 0 && pills.every((i) => isDone(i.id, today));
 
   // Work is only "cleared" if something was actually finished today. Without
   // that check an untouched day and a conquered one would read identically,
@@ -272,11 +319,24 @@ export function Today({
   if ((data?.inbox.length ?? 0) > 0) hadInbox.current = true;
   const inboxCleared = hadInbox.current && (data?.inbox.length ?? 0) === 0;
 
-  async function toggle(itemId: string) {
-    const next = !isDone(itemId);
-    const label = items.find((i) => i.id === itemId)?.title ?? 'Item';
+  async function toggle(itemId: string, day: DayKey) {
+    const next = !isDone(itemId, day);
+    const label = data?.items.find((i) => i.id === itemId)?.title ?? 'Item';
     announce(next ? `${label} ticked` : `${label} unticked`);
     await setCompletion(userId, itemId, day, next, today);
+  }
+
+  function finish(a: Assignment) {
+    const finishing = a.status !== 'done';
+    if (finishing) work.hint(a.id, 'done');
+    void setAssignmentStatus(a.id, finishing ? 'done' : 'todo');
+    // Optimistic writes are conveyed entirely by pixels moving, which is
+    // silent. The title is included because after a swipe the row may
+    // already be gone from the list.
+    announce(finishing ? `${a.title} marked done` : `${a.title} reopened`);
+    setFinished(finishing ? { id: a.id, title: a.title } : null);
+    // Offered, never demanded. Marking done has to stay free.
+    setAskingTime(finishing && a.effort_minutes !== null ? a : null);
   }
 
   /*
@@ -315,8 +375,8 @@ export function Today({
       <LowBattery
         data={data}
         onExit={() => void exitLowBattery()}
-        isDone={isDone}
-        onToggleItem={(id) => void toggle(id)}
+        isDone={(id) => isDone(id, today)}
+        onToggleItem={(id) => void toggle(id, today)}
       />
     );
   }
@@ -348,34 +408,29 @@ export function Today({
         </div>
       )}
       {/*
-        The masthead.
+        The masthead, on one line: the weekday at display size and the date
+        beside it. Stacked, the two were 100 px of a phone's first screen; on
+        one line they are 44, and that difference is most of a ticket.
 
-        This was the word "Today" at h1 and a grey caption under it, which is
-        a label for a screen rather than the top of one. The screen already
-        knows it is today — the tab is lit, the content is today's. What it
-        was not saying is WHICH day, at a size that registers before you have
-        decided to read anything, and that is the one piece of orientation a
-        planner opens with.
+        The weekday carries the type because WHICH day is the one piece of
+        orientation a planner opens with. "Today" survives as the accessible
+        name, because the landmark still has to announce what screen this is.
 
-        So the weekday carries the type now, at display weight with real
-        negative tracking, and the date sits under it. "Today" survives as the
-        accessible name because the landmark still has to announce what screen
-        this is, and because rule 1 is about answering that in two seconds.
-
-        The hairline is ember at low alpha, fading out to the right. It is
-        the only place in the app the brand appears as a rule rather than a
-        fill, and it is doing structural work — it separates the masthead from
-        the day without a full-width divider, which would cut the page in two.
+        The hairline is ember at low alpha, fading out to the right: the only
+        place the brand appears as a rule rather than a fill, closing the
+        masthead without a divider that would cut the page in two.
       */}
-      <header className="mb-6 px-4">
+      <header className="mb-3.5 px-4">
         <h1 className="sr-only">Today</h1>
-        <p aria-hidden className="type-masthead text-text-hi">
-          {weekdayName(today)}
-        </p>
-        <p className="mt-1 type-caption text-text-low">
-          {formatDay(today)} &middot; {zoneAbbrev()}
-        </p>
-        <div aria-hidden className="masthead-rule mt-4" />
+        <div className="flex items-baseline justify-between gap-3">
+          <p aria-hidden className="type-masthead text-text-hi">
+            {weekdayName(today)}
+          </p>
+          <p className="today-date">
+            {monthDay(today)} &middot; {zoneAbbrev()}
+          </p>
+        </div>
+        <div aria-hidden className="masthead-rule mt-2.5" />
       </header>
 
       {/*
@@ -387,326 +442,305 @@ export function Today({
       )}
       {data && <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />}
 
-      <CaptureBox send={(body) => capture(userId, body)} />
+      {/*
+        The top of the day, in the order a morning is lived: catch the thought,
+        tick the daily things, see where to be, read the one sentence the app
+        has for you. Tight on purpose (the UI overview): on a 375 x 812 phone,
+        what is late and the next thing due today sit above the fold.
+      */}
+      <div className="today-stack mb-6">
+        <CaptureBox className="" send={(body) => capture(userId, body)} />
 
-      {data && (
-        <NowNext
-          events={data.events}
-          today={today}
-          courseFor={(id) => data.courses.find((c) => c.id === id)}
-        />
-      )}
+        <div>
+          {data === null ? (
+            // Loading is not empty: no invitation to add while the list is
+            // still on its way.
+            <div aria-hidden className="tick-pills">
+              <span className="tick-pill skeleton-wait w-36" />
+              <span className="tick-pill skeleton-wait w-28" />
+            </div>
+          ) : (
+            <TickPills
+              items={pills}
+              isDone={(id) => isDone(id, today)}
+              onToggle={(id) => void toggle(id, today)}
+              onOpenList={() => setChecklistOpen(true)}
+              onAdd={() => setEditorFor({ item: null })}
+            />
+          )}
+          {/* Said once, for this day, and never compared to any other. A
+              moment can be praised safely; a streak cannot. */}
+          {pillsDone && <p className="mt-2 px-4 type-note text-t-done">That's everything for today.</p>}
+        </div>
 
-      <Briefing dep={loaded} today={today} />
+        {data && (
+          <NowNext
+            events={data.events}
+            today={today}
+            courseFor={(id) => data.courses.find((c) => c.id === id)}
+          />
+        )}
+
+        <Briefing dep={loaded} today={today} />
+      </div>
 
       {/*
-        Two columns once there is room, split by kind rather than by size: the
-        left is the day's fixed obligations, the right is the work that moves
-        and the things still waiting to be sorted. They stack in that order on
-        a phone, which is the order a morning actually happens in.
+        Two columns once there is room: the work, and beside it what helps you
+        act on it — What now answered without asking, what is coming, and the
+        inbox still waiting to be sorted. They stack in that order on a phone.
       */}
-      <div className="lg:grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.3fr)] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,0.95fr)] xl:gap-10">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start lg:gap-8 xl:gap-10">
         <div className="min-w-0">
-      <section className="mb-8">
-        <SectionHead
-          title="Checklist"
-          aside={
-            editing ? (
-              <Button variant="quiet" onClick={() => setEditing(false)}>
-                Done
-              </Button>
+          <section className="mb-8" aria-labelledby="work-heading">
+            <h2 id="work-heading" className="sr-only">
+              Work
+            </h2>
+            {/*
+              `data === null` is checked FIRST and separately, because
+              `!data?.assignments.length` is also true while the fetch is still
+              in flight — so this branch rendered "Nothing due." on every app
+              open, for the whole duration of the load. Loading and empty are
+              different facts and this screen is where the difference matters.
+            */}
+            {data === null ? (
+              <SkeletonList rows={3} kind="work" />
+            ) : !work.list.length ? (
+              workCleared ? (
+                <p className="enter-fade px-4 py-8 type-body text-t-done">
+                  That's all the work due today, done.
+                </p>
+              ) : (
+                <EmptyState>Nothing due.</EmptyState>
+              )
             ) : (
-              <DayStrip today={today} selected={day} onSelect={setDay} />
-            )
-          }
-        />
+              <div ref={setWorkList} className="flex flex-col gap-4">
+                {groupsShown.list.map(({ item: g, key, leaving }) => {
+                  const isFolded = folded.has(g.id);
+                  const live = g.items.filter((x) => !x.p.leaving).length;
+                  const asksHere = g.id === askGroup;
+                  return (
+                    <div key={key} data-presence={key} className="work-group" inert={leaving || undefined}>
+                      <div className="work-group-head">
+                        <button
+                          type="button"
+                          className="work-group-toggle"
+                          aria-expanded={!isFolded}
+                          aria-controls={`work-${g.id}`}
+                          onClick={(e) => toggleFold(g.id, e.currentTarget)}
+                        >
+                          <span className="work-group-title">{g.label}</span>
+                          <span key={live} className="section-count" aria-label={`${live} ${live === 1 ? 'item' : 'items'}`}>
+                            {live}
+                          </span>
+                          <svg aria-hidden className="work-group-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+                        {asksHere && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="lg:hidden"
+                            aria-expanded={askOpen}
+                            onClick={() => setAskOpen(!askOpen)}
+                          >
+                            What now?
+                          </Button>
+                        )}
+                      </div>
 
-        {data === null ? (
-          // Loading is not empty. This showed "Nothing on the checklist yet"
-          // with an Add button on every open, for as long as the fetch took.
-          <SkeletonList rows={2} />
-        ) : items.length === 0 ? (
-          <EmptyState
-            action={
-              <Button onClick={() => setEditorFor({ item: null })}>Add an item</Button>
-            }
-          >
-            Nothing on the checklist yet.
-          </EmptyState>
-        ) : (
-          <Card>
-            {items.map((item) => {
-              const refill = refillStatus(item);
-              return (
-                <CheckRow
-                  key={item.id}
-                  label={item.title}
-                  // In edit mode the row opens its settings instead of
-                  // ticking. One tap target per row either way — a second
-                  // control beside the checkbox would be a 44px target sitting
-                  // next to another 44px target, on a phone, at 7am.
-                  done={editing ? false : isDone(item.id)}
-                  onToggle={() =>
-                    editing ? setEditorFor({ item }) : void toggle(item.id)
-                  }
-                  meta={
-                    editing ? (
-                      <span className="text-text-mid">Edit</span>
-                    ) : refill.label ? (
-                      <span className={refill.needsRefill ? 'text-t-critical' : undefined}>
-                        {refill.label}
-                      </span>
-                    ) : undefined
-                  }
-                />
-              );
-            })}
-          </Card>
-        )}
+                      {asksHere && (
+                        <div className="lg:hidden">
+                          <WhatNow
+                            open={askOpen}
+                            onClose={() => setAskOpen(false)}
+                            assignments={data.assignments}
+                            courses={data.courses}
+                            deferrals={data.deferrals}
+                            sized={sized}
+                            onOpen={setOpenAssignment}
+                          />
+                        </div>
+                      )}
 
-        {/* Said once, for this day, and never compared to any other. A
-            moment can be praised safely; a streak cannot, because a streak is
-            something that can be taken away and then held against you. */}
-        {!editing && allDone && (
-          <p className="mt-3 px-4 type-body text-t-done">
-            {day === today ? "That's everything for today." : "That's everything for that day."}
-          </p>
-        )}
-
-        <div className="mt-3 flex gap-3 px-4">
-          {!editing && items.length > 0 && (
-            <>
-              <Button variant="quiet" onClick={() => setEditing(true)}>
-                Edit list
-              </Button>
-              <Button variant="quiet" onClick={() => setHistoryOpen(true)}>
-                Fill in a day
-              </Button>
-            </>
-          )}
-          {editing && (
-            <Button variant="quiet" onClick={() => setEditorFor({ item: null })}>
-              Add an item
-            </Button>
-          )}
-        </div>
-      </section>
-
-      <SheetPresence>
-      {historyOpen && (
-        <History
-          items={data?.items ?? []}
-          completions={data?.completions ?? []}
-          userId={userId}
-          onClose={() => setHistoryOpen(false)}
-        />
-      )}
-      </SheetPresence>
-
-      <SheetPresence>
-      {triaging && (
-        <Triage
-          item={triaging}
-          courses={data?.courses ?? []}
-          userId={userId}
-          onClose={() => setTriaging(null)}
-          onDone={reload}
-        />
-      )}
-      </SheetPresence>
-
-      <SheetPresence>
-      {openAssignment && (
-        <AssignmentEditor
-          open
-          assignment={openAssignment}
-          courses={data?.courses ?? []}
-          subtasks={data?.subtasks ?? []}
-          userId={userId}
-          onClose={() => setOpenAssignment(null)}
-          onSaved={reload}
-        />
-      )}
-      </SheetPresence>
-
-      <SheetPresence>
-      {editorFor && (
-        <ChecklistEditor
-          open
-          item={editorFor.item}
-          userId={userId}
-          nextSortOrder={(data?.items.length ?? 0) + 1}
-          onClose={() => setEditorFor(null)}
-          onSaved={reload}
-        />
-      )}
-      </SheetPresence>
-        </div>
-
-        <div className="min-w-0">
-
-      {/*
-        Two mounts, one on each side of the breakpoint, rather than one that
-        changes behaviour. A single component switching between button and
-        panel at lg would have to remount to do it, which throws away the
-        chosen time budget mid-resize.
-      */}
-      <div className="lg:hidden">
-        <WhatNow
-          assignments={data?.assignments ?? []}
-          courses={data?.courses ?? []}
-          deferrals={data?.deferrals ?? {}}
-          sized={sized}
-          onOpen={setOpenAssignment}
-        />
-      </div>
-      <div className="hidden lg:block">
-        <WhatNow
-          alwaysOpen
-          assignments={data?.assignments ?? []}
-          courses={data?.courses ?? []}
-          deferrals={data?.deferrals ?? {}}
-          sized={sized}
-          onOpen={setOpenAssignment}
-        />
-      </div>
-
-
-      {askingTime && <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />}
-
-      <section className="mb-8">
-        <SectionHead title="Work" count={data?.assignments.length || null} />
-        {/*
-          `data === null` is checked FIRST and separately, because
-          `!data?.assignments.length` is also true while the fetch is still in
-          flight — so this branch rendered "Nothing due." on every single app
-          open, for the whole duration of the load, before any error was
-          involved. Loading and empty are different facts and this screen is
-          the one place the difference matters most.
-        */}
-        {data === null ? (
-          <SkeletonList rows={3} kind="work" />
-        ) : !work.list.length ? (
-          workCleared ? (
-            <p className="enter-fade px-4 py-8 type-body text-t-done">
-              That's all the work due today, done.
-            </p>
-          ) : (
-            <EmptyState>Nothing due.</EmptyState>
-          )
-        ) : (
-          <div ref={setWorkList} className="flex flex-col gap-2.5">
-            {work.list.map(({ item: a, key, leaving }) => (
-              <div key={key} data-presence={key} inert={leaving || undefined}>
-                <AssignmentRow
-                  // A row leaving because it was finished shows itself finished
-                  // on the way out: the tick lands, then the slip goes.
-                  assignment={leaving && work.hintOf(key) === 'done' ? { ...a, status: 'done' } : a}
-                  progress={subtaskProgress(data?.subtasks ?? [], a.id)}
-                  course={data.courses.find((c) => c.id === a.course_id)}
-                  onToggleDone={() => {
-                    const finishing = a.status !== 'done';
-                    if (finishing) work.hint(a.id, 'done');
-                    void setAssignmentStatus(a.id, finishing ? 'done' : 'todo');
-                    // Optimistic writes are conveyed entirely by pixels moving,
-                    // which is silent. The title is included because after a
-                    // swipe the row may already be gone from the list.
-                    announce(finishing ? `${a.title} marked done` : `${a.title} reopened`);
-                    setFinished(finishing ? { id: a.id, title: a.title } : null);
-                    // Offered, never demanded. Marking done has to stay free.
-                    setAskingTime(finishing && a.effort_minutes !== null ? a : null);
-                  }}
-                  onDefer={() => {
-                    work.hint(a.id, 'defer');
-                    void deferAssignment(userId, a, addDays(todayKey(), 1));
-                    announce(`${a.title} moved to tomorrow`);
-                  }}
-                  onOpen={() => setOpenAssignment(a)}
-                />
+                      {/* A heading on its way out has already lost its
+                          last row; drawing the old rows again would bring
+                          one back for the length of the exit. */}
+                      {!isFolded && !leaving && (
+                        <div id={`work-${g.id}`} className="flex flex-col gap-2">
+                          {g.items.map(({ p: { item: a, key: rowKey, leaving: rowLeaving } }) => (
+                            <div key={rowKey} data-presence={rowKey} inert={rowLeaving || undefined}>
+                              <AssignmentRow
+                                // A row leaving because it was finished shows
+                                // itself finished on the way out.
+                                assignment={rowLeaving && work.hintOf(rowKey) === 'done' ? { ...a, status: 'done' } : a}
+                                progress={subtaskProgress(data.subtasks, a.id)}
+                                course={data.courses.find((c) => c.id === a.course_id)}
+                                now={now}
+                                onToggleDone={() => finish(a)}
+                                onDefer={() => {
+                                  work.hint(a.id, 'defer');
+                                  void deferAssignment(userId, a, addDays(todayKey(), 1));
+                                  announce(`${a.title} moved to tomorrow`);
+                                }}
+                                onOpen={() => setOpenAssignment(a)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+            )}
+          </section>
 
-
+          {askingTime && <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />}
         </div>
 
-        {/*
-          The third column exists only where there is room for it. Below xl it
-          closes up and the inbox returns to the bottom of the middle column,
-          which is the order a phone should read in.
-
-          It is here at all because out of sight is out of mind: an inbox
-          stacked under the work list is an inbox nobody scrolls to, so
-          anything captured and not triaged the same day effectively stops
-          existing. On a laptop there was 848px of margin to spend on exactly
-          that problem.
-        */}
         <div className="min-w-0">
-      {/*
-        Forecast, calibration and stuck work. Already computed since Phase 6
-        and already rendered — but in the middle column, under the work list,
-        where it competed with the thing it is context FOR. Here it sits beside
-        the day instead of below it.
-      */}
-      <Ahead
-        assignments={data?.assignments ?? []}
-        deferrals={data?.deferrals ?? {}}
-        cal={cal}
-        sized={sized}
-      />
-
-      <section className="mb-8 flex-1">
-        <SectionHead title="Inbox" count={data?.inbox.length || null} />
-        {Boolean(data?.inbox.length) && (
-          <p className="type-note -mt-2 mb-3 px-4 text-text-low">Tap one to sort it out.</p>
-        )}
-        {data === null ? null : !inbox.list.length ? (
-          inboxCleared ? (
-            <p className="enter-fade px-4 py-8 type-body text-t-done">Inbox clear.</p>
-          ) : (
-            <EmptyState>Capture anything here. Sort it later.</EmptyState>
-          )
-        ) : (
-          <div ref={inbox.containerRef}>
-            <Card>
-              {inbox.list.map(({ item: entry, key, leaving }) => (
-                <Pressable
-                  className="mat-row gap-3 px-4 py-3"
-                  key={key}
-                  data-presence={key}
-                  inert={leaving || undefined}
-                  onClick={() => setTriaging(entry)}
-                >
-                  <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 self-start rounded-pill bg-text-low" />
-                  <span className="type-quote text-text-hi">{entry.body}</span>
-                </Pressable>
-              ))}
-            </Card>
+          {/* On a desk there is room to answer What now without being asked:
+              making a stuck person first decide to ask is the decision they
+              were stuck on. On a phone it is the pill on the first group. */}
+          <div className="hidden lg:block">
+            <WhatNow
+              alwaysOpen
+              assignments={data?.assignments ?? []}
+              courses={data?.courses ?? []}
+              deferrals={data?.deferrals ?? {}}
+              sized={sized}
+              onOpen={setOpenAssignment}
+            />
           </div>
-        )}
-      </section>
 
-      <div className="mb-8 px-4">
-        <Button
-          variant="quiet"
-          onClick={() => void setLowBattery(userId, true).then(reload)}
-        >
-          Low battery
-        </Button>
-      </div>
+          <Ahead
+            assignments={data?.assignments ?? []}
+            deferrals={data?.deferrals ?? {}}
+            cal={cal}
+            sized={sized}
+          />
 
-      {status && (
-        <footer className="border-t border-ink-600 px-4 py-4">
-          <p className={`type-caption ${status.warn ? 'text-t-critical' : 'text-text-low'}`}>
-            {status.text}
-          </p>
-        </footer>
-      )}
+          <section className="mb-8 flex-1">
+            <SectionHead title="Inbox" count={data?.inbox.length || null} />
+            {Boolean(data?.inbox.length) && (
+              <p className="type-note -mt-2 mb-3 px-4 text-text-low">Tap one to sort it out.</p>
+            )}
+            {data === null ? null : !inbox.list.length ? (
+              inboxCleared ? (
+                <p className="enter-fade px-4 py-8 type-body text-t-done">Inbox clear.</p>
+              ) : (
+                <EmptyState>Capture anything here. Sort it later.</EmptyState>
+              )
+            ) : (
+              <div ref={inbox.containerRef}>
+                <Card>
+                  {inbox.list.map(({ item: entry, key, leaving }) => (
+                    <Pressable
+                      className="mat-row gap-3 px-4 py-3"
+                      key={key}
+                      data-presence={key}
+                      inert={leaving || undefined}
+                      onClick={() => setTriaging(entry)}
+                    >
+                      <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 self-start rounded-pill bg-text-low" />
+                      <span className="type-quote text-text-hi">{entry.body}</span>
+                    </Pressable>
+                  ))}
+                </Card>
+              </div>
+            )}
+          </section>
+
+          <div className="mb-8 px-4">
+            <Button
+              variant="quiet"
+              onClick={() => void setLowBattery(userId, true).then(reload)}
+            >
+              Low battery
+            </Button>
+          </div>
+
+          {status && (
+            <footer className="border-t border-ink-600 px-4 py-4">
+              <p className={`type-caption ${status.warn ? 'text-t-critical' : 'text-text-low'}`}>
+                {status.text}
+              </p>
+            </footer>
+          )}
         </div>
       </div>
 
+      <SheetPresence>
+        {checklistOpen && (
+          <ChecklistSheet
+            items={data?.items ?? []}
+            today={today}
+            isDone={isDone}
+            onToggle={(id, d) => void toggle(id, d)}
+            onEdit={(item) => {
+              // One sheet at a time: Back always means one thing.
+              setChecklistOpen(false);
+              setEditorFor({ item });
+            }}
+            onFillIn={() => {
+              setChecklistOpen(false);
+              setHistoryOpen(true);
+            }}
+            onClose={() => setChecklistOpen(false)}
+          />
+        )}
+      </SheetPresence>
+
+      <SheetPresence>
+        {historyOpen && (
+          <History
+            items={data?.items ?? []}
+            completions={data?.completions ?? []}
+            userId={userId}
+            onClose={() => setHistoryOpen(false)}
+          />
+        )}
+      </SheetPresence>
+
+      <SheetPresence>
+        {triaging && (
+          <Triage
+            item={triaging}
+            courses={data?.courses ?? []}
+            userId={userId}
+            onClose={() => setTriaging(null)}
+            onDone={reload}
+          />
+        )}
+      </SheetPresence>
+
+      <SheetPresence>
+        {openAssignment && (
+          <AssignmentEditor
+            open
+            assignment={openAssignment}
+            courses={data?.courses ?? []}
+            subtasks={data?.subtasks ?? []}
+            userId={userId}
+            onClose={() => setOpenAssignment(null)}
+            onSaved={reload}
+          />
+        )}
+      </SheetPresence>
+
+      <SheetPresence>
+        {editorFor && (
+          <ChecklistEditor
+            open
+            item={editorFor.item}
+            userId={userId}
+            nextSortOrder={(data?.items.length ?? 0) + 1}
+            onClose={() => setEditorFor(null)}
+            onSaved={reload}
+          />
+        )}
+      </SheetPresence>
     </main>
     {/* Outside main: main is transformed while pulling to refresh, and a
         fixed bar inside a transformed parent is fixed to that parent. */}
@@ -723,70 +757,6 @@ export function Today({
     </>
   );
 }
-
-/**
- * The back-fill strip.
- *
- * Five days, no further. This is the one place the no-streak-shaming rule is
- * easiest to break: a longer window turns into a record of every day missed.
- * Days carry no completion state and no colour — they are a way to reach
- * yesterday, not a report card.
- */
-function DayStrip({
-  today,
-  selected,
-  onSelect,
-}: {
-  today: DayKey;
-  selected: DayKey;
-  onSelect: (d: DayKey) => void;
-}) {
-  const days = recentDays(today, BACKFILL_DAYS);
-
-  return (
-    <div className="flex gap-1" role="group" aria-label="Choose a day to fill in">
-      {days.map((d) => {
-        const isToday = d === today;
-        const isSelected = d === selected;
-        // UTC, because `d` is a calendar date rather than an instant: the
-        // weekday of 2026-08-19 is Wednesday in every timezone, and running it
-        // through one only risks an off-by-one at the boundary.
-        const weekday = new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'UTC',
-          weekday: 'narrow',
-        }).format(new Date(`${d}T12:00:00Z`));
-
-        return (
-          <button
-            key={d}
-            type="button"
-            onClick={() => onSelect(d)}
-            aria-pressed={isSelected}
-            aria-label={isToday ? `Today, ${formatDay(d)}` : formatDay(d)}
-            className={[
-              // 36px to the eye, 44px to the thumb: hit-expand reaches the tap
-              // floor without making five pills crowd the section head.
-              'fx-depth hit-expand',
-              'flex h-9 w-9 flex-col items-center justify-center rounded-pill type-caption',
-              'min-h-0',
-              isSelected ? 'bg-ink-600 text-text-hi' : 'text-text-low',
-            ].join(' ')}
-          >
-            {/* The weekday letter, with a dot under today. Spelling out
-                "Today" does not fit a 36px target, and the dot reads faster
-                anyway. No completion state is shown here — this is a way to
-                reach yesterday, not a report card. */}
-            <span aria-hidden>{weekday}</span>
-            {isToday && (
-              <span aria-hidden className="mt-0.5 h-1 w-1 rounded-pill bg-current" />
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 
 /**
  * What is coming, and what is stuck.
@@ -837,6 +807,37 @@ function weekdayName(day: DayKey): string {
   return WEEKDAY_NAMES[new Date(`${day}T12:00:00Z`).getUTCDay()];
 }
 
+/** "Oct 4": the masthead's date, beside a weekday that is already written. */
+function monthDay(day: DayKey): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', month: 'short', day: 'numeric' }).format(
+    new Date(`${day}T12:00:00Z`),
+  );
+}
+
+const FOLD_KEY = 'planner.today.folded';
+
+/** Folded groups, as last left on this device; Later and No date at first. */
+function readFolded(): Set<GroupId> {
+  try {
+    const raw = localStorage.getItem(FOLD_KEY);
+    if (raw) {
+      const ids = JSON.parse(raw) as unknown;
+      if (Array.isArray(ids)) return new Set(GROUP_ORDER.filter((g) => ids.includes(g)));
+    }
+  } catch {
+    // Storage refused or a bad value: the defaults are a fine place to be.
+  }
+  return new Set(FOLDED_BY_DEFAULT);
+}
+
+function writeFolded(ids: Set<GroupId>) {
+  try {
+    localStorage.setItem(FOLD_KEY, JSON.stringify([...ids]));
+  } catch {
+    // Not fatal: the fold holds for this session.
+  }
+}
+
 function Briefing({ dep, today }: { dep: TodayData | null; today: DayKey }) {
   const cacheKey = `planner.briefing:${today}`;
   /*
@@ -849,8 +850,16 @@ function Briefing({ dep, today }: { dep: TodayData | null; today: DayKey }) {
    * late answer only replaces it if something changed.
    */
   const [text, setText] = useState(() => readBriefing(cacheKey));
+  const [open, setOpen] = useState(false);
   const section = useRef<HTMLElement>(null);
   const shownAtOpen = useRef(Boolean(text));
+  // Opening or closing it moves what is below as a cascade, never a jump.
+  const followers = useRef<Map<HTMLElement, number> | null>(null);
+  useLayoutEffect(() => {
+    if (!followers.current) return;
+    closeUp(followers.current);
+    followers.current = null;
+  }, [open]);
 
   useEffect(() => {
     setText(readBriefing(cacheKey));
@@ -904,33 +913,41 @@ function Briefing({ dep, today }: { dep: TodayData | null; today: DayKey }) {
       [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
       { duration: 280, easing: ease },
     );
-    for (let next = el.nextElementSibling; next; next = next.nextElementSibling) {
-      (next as HTMLElement).animate(
-        [{ transform: `translateY(${-shift}px)` }, { transform: 'none' }],
-        { duration: 360, easing: ease },
-      );
+    // Everything after it on the page, not only its siblings: it is the last
+    // thing in the top stack, and the work below is what has to make room.
+    for (const next of measureBelow(el).keys()) {
+      next.animate([{ transform: `translateY(${-shift}px)` }, { transform: 'none' }], {
+        duration: 360,
+        easing: ease,
+      });
     }
   }, [text]);
 
   if (!text) return null;
 
+  /*
+   * One line, and More opens the rest in place (the UI overview). The
+   * briefing is written so its first clause is the suggestion — "WeBWorK is
+   * due at 3 and the problem set tonight" — so the one line still carries the
+   * point, and the six lines it was cost the first screen its work.
+   */
   return (
-    <section ref={section} className="mb-6 px-4">
-      {/*
-        The one hero surface on the busiest screen in the app. Everything
-        else on Today is a `flat` Card — a list of work, a checklist, the
-        inbox — because a screen answering "what do I do right now" cannot
-        afford to make every row compete for the eye. This is the exception:
-        it is the single sentence the app chose to say to you today, and the
-        larger radius plus the lifted shadow are what tell the eye that
-        before a word of it is read.
-      */}
-      <Card elevation="hero" className="px-5 py-5">
-        <p className="kicker mb-2">Briefing</p>
-        <p className="type-body text-text-hi" style={{ fontSize: '1.0625rem' }}>
-          {text}
-        </p>
-      </Card>
+    <section ref={section} aria-label="Briefing">
+      <div className="mat brief" data-open={open || undefined}>
+        <p className="brief-text">{text}</p>
+        <button
+          type="button"
+          className="brief-more"
+          aria-expanded={open}
+          onClick={(e) => {
+            const card = e.currentTarget.closest('section');
+            if (card) followers.current = measureBelow(card);
+            setOpen(!open);
+          }}
+        >
+          {open ? 'Less' : 'More'}
+        </button>
+      </div>
     </section>
   );
 }

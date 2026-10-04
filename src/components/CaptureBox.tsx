@@ -10,7 +10,14 @@ import { dropGhost, flashReceipt } from '../lib/motion';
  * inbox is below the fold, so the thought appearing there was a confirmation
  * nobody could see.
  */
-export function CaptureBox({ send }: { send: (body: string) => Promise<unknown> }) {
+export function CaptureBox({
+  send,
+  className = 'mb-8 px-4',
+}: {
+  send: (body: string) => Promise<unknown>;
+  /** Spacing around the box: Today sets it inside its own stack. */
+  className?: string;
+}) {
   const [text, setText] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const receipt = useRef<HTMLParagraphElement>(null);
@@ -36,7 +43,7 @@ export function CaptureBox({ send }: { send: (body: string) => Promise<unknown> 
   }
 
   return (
-    <form onSubmit={submit} className="mb-8 px-4">
+    <form onSubmit={submit} className={`relative ${className}`}>
       <label htmlFor="capture" className="sr-only">
         Capture a thought
       </label>
@@ -67,7 +74,7 @@ export function CaptureBox({ send }: { send: (body: string) => Promise<unknown> 
           </svg>
         </button>
       </div>
-      <p ref={receipt} aria-hidden className="kicker capture-receipt mt-2 pl-[1.125rem] text-accent-2-lit" style={{ opacity: 0 }}>
+      <p ref={receipt} aria-hidden className="kicker capture-receipt pl-[1.125rem] text-accent-2-lit" style={{ opacity: 0 }}>
         Added to inbox
       </p>
     </form>

@@ -16,6 +16,8 @@ import type { Assignment } from '../lib/planner';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
+import { TickPills } from '../components/TickPills';
+import type { ChecklistItem } from '../lib/checklist';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
 import { Field } from '../components/Field';
@@ -70,6 +72,29 @@ const URGENCY = [
   { label: 'Approaching', v: '--t-approaching', window: '6-14 days' },
   { label: 'Distant', v: '--t-distant', window: '15+ days' },
   { label: 'Done', v: '--t-done', window: 'complete' },
+];
+
+const pillItem = (id: string, title: string, doses: number | null = null): ChecklistItem => ({
+  id,
+  title,
+  recurrence: 'daily',
+  weekdays: null,
+  interval_days: null,
+  anchor_day: null,
+  active: true,
+  sort_order: 0,
+  essential: false,
+  remind_at: null,
+  tracks_doses: doses !== null,
+  doses_remaining: doses,
+  doses_per_completion: 1,
+  refill_warning_days: 5,
+});
+
+const SPECIMEN_PILLS: ChecklistItem[] = [
+  pillItem('meds', 'Medication', 12),
+  pillItem('creatine', 'Creatine', 3),
+  pillItem('read', 'Read one chapter'),
 ];
 
 export function Specimen() {
@@ -209,6 +234,21 @@ export function Specimen() {
             courseVar="--c-2"
           />
         </Card>
+      </Section>
+
+      <Section title="TickPills — Today's checklist in one row">
+        <div className="px-4">
+          <TickPills
+            items={SPECIMEN_PILLS}
+            isDone={(id) => !!checked[id]}
+            onToggle={toggle}
+            onOpenList={() => {}}
+            onAdd={() => {}}
+          />
+        </div>
+        <div className="mt-3 px-4">
+          <TickPills items={[]} isDone={() => false} onToggle={() => {}} onOpenList={() => {}} onAdd={() => {}} />
+        </div>
       </Section>
 
       <Section title="Chip — course marks, never fills">
