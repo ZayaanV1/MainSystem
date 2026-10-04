@@ -367,7 +367,10 @@ export function dropGhost(input: HTMLInputElement, text: string) {
         fill: 'forwards',
       });
   if (!anim) ghost.remove();
-  else void anim.finished.finally(() => ghost.remove());
+  else void anim.finished.then(
+      () => ghost.remove(),
+      () => ghost.remove(),
+    );
 }
 
 /** A short receipt that appears, holds, and fades by itself. */
@@ -418,5 +421,134 @@ export function punchTicket(hole: HTMLElement) {
     { duration: 640, easing: 'cubic-bezier(0.45, 0, 0.85, 0.4)', fill: 'forwards' },
   );
   if (!fall) chad.remove();
-  else void fall.finished.finally(() => chad.remove());
+  else void fall.finished.then(
+      () => chad.remove(),
+      () => chad.remove(),
+    );
+}
+
+/* ============================================================================
+   Sheets: the page recedes, the title flies.
+   ========================================================================= */
+
+const SHEET_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+const SHEET_MS = 420;
+const RECEDE = 0.94;
+
+let receded: { el: HTMLElement; ox: number; oy: number; depth: number } | null = null;
+
+/**
+ * The page behind a sheet sinks back a little, so the sheet reads as lifted
+ * toward you rather than painted on top. Only the content column moves: the
+ * tab bar is fixed, and a fixed element inside a transformed one would be
+ * fixed to it instead of to the screen.
+ */
+export function recedePage() {
+  if (receded) {
+    receded.depth++;
+    return;
+  }
+  const el = document.querySelector<HTMLElement>('[data-recede]');
+  if (!el || reduced()) return;
+  const r = el.getBoundingClientRect();
+  const ox = window.innerWidth / 2;
+  const oy = window.innerHeight / 2;
+  el.style.transformOrigin = `${ox - r.left}px ${oy - r.top}px`;
+  receded = { el, ox, oy, depth: 1 };
+  el.getAnimations().forEach((a) => a.cancel());
+  run(el, [{ transform: 'none' }, { transform: `scale(${RECEDE})` }], { duration: SHEET_MS, easing: SHEET_EASE, fill: 'forwards' });
+}
+
+export function restorePage() {
+  if (!receded) return;
+  if (--receded.depth > 0) return;
+  const { el } = receded;
+  receded = null;
+  const now = getComputedStyle(el).transform;
+  el.getAnimations().forEach((a) => a.cancel());
+  const back = run(el, [{ transform: now === 'none' ? `scale(${RECEDE})` : now }, { transform: 'none' }], {
+    duration: 320,
+    easing: SHEET_EASE,
+  });
+  if (back) void back.finished.then(
+      () => (el.style.transformOrigin = ''),
+      () => (el.style.transformOrigin = ''),
+    );
+}
+
+/** Where a point on the receded page will be once the page is back at full size. */
+function unrecede(rect: DOMRect): { left: number; top: number; height: number } {
+  const r = receded;
+  if (!r) return { left: rect.left, top: rect.top, height: rect.height };
+  return {
+    left: r.ox + (rect.left - r.ox) / RECEDE,
+    top: r.oy + (rect.top - r.oy) / RECEDE,
+    height: rect.height / RECEDE,
+  };
+}
+
+/**
+ * The words you tapped travel into the sheet's title as it rises, on the
+ * sheet's own curve so the two land together; closing sends them home.
+ * `panel` is the sheet, measured where it will settle rather than where its
+ * entrance starts.
+ */
+export function flyText(src: HTMLElement, dst: HTMLElement, panel: HTMLElement, dir: 'in' | 'out') {
+  if (reduced()) return;
+  const a = src.getBoundingClientRect();
+  if (a.width === 0 || a.bottom < 0 || a.top > window.innerHeight) return;
+  let b: { left: number; top: number; height: number };
+  if (dir === 'in') {
+    const d = dst.getBoundingClientRect();
+    const p = panel.getBoundingClientRect();
+    const settledTop = window.innerHeight - panel.offsetHeight;
+    b = { left: d.left, top: settledTop + (d.top - p.top), height: d.height };
+  } else {
+    b = unrecede(dst.getBoundingClientRect());
+  }
+  const cs = getComputedStyle(src);
+  const k = parseFloat(getComputedStyle(dst).fontSize) / parseFloat(cs.fontSize);
+  const clone = document.createElement('span');
+  clone.textContent = src.textContent;
+  clone.setAttribute('aria-hidden', 'true');
+  Object.assign(clone.style, {
+    position: 'fixed',
+    zIndex: '70',
+    left: `${a.left}px`,
+    top: `${a.top}px`,
+    width: `${a.width}px`,
+    margin: '0',
+    transformOrigin: '0 0',
+    pointerEvents: 'none',
+    color: cs.color,
+    fontFamily: cs.fontFamily,
+    fontSize: cs.fontSize,
+    fontWeight: cs.fontWeight,
+    letterSpacing: cs.letterSpacing,
+    lineHeight: cs.lineHeight,
+    textDecoration: 'none',
+  });
+  document.body.append(clone);
+  src.style.visibility = 'hidden';
+  dst.style.visibility = 'hidden';
+  const flight = run(
+    clone,
+    [{ transform: 'none' }, { transform: `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${k})` }],
+    dir === 'in'
+      ? { duration: SHEET_MS, easing: SHEET_EASE, fill: 'forwards' }
+      : { duration: 300, easing: 'cubic-bezier(0.3, 0, 0.2, 1)', fill: 'forwards' },
+  );
+  const land = () => {
+    src.style.visibility = '';
+    dst.style.visibility = '';
+    run(dst, [{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: 'ease-out' });
+    const fade = run(clone, [{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease-out', fill: 'forwards' });
+    if (fade) void fade.finished.then(
+      () => clone.remove(),
+      () => clone.remove(),
+    );
+    else clone.remove();
+  };
+  if (flight) void flight.finished.then(land, land);
+  else land();
 }

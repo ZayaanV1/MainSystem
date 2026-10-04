@@ -50,7 +50,8 @@ export function AppShell<T extends string>({
 
       {/* min-w-0 so a wide child (a long title, a table) shrinks instead of
           pushing the rail off screen. */}
-      <div className="min-w-0 flex-1">{children}</div>
+      {/* data-recede: this column sinks back behind an open sheet (Phase B). */}
+      <div data-recede className="min-w-0 flex-1">{children}</div>
 
       <TabBar current={current} items={items} onNavigate={onNavigate} />
     </div>

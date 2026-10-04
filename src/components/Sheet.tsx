@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { flyText, recedePage, restorePage } from '../lib/motion';
 
 /**
  * Sheet — a bottom sheet.
@@ -11,6 +13,11 @@ import { createContext, useContext, useEffect, useLayoutEffect, useReducer, useR
  * Closes on Escape, on backdrop tap, and on the explicit close control. Focus
  * is moved into the sheet on open and restored on close, so keyboard and
  * screen-reader users are not left behind on the page underneath.
+ *
+ * Phase B, on a phone: the page behind recedes as the sheet rises, the
+ * contents arrive a beat after the surface, and a sheet opened from
+ * something on the page can carry its title with it (`flightFrom`). Rendered
+ * into document.body, so the receding page cannot take the sheet with it.
  */
 
 /*
@@ -58,9 +65,15 @@ interface SheetProps {
    * behaviour to learn at a breakpoint nobody chose to cross.
    */
   dock?: boolean;
+  /**
+   * A selector for the element the sheet was opened from, whose words fly
+   * into the sheet's title as it rises and back when it closes, such as the
+   * title of the slip that was tapped.
+   */
+  flightFrom?: string;
 }
 
-export function Sheet({ open: openProp, onClose, title, children, dock = false }: SheetProps) {
+export function Sheet({ open: openProp, onClose, title, children, dock = false, flightFrom }: SheetProps) {
   const presence = useContext(Closing);
   const open = openProp && !presence?.closing;
   const panel = useRef<HTMLDivElement>(null);
@@ -118,6 +131,24 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false }
   const [present, setPresent] = useState(open);
   if (open && !present) setPresent(true);
   const scrim = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+
+  // A docked panel on a wide screen sits beside the page; nothing recedes
+  // and nothing flies, or the page you kept open would shrink away from you.
+  const besidePage = () => Boolean(dock) && matchMedia('(min-width: 64rem)').matches;
+
+  // Arriving: the page recedes and the title flies in, on the sheet's own curve.
+  useLayoutEffect(() => {
+    if (!open || !panel.current) return;
+    if (besidePage()) return;
+    recedePage();
+    const src = flightFrom ? document.querySelector<HTMLElement>(flightFrom) : null;
+    if (src && heading.current) flyText(src, heading.current, panel.current, 'in');
+    return () => restorePage();
+    // Only on opening. The flight reads the page as it was when tapped.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   useLayoutEffect(() => {
     if (open) {
       // Reopened while closing: drop the exit, keep the CSS entrance.
@@ -130,7 +161,11 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false }
     }
     if (!present) return;
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const docked = Boolean(dock) && matchMedia('(min-width: 64rem)').matches;
+    const docked = besidePage();
+    // Leaving: the title flies back to where it came from, if that is still
+    // on the page (a finished slip has left, so it stays in the sheet).
+    const home = flightFrom ? document.querySelector<HTMLElement>(flightFrom) : null;
+    if (home && heading.current && panel.current && !docked) flyText(heading.current, home, panel.current, 'out');
     const leave: Keyframe[] = still
       ? [{ opacity: 1 }, { opacity: 0 }]
       : docked
@@ -164,7 +199,7 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false }
 
   if (!present) return null;
 
-  return (
+  return createPortal(
     <div
       inert={!open || undefined}
       className={[
@@ -189,7 +224,7 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false }
         aria-label={title}
         tabIndex={-1}
         className={[
-          'sheet-panel relative w-full max-w-160 px-6 pb-8 pt-6',
+          'sheet-panel sheet-stage relative w-full max-w-160 px-6 pb-8 pt-6',
           // Docked: a column against the right edge rather than a slab across
           // the bottom. The border replaces the rounded top corners, which
           // read as "this rose from below" and would be a lie here.
@@ -209,8 +244,8 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false }
             past everything it was opened from.
           */
           dock
-            ? 'motion-safe:animate-[sheet-in_250ms_cubic-bezier(0.2,0,0,1)] motion-safe:lg:animate-[panel-in_220ms_cubic-bezier(0.2,0,0,1)]'
-            : 'motion-safe:animate-[sheet-in_250ms_cubic-bezier(0.2,0,0,1)]',
+            ? 'motion-safe:animate-[sheet-in_420ms_cubic-bezier(0.32,0.72,0,1)] motion-safe:lg:animate-[panel-in_260ms_cubic-bezier(0.2,0,0,1)]'
+            : 'motion-safe:animate-[sheet-in_420ms_cubic-bezier(0.32,0.72,0,1)]',
           // The sheet sits above the home indicator on an installed PWA.
           // Under Reduce Motion the sheet fades in instead of rising: still a
           // visible arrival (rule 12), with no travel.
@@ -223,7 +258,7 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false }
         <div aria-hidden className={`sheet-handle ${dock ? 'lg:hidden' : ''}`} />
 
         <div className="mb-5 flex items-center justify-between gap-4">
-          <h2 className="section-title sheet-title">{title}</h2>
+          <h2 ref={heading} className="section-title sheet-title">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="btn btn-quiet btn-icon">
             <svg
               aria-hidden
@@ -242,6 +277,7 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false }
 
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

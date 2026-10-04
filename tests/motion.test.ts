@@ -154,3 +154,20 @@ describe('Today and low-battery work leave through presence', () => {
     }
   });
 });
+
+describe('a cancelled animation is not an error', () => {
+  // Animation.finished rejects with an AbortError when the animation is
+  // cancelled, which happens every time a tap interrupts one. `.finally()`
+  // passes that rejection on, so it surfaced as an uncaught page error.
+  const bad = /\.finished\.finally\(/;
+
+  it('catches a planted one', () => {
+    expect(bad.test('void a.finished.finally(() => el.remove());')).toBe(true);
+    expect(bad.test('void a.finished.then(done, done);')).toBe(false);
+  });
+
+  it('never chains finally onto an animation', () => {
+    const offenders = sourceFiles('src', ['.ts', '.tsx']).filter((f) => bad.test(readFileSync(f, 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+});

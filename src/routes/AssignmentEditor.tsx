@@ -131,7 +131,14 @@ export function AssignmentEditor({
 
   return (
     <Sheet
-      dock open={open} onClose={onClose} title="Edit work">
+      dock
+      open={open}
+      onClose={onClose}
+      // The work's own name as the heading, so the title you tapped can fly
+      // into it from the slip (Phase B).
+      title={assignment.title || 'Edit work'}
+      flightFrom={`[data-row="${CSS.escape(assignment.id)}"] .slip-title`}
+    >
       <form onSubmit={submit} className="flex flex-col gap-6">
         <Field
           label="Title"

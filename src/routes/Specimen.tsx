@@ -13,7 +13,7 @@ import { CheckRow } from '../components/CheckRow';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
 import { Field } from '../components/Field';
-import { Sheet } from '../components/Sheet';
+import { Sheet, SheetPresence } from '../components/Sheet';
 import { PromptInput } from '../components/kit/PromptInput';
 import { ThinkingText } from '../components/kit/ThinkingText';
 
@@ -83,6 +83,7 @@ export function Specimen() {
   // deferring can be watched here without an account.
   const [work, setWork] = useState(sampleWork);
   const shown = usePresence(work, (a) => a.id);
+  const [opened, setOpened] = useState<Assignment | null>(null);
   const drop = (id: string, kind: 'done' | 'defer') => {
     shown.hint(id, kind);
     setWork((w) => w.filter((a) => a.id !== id));
@@ -124,6 +125,7 @@ export function Specimen() {
                 assignment={leaving && shown.hintOf(key) === 'done' ? { ...a, status: 'done' } : a}
                 onToggleDone={() => drop(a.id, 'done')}
                 onDefer={() => drop(a.id, 'defer')}
+                onOpen={() => setOpened(a)}
               />
             </div>
           ))}
@@ -259,6 +261,25 @@ export function Specimen() {
           <p className="type-caption mt-2 text-text-low">Metadata and urgency labels</p>
         </Card>
       </Section>
+
+      <SheetPresence>
+        {opened && (
+          <Sheet
+            open
+            dock
+            onClose={() => setOpened(null)}
+            title={opened.title}
+            flightFrom={`[data-row="${opened.id}"] .slip-title`}
+          >
+            <p className="type-body mb-6 text-text-mid">
+              The page recedes, the title flies in from the slip, and closing sends it back.
+            </p>
+            <Button variant="primary" full onClick={() => setOpened(null)}>
+              Done
+            </Button>
+          </Sheet>
+        )}
+      </SheetPresence>
 
       <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="A sheet">
         <p className="type-body mb-6 text-text-mid">
