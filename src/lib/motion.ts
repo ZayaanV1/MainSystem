@@ -200,7 +200,11 @@ export function closeUp(first: Map<HTMLElement, number>) {
     if (!el.isConnected) continue;
     const dy = top - el.getBoundingClientRect().top;
     if (Math.abs(dy) < 0.5) continue;
-    if (reduced()) continue;
+    if (reduced()) {
+      // No travel, but not a jump either (rule 12): what moved fades in place.
+      fade(el, 0.4, 1);
+      continue;
+    }
     run(el, [{ transform: `translateY(${dy}px)` }, { transform: 'none' }], {
       duration: 420,
       delay: calm() ? 0 : Math.min(i++, 8) * 14,
@@ -251,7 +255,12 @@ const EASE_SETTLE_CSS = EASE.settle;
  * then gathering. It starts from wherever it is drawn now, so tapping a
  * second tab mid-flight turns it around instead of restarting it.
  */
-export function moveCapsule(lit: HTMLElement, target: HTMLElement | null, axis: 'x' | 'y' = 'x') {
+export function moveCapsule(
+  lit: HTMLElement,
+  target: HTMLElement | null,
+  axis: 'x' | 'y' = 'x',
+  { instant = false }: { instant?: boolean } = {},
+) {
   if (!target) {
     run(lit, [{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
     return;
@@ -271,6 +280,9 @@ export function moveCapsule(lit: HTMLElement, target: HTMLElement | null, axis: 
   lit.style.transform = move(along);
   lit.style.opacity = '1';
 
+  // Re-measured after a resize, a rotation or a font arriving: the capsule
+  // follows its tab's new box without a flourish.
+  if (instant) return;
   if (wasHidden || from === null || Math.abs(from - along) < 1) {
     if (wasHidden) settleIn(lit);
     return;
@@ -431,6 +443,12 @@ const SHEET_MS = 420;
 const RECEDE = 0.94;
 
 let receded: { el: HTMLElement; ox: number; oy: number; depth: number } | null = null;
+/**
+ * The geometry of a page on its way back to full size. Kept until the return
+ * animation ends, because the closing title flight is measured at its very
+ * start, while the page is still at RECEDE.
+ */
+let restoring: { ox: number; oy: number } | null = null;
 
 /**
  * The page behind a sheet sinks back a little, so the sheet reads as lifted
@@ -450,6 +468,7 @@ export function recedePage() {
   const oy = window.innerHeight / 2;
   el.style.transformOrigin = `${ox - r.left}px ${oy - r.top}px`;
   receded = { el, ox, oy, depth: 1 };
+  restoring = null;
   el.getAnimations().forEach((a) => a.cancel());
   run(el, [{ transform: 'none' }, { transform: `scale(${RECEDE})` }], { duration: SHEET_MS, easing: SHEET_EASE, fill: 'forwards' });
 }
@@ -457,23 +476,29 @@ export function recedePage() {
 export function restorePage() {
   if (!receded) return;
   if (--receded.depth > 0) return;
-  const { el } = receded;
+  const { el, ox, oy } = receded;
   receded = null;
+  restoring = { ox, oy };
   const now = getComputedStyle(el).transform;
   el.getAnimations().forEach((a) => a.cancel());
   const back = run(el, [{ transform: now === 'none' ? `scale(${RECEDE})` : now }, { transform: 'none' }], {
     duration: 320,
     easing: SHEET_EASE,
   });
-  if (back) void back.finished.then(
-      () => (el.style.transformOrigin = ''),
-      () => (el.style.transformOrigin = ''),
-    );
+  // Cleared only by a return that finished. If a new sheet receded the page
+  // first, it cancelled this animation and set its own origin, which a
+  // cancellation here must not wipe.
+  const done = () => {
+    restoring = null;
+    if (!receded) el.style.transformOrigin = '';
+  };
+  if (back) void back.finished.then(done, () => undefined);
+  else done();
 }
 
 /** Where a point on the receded page will be once the page is back at full size. */
 function unrecede(rect: DOMRect): { left: number; top: number; height: number } {
-  const r = receded;
+  const r = receded ?? restoring;
   if (!r) return { left: rect.left, top: rect.top, height: rect.height };
   return {
     left: r.ox + (rect.left - r.ox) / RECEDE,
@@ -594,4 +619,19 @@ export function haptic() {
   } catch {
     // No haptics here; the visual feedback stands alone.
   }
+}
+
+/**
+ * Keeps a capsule on its target when the layout under it changes: rotation,
+ * a window resize, or the web font arriving after the first measure.
+ */
+export function followCapsule(container: HTMLElement, place: () => void): () => void {
+  const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => place()) : null;
+  ro?.observe(container);
+  let live = true;
+  void document.fonts?.ready.then(() => live && place());
+  return () => {
+    live = false;
+    ro?.disconnect();
+  };
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { flyText, recedePage, restorePage } from '../lib/motion';
 
@@ -39,8 +39,12 @@ export function SheetPresence({ children }: { children: ReactNode }) {
     last.current = null;
     rerender();
   }).current;
+  // Stable while `closing` holds: a new object on every render re-ran the
+  // Sheet's closing effect whenever the parent re-rendered mid-exit (a save
+  // reloads Today), restarting the exit and launching the title flight again.
+  const value = useMemo(() => ({ closing, done }), [closing, done]);
   if (!shown && !closing) return null;
-  return <Closing.Provider value={{ closing, done }}>{shown ? children : last.current}</Closing.Provider>;
+  return <Closing.Provider value={value}>{shown ? children : last.current}</Closing.Provider>;
 }
 
 interface SheetProps {

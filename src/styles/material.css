@@ -682,6 +682,16 @@ button.chip:active {
   display: none;
 }
 
+/* A mouse or trackpad does not swipe: the slip's own buttons are the desktop
+   path, and a sideways trackpad scroll over a row is usually the back
+   gesture, which a scrolling row would swallow. */
+@media (hover: hover) and (pointer: fine) {
+  .swipe-row {
+    overflow-x: hidden;
+    overscroll-behavior-x: auto;
+  }
+}
+
 .swipe-track {
   display: flex;
   align-items: stretch;

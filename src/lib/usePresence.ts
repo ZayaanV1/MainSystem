@@ -65,6 +65,8 @@ export function departures<T>(
   return out;
 }
 
+const HINT_MS = 4000;
+
 export function usePresence<T>(
   items: readonly T[] | null,
   keyOf: (item: T) => string,
@@ -73,8 +75,19 @@ export function usePresence<T>(
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const prev = useRef<readonly T[] | null>(items);
   const leaving = useRef(new Map<string, Ghost<T>>());
-  const hints = useRef(new Map<string, ExitKind>());
+  // How the next departure of an item should look, and when that was said.
+  // A hint is for the departure the tap causes; one that is not followed
+  // within a few seconds, or whose item comes back, is forgotten, or a later
+  // unrelated removal would leave as though it had been finished.
+  const hints = useRef(new Map<string, { kind: ExitKind; at: number }>());
   const exiting = useRef(new Set<string>());
+  const hintOf = useCallback((key: string): ExitKind | undefined => {
+    const h = hints.current.get(key);
+    // Long enough to cover a write's round trip; the exit itself reads the
+    // hint as it starts, and leaving items keep theirs until they are gone.
+    if (!h || (Date.now() - h.at > HINT_MS && !leaving.current.has(key))) return undefined;
+    return h.kind;
+  }, []);
   const arrived = useRef(new Set<string>());
   const flip = useRef<Map<HTMLElement, number> | null>(null);
   const container = useRef<HTMLElement | null>(null);
@@ -92,7 +105,11 @@ export function usePresence<T>(
         if (!leaving.current.has(key)) leaving.current.set(key, ghost);
       }
       const now = new Set(items.map(keyOf));
-      for (const key of [...leaving.current.keys()]) if (now.has(key)) leaving.current.delete(key);
+      for (const key of [...leaving.current.keys()]) {
+        if (!now.has(key)) continue;
+        leaving.current.delete(key);
+        hints.current.delete(key);
+      }
       if (enter) {
         const had = new Set(prev.current.map(keyOf));
         for (const key of now) if (!had.has(key)) arrived.current.add(key);
@@ -136,7 +153,7 @@ export function usePresence<T>(
         continue;
       }
       exiting.current.add(key);
-      void exitRow(el, hints.current.get(key) ?? 'gone').then(() => {
+      void exitRow(el, hintOf(key) ?? 'gone').then(() => {
         if (!exiting.current.has(key) || !leaving.current.has(key)) return;
         flip.current = measureBelow(el);
         leaving.current.delete(key);
@@ -149,9 +166,8 @@ export function usePresence<T>(
 
   /** Say how the next departure of this item should look. */
   const hint = useCallback((key: string, kind: ExitKind) => {
-    hints.current.set(key, kind);
+    hints.current.set(key, { kind, at: Date.now() });
   }, []);
-  const hintOf = useCallback((key: string) => hints.current.get(key), []);
   const containerRef = useCallback((el: HTMLElement | null) => {
     container.current = el;
   }, []);

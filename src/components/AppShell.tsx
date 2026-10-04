@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { moveCapsule, popClose, popIcon, popOpen } from '../lib/motion';
+import { followCapsule, moveCapsule, popClose, popIcon, popOpen } from '../lib/motion';
 
 /**
  * The frame the whole app sits in.
@@ -102,6 +102,11 @@ function TabBar<T extends string>({
   useLayoutEffect(() => {
     const slots = bar.current?.querySelectorAll<HTMLElement>('[data-slot]');
     if (lit.current) moveCapsule(lit.current, slots?.[litSlot] ?? null, 'x');
+    if (!bar.current) return;
+    return followCapsule(bar.current, () => {
+      const now = bar.current?.querySelectorAll<HTMLElement>('[data-slot]');
+      if (lit.current) moveCapsule(lit.current, now?.[litSlot] ?? null, 'x', { instant: true });
+    });
   }, [litSlot]);
 
   // The More menu opens from its button and closes back into it, instead of
@@ -237,6 +242,11 @@ function Rail<T extends string>({
   useLayoutEffect(() => {
     const slots = rail.current?.querySelectorAll<HTMLElement>('[data-slot]');
     if (lit.current) moveCapsule(lit.current, slots?.[index] ?? null, 'y');
+    if (!rail.current) return;
+    return followCapsule(rail.current, () => {
+      const now = rail.current?.querySelectorAll<HTMLElement>('[data-slot]');
+      if (lit.current) moveCapsule(lit.current, now?.[index] ?? null, 'y', { instant: true });
+    });
   }, [index]);
 
   return (

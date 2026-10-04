@@ -51,14 +51,23 @@ export function SwipeRow({
     if (!el) return;
     el.scrollLeft = home;
 
-    let touched = false;
+    /*
+     * Only a finger commits, and only once it has lifted.
+     *
+     * The first version committed whenever scrolling had been quiet for 140 ms,
+     * so holding the row over Done to think about it finished the work while
+     * the finger was still down, and dragging back could not cancel. It also
+     * counted a trackpad's sideways scroll as a hand, so a two-finger swipe on
+     * a laptop marked work done. Now: touch events track the finger (pointer
+     * events cancel the moment the browser takes over the scroll), the commit
+     * waits for touchend and for the throw to settle, and a mouse or trackpad
+     * never commits — the slip's buttons are the desktop path, and on a fine
+     * pointer the row does not scroll at all (material.css).
+     */
+    let fingerDown = false;
+    let gesture = false;
     let armed = 0;
     let timer = 0;
-    let settledOnce = false;
-    const touch = () => {
-      touched = true;
-      busy.current = true;
-    };
 
     const reveal = () => {
       const fromHome = el.scrollLeft - home;
@@ -72,7 +81,7 @@ export function SwipeRow({
         leftIcon.current.style.opacity = String(Math.min(1, l * 1.4));
         leftIcon.current.style.transform = `scale(${0.6 + Math.min(1, l) * 0.4})`;
       }
-      if (!touched) return;
+      if (!gesture) return;
       const next = r > 0.55 ? 1 : l > 0.55 ? -1 : 0;
       if (next === armed) return;
       armed = next;
@@ -81,51 +90,72 @@ export function SwipeRow({
       popArm(next > 0 ? rightIcon.current : leftIcon.current);
     };
 
+    const goHome = () => {
+      if (el.isConnected && Math.abs(el.scrollLeft - home) > 1) el.scrollTo({ left: home, behavior: 'smooth' });
+    };
+
     const settle = () => {
-      if (!touched || !el.isConnected) return;
+      if (fingerDown || !el.isConnected) return;
+      if (!gesture) {
+        // Moved by something other than a finger (a trackpad, the browser
+        // restoring a position): never an action, and back home.
+        goHome();
+        return;
+      }
+      gesture = false;
+      armed = 0;
       const max = el.scrollWidth - el.clientWidth;
-      if (handlers.current.onRight && el.scrollLeft <= 2) {
-        touched = false;
-        handlers.current.onRight();
-        settledOnce = true;
-      } else if (handlers.current.onLeft && el.scrollLeft >= max - 2) {
-        touched = false;
-        handlers.current.onLeft();
-        settledOnce = true;
-      } else {
-        touched = false;
+      if (handlers.current.onRight && el.scrollLeft <= 2) handlers.current.onRight();
+      else if (handlers.current.onLeft && el.scrollLeft >= max - 2) handlers.current.onLeft();
+      else {
         busy.current = false;
         return;
       }
-      // A row that stays where it is (a finished item in Week, say) eases
-      // home once its action has been taken; a row that leaves is gone first.
+      // A row that stays (a finished item in Week, say) eases home once its
+      // action has been taken; a row that leaves is gone before this runs.
       window.setTimeout(() => {
-        if (el.isConnected && settledOnce) el.scrollTo({ left: home, behavior: 'smooth' });
-        settledOnce = false;
+        goHome();
         busy.current = false;
       }, 650);
     };
 
+    const onStart = () => {
+      fingerDown = true;
+      gesture = true;
+      busy.current = true;
+      window.clearTimeout(timer);
+    };
+    const onLift = () => {
+      fingerDown = false;
+      // A tap, not a swipe: nothing moved, so nothing is armed or held.
+      if (Math.abs(el.scrollLeft - home) < 1) {
+        gesture = false;
+        busy.current = false;
+        return;
+      }
+      window.clearTimeout(timer);
+      timer = window.setTimeout(settle, 140);
+    };
     const onScroll = () => {
       reveal();
       window.clearTimeout(timer);
-      timer = window.setTimeout(settle, 140);
+      if (!fingerDown) timer = window.setTimeout(settle, 140);
     };
     const onEnd = () => {
       window.clearTimeout(timer);
       settle();
     };
 
-    el.addEventListener('pointerdown', touch, { passive: true });
-    el.addEventListener('touchstart', touch, { passive: true });
-    el.addEventListener('wheel', touch, { passive: true });
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchend', onLift, { passive: true });
+    el.addEventListener('touchcancel', onLift, { passive: true });
     el.addEventListener('scroll', onScroll, { passive: true });
     el.addEventListener('scrollend', onEnd);
     return () => {
       window.clearTimeout(timer);
-      el.removeEventListener('pointerdown', touch);
-      el.removeEventListener('touchstart', touch);
-      el.removeEventListener('wheel', touch);
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchend', onLift);
+      el.removeEventListener('touchcancel', onLift);
       el.removeEventListener('scroll', onScroll);
       el.removeEventListener('scrollend', onEnd);
     };

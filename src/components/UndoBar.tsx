@@ -38,6 +38,11 @@ export function UndoBar({
   useLayoutEffect(() => {
     const el = bar.current;
     if (!el || !message) return;
+    // A new message caught the bar on its way out: drop the exit (which holds
+    // it at opacity 0 while it stays tappable) and bring it back in properly.
+    const wasLeaving = el.getAnimations().length > 0 && Number(getComputedStyle(el).opacity) < 1;
+    el.getAnimations().forEach((a) => a.cancel());
+    if (wasLeaving) shownBefore.current = false;
     if (!shownBefore.current) {
       shownBefore.current = true;
       el.animate?.(

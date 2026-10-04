@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { moveCapsule } from '../../lib/motion';
+import { followCapsule, moveCapsule } from '../../lib/motion';
 import { CALENDAR_STYLES, type CalendarStyle } from '../../lib/calendarStyle';
 import { durationLabel, freeGaps } from '../../lib/blocks';
 import { effortMinutes, type DayGroup } from '../../lib/week';
@@ -56,8 +56,13 @@ export function StylePicker({
 
   // One ember capsule slides between the options and stretches as it goes,
   // the same object as the tab bar's.
+  const seg = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (lit.current) moveCapsule(lit.current, refs.current[index] ?? null, 'x');
+    if (!seg.current) return;
+    return followCapsule(seg.current, () => {
+      if (lit.current) moveCapsule(lit.current, refs.current[index] ?? null, 'x', { instant: true });
+    });
   }, [index]);
 
   // A radiogroup moves with the arrow keys, which is what a screen reader
@@ -72,7 +77,7 @@ export function StylePicker({
   };
 
   return (
-    <div role="radiogroup" aria-label="Calendar style" className="style-seg">
+    <div ref={seg} role="radiogroup" aria-label="Calendar style" className="style-seg">
       <span ref={lit} aria-hidden className="style-opt-lit" style={{ opacity: 0 }} />
       {CALENDAR_STYLES.map((s, i) => {
         const on = s.value === value;
