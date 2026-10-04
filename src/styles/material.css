@@ -204,6 +204,47 @@ textarea.well {
   font-size: 1.0625rem;
 }
 
+/* The capture field as a shell holding an input and its send button, so the
+   ember focus ring wraps both. */
+.capture-input {
+  border: 0;
+  outline: none;
+  color: var(--text-hi);
+  font-size: 1.0625rem;
+}
+
+.capture-input::placeholder {
+  color: var(--text-low);
+}
+
+/* Quiet until there is something to send, then it lights. Opacity and scale
+   only, so the change plays in the browser and is never a cut (rule 12). */
+.capture-send {
+  opacity: 0.38;
+  transform: scale(0.9);
+  transition:
+    opacity 260ms var(--ease-out),
+    transform 360ms cubic-bezier(0.34, 1.45, 0.64, 1),
+    filter var(--dur-tap) var(--ease-out);
+}
+
+.capture-send[data-ready] {
+  opacity: 1;
+  transform: none;
+}
+
+.capture-send[data-ready]:active {
+  transform: scale(0.94);
+  transition-duration: 70ms;
+}
+
+.capture-receipt {
+  pointer-events: none;
+  height: 0;
+  margin-top: 0.375rem;
+  overflow: visible;
+}
+
 .well[aria-invalid='true'] {
   border-color: var(--t-overdue);
 }
@@ -579,6 +620,25 @@ button.chip:active {
    transforms from the component itself (Today.tsx, Briefing). */
 
 /* ---- navigation ------------------------------------------------------------------ */
+
+/* The floating tab bar: glass with a lit top edge and a real shadow, as
+   designed in the Phase B prototype. */
+.tab-bar {
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    inset 0 1px 0 var(--specular),
+    var(--shadow-lg);
+}
+
+.tab-menu {
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    var(--shadow-lg);
+}
+
+.tab-btn {
+  transition: color var(--dur-sheet) var(--ease-out);
+}
 
 /* The lit capsule behind the current place, in the rail and the tab bar. */
 .nav-lit {

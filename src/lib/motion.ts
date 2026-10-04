@@ -242,3 +242,148 @@ export function settleIn(el: HTMLElement) {
     easing: EASE_OUT_CSS,
   });
 }
+
+/* ============================================================================
+   Navigation and capture.
+   ========================================================================= */
+
+/** Settles with a small overshoot: confirmation only (the tick, the punch). */
+const EASE_SETTLE_CSS = 'cubic-bezier(0.34, 1.45, 0.64, 1)';
+
+/**
+ * Moves the lit capsule behind the current tab to `target`.
+ *
+ * It travels like a drop of liquid: stretching toward where it is going,
+ * then gathering. It starts from wherever it is drawn now, so tapping a
+ * second tab mid-flight turns it around instead of restarting it.
+ */
+export function moveCapsule(lit: HTMLElement, target: HTMLElement | null, axis: 'x' | 'y' = 'x') {
+  if (!target) {
+    run(lit, [{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
+    return;
+  }
+  const along = axis === 'x' ? target.offsetLeft : target.offsetTop;
+  const size = axis === 'x' ? target.offsetWidth : target.offsetHeight;
+  const now = getComputedStyle(lit).transform;
+  const m = now && now !== 'none' ? new DOMMatrixReadOnly(now) : null;
+  const from = m ? (axis === 'x' ? m.m41 : m.m42) : null;
+  const wasHidden = lit.style.opacity === '0' || from === null;
+
+  lit.getAnimations().forEach((a) => a.cancel());
+  if (axis === 'x') lit.style.width = `${size}px`;
+  else lit.style.height = `${size}px`;
+  const move = (v: number) => (axis === 'x' ? `translateX(${v}px)` : `translateY(${v}px)`);
+  const scale = (s: number) => (axis === 'x' ? `scaleX(${s})` : `scaleY(${s})`);
+  lit.style.transform = move(along);
+  lit.style.opacity = '1';
+
+  if (wasHidden || from === null || Math.abs(from - along) < 1) {
+    if (wasHidden) settleIn(lit);
+    return;
+  }
+  if (reduced()) {
+    fade(lit, 0.3, 1);
+    return;
+  }
+  const stretch = 1 + Math.min(0.45, (Math.abs(along - from) / size) * 0.16);
+  run(
+    lit,
+    [
+      { transform: `${move(from)} ${scale(1)}` },
+      { transform: `${move(from + (along - from) * 0.55)} ${scale(stretch)}`, offset: 0.4 },
+      { transform: `${move(along)} ${scale(1)}` },
+    ],
+    { duration: 440, easing: EASE_GLIDE_CSS },
+  );
+}
+
+/** A tab's icon as it becomes the current place: it settles into the capsule. */
+export function popIcon(el: Element | null) {
+  if (!el) return;
+  if (reduced()) {
+    fade(el, 0.4, 1);
+    return;
+  }
+  run(el, [{ transform: 'scale(0.8) translateY(2px)' }, { transform: 'none' }], { duration: 420, easing: EASE_SETTLE_CSS });
+}
+
+/** A small surface opening from the control that summoned it, and closing back into it. */
+export function popOpen(el: HTMLElement | null, origin = '100% 100%') {
+  if (!el) return;
+  el.style.transformOrigin = origin;
+  if (reduced()) {
+    fade(el, 0, 1);
+    return;
+  }
+  run(el, [{ opacity: 0, transform: 'scale(0.94) translateY(8px)' }, { opacity: 1, transform: 'none' }], {
+    duration: 380,
+    easing: EASE_GLIDE_CSS,
+  });
+}
+
+export function popClose(el: HTMLElement | null): Promise<void> {
+  if (!el) return Promise.resolve();
+  const anim = reduced()
+    ? run(el, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: 'ease-out', fill: 'forwards' })
+    : run(el, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.96) translateY(6px)' }], {
+        duration: 170,
+        easing: EASE_EXIT_CSS,
+        fill: 'forwards',
+      });
+  return anim ? anim.finished.then(() => undefined, () => undefined) : Promise.resolve();
+}
+
+/**
+ * Captured words leave the field as a ghost that drops toward the inbox,
+ * so sending is something you see happen rather than a field going blank.
+ */
+export function dropGhost(input: HTMLInputElement, text: string) {
+  const r = input.getBoundingClientRect();
+  const cs = getComputedStyle(input);
+  const ghost = document.createElement('span');
+  ghost.textContent = text;
+  ghost.setAttribute('aria-hidden', 'true');
+  Object.assign(ghost.style, {
+    position: 'fixed',
+    zIndex: '60',
+    left: `${r.left + parseFloat(cs.paddingLeft)}px`,
+    top: `${r.top}px`,
+    height: `${r.height}px`,
+    lineHeight: `${r.height}px`,
+    maxWidth: `${r.width - parseFloat(cs.paddingLeft) - 64}px`,
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    textOverflow: 'ellipsis',
+    font: `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`,
+    color: cs.color,
+    pointerEvents: 'none',
+  });
+  document.body.append(ghost);
+  const anim = reduced()
+    ? run(ghost, [{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease-out', fill: 'forwards' })
+    : run(ghost, [{ transform: 'none', opacity: 1 }, { transform: 'translateY(22px) scale(0.94)', opacity: 0 }], {
+        duration: 320,
+        easing: 'cubic-bezier(0.4, 0, 0.9, 0.6)',
+        fill: 'forwards',
+      });
+  if (!anim) ghost.remove();
+  else void anim.finished.finally(() => ghost.remove());
+}
+
+/** A short receipt that appears, holds, and fades by itself. */
+export function flashReceipt(el: HTMLElement | null, holdMs = 1600) {
+  if (!el) return;
+  el.getAnimations().forEach((a) => a.cancel());
+  run(
+    el,
+    reduced()
+      ? [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.85 }, { opacity: 0 }]
+      : [
+          { opacity: 0, transform: 'translateY(-4px)' },
+          { opacity: 1, transform: 'none', offset: 0.12 },
+          { opacity: 1, transform: 'none', offset: 0.85 },
+          { opacity: 0, transform: 'none' },
+        ],
+    { duration: holdMs + 500, easing: 'ease-out', fill: 'forwards' },
+  );
+}

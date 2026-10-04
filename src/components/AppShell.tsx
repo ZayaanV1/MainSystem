@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { moveCapsule, popClose, popIcon, popOpen } from '../lib/motion';
 
 /**
  * The frame the whole app sits in.
@@ -82,34 +82,71 @@ function TabBar<T extends string>({
   onNavigate: (id: T) => void;
 }) {
   const [more, setMore] = useState(false);
-  const reduced = useReducedMotion();
+  const menu = useRef<HTMLDivElement>(null);
+  const scrim = useRef<HTMLDivElement>(null);
+  const lit = useRef<HTMLSpanElement>(null);
+  const bar = useRef<HTMLElement>(null);
 
   const shown = items.slice(0, PRIMARY);
   const rest = items.slice(PRIMARY);
   const inRest = rest.some((i) => i.id === current);
+  const litIndex = Math.max(-1, shown.findIndex((i) => i.id === current));
+  const litSlot = litIndex >= 0 ? litIndex : inRest || more ? PRIMARY : -1;
+
+  /*
+   * One lit capsule for the whole bar, moved to the tab you chose. It used to
+   * be a Motion layoutId per tab, which ran its spring from JavaScript; this
+   * plays in the browser and stretches as it travels (rule 12).
+   */
+  useLayoutEffect(() => {
+    const slots = bar.current?.querySelectorAll<HTMLElement>('[data-slot]');
+    if (lit.current) moveCapsule(lit.current, slots?.[litSlot] ?? null, 'x');
+  }, [litSlot]);
+
+  // The More menu opens from its button and closes back into it, instead of
+  // appearing and vanishing.
+  useLayoutEffect(() => {
+    if (more) {
+      popOpen(menu.current, '100% 100%');
+      scrim.current?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' });
+    }
+  }, [more]);
+  const closing = useRef(false);
+  async function closeMore() {
+    if (closing.current) return;
+    closing.current = true;
+    scrim.current?.animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: 170, easing: 'ease-out', fill: 'forwards' });
+    await popClose(menu.current);
+    closing.current = false;
+    setMore(false);
+  }
 
   return (
     <>
       {more && (
         <div
+          ref={scrim}
           className="sheet-scrim fixed inset-0 z-40 lg:hidden"
-          onClick={() => setMore(false)}
+          onClick={() => void closeMore()}
           aria-hidden
         />
       )}
 
       {more && (
-        <div className="fx-glass fixed inset-x-3 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom)+var(--sp-6))] z-50 overflow-hidden rounded-sheet border border-ink-600 shadow-lg lg:hidden">
+        <div
+          ref={menu}
+          className="fx-glass tab-menu fixed inset-x-3 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom)+var(--sp-6))] z-50 overflow-hidden rounded-sheet border border-ink-600 lg:hidden"
+        >
           {rest.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => {
                 onNavigate(item.id);
-                setMore(false);
+                void closeMore();
               }}
               className={[
-                'flex min-h-[var(--tap)] w-full items-center gap-3 border-b border-ink-600 px-4 text-left last:border-b-0',
+                'press-row flex min-h-[var(--tap)] w-full items-center gap-3 border-b border-ink-600 px-4 text-left last:border-b-0',
                 item.id === current ? 'text-text-hi' : 'text-text-mid',
               ].join(' ')}
             >
@@ -121,57 +158,31 @@ function TabBar<T extends string>({
       )}
 
       <nav
+        ref={bar}
         aria-label="Main"
-        // Glass, and this is the one place in the app that earns it: the tab
-        // bar is the only surface with content moving underneath it, which is
-        // the whole point of a material that refracts. It is also a single
-        // fixed element, so the backdrop read happens once per frame rather
-        // than once per row.
-        // Floating, not welded to the bottom edge.
-        //
-        // It was an edge-to-edge slab with a 1px top border, which is the
-        // shape every mobile web app has because it is the shape you get by
-        // default. Detaching it costs 12px of screen and changes what the
-        // glass is for: pinned to the edge it refracts the very bottom of the
-        // page, which is usually nothing; floating, content passes UNDER it
-        // on both sides, so the material is doing the thing it exists to do
-        // every time you scroll.
-        //
-        // It also lets the bar carry a real shadow. A slab flush with the
-        // viewport cannot cast one — there is nothing beneath it to cast onto
-        // — so the only depth cue available was the border.
-        className="vt-chrome fx-glass fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+var(--sp-3))] z-50 flex h-[var(--tab-bar)] items-stretch overflow-hidden rounded-pill border border-ink-600 shadow-lg lg:hidden"
+        // Glass, floating clear of the bottom edge so content passes under it
+        // on both sides; the one surface that earns a backdrop read.
+        className="vt-chrome fx-glass tab-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+var(--sp-3))] z-50 flex h-[var(--tab-bar)] items-stretch overflow-hidden rounded-pill border border-ink-600 p-1.5 lg:hidden"
       >
+        <span ref={lit} aria-hidden className="nav-lit pointer-events-none absolute top-1.5 bottom-1.5 left-0 rounded-pill" style={{ opacity: 0 }} />
         {shown.map((item) => {
           const active = item.id === current;
           return (
             <button
               key={item.id}
+              data-slot
               type="button"
-              onClick={() => {
-                setMore(false);
+              onClick={(e) => {
+                if (more) void closeMore();
+                if (!active) popIcon(e.currentTarget.querySelector('svg'));
                 onNavigate(item.id);
               }}
               aria-current={active ? 'page' : undefined}
               className={[
-                'relative flex h-[var(--tab-bar)] flex-1 flex-col items-center justify-center gap-1',
+                'tab-btn relative z-10 flex flex-1 flex-col items-center justify-center gap-1 rounded-pill',
                 active ? 'text-text-hi' : 'text-text-low',
               ].join(' ')}
             >
-              {/*
-                One lit capsule that slides to the tab you chose, the same
-                object as the rail's and the calendar style picker's — so
-                "where am I" is answered by a single moving thing rather than
-                by which label happens to be brighter.
-              */}
-              {active && (
-                <motion.span
-                  layoutId="tab-lit"
-                  aria-hidden
-                  className="nav-lit absolute inset-x-1.5 inset-y-1.5 -z-10 rounded-pill"
-                  transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 460, damping: 38 }}
-                />
-              )}
               <span aria-hidden>{item.icon}</span>
               <span className="type-caption">{item.short ?? item.label}</span>
             </button>
@@ -180,10 +191,18 @@ function TabBar<T extends string>({
 
         <button
           type="button"
-          onClick={() => setMore((v) => !v)}
+          data-slot
+          onClick={(e) => {
+            if (more) {
+              void closeMore();
+              return;
+            }
+            popIcon(e.currentTarget.querySelector('svg'));
+            setMore(true);
+          }}
           aria-expanded={more}
           className={[
-            'flex h-[var(--tab-bar)] flex-1 flex-col items-center justify-center gap-1',
+            'tab-btn relative z-10 flex flex-1 flex-col items-center justify-center gap-1 rounded-pill',
             more || inRest ? 'text-text-hi' : 'text-text-low',
           ].join(' ')}
         >
@@ -208,57 +227,56 @@ function Rail<T extends string>({
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
 }) {
-  const reduced = useReducedMotion();
+  const lit = useRef<HTMLSpanElement>(null);
+  const rail = useRef<HTMLElement>(null);
+  const index = items.findIndex((i) => i.id === current);
+
+  // One capsule slides between items, so the rail reads as a single control
+  // rather than eight buttons each lighting its own background.
+  useLayoutEffect(() => {
+    const slots = rail.current?.querySelectorAll<HTMLElement>('[data-slot]');
+    if (lit.current) moveCapsule(lit.current, slots?.[index] ?? null, 'y');
+  }, [index]);
 
   return (
     <nav
+      ref={rail}
       aria-label="Main"
       // Sticky rather than fixed: it scrolls with a short page and pins on a
-      // long one, without the content needing a matching margin that would
-      // drift out of sync the moment the rail's width changed.
+      // long one, without the content needing a matching margin.
       className="vt-chrome sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-1 border-r border-ink-600 bg-ink-800 px-3 py-6 lg:flex"
     >
       <div className="mb-6 px-3">
         <span className="type-h2 text-text-hi">Planner</span>
       </div>
 
-      {items.map((item) => {
-        const active = item.id === current;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onNavigate(item.id)}
-            aria-current={active ? 'page' : undefined}
-            className={[
-              'relative flex min-h-[var(--tap)] items-center gap-3 rounded-card px-3 text-left',
-              active ? 'text-text-hi' : 'text-text-mid hover:text-text-hi',
-            ].join(' ')}
-          >
-            {/*
-              One element slides between items rather than each item fading its
-              own background in and out. That is what makes the rail feel like
-              a single control instead of eight independent buttons, and it is
-              the one thing a layout animation does that CSS cannot.
-            */}
-            {active && (
-              <motion.span
-                layoutId="rail-active"
-                transition={
-                  reduced
-                    ? { duration: 0 }
-                    : { type: 'spring', stiffness: 420, damping: 34 }
-                }
-                className="nav-lit absolute inset-0 -z-10 rounded-card"
-              />
-            )}
-            <span aria-hidden className="shrink-0 text-text-mid">
-              {item.icon}
-            </span>
-            <span className="type-label">{item.label}</span>
-          </button>
-        );
-      })}
+      <div className="relative flex flex-col gap-1">
+        <span ref={lit} aria-hidden className="nav-lit pointer-events-none absolute inset-x-0 top-0 rounded-card" style={{ opacity: 0 }} />
+        {items.map((item) => {
+          const active = item.id === current;
+          return (
+            <button
+              key={item.id}
+              data-slot
+              type="button"
+              onClick={(e) => {
+                if (!active) popIcon(e.currentTarget.querySelector('svg'));
+                onNavigate(item.id);
+              }}
+              aria-current={active ? 'page' : undefined}
+              className={[
+                'relative z-10 flex min-h-[var(--tap)] items-center gap-3 rounded-card px-3 text-left',
+                active ? 'text-text-hi' : 'text-text-mid hover:text-text-hi',
+              ].join(' ')}
+            >
+              <span aria-hidden className="shrink-0 text-text-mid">
+                {item.icon}
+              </span>
+              <span className="type-label">{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }

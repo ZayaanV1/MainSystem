@@ -1,4 +1,9 @@
 import { useState } from 'react';
+import { AssignmentRow } from '../components/AssignmentRow';
+import { CaptureBox } from '../components/CaptureBox';
+import { SectionHead } from '../components/SectionHead';
+import { usePresence } from '../lib/usePresence';
+import type { Assignment } from '../lib/planner';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
@@ -18,6 +23,26 @@ import { ThinkingText } from '../components/kit/ThinkingText';
  * by eye: urgency colours only on edges and labels, course colours only as
  * marks.
  */
+
+/** Sample work for the slips, dated from now so every urgency reads true. */
+function sampleWork(): Assignment[] {
+  const at = (days: number, h: number, m: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(h, m, 0, 0);
+    return d.toISOString();
+  };
+  const base = {
+    course_id: null, due_has_time: true, effort_minutes: null, actual_minutes: null, status: 'todo' as const,
+    notes: null, start_by_override: null, remind_at: null, weight_percent: null, grade_percent: null, link: null,
+  };
+  return [
+    { ...base, id: 's1', title: 'Lab report 3: RC circuits', due_at: at(0, 23, 59) },
+    { ...base, id: 's2', title: 'WeBWorK set 6', due_at: at(1, 10, 0) },
+    { ...base, id: 's3', title: 'Essay outline: the rhetoric of public apology', due_at: at(4, 10, 15) },
+    { ...base, id: 's4', title: 'Reading response 4', due_at: at(17, 23, 59) },
+  ] as unknown as Assignment[];
+}
 
 const URGENCY = [
   { label: 'Overdue', v: '--t-overdue', window: 'past due' },
@@ -41,6 +66,15 @@ export function Specimen() {
 
   const toggle = (k: string) => setChecked((c) => ({ ...c, [k]: !c[k] }));
 
+  // A live work list on the same presence as Today, so finishing and
+  // deferring can be watched here without an account.
+  const [work, setWork] = useState(sampleWork);
+  const shown = usePresence(work, (a) => a.id);
+  const drop = (id: string, kind: 'done' | 'defer') => {
+    shown.hint(id, kind);
+    setWork((w) => w.filter((a) => a.id !== id));
+  };
+
   return (
     <main className="mx-auto max-w-160 px-4 py-8">
       <h1 className="type-h1 mb-6 px-4 text-text-hi">Specimen</h1>
@@ -51,6 +85,33 @@ export function Specimen() {
           {lowBattery ? 'Exit low battery' : 'Low battery'}
         </Button>
       </div>
+
+      <Section title="Capture">
+        <CaptureBox send={async () => undefined} />
+      </Section>
+
+      <section className="mb-10">
+        <SectionHead
+          title="Work"
+          count={work.length || null}
+          aside={
+            <Button variant="quiet" onClick={() => setWork(sampleWork())}>
+              Put them back
+            </Button>
+          }
+        />
+        <div ref={shown.containerRef} className="flex flex-col gap-2.5">
+          {shown.list.map(({ item: a, key, leaving }) => (
+            <div key={key} data-presence={key} inert={leaving || undefined}>
+              <AssignmentRow
+                assignment={leaving && shown.hintOf(key) === 'done' ? { ...a, status: 'done' } : a}
+                onToggleDone={() => drop(a.id, 'done')}
+                onDefer={() => drop(a.id, 'defer')}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
 
       <Section title="Time / urgency — edges and labels only">
         <Card>

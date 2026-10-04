@@ -375,11 +375,21 @@ function Shell() {
   );
 }
 
+/** The specimen inside the real shell, so the tab bar and rail are checked too. */
+function SpecimenShell() {
+  const [current, setCurrent] = useState<Screen>('today');
+  return (
+    <AppShell current={current} items={NAV} onNavigate={setCurrent}>
+      <Specimen />
+    </AppShell>
+  );
+}
+
 export default function App() {
   // The design system specimen, in development only. Never reachable in a
   // production build, and tree-shaken out of it entirely.
   if (import.meta.env.DEV && new URLSearchParams(location.search).has('specimen')) {
-    return <Specimen />;
+    return <SpecimenShell />;
   }
 
   if (!isConfigured) return <NotConfigured />;

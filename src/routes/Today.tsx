@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
 } from 'react';
 import { Pressable } from '../components/Pressable';
 import { AssignmentRow } from '../components/AssignmentRow';
@@ -54,6 +53,7 @@ import { useOutbox } from '../lib/useOutbox';
 import { useNow } from '../lib/useNow';
 import { announce } from '../lib/announce';
 import { revealList } from '../lib/motion';
+import { CaptureBox } from '../components/CaptureBox';
 import { usePresence } from '../lib/usePresence';
 import { SheetPresence } from '../components/Sheet';
 import { onFeedsChanged } from '../lib/feeds';
@@ -382,7 +382,7 @@ export function Today({
       )}
       {data && <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />}
 
-      <CaptureBox userId={userId} />
+      <CaptureBox send={(body) => capture(userId, body)} />
 
       {data && (
         <NowNext
@@ -702,76 +702,6 @@ export function Today({
       </div>
 
     </main>
-  );
-}
-
-/**
- * Quick capture — the highest-value feature in the app.
- *
- * Submitting clears the field and keeps focus, so three thoughts in a row cost
- * three taps and no navigation. There is no success message: the thought
- * appearing in the inbox below is the confirmation, and a toast would just be
- * something else to dismiss.
- */
-function CaptureBox({ userId }: { userId: string }) {
-  const [text, setText] = useState('');
-  const input = useRef<HTMLInputElement>(null);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    const body = text.trim();
-    if (!body) return;
-
-    setText('');
-    input.current?.focus();
-
-    // No reload: the optimistic layer puts the thought in the inbox the
-    // moment it is on disk. A reload here raced the sync and read the inbox
-    // before the write had reached it.
-    await capture(userId, body);
-  }
-
-  return (
-    <form onSubmit={submit} className="mb-8 px-4">
-      <label htmlFor="capture" className="sr-only">
-        Capture a thought
-      </label>
-      {/*
-        The largest field in the app, because it is the one used most and in
-        the most hurry. A plus inside it says what it does before a word is
-        read; the key hint only appears while there is something to send.
-      */}
-      <div className="relative">
-        <svg
-          aria-hidden
-          className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-text-low"
-          width="18"
-          height="18"
-          viewBox="0 0 18 18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        >
-          <path d="M9 3.5v11M3.5 9h11" />
-        </svg>
-        <input
-          id="capture"
-          ref={input}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Capture anything"
-          autoComplete="off"
-          enterKeyHint="done"
-          className="well capture-well pl-11 type-body"
-        />
-        {text.trim() && (
-          <span aria-hidden className="kicker pointer-events-none absolute top-1/2 right-4 -translate-y-1/2">
-            Enter
-          </span>
-        )}
-      </div>
-    </form>
   );
 }
 
