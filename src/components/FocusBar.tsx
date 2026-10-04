@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from './Button';
 import {
   clearSession,
@@ -100,7 +101,9 @@ export function FocusBar({ onFinish }: FocusBarProps) {
     setSession(null);
   }
 
-  return (
+  // Into the body: the page column recedes behind an open sheet with a
+  // transform, and a fixed bar inside it would be fixed to the column.
+  return createPortal(
     <div
       ref={bar}
       // Above the tab bar, below a sheet. Fixed so it survives every screen.
@@ -129,6 +132,7 @@ export function FocusBar({ onFinish }: FocusBarProps) {
       <Button variant="quiet" size="sm" onClick={discard} aria-label="Discard this timer">
         Discard
       </Button>
-    </div>
+    </div>,
+    document.body,
   );
 }

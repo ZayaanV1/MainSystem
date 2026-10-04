@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useReducer, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { popClose } from '../lib/motion';
 
 /**
@@ -70,7 +71,9 @@ export function UndoBar({
   }, [message, onDismiss]);
 
   if (!last.current) return null;
-  return (
+  // Into the body: the page column recedes behind an open sheet with a
+  // transform, and a fixed bar inside it would be fixed to the column.
+  return createPortal(
     <div
       ref={bar}
       role="status"
@@ -81,6 +84,7 @@ export function UndoBar({
       <button type="button" onClick={onUndo} className="btn btn-quiet min-h-9 px-4 type-label">
         Undo
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }

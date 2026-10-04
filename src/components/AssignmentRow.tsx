@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react';
-import { clearTick, drawTick, punchTicket } from '../lib/motion';
+import { clearTick, drawTick, haptic, punchTicket } from '../lib/motion';
+import { useNow } from '../lib/useNow';
 import { useAppearance } from '../lib/appearance';
 import { startBy, startByIsDue, urgencyFor, type Thresholds, type Urgency } from '../lib/urgency';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 import type { Assignment, Course } from '../lib/planner';
-import { useSwipe } from '../lib/useSwipe';
+import { SwipeRow } from './SwipeRow';
 import { courseVar } from '../lib/planner';
 
 /**
@@ -168,6 +169,9 @@ export function AssignmentRow({
    * fully drawn for a frame.
    */
   const { slip: style } = useAppearance();
+  // The stub counts down live: the minute ticks over and "23 hours" becomes
+  // "22" while the app is open, instead of waiting for something to re-render.
+  const clock = useNow();
   const tickPath = useRef<SVGPathElement>(null);
   const tickBox = useRef<HTMLSpanElement>(null);
   const punch = useRef<HTMLSpanElement>(null);
@@ -185,47 +189,33 @@ export function AssignmentRow({
     }
   }, [done]);
 
-  const swipe = useSwipe({
-    onLeft: onDefer,
-    onRight: onToggleDone,
-  });
+
 
   const cv = courseVar(course?.colour_index);
   const tint = (cv ? { '--b': `var(${cv}-rgb)` } : {}) as CSSProperties;
   const code = course ? (course.code ?? course.name) : null;
 
   if (style === 'ticket') {
-    const tc = ticketCount(urgency, due, assignment.due_has_time, now ?? new Date());
+    const tc = ticketCount(urgency, due, assignment.due_has_time, now ?? clock);
     return (
       <div className="slip-ticket-wrap relative" data-row={assignment.id} data-block={cv ? true : undefined} style={tint}>
-        {swipe.dx !== 0 && (
-          <span
-            aria-hidden
-            className={[
-              'absolute inset-y-0 flex items-center px-5 type-caption',
-              swipe.dx > 0 ? 'left-0 text-t-done' : 'right-0 text-text-mid',
-              swipe.armed ? 'opacity-100' : 'opacity-50',
-            ].join(' ')}
-          >
-            {swipe.dx > 0 ? (done ? 'Reopen' : 'Done') : 'Tomorrow'}
-          </span>
-        )}
-
+        <SwipeRow
+          onRight={onToggleDone}
+          onLeft={!done && assignment.due_at ? onDefer : undefined}
+          rightLabel={done ? 'Reopen' : 'Done'}
+        >
         <div
-          {...swipe.handlers}
           className="mat slip slip-ticket"
           data-block={cv ? true : undefined}
           data-done={done || undefined}
-          style={{
-            ...tint,
-            touchAction: swipe.touchAction,
-            transform: swipe.dx === 0 ? undefined : `translate3d(${swipe.dx}px, 0, 0)`,
-            transition: swipe.dx === 0 ? 'transform 220ms var(--ease-out)' : 'none',
-          }}
+          style={tint}
         >
           <button
             type="button"
-            onClick={onToggleDone}
+            onClick={() => {
+              haptic();
+              onToggleDone();
+            }}
             aria-pressed={done}
             aria-label={
               done
@@ -236,7 +226,9 @@ export function AssignmentRow({
             style={{ color: `var(${urgency.colourVar})` } as CSSProperties}
           >
             <span ref={punch} aria-hidden className="punch" data-punched={done || undefined} />
-            <span aria-hidden className={`stub-n ${tc.big.length > 3 ? 'stub-n-long' : ''}`}>
+            {/* Keyed on the number, so a change rolls the new one in like a
+                departure board rather than swapping it. */}
+            <span key={tc.big} aria-hidden className={`stub-n stub-roll ${tc.big.length > 3 ? 'stub-n-long' : ''}`}>
               {tc.big}
             </span>
             <span aria-hidden className="stub-u">{tc.unit}</span>
@@ -309,47 +301,31 @@ export function AssignmentRow({
             </span>
           )}
         </div>
+        </SwipeRow>
       </div>
     );
   }
 
   return (
     <div className="relative" data-row={assignment.id}>
-      {/*
-        What the gesture will do, revealed underneath the slip as it moves.
-        Both sit behind the content and are never announced — the slip's own
-        buttons already carry the accessible names, and a screen reader user
-        is not swiping.
-      */}
-      {swipe.dx !== 0 && (
-        <span
-          aria-hidden
-          className={[
-            'absolute inset-y-0 flex items-center px-5 type-caption',
-            swipe.dx > 0 ? 'left-0 text-t-done' : 'right-0 text-text-mid',
-            swipe.armed ? 'opacity-100' : 'opacity-50',
-          ].join(' ')}
-        >
-          {swipe.dx > 0 ? (done ? 'Reopen' : 'Done') : 'Tomorrow'}
-        </span>
-      )}
-
+      {/* Swiping is native scrolling (SwipeRow); the actions it reveals are
+          never announced, because the slip's own buttons carry the names. */}
+      <SwipeRow
+        onRight={onToggleDone}
+        onLeft={!done && assignment.due_at ? onDefer : undefined}
+        rightLabel={done ? 'Reopen' : 'Done'}
+      >
       <div
-        {...swipe.handlers}
         className="mat slip flex items-stretch"
         data-block={cv ? true : undefined}
-        style={{
-          ...tint,
-          touchAction: swipe.touchAction,
-          transform: swipe.dx === 0 ? undefined : `translate3d(${swipe.dx}px, 0, 0)`,
-          // No transition while the finger is down: the slip must track the
-          // finger exactly, and easing it makes the gesture feel like lag.
-          transition: swipe.dx === 0 ? 'transform 220ms var(--ease-out)' : 'none',
-        }}
+        style={tint}
       >
         <button
           type="button"
-          onClick={onToggleDone}
+          onClick={() => {
+            haptic();
+            onToggleDone();
+          }}
           aria-pressed={done}
           aria-label={done ? `Mark ${assignment.title} not done` : `Mark ${assignment.title} done`}
           className="flex min-h-[var(--tap)] w-12 shrink-0 items-center justify-center pl-1"
@@ -475,6 +451,7 @@ export function AssignmentRow({
           )}
         </div>
       </div>
+      </SwipeRow>
     </div>
   );
 }

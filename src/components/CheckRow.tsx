@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { clearTick, drawTick } from '../lib/motion';
+import { clearTick, drawTick, haptic } from '../lib/motion';
 
 /**
  * CheckRow.
@@ -52,7 +52,10 @@ export function CheckRow({ label, done, onToggle, meta, courseVar, disabled }: C
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={() => {
+        if (!done) haptic();
+        onToggle();
+      }}
       disabled={disabled}
       aria-pressed={done}
       className={[

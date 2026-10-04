@@ -547,3 +547,51 @@ export function flyText(src: HTMLElement, dst: HTMLElement, panel: HTMLElement, 
   if (flight) void flight.finished.then(land, land);
   else land();
 }
+
+/* ============================================================================
+   Gestures.
+   ========================================================================= */
+
+/** A swipe's icon as it crosses the point where letting go will commit. */
+export function popArm(el: HTMLElement | null) {
+  if (!el || reduced()) return;
+  run(el, [{ transform: 'scale(1)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }], {
+    duration: 420,
+    easing: EASE.settle,
+    composite: 'add',
+  });
+}
+
+let hapticSwitch: HTMLLabelElement | null = null;
+
+/**
+ * A tick of the phone's haptic engine, where the platform allows one.
+ *
+ * Android has navigator.vibrate. iOS gives the web no haptics API, but since
+ * iOS 18 toggling a switch control plays the system tick, so a hidden switch
+ * is toggled instead. It only fires in response to a touch, which is when it
+ * is wanted.
+ */
+export function haptic() {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(8);
+      return;
+    }
+    if (!hapticSwitch) {
+      const label = document.createElement('label');
+      label.setAttribute('aria-hidden', 'true');
+      label.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.setAttribute('switch', '');
+      input.tabIndex = -1;
+      label.append(input);
+      document.body.append(label);
+      hapticSwitch = label;
+    }
+    hapticSwitch.click();
+  } catch {
+    // No haptics here; the visual feedback stands alone.
+  }
+}

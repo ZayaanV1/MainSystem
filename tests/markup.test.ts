@@ -233,18 +233,23 @@ describe('translucent colour is a token, never a color-mix utility', () => {
   });
 });
 
-describe('a swipe always sets its touch-action', () => {
+describe('swipes ride native scrolling', () => {
   /*
-   * Pointer events alone are not a swipe on a phone: unless the row says
-   * touch-action: pan-y, the browser may claim a sideways drag as a pan and
-   * cancel the pointer a few pixels in, so the gesture never commits. Any
-   * component using the hook must carry the value it returns.
+   * A swipe that moved its row from JavaScript on every pointermove lagged
+   * behind the finger whenever the screen was busy, and had no momentum. Rows
+   * swipe through SwipeRow, a horizontal scroll container the browser moves.
+   * A component that tracks a pointer to slide something horizontally is the
+   * old shape coming back.
    */
-  it('passes touchAction wherever useSwipe is used', () => {
-    const offenders = MARKUP.filter((file) => {
-      const source = readFileSync(file, 'utf8');
-      return /\buseSwipe\(/.test(source) && !/touchAction:\s*\w+\.touchAction/.test(source);
-    });
-    expect(offenders).toEqual([]);
+  const tracksPointer = (source: string) =>
+    /onPointerMove|addEventListener\(\s*'pointermove'/.test(source) && /translate(3d|X)\(/.test(source);
+
+  it('catches a planted pointer swipe', () => {
+    expect(tracksPointer('<div onPointerMove={m} style={{ transform: `translateX(${dx}px)` }} />')).toBe(true);
+    expect(tracksPointer('<SwipeRow onRight={done}>{row}</SwipeRow>')).toBe(false);
+  });
+
+  it('has no component sliding a row from pointer events', () => {
+    expect(MARKUP.filter((f) => tracksPointer(readFileSync(f, 'utf8')))).toEqual([]);
   });
 });

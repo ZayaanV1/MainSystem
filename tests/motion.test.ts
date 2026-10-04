@@ -184,3 +184,25 @@ describe('one set of named curves', () => {
     }
   });
 });
+
+describe('fixed bars stay fixed while the page recedes', () => {
+  // The content column is scaled with a transform behind an open sheet, and
+  // a position: fixed element inside a transformed one is fixed to it: the
+  // Focus and Undo bars dropped to the bottom of the column and jumped back.
+  const isFixedBar = (s: string) => /className="[^"]*\bfixed\b/.test(s) || /'fixed\b/.test(s);
+  const SHELL = ['src/components/Sheet.tsx', 'src/components/AppShell.tsx'];
+
+  it('catches a planted one', () => {
+    const planted = 'return <div className="fixed inset-x-0 bottom-0">x</div>;';
+    expect(isFixedBar(planted) && !/createPortal\(/.test(planted)).toBe(true);
+  });
+
+  it('portals every fixed bar out of the page column', () => {
+    const offenders = MARKUP.filter((f) => !SHELL.includes(f) && f.startsWith('src/components'))
+      .filter((f) => {
+        const s = readFileSync(f, 'utf8');
+        return isFixedBar(s) && !/createPortal\(/.test(s);
+      });
+    expect(offenders).toEqual([]);
+  });
+});
