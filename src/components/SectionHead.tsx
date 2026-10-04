@@ -31,7 +31,8 @@ export function SectionHead({
         {title}
       </h2>
       {count !== undefined && count !== null && count !== '' && (
-        <span className="section-count" aria-label={`${count} ${count === 1 ? 'item' : 'items'}`}>
+        // Keyed on the number, so a count that changes rises in (rule 12).
+        <span key={String(count)} className="section-count" aria-label={`${count} ${count === 1 ? 'item' : 'items'}`}>
           {count}
         </span>
       )}

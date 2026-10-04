@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { AppShell, Page, type NavItem } from './components/AppShell';
 import { keepFeedsLive } from './lib/feeds';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SheetPresence } from './components/Sheet';
 import { withTransition, directionBetween } from './lib/transition';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
@@ -334,6 +335,7 @@ function Shell() {
 
       {/* Lives at the shell so opening a piece of work from Week does not need
           Week to know how to edit one. */}
+      <SheetPresence>
       {openAssignment && screen !== 'today' && (
         <AssignmentEditor
           open
@@ -345,6 +347,8 @@ function Shell() {
           onSaved={() => setRevision((r) => r + 1)}
         />
       )}
+      </SheetPresence>
+      <SheetPresence>
       {openInbox && screen !== 'today' && (
         <Triage
           item={openInbox}
@@ -354,6 +358,8 @@ function Shell() {
           onDone={() => setOpenInbox(null)}
         />
       )}
+      </SheetPresence>
+      <SheetPresence>
       {finishedFocus && (
         <FocusResult
           {...finishedFocus}
@@ -363,6 +369,7 @@ function Shell() {
           }}
         />
       )}
+      </SheetPresence>
 
     </AppShell>
   );

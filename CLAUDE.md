@@ -72,6 +72,7 @@ app for the first time is the most important screen in the build.
 10. **Abood is a companion, not a director.** When the user opens up, Abood does not steer to assignments. It talks like a close friend with a good therapist's instincts, never textbook reflective listening. `scripted()` in `_shared/chat.ts` and `modeFor()` in `_shared/abood.ts` enforce this mechanically; do not weaken either.
 11. **No inert or redundant features.** Everything added is reachable from a real screen and verified to do what it says. `tests/reachable.test.ts` fails the build on a component nothing renders, a table nothing reads, and an export nothing but a test calls.
 12. **Every tap that changes something is animated, noticeably.** If a tap or press makes an entity disappear, appear, move, reorder or change in any way — a finished task leaving the list, a tick, a count, a sheet, a toggle — that change has a proper animation the user can see. No cut, ever, and no exceptions for "small" changes. Under Reduce Motion the travel is removed and the change is shown as a fade or colour change, never an instant swap. Set by the owner, 3 Oct 2026, after ticking off work on Today made the row vanish with no animation at all: the optimistic layer drops it from the open list in the same render and React unmounts it.
+13. **Nothing visual is destroyed; it becomes an option.** Any animation, material or visual treatment that is removed, toned down or replaced stays available as a setting the user can turn back on — including the expensive ones, such as real backdrop-blur glass on every surface or an animated blur. Performance is an argument for a default, never for deletion. Set by the owner, 4 Oct 2026.
 
 ## Copy voice
 
@@ -127,7 +128,7 @@ The app has to look, move and feel like a product from Google or Apple. That is 
 - **Touch first.** Hover transforms only behind `(hover: hover) and (pointer: fine)`. Presses scale in place, respond instantly, and never lift then dip or shift layout.
 - **Light and dark are designed as a pair** for every theme. Dark is never an inverted light, and light is never a derived dark (formerly "dark is primary; light is derived" in design-system.md). Follow-the-system switches live.
 - **The approved language** — cloisonné glass with lit rims and glow, the Edmondson ticket, the Swiss timetable, display-scale tabular numerals, information encoded in shape — is the starting point, and may be pushed further. Flat, default-looking surfaces are the failure mode.
-- `prefers-reduced-motion` is honoured everywhere: motion collapses to instant state changes, nothing is lost.
+- `prefers-reduced-motion` is honoured everywhere: travel is removed and every change is shown as a fade or colour change instead (rule 12). Formerly "motion collapses to instant state changes" — a global rule in `index.css` shortened every transition and animation to 0.01ms, so on a phone with Reduce Motion on, nothing in the app animated at all. `tests/motion.test.ts` fails the build if a reduced-motion block shortens a duration to nothing.
 
 Formerly, design-system.md's direction "Instrument": restrained motion, no looping or ambient animation, no skeleton shimmer, and glass rationed to one control per screen. Superseded Oct 2026 — it capped the app below the standard it is now held to.
 
@@ -1101,6 +1102,34 @@ prematurely" became a performance budget; the calm-instrument motion limits
 became the motion system; light-derived-from-dark became designed pairs;
 routing by URL, grade tools that compute without grading, and user-chosen
 hiding were adopted as conventions. The exclamation-mark ban was kept.
+
+### Rule 12 — every tap animates, Oct 2026
+
+Reported from the phone: ticking off work on Today made it vanish. Three causes,
+each a cut by itself:
+
+- **The row was unmounted in the same render.** The optimistic layer moves a
+  finished item out of the open list immediately, so React removed the row
+  before anything could play. `usePresence` (`lib/usePresence.ts`) keeps an item
+  that has left the data rendered, `inert`, at its old index until its exit has
+  finished; then everything below closes up as a cascade (`measureBelow` and
+  `closeUp` in `motion.ts`). The data stays honest — only the picture lingers.
+  Today's work and inbox and low-battery mode's one piece of work use it. A
+  finished row shows its tick land, then leaves right; tomorrow leaves left.
+- **Reduce Motion was a blanket cut.** `index.css` shortened every transition
+  and animation to 0.01ms. Now each moving animation has a fade form; colour
+  and opacity transitions run as written.
+- **Sheets closed with a cut.** `Sheet` returned null the moment it closed, and
+  most sheets are removed by their parent anyway. Sheet now animates out, and
+  `SheetPresence` keeps a conditionally rendered sheet alive while it does.
+
+Also: ticks animate when cleared, not only when set; a committed swipe stays
+where the finger left it instead of springing back before leaving; section
+counts rise in when they change; Week's done toggle fills over 260 ms with a
+glow. Guards in `tests/motion.test.ts`, each verified against a planted
+violation: no reduced-motion cut, every conditionally shown sheet wrapped in
+`SheetPresence`, Sheet never returns null on close, both work lists rendered
+through presence. NOT verified on a phone.
 
 ### Bugs found by verifying rather than assuming
 

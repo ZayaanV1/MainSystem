@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from './Button';
 import { Card } from './Card';
-import { Sheet } from './Sheet';
+import { Sheet, SheetPresence } from './Sheet';
 import { describeWrite, discardFailed, retryFailed, retryNow, type FailedEntry } from '../lib/outbox';
 import { useOutbox } from '../lib/useOutbox';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
@@ -61,11 +61,13 @@ export function SyncBanner() {
         )}
       </div>
 
+      <SheetPresence>
       {reviewing && (
         <Sheet open dock onClose={() => setReviewing(false)} title="Changes not saved">
           <FailedList failed={failed} onEmpty={() => setReviewing(false)} />
         </Sheet>
       )}
+      </SheetPresence>
     </>
   );
 }

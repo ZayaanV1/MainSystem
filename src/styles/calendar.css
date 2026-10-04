@@ -104,9 +104,12 @@
   height: 1.25rem;
   border-radius: var(--r-pill);
   border: 2px solid var(--ink-500);
+  /* Long enough to be seen (rule 12): the fill and its glow arrive over a
+     quarter of a second rather than switching. */
   transition:
-    border-color var(--dur-fast) var(--ease-out),
-    background-color var(--dur-fast) var(--ease-out),
+    border-color 260ms var(--ease-out),
+    background-color 260ms var(--ease-out),
+    box-shadow 320ms var(--ease-out),
     transform var(--dur-tap) var(--ease-out);
 }
 
@@ -122,7 +125,8 @@
 
 .due-toggle[aria-pressed='true'] > span {
   border-color: var(--t-done);
-  background: var(--t-done);
+  background-color: var(--t-done);
+  box-shadow: 0 0 14px var(--done-glow);
 }
 
 /* ---- day headers ----------------------------------------------------------- */

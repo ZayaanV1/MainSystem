@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNode } from 'react';
 
 /**
  * Sheet — a bottom sheet.
@@ -12,6 +12,29 @@ import { useEffect, useRef, type ReactNode } from 'react';
  * is moved into the sheet on open and restored on close, so keyboard and
  * screen-reader users are not left behind on the page underneath.
  */
+
+/*
+ * Most sheets are shown by their parent with `{thing && <Editor … />}`, so the
+ * moment `thing` clears the whole sheet is removed and its exit never runs.
+ * SheetPresence keeps the last thing it rendered on screen, tells the Sheet
+ * inside that it is closing, and lets go once the Sheet has animated out.
+ * Wrap any conditionally rendered sheet in it (rule 12).
+ */
+const Closing = createContext<{ closing: boolean; done: () => void } | null>(null);
+
+export function SheetPresence({ children }: { children: ReactNode }) {
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
+  const last = useRef<ReactNode>(null);
+  const shown = Boolean(children);
+  if (shown) last.current = children;
+  const closing = !shown && last.current !== null;
+  const done = useRef(() => {
+    last.current = null;
+    rerender();
+  }).current;
+  if (!shown && !closing) return null;
+  return <Closing.Provider value={{ closing, done }}>{shown ? children : last.current}</Closing.Provider>;
+}
 
 interface SheetProps {
   open: boolean;
@@ -37,7 +60,9 @@ interface SheetProps {
   dock?: boolean;
 }
 
-export function Sheet({ open, onClose, title, children, dock = false }: SheetProps) {
+export function Sheet({ open: openProp, onClose, title, children, dock = false }: SheetProps) {
+  const presence = useContext(Closing);
+  const open = openProp && !presence?.closing;
   const panel = useRef<HTMLDivElement>(null);
   const restoreFocusTo = useRef<HTMLElement | null>(null);
 
@@ -84,10 +109,64 @@ export function Sheet({ open, onClose, title, children, dock = false }: SheetPro
     // Deliberately only `open`. See the ref above.
   }, [open]);
 
-  if (!open) return null;
+  /*
+   * Closing is animated too (rule 12). It used to return null the moment
+   * `open` went false, so every sheet in the app arrived with a rise and left
+   * with a cut. The sheet now stays mounted, untouchable, while it sinks and
+   * the scrim lifts, and only then unmounts.
+   */
+  const [present, setPresent] = useState(open);
+  if (open && !present) setPresent(true);
+  const scrim = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (open) {
+      // Reopened while closing: drop the exit, keep the CSS entrance.
+      for (const el of [panel.current, scrim.current]) {
+        el?.getAnimations().forEach((a) => {
+          if (!(a instanceof CSSAnimation)) a.cancel();
+        });
+      }
+      return;
+    }
+    if (!present) return;
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const docked = Boolean(dock) && matchMedia('(min-width: 64rem)').matches;
+    const leave: Keyframe[] = still
+      ? [{ opacity: 1 }, { opacity: 0 }]
+      : docked
+        ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(4%)' }]
+        : [{ opacity: 1, transform: 'none' }, { opacity: 0.6, transform: 'translateY(100%)' }];
+    const timing: KeyframeAnimationOptions = {
+      duration: still ? 200 : 240,
+      easing: 'cubic-bezier(0.4, 0, 1, 1)',
+      fill: 'forwards',
+    };
+    const anims = [
+      panel.current?.animate?.(leave, timing),
+      scrim.current?.animate?.([{ opacity: 1 }, { opacity: 0 }], { ...timing, easing: 'ease-out' }),
+    ].filter((a): a is Animation => Boolean(a));
+    if (anims.length === 0) {
+      setPresent(false);
+      presence?.done();
+      return;
+    }
+    let live = true;
+    const gone = () => {
+      if (!live) return;
+      setPresent(false);
+      presence?.done();
+    };
+    void Promise.all(anims.map((a) => a.finished)).then(gone, gone);
+    return () => {
+      live = false;
+    };
+  }, [open, present, dock, presence]);
+
+  if (!present) return null;
 
   return (
     <div
+      inert={!open || undefined}
       className={[
         'fixed inset-0 z-50 flex justify-center',
         // Bottom on a phone; right-hand edge, full height, once docked.
@@ -97,7 +176,8 @@ export function Sheet({ open, onClose, title, children, dock = false }: SheetPro
       {/* The page behind dims and softens, so the sheet reads as a surface
           lifted off it rather than a box painted on top of it. */}
       <div
-        className="sheet-scrim absolute inset-0 motion-safe:animate-[scrim-in_250ms_cubic-bezier(0.2,0,0,1)]"
+        ref={scrim}
+        className="sheet-scrim absolute inset-0 animate-[scrim-in_250ms_cubic-bezier(0.2,0,0,1)]"
         onClick={onClose}
         aria-hidden
       />
@@ -132,6 +212,9 @@ export function Sheet({ open, onClose, title, children, dock = false }: SheetPro
             ? 'motion-safe:animate-[sheet-in_250ms_cubic-bezier(0.2,0,0,1)] motion-safe:lg:animate-[panel-in_220ms_cubic-bezier(0.2,0,0,1)]'
             : 'motion-safe:animate-[sheet-in_250ms_cubic-bezier(0.2,0,0,1)]',
           // The sheet sits above the home indicator on an installed PWA.
+          // Under Reduce Motion the sheet fades in instead of rising: still a
+          // visible arrival (rule 12), with no travel.
+          'motion-reduce:animate-[sheet-fade_200ms_ease-out]',
           'pb-[calc(var(--sp-8)+env(safe-area-inset-bottom))]',
         ].join(' ')}
       >

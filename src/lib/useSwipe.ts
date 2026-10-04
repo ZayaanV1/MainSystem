@@ -96,9 +96,20 @@ export function useSwipe({ onLeft, onRight }: SwipeActions) {
 
   function onPointerUp() {
     const travelled = dx;
-    reset();
 
-    if (Math.abs(travelled) < COMMIT_PX) return;
+    if (Math.abs(travelled) < COMMIT_PX) {
+      reset();
+      return;
+    }
+
+    // Committed. The slip stays where the finger left it, so a row that is
+    // leaving carries on from there instead of springing back first and then
+    // leaving (rule 12). A row that stays, such as a finished item in Week,
+    // eases home a moment later.
+    start.current = null;
+    axis.current = 'unknown';
+    setDx(Math.sign(travelled) * MAX_PX);
+    window.setTimeout(() => setDx(0), 650);
     if (travelled < 0) onLeft?.();
     else onRight?.();
   }

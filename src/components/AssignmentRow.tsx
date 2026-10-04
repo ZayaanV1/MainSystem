@@ -1,4 +1,5 @@
-import type { CSSProperties } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
+import { clearTick, drawTick } from '../lib/motion';
 import { startBy, startByIsDue, urgencyFor, type Thresholds, type Urgency } from '../lib/urgency';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 import type { Assignment, Course } from '../lib/planner';
@@ -123,6 +124,22 @@ export function AssignmentRow({
    * the buttons, and swipe on a trackpad competes with two-finger back
    * navigation, an argument this app would lose by having the page leave.
    */
+  /*
+   * Rule 12: the tick is animated both ways. It draws on when the work is
+   * finished and settles back when it is reopened. A layout effect, so the
+   * mark is hidden before the first paint and draws in rather than flashing
+   * fully drawn for a frame.
+   */
+  const tickPath = useRef<SVGPathElement>(null);
+  const tickBox = useRef<HTMLSpanElement>(null);
+  const wasDone = useRef(done);
+  useLayoutEffect(() => {
+    const before = wasDone.current;
+    wasDone.current = done;
+    if (done && !before && tickPath.current) drawTick(tickPath.current, tickBox.current ?? undefined);
+    if (!done && before && tickBox.current) clearTick(tickBox.current);
+  }, [done]);
+
   const swipe = useSwipe({
     onLeft: onDefer,
     onRight: onToggleDone,
@@ -173,10 +190,11 @@ export function AssignmentRow({
           aria-label={done ? `Mark ${assignment.title} not done` : `Mark ${assignment.title} done`}
           className="flex min-h-[var(--tap)] w-12 shrink-0 items-center justify-center pl-1"
         >
-          <span aria-hidden className="tick" data-done={done || undefined}>
+          <span ref={tickBox} aria-hidden className="tick" data-done={done || undefined}>
             {done && (
               <svg viewBox="0 0 12 12" className="h-3 w-3">
                 <path
+                  ref={tickPath}
                   d="M2.5 6.2 L4.8 8.5 L9.5 3.8"
                   fill="none"
                   stroke="var(--ink-900)"

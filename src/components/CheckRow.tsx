@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { drawTick } from '../lib/motion';
+import { clearTick, drawTick } from '../lib/motion';
 
 /**
  * CheckRow.
@@ -15,8 +15,9 @@ import { drawTick } from '../lib/motion';
  * to open the app; warmth in the moment is explicitly allowed. A mark that
  * simply appears is indistinguishable from one that was already there.
  *
- * Nothing animates on the way back. Un-ticking clears the mark instantly,
- * because an undo that performs is an undo that feels like a penalty.
+ * Un-ticking is quick and quiet, because an undo that performs is an undo that
+ * feels like a penalty, but it is not a cut (rule 12): the ring settles back
+ * from slightly large.
  */
 
 interface CheckRowProps {
@@ -38,10 +39,14 @@ export function CheckRow({ label, done, onToggle, meta, courseVar, disabled }: C
   // list redraws itself each time anything else on the screen changes.
   const was = useRef(done);
 
-  useEffect(() => {
+  // A layout effect, so the mark is hidden before the first paint and draws in
+  // rather than flashing fully drawn for a frame.
+  useLayoutEffect(() => {
     const becameDone = done && !was.current;
+    const becameOpen = !done && was.current;
     was.current = done;
     if (becameDone && tick.current) drawTick(tick.current, box.current ?? undefined);
+    if (becameOpen && box.current) clearTick(box.current);
   }, [done]);
 
   return (

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Field } from '../components/Field';
-import { Sheet } from '../components/Sheet';
+import { Sheet, SheetPresence } from '../components/Sheet';
 import {
   deleteSeries,
   extendSeries,
@@ -197,6 +197,7 @@ export function SeriesList({ userId, courses, refreshKey, onChanged }: SeriesLis
         </p>
       )}
 
+      <SheetPresence>
       {extending && (
         <ExtendSheet
           item={extending}
@@ -210,7 +211,9 @@ export function SeriesList({ userId, courses, refreshKey, onChanged }: SeriesLis
           }
         />
       )}
+      </SheetPresence>
 
+      <SheetPresence>
       {confirming && (
         <DeleteSheet
           item={confirming}
@@ -227,6 +230,7 @@ export function SeriesList({ userId, courses, refreshKey, onChanged }: SeriesLis
           }
         />
       )}
+      </SheetPresence>
     </div>
   );
 }

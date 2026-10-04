@@ -54,6 +54,8 @@ import { useOutbox } from '../lib/useOutbox';
 import { useNow } from '../lib/useNow';
 import { announce } from '../lib/announce';
 import { revealList } from '../lib/motion';
+import { usePresence } from '../lib/usePresence';
+import { SheetPresence } from '../components/Sheet';
 import { onFeedsChanged } from '../lib/feeds';
 import { usePullToRefresh } from '../lib/usePullToRefresh';
 
@@ -196,6 +198,14 @@ export function Today({
    */
   const workList = useRef<HTMLDivElement>(null);
   const workIds = (data?.assignments ?? []).map((a) => a.id).join(',');
+  // Rule 12: finished, deferred or removed work leaves on screen. The data
+  // drops it at once; its picture stays until it has animated out.
+  const work = usePresence(data?.assignments ?? null, (a) => a.id);
+  const inbox = usePresence(data?.inbox ?? null, (e) => e.id, { enter: true });
+  const setWorkList = (el: HTMLDivElement | null) => {
+    workList.current = el;
+    work.containerRef(el);
+  };
   /*
    * Only what is NEW comes in.
    *
@@ -217,7 +227,7 @@ export function Today({
     const rows = Array.from(root.children) as HTMLElement[];
     const before = seenWork.current;
     seenWork.current = new Set(workIds.split(','));
-    const arriving = before ? rows.filter((r) => !before.has(r.dataset.row ?? '')) : rows;
+    const arriving = before ? rows.filter((r) => !before.has(r.dataset.presence ?? '')) : rows;
     if (arriving.length > 0) revealList(arriving);
   }, [workIds]);
 
@@ -477,6 +487,7 @@ export function Today({
         </div>
       </section>
 
+      <SheetPresence>
       {historyOpen && (
         <History
           items={data?.items ?? []}
@@ -485,7 +496,9 @@ export function Today({
           onClose={() => setHistoryOpen(false)}
         />
       )}
+      </SheetPresence>
 
+      <SheetPresence>
       {triaging && (
         <Triage
           item={triaging}
@@ -495,7 +508,9 @@ export function Today({
           onDone={reload}
         />
       )}
+      </SheetPresence>
 
+      <SheetPresence>
       {openAssignment && (
         <AssignmentEditor
           open
@@ -507,7 +522,9 @@ export function Today({
           onSaved={reload}
         />
       )}
+      </SheetPresence>
 
+      <SheetPresence>
       {editorFor && (
         <ChecklistEditor
           open
@@ -518,6 +535,7 @@ export function Today({
           onSaved={reload}
         />
       )}
+      </SheetPresence>
         </div>
 
         <div className="min-w-0">
@@ -563,38 +581,43 @@ export function Today({
         */}
         {data === null ? (
           <SkeletonList rows={3} />
-        ) : !data.assignments.length ? (
+        ) : !work.list.length ? (
           workCleared ? (
-            <p className="px-4 py-8 type-body text-t-done">
+            <p className="enter-fade px-4 py-8 type-body text-t-done">
               That's all the work due today, done.
             </p>
           ) : (
             <EmptyState>Nothing due.</EmptyState>
           )
         ) : (
-          <div ref={workList} className="flex flex-col gap-2.5">
-            {data.assignments.map((a) => (
-              <AssignmentRow
-                key={a.id}
-                assignment={a}
-                progress={subtaskProgress(data?.subtasks ?? [], a.id)}
-                course={data.courses.find((c) => c.id === a.course_id)}
-                onToggleDone={() => {
-                  const finishing = a.status !== 'done';
-                  void setAssignmentStatus(a.id, finishing ? 'done' : 'todo');
-                  // Optimistic writes are conveyed entirely by pixels moving,
-                  // which is silent. The title is included because after a
-                  // swipe the row may already be gone from the list.
-                  announce(finishing ? `${a.title} marked done` : `${a.title} reopened`);
-                  // Offered, never demanded. Marking done has to stay free.
-                  setAskingTime(finishing && a.effort_minutes !== null ? a : null);
-                }}
-                onDefer={() => {
-                  void deferAssignment(userId, a, addDays(todayKey(), 1));
-                  announce(`${a.title} moved to tomorrow`);
-                }}
-                onOpen={() => setOpenAssignment(a)}
-              />
+          <div ref={setWorkList} className="flex flex-col gap-2.5">
+            {work.list.map(({ item: a, key, leaving }) => (
+              <div key={key} data-presence={key} inert={leaving || undefined}>
+                <AssignmentRow
+                  // A row leaving because it was finished shows itself finished
+                  // on the way out: the tick lands, then the slip goes.
+                  assignment={leaving && work.hintOf(key) === 'done' ? { ...a, status: 'done' } : a}
+                  progress={subtaskProgress(data?.subtasks ?? [], a.id)}
+                  course={data.courses.find((c) => c.id === a.course_id)}
+                  onToggleDone={() => {
+                    const finishing = a.status !== 'done';
+                    if (finishing) work.hint(a.id, 'done');
+                    void setAssignmentStatus(a.id, finishing ? 'done' : 'todo');
+                    // Optimistic writes are conveyed entirely by pixels moving,
+                    // which is silent. The title is included because after a
+                    // swipe the row may already be gone from the list.
+                    announce(finishing ? `${a.title} marked done` : `${a.title} reopened`);
+                    // Offered, never demanded. Marking done has to stay free.
+                    setAskingTime(finishing && a.effort_minutes !== null ? a : null);
+                  }}
+                  onDefer={() => {
+                    work.hint(a.id, 'defer');
+                    void deferAssignment(userId, a, addDays(todayKey(), 1));
+                    announce(`${a.title} moved to tomorrow`);
+                  }}
+                  onOpen={() => setOpenAssignment(a)}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -633,25 +656,29 @@ export function Today({
         {Boolean(data?.inbox.length) && (
           <p className="type-note -mt-2 mb-3 px-4 text-text-low">Tap one to sort it out.</p>
         )}
-        {data === null ? null : !data.inbox.length ? (
+        {data === null ? null : !inbox.list.length ? (
           inboxCleared ? (
-            <p className="px-4 py-8 type-body text-t-done">Inbox clear.</p>
+            <p className="enter-fade px-4 py-8 type-body text-t-done">Inbox clear.</p>
           ) : (
             <EmptyState>Capture anything here. Sort it later.</EmptyState>
           )
         ) : (
-          <Card>
-            {data.inbox.map((entry) => (
-              <Pressable
-                className="mat-row gap-3 px-4 py-3"
-                key={entry.id}
-                onClick={() => setTriaging(entry)}
-              >
-                <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 self-start rounded-pill bg-text-low" />
-                <span className="type-quote text-text-hi">{entry.body}</span>
-              </Pressable>
-            ))}
-          </Card>
+          <div ref={inbox.containerRef}>
+            <Card>
+              {inbox.list.map(({ item: entry, key, leaving }) => (
+                <Pressable
+                  className="mat-row gap-3 px-4 py-3"
+                  key={key}
+                  data-presence={key}
+                  inert={leaving || undefined}
+                  onClick={() => setTriaging(entry)}
+                >
+                  <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 self-start rounded-pill bg-text-low" />
+                  <span className="type-quote text-text-hi">{entry.body}</span>
+                </Pressable>
+              ))}
+            </Card>
+          </div>
         )}
       </section>
 

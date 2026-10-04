@@ -281,15 +281,13 @@
     text-align: left;
   }
 
-  /* No looping or ambient animation exists in this app, so honouring the
-     reduced-motion preference costs nothing and is simply correct. */
+  /* Reduce Motion removes travel, never feedback (rule 12). This used to
+     shorten every transition and animation in the app to 0.01ms, which made
+     every tap a cut: on a phone with Reduce Motion on, nothing animated at
+     all. Each moving animation now has its own reduced form (a fade) beside
+     it; colour and opacity transitions run as written. */
   @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
+    * {
       scroll-behavior: auto !important;
     }
   }
@@ -1035,12 +1033,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fx-depth,
-  .fx-magnet,
-  .fx-glass {
-    transition-duration: 1ms;
-  }
-
   /* The press state survives — it is feedback, not decoration, and it is the
      only one of these that fires on a touch device at all. */
   .fx-depth:hover,
@@ -1250,5 +1242,38 @@
      rather than dense. */
   main .py-3 {
     padding-block: 0.5rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Something that has just appeared because of a tap (rule 12): "Inbox clear",
+   "That's all the work due today, done". It fades and rises in; under Reduce
+   Motion it only fades.
+   ------------------------------------------------------------------------ */
+@keyframes enter-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes enter-fade-still {
+  from {
+    opacity: 0;
+  }
+}
+.enter-fade {
+  animation: enter-fade 320ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .enter-fade,
+  .section-count {
+    animation-name: enter-fade-still;
+  }
+}
+
+/* A sheet under Reduce Motion: it fades in rather than appearing (rule 12). */
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
   }
 }

@@ -6,6 +6,7 @@ import { refillStatus } from '../lib/checklist';
 import { essentialsFor } from '../../supabase/functions/_shared/lowbattery';
 import { setAssignmentStatus, type Assignment, type Course, type TodayData } from '../lib/planner';
 import { formatDay, todayKey } from '../lib/time';
+import { usePresence } from '../lib/usePresence';
 
 /**
  * Today, turned down.
@@ -49,6 +50,7 @@ export function LowBattery({
     data.courses.find((c) => c.id === id);
 
   const allEssentialsDone = items.length > 0 && items.every((i) => isDone(i.id));
+  const shownWork = usePresence(work ? [work as Assignment] : [], (a) => a.id, { enter: true });
 
   return (
     <main className="page-frame">
@@ -90,20 +92,24 @@ export function LowBattery({
         </section>
       )}
 
-      {work && (
+      {shownWork.list.length > 0 && (
         <section className="mb-8">
           <h2 className="type-label mb-3 px-4 text-text-mid">If you have it in you</h2>
-          <div>
-            <AssignmentRow
-              assignment={work as Assignment}
-              course={courseFor((work as Assignment).course_id)}
-              onToggleDone={() =>
-                void setAssignmentStatus(
-                  (work as Assignment).id,
-                  (work as Assignment).status === 'done' ? 'todo' : 'done',
-                )
-              }
-            />
+          {/* Rule 12: finishing it shows the tick, then it leaves, and the
+              next one (if any) rises into its place. */}
+          <div ref={shownWork.containerRef} className="flex flex-col gap-2.5">
+            {shownWork.list.map(({ item: w, key, leaving }) => (
+              <div key={key} data-presence={key} inert={leaving || undefined}>
+                <AssignmentRow
+                  assignment={leaving && shownWork.hintOf(key) === 'done' ? { ...w, status: 'done' } : w}
+                  course={courseFor(w.course_id)}
+                  onToggleDone={() => {
+                    if (w.status !== 'done') shownWork.hint(w.id, 'done');
+                    void setAssignmentStatus(w.id, w.status === 'done' ? 'todo' : 'done');
+                  }}
+                />
+              </div>
+            ))}
           </div>
         </section>
       )}

@@ -257,6 +257,8 @@ textarea.well {
 }
 
 .section-count {
+  display: inline-block;
+  animation: enter-fade 280ms cubic-bezier(0.2, 0, 0, 1) both;
   font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
   font-size: 0.9375rem;
@@ -703,14 +705,6 @@ button.chip:active {
   margin: -0.5rem auto 1rem;
   border-radius: var(--r-pill);
   background: var(--ink-500);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .btn,
-  .chip,
-  .tick {
-    transition-duration: 1ms;
-  }
 }
 
 } /* @layer components */
