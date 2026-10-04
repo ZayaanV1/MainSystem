@@ -96,7 +96,7 @@ function ColumnHead({ group, isToday }: { group: DayGroup; isToday: boolean }) {
   const n = dayNames(group.day);
   const minutes = effortMinutes(group);
   return (
-    <div className="sticky top-0 z-10 flex flex-col items-center gap-1 bg-ink-900 pb-2">
+    <div data-day={group.day} className="sticky top-0 z-10 flex flex-col items-center gap-1 bg-ink-900 pb-2">
       <span className={`type-caption ${isToday ? 'text-text-hi' : 'text-text-low'}`}>{n.weekdayShort}</span>
       <span className="day-head" data-today={isToday || undefined} style={{ padding: 0 }}>
         <span className="day-head-date" style={isToday ? undefined : { fontSize: '1.375rem' }}>
@@ -117,7 +117,7 @@ function NarrowDay({ group, items, props }: { group: DayGroup; items: Item[]; pr
   const timed = items.filter((i) => !isAllDayish(i));
 
   return (
-    <section aria-label={n.weekday}>
+    <section data-day={group.day} aria-label={n.weekday}>
       <header className="day-head" data-today={isToday || undefined}>
         <span className="day-head-date">{n.date}</span>
         <span className="flex flex-col">

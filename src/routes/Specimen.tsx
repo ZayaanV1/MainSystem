@@ -7,7 +7,8 @@ import { CachedNotice, LoadFailure } from '../components/LoadFailure';
 import { Pressable } from '../components/Pressable';
 import { SkeletonList } from '../components/Skeleton';
 import { UndoBar } from '../components/UndoBar';
-import { WeekShape } from '../components/WeekShape';
+import { WeekStrip } from '../components/WeekStrip';
+import { groupWeek } from '../lib/week';
 import { todayKey } from '../lib/time';
 import type { PlannerEvent } from '../lib/planner';
 import { SectionHead } from '../components/SectionHead';
@@ -172,10 +173,14 @@ export function Specimen() {
         </div>
       </Section>
 
-      <Section title="Week shape">
-        <WeekShape
-          tasks={work.map((a, i) => ({ id: a.id, title: a.title, due_at: a.due_at, effort_minutes: 45 + i * 30, status: a.status }))}
-        />
+      <Section title="WeekStrip — the week's shape, and the way through it">
+        <div className="px-4">
+          <WeekStrip
+            days={groupWeek(work.map((a, i) => ({ ...a, effort_minutes: 45 + i * 30 })), [], todayKey(), 7).days}
+            today={todayKey()}
+            onJump={() => {}}
+          />
+        </div>
       </Section>
 
       <Section title="Loading, after a 150 ms grace">

@@ -239,7 +239,6 @@ function Shell() {
         return (
           <Week
             data={data}
-            onBack={home}
             onOpenAssignment={setOpenAssignment}
             onPlan={() => navigate('plan')}
           />

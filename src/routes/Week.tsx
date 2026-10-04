@@ -16,7 +16,7 @@ import {
 } from '../lib/planner';
 import { formatDay, todayKey } from '../lib/time';
 import { effortMinutes, groupWeek, type DayGroup } from '../lib/week';
-import { WeekShape } from '../components/WeekShape';
+import { WeekStrip, weekTotal } from '../components/WeekStrip';
 import { BubbleWeek, LedgerWeek, StylePicker, TicketWeek, type StyleProps } from '../components/calendar/WeekStyles';
 import { HoursWeek } from '../components/calendar/Hours';
 import { readCalendarStyle, writeCalendarStyle, type CalendarStyle } from '../lib/calendarStyle';
@@ -40,12 +40,10 @@ const WEEK_DAYS = 7;
 
 export function Week({
   data,
-  onBack,
   onOpenAssignment,
   onPlan,
 }: {
   data: TodayData | null;
-  onBack: () => void;
   onOpenAssignment: (a: Assignment) => void;
   /** Takes you where work is added. Used only by the empty state. */
   onPlan: () => void;
@@ -65,21 +63,6 @@ export function Week({
 
   const today = todayKey();
   const courses = data?.courses ?? [];
-
-  /*
-   * The forecast has been computed since Phase 6 and drawn nowhere. Week has
-   * always been a list of items grouped under headings, which says what is due
-   * and cannot say that Thursday has six hours in it and Friday has none.
-   */
-  const shapeTasks = (data?.assignments ?? []).map((a) => ({
-    id: a.id,
-    title: a.title,
-    due_at: a.due_at,
-    effort_minutes: a.effort_minutes,
-    status: a.status,
-    deferrals: data?.deferrals[a.id] ?? 0,
-    weight_percent: a.weight_percent,
-  }));
 
   const grouping = useMemo(() => {
     const keep = <T extends { course_id: string | null }>(rows: T[]) =>
@@ -117,6 +100,19 @@ export function Week({
     showSource,
   };
 
+  const total = weekTotal(grouping.days);
+
+  /** A tap on the strip: that day's section, wherever the style drew it. */
+  const jumpTo = (day: string) => {
+    const el = document.querySelector<HTMLElement>(`main [data-day="${day}"]`);
+    if (!el) return;
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // The window, not scrollIntoView: Chrome dropped a smooth scrollIntoView
+    // on these sections without moving at all, so the strip was a row of
+    // buttons that did nothing. 12 px of air above the day's heading.
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: still ? 'auto' : 'smooth' });
+  };
+
   const nothingAtAll =
     grouping.overdue.length === 0 &&
     grouping.undated.length === 0 &&
@@ -124,26 +120,30 @@ export function Week({
 
   return (
     <main className="page-frame">
-      <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <div>
+      {/*
+        One header row: the title, the range with the week's load, and the five
+        styles as glyphs (the UI overview). The picker with its labels was
+        wider than a phone, its last option cut off, and with the title, a
+        chart and three rows of chips the first day started 550 px down.
+      */}
+      <header className="week-head mb-4 px-4">
+        <div className="min-w-0">
           <h1 className="page-title">Week</h1>
-          <p className="type-caption mt-1 text-text-low">
-            {formatDay(today)} to {formatDay(grouping.days[WEEK_DAYS - 1].day)}
+          <p className="week-range">
+            {rangeLabel(today, grouping.days[WEEK_DAYS - 1].day)}
+            {total > 0 && ` · ${total >= 60 ? `${Math.round(total / 6) / 10} h` : `${total} min`} of work`}
           </p>
         </div>
-        <Button variant="quiet" onClick={onBack}>
-          Today
-        </Button>
+        <StylePicker value={style} onChange={changeStyle} compact />
       </header>
 
-      <div className="mb-6 px-4">
-        <StylePicker value={style} onChange={changeStyle} />
+      {/* The shape of the week, and the way to move through it. */}
+      <div className="mb-4">
+        <WeekStrip days={grouping.days} today={today} onJump={jumpTo} />
       </div>
 
-      <WeekShape tasks={shapeTasks} from={today} />
-
       {courses.length > 0 && (
-        <div className="mb-6 flex flex-wrap gap-2 px-4">
+        <div className="chip-row mb-6" role="group" aria-label="Show one course">
           <Chip selected={courseFilter === null} onClick={() => setCourseFilter(null)}>
             All
           </Chip>
@@ -297,7 +297,7 @@ function DaySection({
       rather than a section that simply is not there — and the eye gets the
       week's rhythm for free while reading it in order.
     */
-    <section className="relative flex gap-3 px-4">
+    <section data-day={group.day} className="relative flex gap-3 px-4">
       <div className="relative flex w-10 shrink-0 flex-col items-center">
         {/*
           The rail, drawn first and absolutely positioned so it runs the FULL
@@ -406,4 +406,18 @@ const WEEKDAY_SHORT = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 function weekdayShort(day: string): string {
   return WEEKDAY_SHORT[new Date(`${day}T12:00:00Z`).getUTCDay()];
+}
+
+/** "Sun 4 – Sat 10 Oct", or "Wed 28 Oct – Tue 3 Nov" across a month. */
+function rangeLabel(from: string, to: string): string {
+  const fmt = (day: string, withMonth: boolean) => {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' })
+        .formatToParts(new Date(`${day}T12:00:00Z`))
+        .map((p) => [p.type, p.value]),
+    );
+    return `${parts.weekday} ${parts.day}${withMonth ? ` ${parts.month}` : ''}`;
+  };
+  const sameMonth = from.slice(0, 7) === to.slice(0, 7);
+  return `${fmt(from, !sameMonth)} – ${fmt(to, true)}`;
 }

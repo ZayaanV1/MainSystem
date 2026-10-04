@@ -46,9 +46,16 @@ export interface StyleProps {
 export function StylePicker({
   value,
   onChange,
+  compact = false,
 }: {
   value: CalendarStyle;
   onChange: (s: CalendarStyle) => void;
+  /**
+   * Glyphs only, the names kept for screen readers and as tooltips. Week's
+   * header holds the title and the picker on one row; with its labels the
+   * picker was wider than a phone and its last option was cut off.
+   */
+  compact?: boolean;
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const lit = useRef<HTMLSpanElement>(null);
@@ -77,7 +84,7 @@ export function StylePicker({
   };
 
   return (
-    <div ref={seg} role="radiogroup" aria-label="Calendar style" className="style-seg">
+    <div ref={seg} role="radiogroup" aria-label="Calendar style" className="style-seg" data-compact={compact || undefined}>
       <span ref={lit} aria-hidden className="style-opt-lit" style={{ opacity: 0 }} />
       {CALENDAR_STYLES.map((s, i) => {
         const on = s.value === value;
@@ -91,13 +98,14 @@ export function StylePicker({
             role="radio"
             aria-checked={on}
             tabIndex={on ? 0 : -1}
-            title={s.hint}
+            title={compact ? `${s.label}: ${s.hint}` : s.hint}
+            aria-label={compact ? s.label : undefined}
             onClick={() => onChange(s.value)}
             onKeyDown={(e) => onKey(e, i)}
             className="style-opt"
           >
             <Glyph style={s.value} />
-            <span>{s.label}</span>
+            {!compact && <span>{s.label}</span>}
           </button>
         );
       })}
@@ -265,7 +273,7 @@ function Week({
         const isToday = group.day === props.today;
         const items = buildDay(group, props.courseFor, props.progressFor, props.now);
         return (
-          <section key={group.day} aria-label={dayNames(group.day).weekday}>
+          <section key={group.day} data-day={group.day} aria-label={dayNames(group.day).weekday}>
             <DayHead day={group.day} isToday={isToday} minutes={effortMinutes(group)} />
             {items.length > 0 && render(items, group, isToday)}
           </section>
@@ -527,7 +535,7 @@ export function LedgerWeek(props: StyleProps) {
         const minutes = effortMinutes(group);
 
         return (
-          <section key={group.day} aria-label={n.weekday}>
+          <section key={group.day} data-day={group.day} aria-label={n.weekday}>
             <header className="ledger-head" data-today={isToday || undefined}>
               <span className="ledger-head-num">{String(n.date).padStart(2, '0')}</span>
               <span className="flex items-end justify-between gap-3 pb-0.5">

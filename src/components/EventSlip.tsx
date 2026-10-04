@@ -1,5 +1,5 @@
 import { readTitle } from '../lib/blocks';
-import { formatTimeRange } from '../lib/time';
+import { formatTime, formatTimeRange } from '../lib/time';
 import type { Course, PlannerEvent } from '../lib/planner';
 import { tint } from './calendar/items';
 
@@ -29,6 +29,20 @@ export function EventSlip({
   const end = event.ends_at ? new Date(event.ends_at) : null;
   const when = event.all_day ? 'All day' : formatTimeRange(start, end);
 
+  /*
+   * The start large and the rest of the time on its own line under it: "10:15"
+   * over "to 11:30 a.m.", or "3:00" over "p.m.". A kicker line holding the
+   * whole range was the smallest text on the slip and the thing it is read
+   * for; a column of start times also lines the day up to read down.
+   */
+  const split = (d: Date) => {
+    const m = /^(\d{1,2}:\d{2})\s*(.*)$/u.exec(formatTime(d));
+    return m ? { hm: m[1], period: m[2] } : { hm: formatTime(d), period: '' };
+  };
+  const a = split(start);
+  const b = end ? split(end) : null;
+  const under = b ? (b.period === a.period ? `to ${b.hm} ${b.period}` : `${a.period} to ${b.hm} ${b.period}`) : a.period;
+
   const place = event.location
     ? event.location
         .split(',')
@@ -45,21 +59,24 @@ export function EventSlip({
       : null;
 
   return (
-    <div className="mat slip flex items-stretch" data-block style={tint(course)}>
-      <div className="flex min-h-[var(--tap)] min-w-0 flex-1 flex-col justify-center gap-1 px-4 py-3.5">
-        <span className="kicker">
-          <span className="blk-num normal-case tracking-normal">{when}</span>
-          {showSource && event.source && (
-            <>
-              <span aria-hidden>·</span>
-              <span>{event.source}</span>
-            </>
-          )}
-        </span>
+    <div className="mat slip ev-slip" data-block style={tint(course)}>
+      <span className="ev-time">
+        {event.all_day ? (
+          <b>All day</b>
+        ) : (
+          <>
+            {/* Read out as one range rather than as two fragments. */}
+            <span className="sr-only">{when}</span>
+            <b aria-hidden>{a.hm}</b>
+            <span aria-hidden>{under}</span>
+          </>
+        )}
+      </span>
+      <div className="flex min-w-0 flex-col justify-center gap-1">
         <span className="slip-title text-text-hi">{read.headline}</span>
-        {(detail || read.section || place) && (
+        {(detail || read.section || place || (showSource && event.source)) && (
           <span className="type-note text-text-mid">
-            {[detail, read.section, place].filter(Boolean).join(' · ')}
+            {[detail, read.section, place, showSource ? event.source : null].filter(Boolean).join(' · ')}
           </span>
         )}
       </div>

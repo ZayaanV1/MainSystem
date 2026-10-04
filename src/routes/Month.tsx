@@ -171,7 +171,7 @@ export function Month({
       </header>
 
       {courses.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2 px-4">
+        <div className="chip-row mb-4" role="group" aria-label="Show one course">
           <Chip selected={courseFilter === null} onClick={() => setCourseFilter(null)}>
             All
           </Chip>
@@ -210,6 +210,9 @@ export function Month({
 
       {openCell && (
         <DayDetail
+          // Keyed on the day, so choosing another one brings its agenda in
+          // rather than swapping the text under you (rule 12).
+          key={openCell.day}
           cell={openCell}
           courseFor={courseFor}
           progressFor={progressFor}
@@ -358,7 +361,7 @@ function DayDetail({
   const empty = cell.assignments.length === 0 && cell.events.length === 0;
 
   return (
-    <section className="mb-8">
+    <section className="enter-fade mb-8">
       <SectionHead
         title={cell.isToday ? `Today, ${formatDay(cell.day)}` : formatDay(cell.day)}
         count={cell.assignments.length + cell.events.length || null}
