@@ -21,7 +21,7 @@ import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
 import { hasOwnGroqKey, setOwnGroqKey } from '../lib/planner';
 import { applyTheme, readTheme, writeTheme, type ThemeChoice } from '../lib/theme';
-import { setAppearance, useAppearance, type SlipStyle } from '../lib/appearance';
+import { setAppearance, useAppearance, type GlassLevel, type MotionLevel, type SlipStyle } from '../lib/appearance';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../lib/auth';
 import { exportCsv, exportJson } from '../lib/export';
@@ -579,6 +579,16 @@ function Appearance() {
     { value: 'glass', label: 'Glass', hint: 'The countdown on the right, a ring to tick.' },
   ];
 
+  const glassOptions: { value: GlassLevel; label: string; hint: string }[] = [
+    { value: 'off', label: 'Off', hint: 'Solid bars and menus. Lightest on the battery.' },
+    { value: 'bars', label: 'Bars', hint: 'The tab bar, menus and the dimming behind sheets are glass.' },
+    { value: 'surfaces', label: 'Everywhere', hint: 'Every card is glass too. The heaviest on the graphics chip.' },
+  ];
+  const motionOptions: { value: MotionLevel; label: string; hint: string }[] = [
+    { value: 'full', label: 'Full', hint: 'Every moment as designed: the falling punch, the stretching tab, the page that steps back.' },
+    { value: 'calm', label: 'Calm', hint: 'Everything still animates, without the flourishes.' },
+  ];
+
   const options: { value: ThemeChoice; label: string; hint: string }[] = [
     { value: 'system', label: 'System', hint: 'Follows your device' },
     { value: 'light', label: 'Light', hint: 'Always light' },
@@ -625,6 +635,53 @@ function Appearance() {
           ))}
         </div>
         <p className="type-note mt-3 text-text-low">{slipOptions.find((o) => o.value === look.slip)?.hint}</p>
+
+        <p className="kicker mt-6 mb-2">Glass</p>
+        <div role="radiogroup" aria-label="Glass" className="flex flex-wrap gap-2">
+          {glassOptions.map((o) => (
+            <Chip
+              key={o.value}
+              role="radio"
+              aria-checked={look.glass === o.value}
+              selected={look.glass === o.value}
+              onClick={() => setAppearance({ glass: o.value })}
+            >
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+        <p className="type-note mt-3 text-text-low">{glassOptions.find((o) => o.value === look.glass)?.hint}</p>
+
+        <label className="mt-4 flex min-h-[var(--tap)] items-center justify-between gap-4">
+          <span className="type-label text-text-hi">Blur that comes into focus</span>
+          <input
+            type="checkbox"
+            className="settings-switch"
+            checked={look.animatedBlur}
+            disabled={look.glass === 'off'}
+            onChange={(e) => setAppearance({ animatedBlur: e.target.checked })}
+          />
+        </label>
+        <p className="type-note text-text-low">
+          Glass behind sheets and menus sharpens as they open. The most demanding option; best on a recent phone.
+        </p>
+
+        <p className="kicker mt-6 mb-2">Motion</p>
+        <div role="radiogroup" aria-label="Motion" className="flex flex-wrap gap-2">
+          {motionOptions.map((o) => (
+            <Chip
+              key={o.value}
+              role="radio"
+              aria-checked={look.motion === o.value}
+              selected={look.motion === o.value}
+              onClick={() => setAppearance({ motion: o.value })}
+            >
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+        <p className="type-note mt-3 text-text-low">{motionOptions.find((o) => o.value === look.motion)?.hint}</p>
+        <p className="type-note mt-2 text-text-low">These are remembered on this device only.</p>
       </Card>
     </section>
   );

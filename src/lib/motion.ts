@@ -19,6 +19,13 @@
 const reduced = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/**
+ * Calm motion (Settings, Appearance): every change still animates (rule 12),
+ * but without the flourishes: no falling chad, no stretching capsule, no
+ * receding page, no flying title, no cascade. Set on <html> by appearance.ts.
+ */
+const calm = () => typeof document !== 'undefined' && document.documentElement.dataset.motion === 'calm';
+
 /** The named curves, as in tokens.css. */
 export const EASE = {
   out: 'cubic-bezier(0.2, 0, 0, 1)',
@@ -196,7 +203,7 @@ export function closeUp(first: Map<HTMLElement, number>) {
     if (reduced()) continue;
     run(el, [{ transform: `translateY(${dy}px)` }, { transform: 'none' }], {
       duration: 420,
-      delay: Math.min(i++, 8) * 14,
+      delay: calm() ? 0 : Math.min(i++, 8) * 14,
       easing: EASE_GLIDE_CSS,
       fill: 'backwards',
     });
@@ -272,7 +279,7 @@ export function moveCapsule(lit: HTMLElement, target: HTMLElement | null, axis: 
     fade(lit, 0.3, 1);
     return;
   }
-  const stretch = 1 + Math.min(0.45, (Math.abs(along - from) / size) * 0.16);
+  const stretch = calm() ? 1 : 1 + Math.min(0.45, (Math.abs(along - from) / size) * 0.16);
   run(
     lit,
     [
@@ -389,6 +396,7 @@ export function punchTicket(hole: HTMLElement) {
     return;
   }
   run(hole, [{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 420, easing: EASE_SETTLE_CSS });
+  if (calm()) return;
   const r = hole.getBoundingClientRect();
   if (r.width === 0) return;
   const chad = document.createElement('span');
@@ -436,7 +444,7 @@ export function recedePage() {
     return;
   }
   const el = document.querySelector<HTMLElement>('[data-recede]');
-  if (!el || reduced()) return;
+  if (!el || reduced() || calm()) return;
   const r = el.getBoundingClientRect();
   const ox = window.innerWidth / 2;
   const oy = window.innerHeight / 2;
@@ -481,7 +489,7 @@ function unrecede(rect: DOMRect): { left: number; top: number; height: number } 
  * entrance starts.
  */
 export function flyText(src: HTMLElement, dst: HTMLElement, panel: HTMLElement, dir: 'in' | 'out') {
-  if (reduced()) return;
+  if (reduced() || calm()) return;
   const a = src.getBoundingClientRect();
   if (a.width === 0 || a.bottom < 0 || a.top > window.innerHeight) return;
   let b: { left: number; top: number; height: number };

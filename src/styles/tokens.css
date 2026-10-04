@@ -142,6 +142,10 @@
      -------------------------------------------------------------------- */
   --glass-fill: rgb(246 239 230 / 0.08);
   --glass-edge: rgb(246 239 230 / 0.17);
+  /* A card surface you can see through, for glass on every surface
+     (Settings, Appearance). Translucent so backdrop-filter has something to
+     refract; dark enough that text on it keeps its contrast. */
+  --surface-glass: rgb(28 23 19 / 0.62);
   --glass-fill-hover: rgb(246 239 230 / 0.14);
   --glass-edge-hover: rgb(246 239 230 / 0.32);
   --tag-surface: rgb(246 239 230 / 0.06);
@@ -376,6 +380,7 @@
        with the ink instead. */
     --glass-fill: rgb(35 29 22 / 0.06);
     --glass-edge: rgb(35 29 22 / 0.14);
+    --surface-glass: rgb(255 255 255 / 0.66);
     --glass-fill-hover: rgb(35 29 22 / 0.10);
     --glass-edge-hover: rgb(35 29 22 / 0.24);
     --tag-surface: rgb(35 29 22 / 0.05);
@@ -459,6 +464,7 @@
      with the ink instead. */
   --glass-fill: rgb(35 29 22 / 0.06);
   --glass-edge: rgb(35 29 22 / 0.14);
+  --surface-glass: rgb(255 255 255 / 0.66);
   --glass-fill-hover: rgb(35 29 22 / 0.10);
   --glass-edge-hover: rgb(35 29 22 / 0.24);
   --tag-surface: rgb(35 29 22 / 0.05);

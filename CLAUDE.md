@@ -1126,6 +1126,14 @@ asked for all of it. Shipped in steps, each pushed as it landed:
    tokens.css (`--ease-out/exit/glide/settle/drift`) and `EASE` in
    motion.ts, kept identical by a test.
 
+5. **Appearance settings** (per device, `lib/appearance.ts`, mirrored onto
+   `<html>`): work slips (ticket or glass); glass off, on the bars, or on
+   every surface, the expensive one kept as a choice under rule 13; blur
+   that comes into focus as scrims and menus open; and motion full or calm.
+   Calm keeps every animation rule 12 requires and drops the flourishes:
+   the chad, the capsule stretch, the receding page, the flying title, the
+   cascade.
+
 Found on the way: a cancelled animation's `finished` promise rejects, and
 `.finally()` passes that on, so every interrupted animation was an uncaught
 page error (guarded); Week's Ticket style already owned `.ticket`, which

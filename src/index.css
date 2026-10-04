@@ -1297,3 +1297,61 @@
   transform-origin: 0 50%;
   transition: transform 640ms cubic-bezier(0.32, 0.72, 0, 1);
 }
+
+/* ---------------------------------------------------------------------------
+   Appearance settings (Settings, Appearance), set on <html> by appearance.ts.
+   Unlayered, so they win over the material and the fx utilities they adjust.
+
+   Glass
+     off       no backdrop blur anywhere: solid bars and menus, a plain scrim
+     bars      the default: the tab bar, menus and scrims are glass
+     surfaces  every panel is glass too. The expensive one, kept as a choice
+               rather than deleted (rule 13): a backdrop read per card.
+   ------------------------------------------------------------------------ */
+:root[data-glass='off'] .fx-glass,
+:root[data-glass='off'] .sheet-scrim,
+:root[data-glass='off'] .composer-dock {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+:root[data-glass='off'] .fx-glass {
+  background-color: var(--ink-800);
+}
+
+:root[data-glass='surfaces'] .mat,
+:root[data-glass='surfaces'] .sheet-panel {
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+}
+
+:root[data-glass='surfaces'] .mat {
+  background:
+    radial-gradient(120% 100% at 0% 0%, var(--mat-light), transparent 62%),
+    linear-gradient(var(--mat-wash), var(--mat-wash)),
+    var(--surface-glass);
+}
+
+:root[data-glass='surfaces'] .sheet-panel {
+  background:
+    radial-gradient(120% 60% at 0% 0%, var(--glass-fill-hover), transparent 60%),
+    var(--surface-glass);
+}
+
+/* Animated blur: glass that comes into focus as it appears, rather than
+   arriving already blurred. The most expensive option of all, off by default. */
+@keyframes blur-in {
+  from {
+    -webkit-backdrop-filter: blur(0) saturate(100%);
+    backdrop-filter: blur(0) saturate(100%);
+  }
+}
+
+/* Scrims and menus only: a sheet's own rise is its animation, and replacing
+   it to add a blur would trade a movement for a filter. */
+:root[data-animated-blur='true']:not([data-glass='off']) .sheet-scrim,
+:root[data-animated-blur='true']:not([data-glass='off']) .tab-menu {
+  animation:
+    blur-in 520ms cubic-bezier(0.32, 0.72, 0, 1) both,
+    scrim-in 250ms cubic-bezier(0.2, 0, 0, 1) both;
+}
