@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { CaptureBox } from '../components/CaptureBox';
+import { NowNext } from '../components/NowNext';
+import { todayKey } from '../lib/time';
+import type { PlannerEvent } from '../lib/planner';
 import { SectionHead } from '../components/SectionHead';
 import { usePresence } from '../lib/usePresence';
 import type { Assignment } from '../lib/planner';
@@ -42,6 +45,16 @@ function sampleWork(): Assignment[] {
     { ...base, id: 's3', title: 'Essay outline: the rhetoric of public apology', due_at: at(4, 10, 15) },
     { ...base, id: 's4', title: 'Reading response 4', due_at: at(17, 23, 59) },
   ] as unknown as Assignment[];
+}
+
+/** Two classes today, the first starting soon, for the timetable strip. */
+function sampleClasses(): PlannerEvent[] {
+  const at = (mins: number) => new Date(Date.now() + mins * 60_000).toISOString();
+  const base = { all_day: false, course_id: null, notes: null, kind: 'lecture', feed_id: null, source: null };
+  return [
+    { ...base, id: 'e1', title: 'COEN 231 Lecture', starts_at: at(38), ends_at: at(113), location: 'H-937' },
+    { ...base, id: 'e2', title: 'PHYS 205 Lab', starts_at: at(150), ends_at: at(330), location: 'EV 3.150' },
+  ] as unknown as PlannerEvent[];
 }
 
 const URGENCY = [
@@ -88,6 +101,10 @@ export function Specimen() {
 
       <Section title="Capture">
         <CaptureBox send={async () => undefined} />
+      </Section>
+
+      <Section title="Timetable">
+        <NowNext events={sampleClasses()} today={todayKey()} courseFor={() => undefined} />
       </Section>
 
       <section className="mb-10">

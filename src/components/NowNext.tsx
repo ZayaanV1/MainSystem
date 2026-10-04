@@ -58,62 +58,61 @@ export function NowNext({
 
   const leftNow = current && end ? Math.max(0, Math.round((end.getTime() - now.getTime()) / 60_000)) : null;
 
+  // The one after, written small beneath: a timetable shows what follows.
+  const then = todays.find((e) => new Date(e.starts_at).getTime() > start.getTime()) ?? null;
+  const thenRead = then ? readTitle(then.title) : null;
+  const span = end ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000)) : null;
+  const clock = (d: Date) => formatTime(d).replace(/\s*[ap]\.m\.$/u, '');
+
+  /*
+   * A printed Swiss timetable (Phase B): the time as a big tabular numeral,
+   * what and where beside it, how long until it in words, a rule that fills
+   * as the class runs, and the next one after it in small type. Course glass
+   * is kept, so a lecture still reads as its course.
+   */
   return (
     <section aria-label={current ? 'Happening now' : 'Up next'} className="mb-8 px-4">
       <div
-        className="mat mat-raised slip overflow-hidden px-5 py-4"
+        className="mat mat-raised timetable overflow-hidden"
         data-block
         style={{ ...tint(course), '--mat-r': 'var(--r-hero)' } as CSSProperties}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="kicker mb-2">
-              {current ? (
-                <span className="now-pill">Now</span>
-              ) : (
-                <span>
-                  Next · in{' '}
-                  <span className="blk-num normal-case tracking-normal">
-                    {minutesAway < 60 ? `${minutesAway} min` : durationLabel(minutesAway)}
-                  </span>
-                </span>
-              )}
-            </p>
-            <p className="slip-title text-text-hi" style={{ fontSize: '1.25rem' }}>{read.headline}</p>
-            <p className="mt-1 type-note text-text-mid">
-              {[`${formatTime(start)}${end ? ` – ${formatTime(end)}` : ''}`, read.section, place]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          </div>
-
-          {/* The one number that matters, at display size. */}
-          <div className="flex shrink-0 flex-col items-end">
-            <span className="slip-count text-text-hi">
-              {current && leftNow !== null
-                ? leftNow < 60
-                  ? leftNow
-                  : durationLabel(leftNow)
-                : formatTime(start).replace(/\s*[ap]\.m\.$/u, '')}
-            </span>
-            <span className="type-caption text-text-low">
-              {current ? (leftNow !== null && leftNow < 60 ? 'min left' : 'left') : formatTime(start).replace(/^[\d:]+\s*/u, '')}
-            </span>
-          </div>
+        <div className="tt-row">
+          <span className="tt-time">{clock(start)}</span>
+          <span className="tt-what">
+            <b>{read.headline}</b>
+            <span>{[read.section, place, span ? durationLabel(span) : null].filter(Boolean).join(' · ')}</span>
+          </span>
+          <span className={current ? 'now-pill' : 'tt-away'}>
+            {current
+              ? 'Now'
+              : `in ${minutesAway < 60 ? `${minutesAway} min` : durationLabel(minutesAway)}`}
+          </span>
         </div>
 
-        {after > 0 && (
-          <p className="mt-3 type-note text-text-low">
-            {after === 1 ? 'Then one more today.' : `Then ${after} more today.`}
+        {current && progress !== null && (
+          <div className="tt-line" aria-hidden>
+            <span style={{ transform: `scaleX(${Math.max(0.04, progress)})` }} />
+          </div>
+        )}
+        {current && leftNow !== null && (
+          <p className="type-note -mt-1 text-text-mid">
+            {leftNow < 60 ? `${leftNow} min left` : `${durationLabel(leftNow)} left`}
           </p>
         )}
 
-        {progress !== null && (
-          <span
-            aria-hidden
-            className="bubble-progress"
-            style={{ '--p': progress } as CSSProperties}
-          />
+        {then && thenRead && (
+          <>
+            <div className="tt-rule" aria-hidden />
+            <div className="tt-row tt-then">
+              <span className="tt-time">{clock(new Date(then.starts_at))}</span>
+              <span className="tt-what">
+                <b>{thenRead.headline}</b>
+                {after > 1 && <span>{after - 1 === 1 ? 'and one more today' : `and ${after - 1} more today`}</span>}
+              </span>
+              <span className="tt-away tt-quiet">then</span>
+            </div>
+          </>
         )}
       </div>
     </section>

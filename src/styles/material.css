@@ -530,6 +530,301 @@ button.chip:active {
   line-height: 0.95;
 }
 
+/* ---- the timetable strip: Now / Next as a printed Swiss timetable ---------- */
+
+.timetable {
+  display: grid;
+  gap: 0.875rem;
+  padding: 1.125rem 1.125rem 1rem;
+}
+
+.tt-row {
+  display: grid;
+  grid-template-columns: 4.4rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.tt-time {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.625rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text-hi);
+}
+
+.tt-what {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.tt-what b {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--text-hi);
+}
+
+.tt-what span {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-low);
+}
+
+.tt-away {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--accent-2-lit);
+}
+
+.tt-quiet {
+  color: var(--text-low);
+}
+
+.tt-then .tt-time {
+  font-size: 1.0625rem;
+  color: var(--text-mid);
+}
+
+.tt-then .tt-what b {
+  font-size: 0.9375rem;
+  color: var(--text-mid);
+}
+
+.tt-line {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--ink-600);
+}
+
+.tt-line span {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 50%;
+  border-radius: inherit;
+  background: linear-gradient(to right, var(--accent-2-mid), var(--accent-2-lit));
+  transition: transform 600ms var(--ease-out);
+}
+
+.tt-rule {
+  height: 1px;
+  background: var(--ink-600);
+}
+
+/* ---- the undo bar ---------------------------------------------------------- */
+
+.undo-bar {
+  bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1.5rem + var(--focus-bar-h, 0px));
+  background: var(--ink-700);
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    var(--shadow-lg);
+}
+
+@media (width >= 64rem) {
+  .undo-bar {
+    bottom: calc(1.5rem + var(--focus-bar-h, 0px));
+  }
+}
+
+/* ---- the ticket: the Phase B slip ------------------------------------------
+   An Edmondson railway ticket. The countdown sits in a stub on the left,
+   behind a perforation with real notches; the stub is the done target and
+   carries a faint punch ring so it reads as one. Masked for the notches, so
+   its glow is drawn by the wrapper rather than clipped away with them. */
+
+.slip-ticket {
+  --stub: 4.25rem;
+  --mat-r: 1.125rem;
+  display: grid;
+  grid-template-columns: var(--stub) minmax(0, 1fr) auto;
+  align-items: stretch;
+  min-height: 5.25rem;
+  -webkit-mask:
+    radial-gradient(circle at var(--stub) 0, transparent 7px, var(--text-hi) 7.5px) top / 100% 51% no-repeat,
+    radial-gradient(circle at var(--stub) 100%, transparent 7px, var(--text-hi) 7.5px) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle at var(--stub) 0, transparent 7px, var(--text-hi) 7.5px) top / 100% 51% no-repeat,
+    radial-gradient(circle at var(--stub) 100%, transparent 7px, var(--text-hi) 7.5px) bottom / 100% 51% no-repeat;
+}
+
+@media (width >= 25rem) {
+  .slip-ticket {
+    --stub: 4.75rem;
+  }
+}
+
+/* Push to tomorrow: a compact glass button with a full-size target. */
+.tk-defer {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--r-pill);
+  color: var(--text-mid);
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  transition: transform var(--dur-sheet) cubic-bezier(0.2, 0, 0, 1);
+}
+
+.tk-defer::after {
+  content: '';
+  position: absolute;
+  inset: -0.25rem;
+}
+
+.tk-defer:active {
+  transform: scale(0.9);
+  transition-duration: 70ms;
+}
+
+/* The ticket's glow, drawn behind it by its wrapper: the notch mask would
+   clip a shadow cast by the ticket itself. */
+.slip-ticket-wrap {
+  isolation: isolate;
+}
+
+.slip-ticket-wrap::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0.5rem 0.375rem 0;
+  border-radius: 1.125rem;
+  box-shadow: 0 16px 30px -18px var(--blk-glow, var(--shadow-drop));
+  pointer-events: none;
+}
+
+/* The perforation. */
+.slip-ticket::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--stub) - 0.5px);
+  top: 11px;
+  bottom: 11px;
+  width: 1px;
+  background: repeating-linear-gradient(to bottom, var(--ink-500) 0 3px, transparent 3px 7px);
+  pointer-events: none;
+}
+
+.stub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.875rem 0.25rem 0.75rem;
+  transition: transform var(--dur-sheet) cubic-bezier(0.2, 0, 0, 1);
+}
+
+.stub:active {
+  transform: scale(0.94);
+  transition-duration: 70ms;
+}
+
+.stub-n {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+  transition: opacity var(--dur-sheet) var(--ease-out);
+}
+
+.stub-n-long {
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+}
+
+.stub-u {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--text-low);
+}
+
+/* Where the punch goes: a faint ring, so the stub reads as the thing to tap. */
+.punch {
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-left: -0.375rem;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1.5px var(--ink-500);
+  opacity: 0.6;
+}
+
+.punch[data-punched] {
+  background: var(--ink-900);
+  box-shadow:
+    inset 0 1px 2px var(--shadow-drop),
+    0 1px 0 var(--glass-edge);
+  opacity: 1;
+}
+
+.slip-ticket[data-done] .stub-n {
+  opacity: 0.35;
+}
+
+/* The punched-out disc, falling. */
+.chad {
+  position: fixed;
+  z-index: 60;
+  border-radius: var(--r-pill);
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 35% 30%, var(--glass-edge-hover), transparent 70%),
+    var(--ink-600);
+  box-shadow: 0 2px 4px var(--shadow-drop);
+}
+
+.tk-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.8125rem 0.5rem 0.8125rem 1rem;
+  text-align: left;
+}
+
+.tk-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text-mid);
+}
+
+.tk-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.375rem;
+  padding-right: 0.75rem;
+}
+
 /* A small control with a full-size target: the visible chip stays compact,
    the invisible hit area reaches the 44px floor. */
 .hit-expand {

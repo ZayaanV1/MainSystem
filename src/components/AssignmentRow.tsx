@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react';
-import { clearTick, drawTick } from '../lib/motion';
+import { clearTick, drawTick, punchTicket } from '../lib/motion';
+import { useAppearance } from '../lib/appearance';
 import { startBy, startByIsDue, urgencyFor, type Thresholds, type Urgency } from '../lib/urgency';
 import { formatDay, formatTime, localDayKey } from '../lib/time';
 import type { Assignment, Course } from '../lib/planner';
@@ -32,6 +33,13 @@ import { courseVar } from '../lib/planner';
  * Nothing on the slip moves when pressed except by scaling in place. A row
  * that lifted on the phone's simulated hover and dropped on the press made
  * every tap on the work list a jitter.
+ *
+ * Two forms, chosen in Settings (Appearance): the ticket, from the Phase B
+ * prototype, and the glass slip described above, kept as an option under
+ * rule 13. The ticket moves the countdown into a stub on the left behind a
+ * perforation, so the numbers line up in one column you can read down without
+ * reading a title. The stub is the done target, marked with a faint punch
+ * ring; finishing punches it and the punched-out disc falls away.
  */
 
 interface AssignmentRowProps {
@@ -50,6 +58,35 @@ interface AssignmentRowProps {
   onDefer?: () => void;
   /** Steps completed, when the work has been broken down. */
   progress?: { done: number; total: number } | null;
+}
+
+/** Urgency in words, for the ticket's label line. Never colour alone. */
+const STATE_WORD: Record<Urgency['state'], string> = {
+  overdue: 'Overdue',
+  critical: 'Critical',
+  urgent: 'Urgent',
+  approaching: 'Approaching',
+  distant: 'Distant',
+  done: 'Done',
+  undated: 'No date',
+};
+
+/**
+ * The ticket's countdown. Same as the glass slip's, except that work due
+ * later today counts down in hours or minutes: a stub is a narrow column, and
+ * the clock time is already written in the meta line beside it.
+ */
+function ticketCount(u: Urgency, due: Date | null, hasTime: boolean, now: Date): { big: string; unit: string } {
+  if (u.state !== 'done' && u.state !== 'overdue' && u.days === 0 && due && hasTime) {
+    const ms = due.getTime() - now.getTime();
+    if (ms > 0) {
+      const hours = Math.floor(ms / 3_600_000);
+      if (hours >= 1) return { big: String(hours), unit: hours === 1 ? 'hour' : 'hours' };
+      const minutes = Math.max(1, Math.round(ms / 60_000));
+      return { big: String(minutes), unit: minutes === 1 ? 'minute' : 'minutes' };
+    }
+  }
+  return countdown(u, due, hasTime);
 }
 
 /**
@@ -130,14 +167,22 @@ export function AssignmentRow({
    * mark is hidden before the first paint and draws in rather than flashing
    * fully drawn for a frame.
    */
+  const { slip: style } = useAppearance();
   const tickPath = useRef<SVGPathElement>(null);
   const tickBox = useRef<HTMLSpanElement>(null);
+  const punch = useRef<HTMLSpanElement>(null);
   const wasDone = useRef(done);
   useLayoutEffect(() => {
     const before = wasDone.current;
     wasDone.current = done;
-    if (done && !before && tickPath.current) drawTick(tickPath.current, tickBox.current ?? undefined);
-    if (!done && before && tickBox.current) clearTick(tickBox.current);
+    if (done && !before) {
+      if (tickPath.current) drawTick(tickPath.current, tickBox.current ?? undefined);
+      if (punch.current) punchTicket(punch.current);
+    }
+    if (!done && before) {
+      if (tickBox.current) clearTick(tickBox.current);
+      if (punch.current) clearTick(punch.current);
+    }
   }, [done]);
 
   const swipe = useSwipe({
@@ -148,6 +193,125 @@ export function AssignmentRow({
   const cv = courseVar(course?.colour_index);
   const tint = (cv ? { '--b': `var(${cv}-rgb)` } : {}) as CSSProperties;
   const code = course ? (course.code ?? course.name) : null;
+
+  if (style === 'ticket') {
+    const tc = ticketCount(urgency, due, assignment.due_has_time, now ?? new Date());
+    return (
+      <div className="slip-ticket-wrap relative" data-row={assignment.id} data-block={cv ? true : undefined} style={tint}>
+        {swipe.dx !== 0 && (
+          <span
+            aria-hidden
+            className={[
+              'absolute inset-y-0 flex items-center px-5 type-caption',
+              swipe.dx > 0 ? 'left-0 text-t-done' : 'right-0 text-text-mid',
+              swipe.armed ? 'opacity-100' : 'opacity-50',
+            ].join(' ')}
+          >
+            {swipe.dx > 0 ? (done ? 'Reopen' : 'Done') : 'Tomorrow'}
+          </span>
+        )}
+
+        <div
+          {...swipe.handlers}
+          className="mat slip slip-ticket"
+          data-block={cv ? true : undefined}
+          data-done={done || undefined}
+          style={{
+            ...tint,
+            touchAction: swipe.touchAction,
+            transform: swipe.dx === 0 ? undefined : `translate3d(${swipe.dx}px, 0, 0)`,
+            transition: swipe.dx === 0 ? 'transform 220ms var(--ease-out)' : 'none',
+          }}
+        >
+          <button
+            type="button"
+            onClick={onToggleDone}
+            aria-pressed={done}
+            aria-label={
+              done
+                ? `Mark ${assignment.title} not done`
+                : `Mark ${assignment.title} done, ${urgency.label.toLowerCase()}`
+            }
+            className="stub"
+            style={{ color: `var(${urgency.colourVar})` } as CSSProperties}
+          >
+            <span ref={punch} aria-hidden className="punch" data-punched={done || undefined} />
+            <span aria-hidden className={`stub-n ${tc.big.length > 3 ? 'stub-n-long' : ''}`}>
+              {tc.big}
+            </span>
+            <span aria-hidden className="stub-u">{tc.unit}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpen}
+            disabled={!onOpen}
+            className="tk-body"
+          >
+            <span className={`slip-title ${done ? 'text-text-low line-through decoration-text-low' : 'text-text-hi'}`}>
+              {assignment.title}
+            </span>
+            {(code || dueLabel) && (
+              <span className="tk-meta">
+                {code && cv && <span aria-hidden data-block className="chip-dot" style={tint} />}
+                {[code, dueLabel].filter(Boolean).join(' · ')}
+              </span>
+            )}
+            <span className="sr-only">{urgency.label}.</span>
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span aria-hidden className="kicker" style={{ color: `var(${urgency.colourVar})` }}>
+                {STATE_WORD[urgency.state]}
+              </span>
+              {typeof assignment.weight_percent === 'number' && (
+                <span className="tag type-caption">{assignment.weight_percent}% of grade</span>
+              )}
+              {typeof assignment.grade_percent === 'number' && (
+                <span className="tag type-caption">scored {assignment.grade_percent}%</span>
+              )}
+              {showStart && start && (
+                <span className="type-caption text-text-mid">start by {formatDay(start)}</span>
+              )}
+              {progress && (
+                <span className="type-caption text-text-mid">
+                  {progress.done} of {progress.total} steps
+                </span>
+              )}
+            </span>
+          </button>
+
+          {(assignment.link || (onDefer && !done && assignment.due_at)) && (
+            <span className="tk-side">
+              {assignment.link && (
+                <a
+                  href={assignment.link}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="hit-expand action-chip-sm type-caption"
+                >
+                  Open
+                </a>
+              )}
+              {onDefer && !done && assignment.due_at && (
+                <button
+                  type="button"
+                  onClick={onDefer}
+                  aria-label={`Push "${assignment.title}" to tomorrow`}
+                  title="Tomorrow"
+                  className="tk-defer"
+                >
+                  {/* An arrow onto tomorrow: the word took a third of a phone's
+                      width from the title beside it. */}
+                  <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12h12M12 6l6 6-6 6M20 5v14" />
+                  </svg>
+                </button>
+              )}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative" data-row={assignment.id}>

@@ -21,6 +21,7 @@ import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
 import { hasOwnGroqKey, setOwnGroqKey } from '../lib/planner';
 import { applyTheme, readTheme, writeTheme, type ThemeChoice } from '../lib/theme';
+import { setAppearance, useAppearance, type SlipStyle } from '../lib/appearance';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../lib/auth';
 import { exportCsv, exportJson } from '../lib/export';
@@ -571,6 +572,13 @@ function Appearance() {
     applyTheme(choice);
   }, [choice]);
 
+  // Rule 13: the slip that was replaced stays a choice.
+  const look = useAppearance();
+  const slipOptions: { value: SlipStyle; label: string; hint: string }[] = [
+    { value: 'ticket', label: 'Ticket', hint: 'The countdown in a stub you punch to finish.' },
+    { value: 'glass', label: 'Glass', hint: 'The countdown on the right, a ring to tick.' },
+  ];
+
   const options: { value: ThemeChoice; label: string; hint: string }[] = [
     { value: 'system', label: 'System', hint: 'Follows your device' },
     { value: 'light', label: 'Light', hint: 'Always light' },
@@ -601,6 +609,22 @@ function Appearance() {
           {options.find((o) => o.value === choice)?.hint}. This is remembered on
           this device only.
         </p>
+
+        <p className="kicker mt-6 mb-2">Work slips</p>
+        <div role="radiogroup" aria-label="Work slips" className="flex flex-wrap gap-2">
+          {slipOptions.map((o) => (
+            <Chip
+              key={o.value}
+              role="radio"
+              aria-checked={look.slip === o.value}
+              selected={look.slip === o.value}
+              onClick={() => setAppearance({ slip: o.value })}
+            >
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+        <p className="type-note mt-3 text-text-low">{slipOptions.find((o) => o.value === look.slip)?.hint}</p>
       </Card>
     </section>
   );

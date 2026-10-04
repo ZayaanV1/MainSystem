@@ -54,6 +54,7 @@ import { useNow } from '../lib/useNow';
 import { announce } from '../lib/announce';
 import { revealList } from '../lib/motion';
 import { CaptureBox } from '../components/CaptureBox';
+import { UndoBar } from '../components/UndoBar';
 import { usePresence } from '../lib/usePresence';
 import { SheetPresence } from '../components/Sheet';
 import { onFeedsChanged } from '../lib/feeds';
@@ -81,6 +82,9 @@ export function Today({
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
   const [askingTime, setAskingTime] = useState<Assignment | null>(null);
+  // The last piece of work finished from this screen, offered back for a moment.
+  const [finished, setFinished] = useState<{ id: string; title: string } | null>(null);
+  const dismissFinished = useCallback(() => setFinished(null), []);
   const [pairs, setPairs] = useState<{ estimated: number; actual: number }[]>([]);
 
   const [loaded, setLoaded] = useState<TodayData | null>(null);
@@ -318,6 +322,7 @@ export function Today({
   }
 
   return (
+    <>
     <main
       className="page-frame"
       style={{
@@ -607,6 +612,7 @@ export function Today({
                     // which is silent. The title is included because after a
                     // swipe the row may already be gone from the list.
                     announce(finishing ? `${a.title} marked done` : `${a.title} reopened`);
+                    setFinished(finishing ? { id: a.id, title: a.title } : null);
                     // Offered, never demanded. Marking done has to stay free.
                     setAskingTime(finishing && a.effort_minutes !== null ? a : null);
                   }}
@@ -702,6 +708,19 @@ export function Today({
       </div>
 
     </main>
+    {/* Outside main: main is transformed while pulling to refresh, and a
+        fixed bar inside a transformed parent is fixed to that parent. */}
+    <UndoBar
+      message={finished ? `“${finished.title}” marked done` : null}
+      onDismiss={dismissFinished}
+      onUndo={() => {
+        if (!finished) return;
+        void setAssignmentStatus(finished.id, 'todo');
+        announce(`${finished.title} reopened`);
+        setFinished(null);
+      }}
+    />
+    </>
   );
 }
 

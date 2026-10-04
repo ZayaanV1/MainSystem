@@ -387,3 +387,36 @@ export function flashReceipt(el: HTMLElement | null, holdMs = 1600) {
     { duration: holdMs + 500, easing: 'ease-out', fill: 'forwards' },
   );
 }
+
+/**
+ * Finishing a ticket: the stub is punched and the punched-out disc falls away
+ * under gravity, tumbling. Feedback that the tap landed, which the copy rules
+ * allow; nothing bigger, which they do not.
+ */
+export function punchTicket(hole: HTMLElement) {
+  if (reduced()) {
+    fade(hole, 0, 1);
+    return;
+  }
+  run(hole, [{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 420, easing: EASE_SETTLE_CSS });
+  const r = hole.getBoundingClientRect();
+  if (r.width === 0) return;
+  const chad = document.createElement('span');
+  chad.className = 'chad';
+  chad.setAttribute('aria-hidden', 'true');
+  Object.assign(chad.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  document.body.append(chad);
+  const drift = (Math.random() * 2 - 1) * 18;
+  const spin = (Math.random() * 2 - 1) * 240;
+  const fall = run(
+    chad,
+    [
+      { transform: 'translate(0, 0) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${drift * 0.4}px, -6px) rotate(${spin * 0.2}deg)`, opacity: 1, offset: 0.12 },
+      { transform: `translate(${drift}px, 86px) rotate(${spin}deg) scale(0.7)`, opacity: 0 },
+    ],
+    { duration: 640, easing: 'cubic-bezier(0.45, 0, 0.85, 0.4)', fill: 'forwards' },
+  );
+  if (!fall) chad.remove();
+  else void fall.finished.finally(() => chad.remove());
+}
