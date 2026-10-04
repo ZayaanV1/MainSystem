@@ -1,5 +1,5 @@
-import { useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { moveCapsule } from '../../lib/motion';
 import { CALENDAR_STYLES, type CalendarStyle } from '../../lib/calendarStyle';
 import { durationLabel, freeGaps } from '../../lib/blocks';
 import { effortMinutes, type DayGroup } from '../../lib/week';
@@ -50,8 +50,15 @@ export function StylePicker({
   value: CalendarStyle;
   onChange: (s: CalendarStyle) => void;
 }) {
-  const reduce = useReducedMotion();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const lit = useRef<HTMLSpanElement>(null);
+  const index = CALENDAR_STYLES.findIndex((s) => s.value === value);
+
+  // One ember capsule slides between the options and stretches as it goes,
+  // the same object as the tab bar's.
+  useLayoutEffect(() => {
+    if (lit.current) moveCapsule(lit.current, refs.current[index] ?? null, 'x');
+  }, [index]);
 
   // A radiogroup moves with the arrow keys, which is what a screen reader
   // user has been told to expect by the role.
@@ -66,6 +73,7 @@ export function StylePicker({
 
   return (
     <div role="radiogroup" aria-label="Calendar style" className="style-seg">
+      <span ref={lit} aria-hidden className="style-opt-lit" style={{ opacity: 0 }} />
       {CALENDAR_STYLES.map((s, i) => {
         const on = s.value === value;
         return (
@@ -83,13 +91,6 @@ export function StylePicker({
             onKeyDown={(e) => onKey(e, i)}
             className="style-opt"
           >
-            {on && (
-              <motion.span
-                layoutId="calendar-style-lit"
-                className="style-opt-lit"
-                transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 40 }}
-              />
-            )}
             <Glyph style={s.value} />
             <span>{s.label}</span>
           </button>

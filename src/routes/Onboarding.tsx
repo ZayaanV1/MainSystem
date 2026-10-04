@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
@@ -112,17 +111,13 @@ export function Onboarding({ userId, onDone }: { userId: string; onDone: () => v
  * are left, which frames setup as a toll. A bar just shows it is nearly over.
  */
 function Progress({ index, total }: { index: number; total: number }) {
-  const reduced = useReducedMotion();
-  const pct = Math.min(100, (index / total) * 100);
+  const fill = Math.min(1, index / total);
 
+  // Fills with a transform rather than a width, so the browser plays it
+  // without laying the page out on every frame.
   return (
     <div className="mb-10 h-1 w-full overflow-hidden rounded-pill bg-ink-700">
-      <motion.div
-        className="h-full rounded-pill bg-t-done"
-        initial={false}
-        animate={{ width: `${pct}%` }}
-        transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 220, damping: 30 }}
-      />
+      <div className="progress-fill h-full rounded-pill bg-t-done" style={{ transform: `scaleX(${fill})` }} />
     </div>
   );
 }

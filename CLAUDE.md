@@ -115,7 +115,7 @@ Streaks are no longer on this list; they are an opt-in module (rule 3). Notes ti
 - Complete files. Never `// ... rest unchanged`.
 - After each piece of work: what changed, what the owner needs to do, **what is still not working or unverified**, and the suggested next step.
 - **Performance has a budget**, because the app must run at the display's native rate: 8.3 ms per animated frame at 120Hz (6.9 ms at 144Hz), with a solid 60fps floor on mid-range phones; eager JavaScript at or under 150 KB gzip (197 KB as of 3 Oct 2026 — to be met); every list query bounded. Measure with traces at the real refresh rate rather than describing anything as smooth. Formerly "Don't optimize prematurely. One user, a few thousand rows" — changed Oct 2026; the unbounded 350-row event query was that sentence in practice.
-- Prefer boring, well-understood dependencies, and one of each kind: one animation engine, not two.
+- Prefer boring, well-understood dependencies, and one of each kind. **No animation library**: the platform is the engine. `lib/motion.ts` hands the browser keyframes through the Web Animations API, so motion keeps its shape while a screen renders and Safari does not hold it to 60fps. Formerly "one animation engine, not two" — the app shipped two (Motion, about 41 KB gzip, and anime.js, about 16 KB), both driving frames from JavaScript; removed Oct 2026, taking eager JavaScript from 203 KB to about 158 KB.
 - If something in the spec is ambiguous or looks wrong, say so before building it.
 
 ## Motion and design
@@ -1102,6 +1102,34 @@ prematurely" became a performance budget; the calm-instrument motion limits
 became the motion system; light-derived-from-dark became designed pairs;
 routing by URL, grade tools that compute without grading, and user-chosen
 hiding were adopted as conventions. The exclamation-mark ban was kept.
+
+### Phase B — the prototype, built into the app, Oct 2026
+
+The owner approved the Phase B prototype ("Life Planner foundation") and
+asked for all of it. Shipped in steps, each pushed as it landed:
+
+1. **Tab bar and capture.** One lit capsule moves between tabs (and in the
+   rail and the Week style picker) and stretches as it travels
+   (`moveCapsule`); More opens from its button and closes into it. Capture
+   has a round send button that lights as you type; the words drop toward
+   the inbox and a receipt shows under the field, because the inbox is below
+   the fold on a phone.
+2. **Ticket slips.** The countdown in a stub behind a perforation, a faint
+   punch ring marking the done target; finishing punches it and the disc
+   falls away. The glass slip stays a choice in Settings (rule 13). Undo for
+   five seconds after finishing. Now/Next became a printed timetable strip.
+3. **Opening work.** Sheets render into the body; on a phone the page
+   behind recedes to 94% and the work's title flies from the slip into the
+   sheet's heading, and back on close. Contents arrive a beat after the
+   surface.
+4. **No animation library.** See the working agreement. Named curves live in
+   tokens.css (`--ease-out/exit/glide/settle/drift`) and `EASE` in
+   motion.ts, kept identical by a test.
+
+Found on the way: a cancelled animation's `finished` promise rejects, and
+`.finally()` passes that on, so every interrupted animation was an uncaught
+page error (guarded); Week's Ticket style already owned `.ticket`, which
+silently re-laid the new slip until the classes were renamed.
 
 ### Rule 12 — every tap animates, Oct 2026
 

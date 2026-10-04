@@ -171,3 +171,16 @@ describe('a cancelled animation is not an error', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('one set of named curves', () => {
+  it('matches tokens.css and lib/motion.ts', async () => {
+    const { EASE } = await import('../src/lib/motion');
+    const tokens = readFileSync('src/styles/tokens.css', 'utf8');
+    const norm = (v: string) => v.replace(/\s+/g, '');
+    for (const [name, value] of Object.entries(EASE)) {
+      const m = new RegExp(`--ease-${name}:\\s*([^;]+);`).exec(tokens);
+      expect(m, `--ease-${name} in tokens.css`).not.toBeNull();
+      expect(norm(m![1]), name).toBe(norm(value));
+    }
+  });
+});

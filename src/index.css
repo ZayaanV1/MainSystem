@@ -1290,3 +1290,10 @@
   .sheet-stage > :nth-child(5) { animation-delay: 174ms; }
   .sheet-stage > :nth-child(n + 6) { animation-delay: 202ms; }
 }
+
+/* Onboarding's progress bar. Under Reduce Motion it still moves, as a fill,
+   which is a change of extent rather than travel across the screen. */
+.progress-fill {
+  transform-origin: 0 50%;
+  transition: transform 640ms cubic-bezier(0.32, 0.72, 0, 1);
+}

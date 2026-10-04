@@ -836,10 +836,18 @@
   color: var(--on-accent);
 }
 
+.style-seg {
+  position: relative;
+}
+
+/* One capsule for the whole picker, moved by moveCapsule (motion.ts). */
 .style-opt-lit {
   position: absolute;
-  inset: 0;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 0;
   z-index: 0;
+  pointer-events: none;
   border-radius: var(--r-pill);
   background: linear-gradient(180deg, var(--accent-lit), var(--accent-deep));
   box-shadow: var(--shadow-ember);

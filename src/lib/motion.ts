@@ -1,28 +1,32 @@
-import { animate, stagger, utils } from 'animejs';
-
 /**
  * The app's animation vocabulary, in one file.
  *
- * Two libraries with two jobs, kept apart on purpose. Motion is declarative
- * and lives in components: entrances, the rail's sliding indicator, anything
- * tied to React state. anime.js is imperative and lives here: SVG choreography
- * and staggered sequences, which are the things React is a clumsy way to express.
+ * No animation library. Everything here hands the browser keyframes through
+ * the Web Animations API, so the browser plays them: they keep their shape
+ * while a screen is busy rendering, and Safari does not hold them to the 60
+ * frames a second it allows JavaScript-driven animation. Motion and anime.js
+ * did that work before Phase B, and both are gone.
+ *
+ * The named curves live in tokens.css (--ease-*) and are mirrored below, with
+ * a test that keeps the two in step.
  *
  * Under Reduce Motion nothing here is skipped. Rule 12: a tap that changes
  * something is always animated, so travel is removed and the change is shown
  * as a fade instead. That check belongs here rather than at each call site,
  * because the one call site that forgets is the bug.
- *
- * The functions added for rule 12 (exitRow, measureBelow, closeUp, clearTick)
- * use the Web Animations API directly: the browser plays them, so they keep
- * their shape while the screen is busy re-rendering the list they belong to.
  */
 
 const reduced = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** House easing. The same curve as --ease-out, so CSS and JS agree. */
-const EASE = 'cubicBezier(0.2, 0, 0, 1)';
+/** The named curves, as in tokens.css. */
+export const EASE = {
+  out: 'cubic-bezier(0.2, 0, 0, 1)',
+  exit: 'cubic-bezier(0.4, 0, 1, 1)',
+  glide: 'cubic-bezier(0.32, 0.72, 0, 1)',
+  settle: 'cubic-bezier(0.34, 1.45, 0.64, 1)',
+  drift: 'cubic-bezier(0.16, 1, 0.3, 1)',
+} as const;
 
 /**
  * Brings a list in, one item after another.
@@ -32,99 +36,82 @@ const EASE = 'cubicBezier(0.2, 0, 0, 1)';
  */
 export function revealList(items: HTMLElement[], options: { each?: number } = {}) {
   if (items.length === 0) return;
-
-  if (reduced()) {
-    items.forEach((el) => fade(el, 0, 1));
-    return;
-  }
-
-  return animate(items, {
-    opacity: [0, 1],
-    translateY: [6, 0],
-    duration: 320,
-    delay: stagger(options.each ?? 28),
-    ease: EASE,
+  const each = options.each ?? 28;
+  items.slice(0, 10).forEach((el, i) => {
+    if (reduced()) {
+      fade(el, 0, 1);
+      return;
+    }
+    run(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 280, delay: i * each, easing: EASE.out, fill: 'backwards' });
+    run(el, [{ transform: 'translateY(12px) scale(0.99)' }, { transform: 'none' }], {
+      duration: 520,
+      delay: i * each,
+      easing: EASE.drift,
+      fill: 'backwards',
+    });
   });
 }
 
 /**
- * A short pulse on a value that just changed.
- *
- * For the moment a ring's number moves because something was logged: the
- * receipt that the tap landed. Scale only — no colour, because colour here is
- * carrying meaning already.
+ * A short pulse on a value that just changed: the receipt that the tap
+ * landed. Scale only — no colour, because colour here is carrying meaning.
  */
 export function pulse(el: HTMLElement) {
   if (reduced()) {
     fade(el, 0.4, 1);
     return;
   }
-
-  return animate(el, {
-    scale: [1, 1.06, 1],
+  run(el, [{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], {
     duration: 420,
-    ease: EASE,
+    easing: EASE.out,
   });
 }
 
 /**
  * Draws a tick on, once, at the moment something is marked done.
  *
- * This is feedback, not celebration. The distinction matters here because the
- * spec bans praise that ACCUMULATES — streak counters, "best week yet", the
- * things that become losable and then become the reason not to open the app.
- * Warmth in the moment is explicitly allowed, and a mark that appears
- * instantly is indistinguishable from a mark that was already there. The draw
- * is what makes it read as "you just did that".
+ * This is feedback, not celebration. The spec bans praise that ACCUMULATES —
+ * streak counters, "best week yet" — while warmth in the moment is allowed,
+ * and a mark that appears instantly is indistinguishable from one that was
+ * already there. The draw is what makes it read as "you just did that".
  *
- * The box overshoots and settles while the tick draws over it, so the two read
- * as one gesture rather than as two effects that happened to fire together.
- *
- * Nothing runs on the way back. Un-ticking clears the mark with no animation,
- * because an undo that performs is an undo that feels like a penalty, and
- * changing your mind must stay free.
+ * The box settles while the tick draws over it, so the two read as one
+ * gesture. The overshoot is in the keyframes and kept small: a 0.72 -> 1.12
+ * pop read as a wobble on a phone.
  */
 export function drawTick(path: SVGPathElement, box?: HTMLElement) {
   if (reduced()) {
-    utils.set(path, { strokeDashoffset: 0 });
     if (box) fade(box, 0.3, 1);
     return;
   }
-
   const length = path.getTotalLength();
-  utils.set(path, { strokeDasharray: length, strokeDashoffset: length });
-
   if (box) {
-    animate(box, {
-      // Kept small. A 0.72 -> 1.12 pop read as a wobble on a phone, beside
-      // every other thing that moved under a tap; this is a settle, not a bounce.
-      scale: [0.86, 1.04, 1],
+    run(box, [{ transform: 'scale(0.86)' }, { transform: 'scale(1.04)', offset: 0.6 }, { transform: 'none' }], {
       duration: 300,
-      // Overshoot lives in the keyframes rather than in the easing, so the
-      // settle is a real deceleration instead of a bounce curve fighting it.
-      ease: EASE,
+      easing: EASE.out,
     });
   }
-
-  return animate(path, {
-    strokeDashoffset: 0,
-    duration: 300,
-    // Starts a beat after the box begins to grow, so the mark lands INTO a
-    // shape that is already there rather than racing it.
-    delay: 90,
-    ease: EASE,
-  });
+  // Starts a beat after the box begins to grow, so the mark lands INTO a
+  // shape that is already there rather than racing it.
+  run(
+    path,
+    [
+      { strokeDasharray: `${length}`, strokeDashoffset: `${length}` },
+      { strokeDasharray: `${length}`, strokeDashoffset: '0' },
+    ],
+    { duration: 300, delay: 90, easing: EASE.out, fill: 'backwards' },
+  );
 }
 
 /* ============================================================================
    Rule 12: every tap that changes something is animated.
    ========================================================================= */
 
-const EASE_OUT_CSS = 'cubic-bezier(0.2, 0, 0, 1)';
+const EASE_OUT_CSS = EASE.out;
 /** Leaving accelerates away: what is gone should get out of the way. */
-const EASE_EXIT_CSS = 'cubic-bezier(0.4, 0, 1, 1)';
+const EASE_EXIT_CSS = EASE.exit;
 /** Travel that settles, for a list closing up. */
-const EASE_GLIDE_CSS = 'cubic-bezier(0.32, 0.72, 0, 1)';
+const EASE_GLIDE_CSS = EASE.glide;
 
 function run(el: Element, keyframes: Keyframe[], options: KeyframeAnimationOptions): Animation | null {
   if (typeof el.animate !== 'function') return null;
@@ -248,7 +235,7 @@ export function settleIn(el: HTMLElement) {
    ========================================================================= */
 
 /** Settles with a small overshoot: confirmation only (the tick, the punch). */
-const EASE_SETTLE_CSS = 'cubic-bezier(0.34, 1.45, 0.64, 1)';
+const EASE_SETTLE_CSS = EASE.settle;
 
 /**
  * Moves the lit capsule behind the current tab to `target`.
@@ -431,7 +418,7 @@ export function punchTicket(hole: HTMLElement) {
    Sheets: the page recedes, the title flies.
    ========================================================================= */
 
-const SHEET_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+const SHEET_EASE = EASE.glide;
 const SHEET_MS = 420;
 const RECEDE = 0.94;
 

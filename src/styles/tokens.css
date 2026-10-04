@@ -305,6 +305,21 @@
      overshoot is what separates "physical" from "mechanical". */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /* The named motions (Phase B). Mirrored as EASE in lib/motion.ts, and
+     tests/motion.test.ts keeps the two identical.
+       out     state changes, presses, fades
+       exit    leaving: accelerates away, quicker than anything arrives
+       glide   travel: sheets, flights, a list closing up
+       settle  confirmation only (the tick, the punch): the one overshoot
+       drift   staged entrances */
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-glide: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-settle: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --ease-drift: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-press: 70ms;
+  --dur-exit: 170ms;
+  --dur-glide: 420ms;
+
   /* Minimum tap target */
   --tap: 44px;
 
