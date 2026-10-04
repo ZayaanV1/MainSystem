@@ -585,7 +585,7 @@ export function Today({
           the one place the difference matters most.
         */}
         {data === null ? (
-          <SkeletonList rows={3} />
+          <SkeletonList rows={3} kind="work" />
         ) : !work.list.length ? (
           workCleared ? (
             <p className="enter-fade px-4 py-8 type-body text-t-done">

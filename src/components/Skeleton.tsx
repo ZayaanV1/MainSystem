@@ -23,6 +23,8 @@
  * urgent moment — it is the app not being ready yet.
  */
 
+import { useAppearance } from '../lib/appearance';
+
 interface SkeletonProps {
   /** Height in the 4px scale, e.g. 4 = 16px. Matches the spacing tokens. */
   h?: number;
@@ -48,9 +50,39 @@ export function Skeleton({ h = 4, w = 'w-full', className = '' }: SkeletonProps)
  * three is the median here, and a skeleton showing eight rows for a person who
  * has two is its own small lie about how much is waiting for them.
  */
-export function SkeletonList({ rows = 3 }: { rows?: number }) {
+export function SkeletonList({ rows = 3, kind = 'rows' }: { rows?: number; kind?: 'rows' | 'work' }) {
   // Widths vary per row so the block reads as text rather than as a table.
   const widths = ['w-3/4', 'w-1/2', 'w-2/3', 'w-3/5', 'w-4/5'];
+  const { slip } = useAppearance();
+
+  /*
+   * Phase B. A skeleton waits 150 ms before it shows (skeleton-wait): most
+   * opens are answered from the cache well inside that, and a placeholder that
+   * flashes for a moment reads as a glitch. A work skeleton takes the shape of
+   * the slip it stands in for, so nothing jumps when the real slips land.
+   */
+  if (kind === 'work' && slip === 'ticket') {
+    return (
+      <div role="status" aria-live="polite" aria-label="Loading" className="skeleton-wait flex flex-col gap-2.5">
+        {Array.from({ length: rows }, (_, i) => (
+          <div key={i} className="slip-ticket-wrap relative">
+            <div className="mat slip slip-ticket">
+              <span className="stub">
+                <Skeleton h={7} w="w-8" className="rounded-tight" />
+                <Skeleton h={2} w="w-9" className="mt-1" />
+              </span>
+              <span className="tk-body">
+                <Skeleton h={4} w={widths[i % widths.length]} />
+                <Skeleton h={3} w="w-2/5" />
+                <Skeleton h={2.5} w="w-1/5" />
+              </span>
+            </div>
+          </div>
+        ))}
+        <span className="sr-only">Loading your work</span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -58,7 +90,7 @@ export function SkeletonList({ rows = 3 }: { rows?: number }) {
       role="status"
       aria-live="polite"
       aria-label="Loading"
-      className="flex flex-col gap-2 px-4"
+      className="skeleton-wait flex flex-col gap-2 px-4"
     >
       {Array.from({ length: rows }, (_, i) => (
         <div

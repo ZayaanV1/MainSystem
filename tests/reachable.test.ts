@@ -175,3 +175,42 @@ describe('every exported function is called', () => {
     ).toEqual([]);
   });
 });
+
+describe('every primitive is on the specimen page', () => {
+  /*
+   * A primitive that never appears on /?specimen is one nobody checks: that is
+   * how PromptInput and ThinkingText sat built and unused. App structure that
+   * cannot stand alone on a page is listed here with the reason.
+   */
+  const STRUCTURE: Record<string, string> = {
+    AppShell: 'wraps the specimen itself (SpecimenShell in App.tsx)',
+    Page: 'the screen wrapper inside AppShell',
+    ErrorBoundary: 'only shows when something throws',
+    FocusBar: 'driven by a stored focus session',
+    FocusResult: 'shown at the end of a focus session',
+    SyncBanner: 'driven by the live outbox',
+    SwipeRow: 'rendered by every AssignmentRow on the page',
+    SheetPresence: 'wraps the specimen sheet',
+  };
+
+  const specimen = readFileSync('src/routes/Specimen.tsx', 'utf8');
+  const components = SOURCE.filter((f) => f.startsWith('src/components/') && f.endsWith('.tsx') && !f.includes('/calendar/'));
+
+  function missing(page: string): string[] {
+    const out: string[] = [];
+    for (const f of components) {
+      for (const m of (CORPUS.get(f) ?? '').matchAll(/^export function ([A-Z]\w+)/gm)) {
+        if (!STRUCTURE[m[1]] && !new RegExp(`\\b${m[1]}\\b`).test(page)) out.push(`${f}: ${m[1]}`);
+      }
+    }
+    return out;
+  }
+
+  it('catches a primitive left off the page', () => {
+    expect(missing(specimen.replace(/\bEventSlip\b/g, 'X'))).toContain('src/components/EventSlip.tsx: EventSlip');
+  });
+
+  it('shows every primitive', () => {
+    expect(missing(specimen)).toEqual([]);
+  });
+});

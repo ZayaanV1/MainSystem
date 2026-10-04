@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { CaptureBox } from '../components/CaptureBox';
 import { NowNext } from '../components/NowNext';
+import { EventSlip } from '../components/EventSlip';
+import { CachedNotice, LoadFailure } from '../components/LoadFailure';
+import { Pressable } from '../components/Pressable';
+import { SkeletonList } from '../components/Skeleton';
+import { UndoBar } from '../components/UndoBar';
+import { WeekShape } from '../components/WeekShape';
 import { todayKey } from '../lib/time';
 import type { PlannerEvent } from '../lib/planner';
 import { SectionHead } from '../components/SectionHead';
@@ -84,6 +90,7 @@ export function Specimen() {
   const [work, setWork] = useState(sampleWork);
   const shown = usePresence(work, (a) => a.id);
   const [opened, setOpened] = useState<Assignment | null>(null);
+  const [undo, setUndo] = useState<string | null>(null);
   const drop = (id: string, kind: 'done' | 'defer') => {
     shown.hint(id, kind);
     setWork((w) => w.filter((a) => a.id !== id));
@@ -131,6 +138,41 @@ export function Specimen() {
           ))}
         </div>
       </section>
+
+      <Section title="Event slip">
+        <div className="flex flex-col gap-2.5 px-4">
+          {sampleClasses().map((e) => (
+            <EventSlip key={e.id} event={e} />
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Week shape">
+        <WeekShape
+          tasks={work.map((a, i) => ({ id: a.id, title: a.title, due_at: a.due_at, effort_minutes: 45 + i * 30, status: a.status }))}
+        />
+      </Section>
+
+      <Section title="Loading, after a 150 ms grace">
+        <div className="flex flex-col gap-6">
+          <SkeletonList rows={2} kind="work" />
+          <SkeletonList rows={2} />
+        </div>
+      </Section>
+
+      <Section title="Failure and offline">
+        <LoadFailure failed={['work', 'the checklist']} onRetry={() => undefined} />
+        <CachedNotice at={Date.now() - 42 * 60_000} onRetry={() => undefined} />
+      </Section>
+
+      <Section title="Pressable row and undo">
+        <Card>
+          <Pressable className="mat-row gap-3 px-4 py-3" onClick={() => setUndo('“Lab report 3” marked done')}>
+            <span className="type-quote text-text-hi">Tap to show the undo bar</span>
+          </Pressable>
+        </Card>
+        <UndoBar message={undo} onUndo={() => setUndo(null)} onDismiss={() => setUndo(null)} />
+      </Section>
 
       <Section title="Time / urgency — edges and labels only">
         <Card>

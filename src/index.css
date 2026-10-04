@@ -1206,6 +1206,12 @@
   }
 }
 
+/* A skeleton waits 150 ms before it appears, then fades in (Phase B). An
+   answer that arrives sooner never shows a placeholder at all. */
+.skeleton-wait {
+  animation: enter-fade-still 220ms var(--ease-out) 150ms both;
+}
+
 /* ---------------------------------------------------------------------------
    Desktop density.
 
