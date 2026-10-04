@@ -16,3 +16,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** The commit this bundle was built from, and when. Set in vite.config.ts. */
+declare const __BUILD_ID__: string;
+declare const __BUILD_TIME__: string;

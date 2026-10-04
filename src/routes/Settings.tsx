@@ -269,6 +269,13 @@ export function Settings({ onBack }: { onBack: () => void }) {
           Sign out
         </Button>
       </section>
+
+      {/* Which build this device is running. An installed app can keep an old
+          version until it is closed and reopened, and without this there was
+          no way to tell from the phone whether a deploy had arrived. */}
+      <p className="type-note mb-12 px-4 text-text-low">
+        Build {__BUILD_ID__} · {__BUILD_TIME__}
+      </p>
     </main>
   );
 }
