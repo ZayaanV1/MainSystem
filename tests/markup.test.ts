@@ -253,3 +253,22 @@ describe('swipes ride native scrolling', () => {
     expect(MARKUP.filter((f) => tracksPointer(readFileSync(f, 'utf8')))).toEqual([]);
   });
 });
+
+describe('labels look like labels', () => {
+  it('never sets a section label in the tag style', () => {
+    // The tag is a pill: a filled, rimmed shape that reads as a control. Used
+    // for "Course" above a row of chips it looked like one more field to tap,
+    // and it was the only label in the editor drawn that way. Labels are
+    // kickers.
+    const offenders: string[] = [];
+    for (const file of MARKUP) {
+      const source = readFileSync(file, 'utf8');
+      const re = /className="tag type-label"/g;
+      let match: RegExpExecArray | null;
+      while ((match = re.exec(source))) {
+        offenders.push(`${file}:${source.slice(0, match.index).split('\n').length}`);
+      }
+    }
+    expect(offenders, `use className="kicker" for a label at:\n${offenders.join('\n')}`).toEqual([]);
+  });
+});

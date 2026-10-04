@@ -4,6 +4,22 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+/*
+ * The ground colour, read from the token file rather than written here. The
+ * manifest needs a literal (a manifest cannot hold a var()), and the literal
+ * it held was the cool near-black from before Phase B, so the splash screen
+ * and the installed app's status bar were a different black from the app for
+ * a month. Reading --ink-900 means they cannot drift again. The first
+ * declaration is the dark palette, which is the default.
+ */
+function inkGround(): string {
+  const tokens = readFileSync(new URL('./src/styles/tokens.css', import.meta.url), 'utf8');
+  const m = /--ink-900:\s*(#[0-9a-fA-F]{6})/u.exec(tokens);
+  if (!m) throw new Error('tokens.css has no --ink-900; the manifest needs the ground colour');
+  return m[1];
+}
 
 // Shown at the foot of Settings, so the phone can say which deploy it is on.
 // Vercel provides the commit; a local build asks git.
@@ -60,11 +76,11 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
 
-        // Matches --ink-900. The splash screen and status bar must not flash
-        // white before the app paints; on a phone opened at 1am that flash is
+        // --ink-900. The splash screen and status bar must not flash white
+        // before the app paints; on a phone opened at 1am that flash is
         // genuinely unpleasant.
-        background_color: '#15161D',
-        theme_color: '#15161D',
+        background_color: inkGround(),
+        theme_color: inkGround(),
 
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },

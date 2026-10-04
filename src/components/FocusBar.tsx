@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './Button';
 import {
@@ -118,7 +118,17 @@ export function FocusBar({ onFinish }: FocusBarProps) {
         aria-hidden
         className="type-h2 tabular-nums text-text-hi"
       >
-        {elapsedLabel(session)}
+        {/* Tabular digits so the clock does not shuffle as it ticks, but each
+            colon in proportional form: Schibsted's tabular colon is a full
+            figure wide and would print "12 : 04". */}
+        {elapsedLabel(session)
+          .split(':')
+          .map((part, i) => (
+            <Fragment key={i}>
+              {i > 0 && <span className="normal-nums">:</span>}
+              {part}
+            </Fragment>
+          ))}
       </span>
       <span className="sr-only" role="timer">
         Working on {session.title}

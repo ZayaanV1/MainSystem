@@ -217,20 +217,47 @@ textarea.well {
   color: var(--text-low);
 }
 
-/* Quiet until there is something to send, then it lights. Opacity and scale
-   only, so the change plays in the browser and is never a cut (rule 12). */
+/* Quiet until there is something to send, then it lights. At rest it is a
+   glass button with a legible plus, not the ember button at 38% opacity: on
+   paper that washed the plus out to near-white on peach, a control that looked
+   disabled because it was drawn as one. The ember lives on a layer that fades
+   in, so the change is opacity and scale only and plays rather than cuts
+   (rule 12). */
 .capture-send {
-  opacity: 0.38;
+  isolation: isolate;
+  color: var(--text-mid);
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
   transform: scale(0.9);
   transition:
-    opacity 260ms var(--ease-out),
+    color 260ms var(--ease-out),
+    box-shadow 260ms var(--ease-out),
     transform 360ms cubic-bezier(0.34, 1.45, 0.64, 1),
     filter var(--dur-tap) var(--ease-out);
 }
 
+.capture-send::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent) 55%, var(--accent-deep));
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    inset 0 -1px 0 var(--shadow-drop);
+  opacity: 0;
+  transition: opacity 260ms var(--ease-out);
+}
+
 .capture-send[data-ready] {
-  opacity: 1;
+  color: var(--on-accent);
+  box-shadow: var(--shadow-ember);
   transform: none;
+}
+
+.capture-send[data-ready]::before {
+  opacity: 1;
 }
 
 .capture-send[data-ready]:active {
@@ -405,6 +432,108 @@ textarea.well {
   padding: 0;
 }
 
+/* ---- the navigation capsule ---------------------------------------------------- */
+
+/* Previous, Today and Next as one glass shape. Three separate buttons beside a
+   heading read as three things to look at; one capsule reads as one control
+   for moving, which is what it is. Used by Month and Week. */
+.nav-capsule {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--glass-fill);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    inset 0 1px 0 var(--specular);
+}
+
+.nav-capsule > button {
+  display: grid;
+  place-items: center;
+  min-width: 2.25rem;
+  height: 2.375rem;
+  padding: 0 0.5rem;
+  border-radius: var(--r-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-mid);
+  transition:
+    transform 180ms var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .nav-capsule > button:hover {
+    color: var(--text-hi);
+    background: var(--glass-fill-hover);
+  }
+}
+
+.nav-capsule > button:active {
+  transform: scale(0.92);
+  background: var(--glass-fill-hover);
+  transition-duration: 70ms;
+}
+
+/* Today, while it is where you already are: lit, so the capsule also says
+   where you are. */
+.nav-capsule > button[aria-current] {
+  color: var(--text-hi);
+}
+
+/* A month's name as the heading of its own screen: up to 48 px on a desk, and
+   on a phone as large as the header's leftover width allows. The header is a
+   size container; 12rem is the year, the capsule and the gaps, and the name's
+   length (--len, set beside it) times 0.6em is its width with room to spare:
+   measured, Schibsted 700 runs 0.44-0.66em a letter, September 5.09em in all.
+   October fits at 28 px on a 375 px phone; September steps down to 22. */
+.month-head {
+  container-type: inline-size;
+}
+
+.month-title {
+  font-family: var(--font-display);
+  font-size: min(
+    clamp(1.75rem, 1.3rem + 2.4vw, 3rem),
+    calc((100cqi - 12rem) / (var(--len, 9) * 0.6))
+  );
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.month-year {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* A 320 px phone leaves 256 px: beside the year, September would be 12 px,
+   smaller than the year itself. Below 18rem the year moves above the name and
+   the name takes the row. */
+@container (max-width: 18rem) {
+  .month-head h1 {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+  }
+
+  .month-year {
+    order: -1;
+    font-size: 0.75rem;
+  }
+
+  .month-title {
+    font-size: max(1.25rem, min(1.75rem, calc((100cqi - 9.25rem) / (var(--len, 9) * 0.6))));
+  }
+}
+
 /* ---- chips -------------------------------------------------------------------- */
 
 .chip {
@@ -525,7 +654,9 @@ button.chip:active {
 
 .slip-count {
   font-family: var(--font-display);
-  font-variant-numeric: tabular-nums;
+  /* Proportional: this prints clock times, and tabular figures would widen
+     the colon ("3 :00"). The column's width does the aligning. */
+  font-variant-numeric: normal;
   font-size: 1.875rem;
   font-weight: 700;
   letter-spacing: -0.045em;
@@ -549,12 +680,25 @@ button.chip:active {
 
 .tt-time {
   font-family: var(--font-display);
-  font-variant-numeric: tabular-nums;
+  /* Proportional: this prints clock times, and tabular figures would widen
+     the colon ("3 :00"). The column's width does the aligning. */
+  font-variant-numeric: normal;
   font-size: 1.625rem;
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1;
   color: var(--text-hi);
+}
+
+.tt-period {
+  display: block;
+  margin-top: 0.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: var(--text-low);
 }
 
 .tt-what {
@@ -867,7 +1011,9 @@ button.chip:active {
 
 .stub-n {
   font-family: var(--font-display);
-  font-variant-numeric: tabular-nums;
+  /* Proportional: this prints clock times, and tabular figures would widen
+     the colon ("3 :00"). The column's width does the aligning. */
+  font-variant-numeric: normal;
   font-size: 1.875rem;
   font-weight: 700;
   letter-spacing: -0.045em;

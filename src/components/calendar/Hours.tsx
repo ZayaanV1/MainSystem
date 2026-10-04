@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { durationLabel, hourRange, minuteOfDay, placeSpans } from '../../lib/blocks';
 import { effortMinutes, type DayGroup } from '../../lib/week';
 import { useMediaQuery } from '../../lib/useMediaQuery';
+import { formatTimeRange } from '../../lib/time';
 import {
   buildDay,
   clock,
@@ -197,8 +198,6 @@ function Column({
       {placed.map((p) => {
         const it = events.get(p.id)!;
         const short = (p.end - p.start) < 40;
-        const c = clock(it.start);
-        const until = it.end ? clock(it.end) : null;
         return (
           <div
             key={p.id}
@@ -206,7 +205,7 @@ function Column({
             data-block
             data-past={it.state === 'past' || undefined}
             data-now={it.state === 'now' || undefined}
-            title={`${it.headline}, ${c.hm} ${c.suffix}${until ? ` to ${until.hm} ${until.suffix}` : ''}${it.place ? `, ${it.place}` : ''}`}
+            title={`${it.headline}, ${formatTimeRange(it.start, it.end)}${it.place ? `, ${it.place}` : ''}`}
             style={tint(it.course, {
               '--top': p.start - origin,
               '--len': p.end - p.start,
@@ -218,8 +217,7 @@ function Column({
             <b className="hours-title">{it.headline}</b>
             {!short && (
               <small className="hours-meta blk-num">
-                {c.hm}
-                {until ? `–${until.hm} ${until.suffix}` : ` ${c.suffix}`}
+                {formatTimeRange(it.start, it.end)}
                 {it.mins !== null ? ` · ${durationLabel(it.mins)}` : ''}
               </small>
             )}

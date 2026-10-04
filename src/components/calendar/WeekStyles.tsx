@@ -595,7 +595,7 @@ function LedgerEvent({
           <>
             <b>{c.hm}</b>
             <small>{c.suffix}</small>
-            {until && <small>to {until.hm}</small>}
+            {until && <small>to {until.hm}{until.suffix !== c.suffix ? ` ${until.suffix}` : ''}</small>}
           </>
         )}
       </div>

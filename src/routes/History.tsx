@@ -115,7 +115,7 @@ export function History({
 
         {selected && (
           <div className="flex flex-col gap-3">
-            <span className="tag type-label">
+            <span className="kicker">
               {selected === today ? `Today, ${formatDay(selected)}` : formatDay(selected)}
             </span>
 

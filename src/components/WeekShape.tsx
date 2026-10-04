@@ -60,7 +60,11 @@ export function WeekShape({ tasks, from = todayKey(), days = 7 }: WeekShapeProps
           } not counted here.`}
       </p>
 
-      <div className="flex items-end gap-1.5" style={{ height: '7rem' }}>
+      {/* Columns stretch to the chart's height (the default). End-aligning them
+          sized each column to its labels, so the track below had no height and
+          every bar's percentage resolved to 0 px: from 9 Sep to 4 Oct the chart
+          drew labels and no bars. */}
+      <div className="flex gap-1.5" style={{ height: '7rem' }}>
         {span.map((day, i) => {
           const m = minutes[i];
           const isToday = day === todayKey();
@@ -69,13 +73,15 @@ export function WeekShape({ tasks, from = todayKey(), days = 7 }: WeekShapeProps
               {/* The number sits above its own bar so the shape is never the
                   only signal — the same rule the rings and the urgency ramp
                   follow. */}
-              <span className="type-caption tabular-nums text-text-low">
+              <span className="type-caption text-text-low">
                 {m > 0 ? hours(m) : ''}
               </span>
 
-              <div className="flex w-full flex-1 items-end">
+              <div className="relative w-full min-h-0 flex-1">
+                {/* Absolutely placed so its percentage height resolves against
+                    the track's laid-out box, which is always definite. */}
                 <div
-                  className={`w-full rounded-t-[3px] ${
+                  className={`absolute inset-x-0 bottom-0 rounded-t-[3px] ${
                     isToday ? 'bg-accent' : m > 0 ? 'bg-ink-500' : 'bg-ink-700'
                   }`}
                   style={{

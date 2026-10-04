@@ -246,7 +246,7 @@ function Shell() {
         );
       case 'month':
         return (
-          <Month data={data} onBack={home} onOpenAssignment={setOpenAssignment} initialDay={monthDay} />
+          <Month data={data} onOpenAssignment={setOpenAssignment} initialDay={monthDay} />
         );
       case 'search':
         return (

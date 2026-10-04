@@ -91,11 +91,19 @@ export function describeHealth(h: NotificationHealth): { text: string; warn: boo
       : `${formatDay(day)} ${formatTime(h.lastDeliveredAt)}`;
 
   if (h.stale) {
-    return { text: `Last notification ${when}. Send a test to check.`, warn: true };
+    return { text: `${sentence(`Last notification ${when}`)} Send a test to check.`, warn: true };
   }
 
   const suffix = h.failuresSince > 0 ? ` ${h.failuresSince} failed since.` : '';
-  return { text: `Last notification ${when}.${suffix}`, warn: h.failuresSince > 0 };
+  return { text: `${sentence(`Last notification ${when}`)}${suffix}`, warn: h.failuresSince > 0 };
+}
+
+/**
+ * Close a sentence without doubling its full stop. Times render as "7:00 a.m."
+ * and already end in one, so a blind `.` printed "7:00 a.m..".
+ */
+export function sentence(text: string): string {
+  return text.endsWith('.') ? text : `${text}.`;
 }
 
 export interface DeliveryRow {

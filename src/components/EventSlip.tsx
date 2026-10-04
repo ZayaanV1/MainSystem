@@ -1,5 +1,5 @@
 import { readTitle } from '../lib/blocks';
-import { formatTime } from '../lib/time';
+import { formatTimeRange } from '../lib/time';
 import type { Course, PlannerEvent } from '../lib/planner';
 import { tint } from './calendar/items';
 
@@ -27,9 +27,7 @@ export function EventSlip({
   const read = readTitle(event.title);
   const start = new Date(event.starts_at);
   const end = event.ends_at ? new Date(event.ends_at) : null;
-  const when = event.all_day
-    ? 'All day'
-    : `${formatTime(start)}${end ? ` – ${formatTime(end)}` : ''}`;
+  const when = event.all_day ? 'All day' : formatTimeRange(start, end);
 
   const place = event.location
     ? event.location

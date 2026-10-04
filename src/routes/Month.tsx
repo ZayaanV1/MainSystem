@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { readTitle } from '../lib/blocks';
-import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
@@ -50,12 +49,10 @@ const WEEKDAY_NAMES = [
 
 export function Month({
   data,
-  onBack,
   onOpenAssignment,
   initialDay = null,
 }: {
   data: TodayData | null;
-  onBack: () => void;
   onOpenAssignment: (a: Assignment) => void;
   /** Open on this day rather than today — an event found in Search. */
   initialDay?: DayKey | null;
@@ -116,6 +113,14 @@ export function Month({
     ? grid.weeks.flat().find((c) => c.day === selected) ?? null
     : null;
 
+  const monthName = monthLabel(anchor).split(' ')[0];
+
+  /** Back to this month with today open: what Today means in a calendar. */
+  function jumpToToday() {
+    setAnchor(startOfMonth(today));
+    setSelected(today);
+  }
+
   function step(months: number) {
     const next = shiftMonth(anchor, months);
     setAnchor(next);
@@ -127,44 +132,41 @@ export function Month({
   return (
     <main className="page-frame">
       {/*
-        The month as a masthead: its name at display size, the year set small
-        beside it in numerals, and the arrows beside those. "Month" as an h1
-        over a smaller "September 2026" was a label for the screen sitting on
-        top of the thing the screen is about.
+        The month as the heading, the year beside it, and the three ways to
+        move in one capsule on the right. At 375 px the masthead-size name, the
+        year, two icon buttons and a text button could not share 343 px and ran
+        into each other; the name now steps down below 400 px and the controls
+        take one shape instead of three.
       */}
-      <header className="mb-6 flex items-end justify-between gap-4 px-4">
-        <div className="min-w-0">
-          <h1 className="sr-only">Month</h1>
-          <p className="kicker mb-2">Month</p>
-          <p className="flex items-baseline gap-3">
-            <span className="type-masthead text-text-hi">{monthLabel(anchor).split(' ')[0]}</span>
-            <span className="numeral text-text-low" style={{ fontSize: '1.5rem' }}>{anchor.slice(0, 4)}</span>
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => step(-1)}
-            aria-label="Previous month"
-            className="btn btn-quiet btn-icon"
+      <header className="month-head mb-5 flex items-center justify-between gap-2.5 px-4">
+        <h1 className="flex min-w-0 items-baseline gap-1.5">
+          <span
+            className="month-title truncate text-text-hi"
+            style={{ '--len': monthName.length } as CSSProperties}
           >
+            {monthName}
+          </span>
+          <span className="month-year text-text-low">{anchor.slice(0, 4)}</span>
+        </h1>
+        <div className="nav-capsule" role="group" aria-label="Change month">
+          <button type="button" onClick={() => step(-1)} aria-label="Previous month">
             <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M10 3.5 5.5 8l4.5 4.5" />
             </svg>
           </button>
           <button
             type="button"
-            onClick={() => step(1)}
-            aria-label="Next month"
-            className="btn btn-quiet btn-icon"
+            onClick={jumpToToday}
+            aria-label="This month"
+            aria-current={anchor === startOfMonth(today) && selected === today ? 'date' : undefined}
           >
+            Today
+          </button>
+          <button type="button" onClick={() => step(1)} aria-label="Next month">
             <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 3.5 10.5 8 6 12.5" />
             </svg>
           </button>
-          <Button variant="quiet" onClick={onBack}>
-            Today
-          </Button>
         </div>
       </header>
 

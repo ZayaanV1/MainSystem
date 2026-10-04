@@ -115,7 +115,7 @@ function countdown(
         const m = /^(\d{1,2}:\d{2})\s*(.*)$/u.exec(t);
         return m ? { big: m[1], unit: `${m[2]} · late`.trim() } : { big: t, unit: 'late' };
       }
-      return { big: '0', unit: 'late' };
+      return { big: 'Today', unit: 'late' };
     }
     default:
       if (u.days === 0) {
@@ -124,7 +124,9 @@ function countdown(
           const m = /^(\d{1,2}:\d{2})\s*(.*)$/u.exec(t);
           return m ? { big: m[1], unit: `${m[2]} today` } : { big: t, unit: 'today' };
         }
-        return { big: '0', unit: 'today' };
+        // Due today with no time: due by the end of the day. "0 today" put a
+        // number on the stub that counted nothing.
+        return { big: 'Today', unit: 'end of day' };
       }
       return { big: String(u.days ?? ''), unit: u.days === 1 ? 'day' : 'days' };
   }

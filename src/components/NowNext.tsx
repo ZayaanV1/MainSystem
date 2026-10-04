@@ -62,7 +62,18 @@ export function NowNext({
   const then = todays.find((e) => new Date(e.starts_at).getTime() > start.getTime()) ?? null;
   const thenRead = then ? readTitle(then.title) : null;
   const span = end ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000)) : null;
-  const clock = (d: Date) => formatTime(d).replace(/\s*[ap]\.m\.$/u, '');
+  // The figures large and the period small beside them. Dropping the period
+  // made office hours at 5 read the same in the morning and the evening.
+  const clock = (d: Date) => {
+    const t = formatTime(d);
+    const period = t.match(/[ap]\.m\.$/u)?.[0] ?? '';
+    return (
+      <>
+        {t.slice(0, t.length - period.length).trim()}
+        {period && <small className="tt-period">{period}</small>}
+      </>
+    );
+  };
 
   /*
    * A printed Swiss timetable (Phase B): the time as a big tabular numeral,

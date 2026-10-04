@@ -149,7 +149,7 @@ export function AssignmentEditor({
 
         {courses.length > 0 && (
           <div className="flex flex-col gap-3">
-            <span className="tag type-label">Course</span>
+            <span className="kicker">Course</span>
             <div className="flex flex-wrap gap-2">
               {courses.map((c) => (
                 <Chip
@@ -405,7 +405,7 @@ function Subtasks({
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="tag type-label">
+      <span className="kicker">
         Steps{mine.length > 0 && ` — ${mine.filter((s) => s.done).length} of ${mine.length}`}
       </span>
 

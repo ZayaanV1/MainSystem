@@ -155,9 +155,12 @@
     font-family: var(--font-sans);
     font-size: 16px;
     line-height: 1.5;
-    /* Digits that change width while a ring animates make the whole interface
-       feel unstable. This is not cosmetic. */
-    font-variant-numeric: tabular-nums;
+    /* Proportional figures by default. Schibsted's tabular feature swaps the
+       colon, comma, full stop and % for figure-width forms as well as the
+       digits, so a body-wide tabular-nums printed "Study group : COEN 231" in
+       every heading. Tabular figures belong only to digits that line up or
+       tick (counts, dates in a grid, a running timer), and never to a clock
+       time — time columns align by their width instead. */
     -webkit-font-smoothing: antialiased;
     /* Respect the notch and the home indicator once installed to the home
        screen; without this the bottom row of actions sits under the bar. */

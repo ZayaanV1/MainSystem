@@ -119,6 +119,23 @@ export const zoneAbbrev = (instant: Date = new Date(), tz: string = active) =>
 export const formatTime = (instant: Date, tz: string = active) =>
   shared.formatTime(instant, tz);
 
+/**
+ * "10:15 – 11:30 a.m.", or "11:30 a.m. – 1:00 p.m." across noon.
+ *
+ * One period when both ends share it, both when they differ. Dropping the
+ * end's period unconditionally printed a morning class as "11:30–1:00 p.m.",
+ * and printing both always ran a slip's kicker to two lines at phone width.
+ */
+export function formatTimeRange(start: Date, end: Date | null, tz: string = active): string {
+  const a = formatTime(start, tz);
+  if (!end) return a;
+  const b = formatTime(end, tz);
+  const pa = /\s*([ap]\.m\.)$/u.exec(a);
+  const pb = /\s*([ap]\.m\.)$/u.exec(b);
+  if (pa && pb && pa[1] === pb[1]) return `${a.slice(0, pa.index)} – ${b}`;
+  return `${a} – ${b}`;
+}
+
 export const formatDay = (day: shared.DayKey, tz: string = active) =>
   shared.formatDay(day, tz);
 
