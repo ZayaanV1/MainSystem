@@ -246,7 +246,16 @@ export function AssignmentRow({
             {(code || dueLabel) && (
               <span className="tk-meta">
                 {code && cv && <span aria-hidden data-block className="chip-dot" style={tint} />}
-                {[code, dueLabel].filter(Boolean).join(' · ')}
+                {/* Each part kept whole, so a narrow phone breaks between
+                    the course, the day and the time, never inside "p.m." */}
+                {[code, ...(dueLabel ? dueLabel.split(' · ') : [])]
+                  .filter((part): part is string => Boolean(part))
+                  .map((part, i, all) => (
+                    <span key={i} className="whitespace-nowrap">
+                      {part}
+                      {i < all.length - 1 && <span aria-hidden> ·</span>}
+                    </span>
+                  ))}
               </span>
             )}
             <span className="sr-only">{urgency.label}.</span>

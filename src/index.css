@@ -1361,3 +1361,12 @@
     blur-in 520ms cubic-bezier(0.32, 0.72, 0, 1) both,
     scrim-in 250ms cubic-bezier(0.2, 0, 0, 1) both;
 }
+
+/* The narrowest phones: five tabs at 320 px ran their labels together.
+   Unlayered, so it wins over the type-caption utility it adjusts. */
+@media (width < 22.5rem) {
+  .tab-btn .type-caption {
+    font-size: 0.625rem;
+    letter-spacing: 0.02em;
+  }
+}
