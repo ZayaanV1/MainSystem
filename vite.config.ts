@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 /*
  * The ground colour, read from the token file rather than written here. The
@@ -34,6 +35,12 @@ function buildId(): string {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      // supabase-js builds a storage client the app never uses; see the stub.
+      '@supabase/storage-js': fileURLToPath(new URL('./src/lib/vendor/storage-stub.ts', import.meta.url)),
+    },
+  },
   define: {
     __BUILD_ID__: JSON.stringify(buildId()),
     __BUILD_TIME__: JSON.stringify(
@@ -110,6 +117,10 @@ export default defineConfig({
 
   test: {
     environment: 'node',
+    // Run supabase-js through Vite so the storage alias applies in tests as
+    // it does in the build; left to Node, the real storage-js loads and the
+    // test of the stub would pass without exercising it.
+    server: { deps: { inline: ['@supabase/supabase-js'] } },
     // Pins the account timezone; see tests/setup.ts for why that is not the
     // same thing as pinning the host's.
     setupFiles: ['./tests/setup.ts'],

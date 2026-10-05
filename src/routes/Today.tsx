@@ -1,4 +1,6 @@
 import {
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -17,12 +19,25 @@ import { EmptyState } from '../components/EmptyState';
 import { NowNext } from '../components/NowNext';
 import { TickPills } from '../components/TickPills';
 import { SectionHead } from '../components/SectionHead';
-import { WhatNow } from './WhatNow';
-import { ChecklistEditor } from './ChecklistEditor';
-import { AssignmentEditor } from './AssignmentEditor';
-import { Triage } from './Triage';
-import { History } from './History';
-import { ChecklistSheet } from './ChecklistSheet';
+
+/*
+ * The sheets load on demand, and are fetched while the browser is idle once
+ * the day has painted, so the first tap still opens at once. Bundled eagerly
+ * they were most of the reason the first screen's JavaScript ran past its
+ * 150 KB budget, for sheets most opens never show.
+ */
+const loadEditor = () => import('./AssignmentEditor');
+const loadChecklistEditor = () => import('./ChecklistEditor');
+const loadTriage = () => import('./Triage');
+const loadHistory = () => import('./History');
+const loadChecklistSheet = () => import('./ChecklistSheet');
+const loadWhatNow = () => import('./WhatNow');
+const WhatNow = lazy(() => loadWhatNow().then((m) => ({ default: m.WhatNow })));
+const AssignmentEditor = lazy(() => loadEditor().then((m) => ({ default: m.AssignmentEditor })));
+const ChecklistEditor = lazy(() => loadChecklistEditor().then((m) => ({ default: m.ChecklistEditor })));
+const Triage = lazy(() => loadTriage().then((m) => ({ default: m.Triage })));
+const History = lazy(() => loadHistory().then((m) => ({ default: m.History })));
+const ChecklistSheet = lazy(() => loadChecklistSheet().then((m) => ({ default: m.ChecklistSheet })));
 import { LowBattery } from './LowBattery';
 import type { ChecklistItem } from '../lib/checklist';
 import { FOLDED_BY_DEFAULT, GROUP_ORDER, groupWork, type GroupId } from '../lib/todayGroups';
@@ -156,6 +171,18 @@ export function Today({
     void reload();
     void fetchHealth().then(setHealth);
   }, [reload, refresh]);
+
+  // Once the day is on screen, fetch the sheets in the background.
+  const prefetched = useRef(false);
+  useEffect(() => {
+    if (!loaded || prefetched.current) return;
+    prefetched.current = true;
+    const fetchAll = () => {
+      for (const load of [loadWhatNow, loadEditor, loadChecklistSheet, loadChecklistEditor, loadTriage, loadHistory]) void load();
+    };
+    if ('requestIdleCallback' in window) window.requestIdleCallback(fetchAll, { timeout: 2000 });
+    else setTimeout(fetchAll, 600);
+  }, [loaded]);
 
   /*
    * Back after a while away: re-read. The minute clock above only notices a
@@ -551,6 +578,7 @@ export function Today({
 
                       {asksHere && (
                         <div className="lg:hidden">
+                          <Suspense fallback={null}>
                           <WhatNow
                             open={askOpen}
                             onClose={() => setAskOpen(false)}
@@ -560,6 +588,7 @@ export function Today({
                             sized={sized}
                             onOpen={setOpenAssignment}
                           />
+                          </Suspense>
                         </div>
                       )}
 
@@ -604,6 +633,7 @@ export function Today({
               making a stuck person first decide to ask is the decision they
               were stuck on. On a phone it is the pill on the first group. */}
           <div className="hidden lg:block">
+            <Suspense fallback={null}>
             <WhatNow
               alwaysOpen
               assignments={data?.assignments ?? []}
@@ -612,6 +642,7 @@ export function Today({
               sized={sized}
               onOpen={setOpenAssignment}
             />
+            </Suspense>
           </div>
 
           <Ahead
@@ -671,74 +702,87 @@ export function Today({
         </div>
       </div>
 
+      {/* Suspense inside each condition, never around it: SheetPresence reads
+          whether it has children to know whether a sheet is open, and a
+          Suspense element is always there. */}
       <SheetPresence>
         {checklistOpen && (
-          <ChecklistSheet
-            items={data?.items ?? []}
-            today={today}
-            isDone={isDone}
-            onToggle={(id, d) => void toggle(id, d)}
-            onEdit={(item) => {
-              // One sheet at a time: Back always means one thing.
-              setChecklistOpen(false);
-              setEditorFor({ item });
-            }}
-            onFillIn={() => {
-              setChecklistOpen(false);
-              setHistoryOpen(true);
-            }}
-            onClose={() => setChecklistOpen(false)}
-          />
+          <Suspense fallback={null}>
+            <ChecklistSheet
+              items={data?.items ?? []}
+              today={today}
+              isDone={isDone}
+              onToggle={(id, d) => void toggle(id, d)}
+              onEdit={(item) => {
+                // One sheet at a time: Back always means one thing.
+                setChecklistOpen(false);
+                setEditorFor({ item });
+              }}
+              onFillIn={() => {
+                setChecklistOpen(false);
+                setHistoryOpen(true);
+              }}
+              onClose={() => setChecklistOpen(false)}
+            />
+          </Suspense>
         )}
       </SheetPresence>
 
       <SheetPresence>
         {historyOpen && (
-          <History
-            items={data?.items ?? []}
-            completions={data?.completions ?? []}
-            userId={userId}
-            onClose={() => setHistoryOpen(false)}
-          />
+          <Suspense fallback={null}>
+            <History
+              items={data?.items ?? []}
+              completions={data?.completions ?? []}
+              userId={userId}
+              onClose={() => setHistoryOpen(false)}
+            />
+          </Suspense>
         )}
       </SheetPresence>
 
       <SheetPresence>
         {triaging && (
-          <Triage
-            item={triaging}
-            courses={data?.courses ?? []}
-            userId={userId}
-            onClose={() => setTriaging(null)}
-            onDone={reload}
-          />
+          <Suspense fallback={null}>
+            <Triage
+              item={triaging}
+              courses={data?.courses ?? []}
+              userId={userId}
+              onClose={() => setTriaging(null)}
+              onDone={reload}
+            />
+          </Suspense>
         )}
       </SheetPresence>
 
       <SheetPresence>
         {openAssignment && (
-          <AssignmentEditor
-            open
-            assignment={openAssignment}
-            courses={data?.courses ?? []}
-            subtasks={data?.subtasks ?? []}
-            userId={userId}
-            onClose={() => setOpenAssignment(null)}
-            onSaved={reload}
-          />
+          <Suspense fallback={null}>
+            <AssignmentEditor
+              open
+              assignment={openAssignment}
+              courses={data?.courses ?? []}
+              subtasks={data?.subtasks ?? []}
+              userId={userId}
+              onClose={() => setOpenAssignment(null)}
+              onSaved={reload}
+            />
+          </Suspense>
         )}
       </SheetPresence>
 
       <SheetPresence>
         {editorFor && (
-          <ChecklistEditor
-            open
-            item={editorFor.item}
-            userId={userId}
-            nextSortOrder={(data?.items.length ?? 0) + 1}
-            onClose={() => setEditorFor(null)}
-            onSaved={reload}
-          />
+          <Suspense fallback={null}>
+            <ChecklistEditor
+              open
+              item={editorFor.item}
+              userId={userId}
+              nextSortOrder={(data?.items.length ?? 0) + 1}
+              onClose={() => setEditorFor(null)}
+              onSaved={reload}
+            />
+          </Suspense>
         )}
       </SheetPresence>
     </main>

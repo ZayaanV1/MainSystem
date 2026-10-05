@@ -33,7 +33,8 @@ import type { DayKey } from './lib/time';
  * the worst possible moment — the one CLAUDE.md calls the most important
  * screen in the build.
  */
-import { SignIn } from './routes/SignIn';
+// Signed-in opens, which are nearly all of them, never show this.
+const SignIn = lazy(() => import('./routes/SignIn').then((m) => ({ default: m.SignIn })));
 import { Today } from './routes/Today';
 
 const Plan = lazy(() => import('./routes/Plan').then((m) => ({ default: m.Plan })));
@@ -45,9 +46,10 @@ const AssignmentEditor = lazy(() => import('./routes/AssignmentEditor').then((m)
 const Settings = lazy(() => import('./routes/Settings').then((m) => ({ default: m.Settings })));
 const Specimen = lazy(() => import('./routes/Specimen').then((m) => ({ default: m.Specimen })));
 
-import { Onboarding } from './routes/Onboarding';
+// The first run happens once per account; nobody else should download it.
+const Onboarding = lazy(() => import('./routes/Onboarding').then((m) => ({ default: m.Onboarding })));
 // Already in the first chunk, because Today renders it; static here too.
-import { Triage } from './routes/Triage';
+const Triage = lazy(() => import('./routes/Triage').then((m) => ({ default: m.Triage })));
 import { useHotkeys } from './lib/useHotkeys';
 import { FocusBar } from './components/FocusBar';
 import { FocusResult } from './components/FocusResult';
@@ -209,21 +211,28 @@ function Shell() {
   // sign-in screen does not flash on every launch.
   if (loading) return null;
 
-  if (!session) return <SignIn />;
+  if (!session)
+    return (
+      <Suspense fallback={null}>
+        <SignIn />
+      </Suspense>
+    );
 
   if (!zoneReady || firstRun === null) return null;
 
   if (firstRun) {
     return (
-      <Onboarding
-        userId={session.user.id}
-        onDone={() => {
-          setFirstRun(false);
-          // The planner behind it is stale by definition — the first run just
-          // created everything in it.
-          setRevision((r) => r + 1);
-        }}
-      />
+      <Suspense fallback={null}>
+        <Onboarding
+          userId={session.user.id}
+          onDone={() => {
+            setFirstRun(false);
+            // The planner behind it is stale by definition — the first run
+            // just created everything in it.
+            setRevision((r) => r + 1);
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -336,26 +345,30 @@ function Shell() {
           Week to know how to edit one. */}
       <SheetPresence>
       {openAssignment && screen !== 'today' && (
-        <AssignmentEditor
-          open
-          assignment={openAssignment}
-          courses={data?.courses ?? []}
-          subtasks={data?.subtasks ?? []}
-          userId={session.user.id}
-          onClose={() => setOpenAssignment(null)}
-          onSaved={() => setRevision((r) => r + 1)}
-        />
+        <Suspense fallback={null}>
+          <AssignmentEditor
+            open
+            assignment={openAssignment}
+            courses={data?.courses ?? []}
+            subtasks={data?.subtasks ?? []}
+            userId={session.user.id}
+            onClose={() => setOpenAssignment(null)}
+            onSaved={() => setRevision((r) => r + 1)}
+          />
+        </Suspense>
       )}
       </SheetPresence>
       <SheetPresence>
       {openInbox && screen !== 'today' && (
-        <Triage
-          item={openInbox}
-          courses={data?.courses ?? []}
-          userId={session.user.id}
-          onClose={() => setOpenInbox(null)}
-          onDone={() => setOpenInbox(null)}
-        />
+        <Suspense fallback={null}>
+          <Triage
+            item={openInbox}
+            courses={data?.courses ?? []}
+            userId={session.user.id}
+            onClose={() => setOpenInbox(null)}
+            onDone={() => setOpenInbox(null)}
+          />
+        </Suspense>
       )}
       </SheetPresence>
       <SheetPresence>
