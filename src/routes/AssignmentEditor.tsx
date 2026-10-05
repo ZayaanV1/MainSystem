@@ -93,7 +93,10 @@ export function AssignmentEditor({
   userId,
   onClose,
   onSaved,
+  url,
 }: {
+  /** The address while open: "?work=<id>" on the current screen. */
+  url?: string;
   open: boolean;
   assignment: Assignment;
   courses: Course[];
@@ -206,6 +209,7 @@ export function AssignmentEditor({
       // this field (Phase B), and there is no second Title field below it.
       titleInput={{ value: fields.title, onChange: (v) => set('title', v), label: 'Title' }}
       flightFrom={`[data-row="${CSS.escape(assignment.id)}"] .slip-title`}
+      url={url}
     >
       <form onSubmit={submit} className="flex flex-col gap-5">
         {courses.length > 0 && (

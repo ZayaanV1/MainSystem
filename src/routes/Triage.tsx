@@ -36,12 +36,15 @@ export function Triage({
   userId,
   onClose,
   onDone,
+  url,
 }: {
   item: InboxItem;
   courses: Course[];
   userId: string;
   onClose: () => void;
   onDone: () => void;
+  /** The address while open, so a reload or a link returns to it. */
+  url?: string;
 }) {
   const [fields, setFields] = useState<AssignmentFields>({
     title: item.body,
@@ -96,7 +99,7 @@ export function Triage({
 
   return (
     <Sheet
-      dock open onClose={onClose} title="Sort this out">
+      dock open onClose={onClose} title="Sort this out" url={url}>
       <form onSubmit={submit} className="flex flex-col gap-6">
         <Field
           label="What is it"

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell, Page, type NavItem } from './components/AppShell';
 import { keepFeedsLive } from './lib/feeds';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -57,13 +57,11 @@ import { FocusResult } from './components/FocusResult';
 /**
  * Routing is a piece of state rather than a dependency.
  *
- * Five screens with no nesting, no URL to preserve and one user. A router
- * would add a dependency, a bundle, and a set of concepts to hold, in exchange
- * for nothing this app currently needs. Revisit when a screen needs to be
- * linkable from outside — a notification deep link into a specific assignment
- * would be the moment.
+ * Screens and open items are addresses now (lib/route.ts): the back gesture
+ * works, a notification can open what it is about, and a reload stays where
+ * it was. Hand-rolled; the mapping is one small file.
  */
-type Screen = 'today' | 'week' | 'month' | 'plan' | 'ask' | 'search' | 'settings';
+import { currentRoute, formatRoute, type Route, type Screen } from './lib/route';
 
 /**
  * The rail's contents.
@@ -103,7 +101,7 @@ function NotConfigured() {
 
 function Shell() {
   const { session, loading } = useAuth();
-  const [screen, setScreen] = useState<Screen>('today');
+  const [screen, setScreen] = useState<Screen>(() => currentRoute().screen);
 
   /**
    * Screen changes run inside a view transition, travelling in the direction
@@ -115,9 +113,10 @@ function Shell() {
    * than as a stale constant.
    */
   const navigate = useCallback(
-    (next: Screen) => {
-      if (next === screen) return;
-      if (next !== 'month') setMonthDay(null);
+    (next: Screen, extra: Omit<Route, 'screen'> = {}) => {
+      if (next === screen && !extra.day) return;
+      setMonthDay(next === 'month' ? (extra.day ?? null) : null);
+      window.history.pushState(null, '', formatRoute({ screen: next, ...extra }));
       const order = NAV.map((item) => item.id);
       withTransition(() => setScreen(next), directionBetween(order, screen, next));
     },
@@ -140,8 +139,77 @@ function Shell() {
   const [data, setData] = useState<TodayData | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
   const [openInbox, setOpenInbox] = useState<InboxItem | null>(null);
+
+  /** Open a piece of work by id: from the loaded day, or read on its own. */
+  const openWork = useCallback(
+    (id: string) => {
+      const found = data?.assignments.find((a) => a.id === id) ?? data?.completedToday.find((a) => a.id === id);
+      if (found) setOpenAssignment(found);
+      else void loadAssignment(id).then((a) => a && setOpenAssignment(a));
+    },
+    [data],
+  );
+
+  /*
+   * Back and Forward between screens. Sheets handle their own entries
+   * (components/Sheet.tsx); this moves the screen underneath, in the
+   * direction travelled along the nav.
+   */
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
+  useEffect(() => {
+    const onPop = () => {
+      const r = currentRoute();
+      setMonthDay(r.day ?? null);
+      if (r.screen === screenRef.current) return;
+      const order = NAV.map((item) => item.id);
+      withTransition(() => setScreen(r.screen), directionBetween(order, screenRef.current, r.screen));
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  /*
+   * An address with something open in it — a reminder's link, a reload with
+   * the editor up — opens that thing once the day has loaded. The base entry
+   * loses the parameter first, so the sheet's own entry carries it and Back
+   * lands on the screen rather than on the same sheet again.
+   */
+  const [pendingOpen, setPendingOpen] = useState<Route['open'] | null>(() => currentRoute().open ?? null);
+  const routeTo = useCallback((to: string) => {
+    const u = new URL(to, window.location.origin);
+    if (u.origin !== window.location.origin) return;
+    window.history.pushState(null, '', u.pathname + u.search);
+    const r = currentRoute();
+    setMonthDay(r.day ?? null);
+    setScreen(r.screen);
+    setPendingOpen(r.open ?? null);
+  }, []);
+  useEffect(() => {
+    if (!pendingOpen || !data) return;
+    setPendingOpen(null);
+    window.history.replaceState(null, '', formatRoute({ ...currentRoute(), open: undefined }));
+    if (pendingOpen.kind === 'work') openWork(pendingOpen.id);
+    else {
+      const found = data.inbox.find((i) => i.id === pendingOpen.id);
+      if (found) setOpenInbox(found);
+    }
+  }, [pendingOpen, data, openWork]);
+
+  // A notification tapped while the app is already open: the service worker
+  // focuses this window and asks it to go where the notification points.
+  useEffect(() => {
+    const sw = navigator.serviceWorker;
+    if (!sw) return;
+    const onMessage = (e: MessageEvent) => {
+      const msg = e.data as { type?: string; to?: unknown } | null;
+      if (msg?.type === 'navigate' && typeof msg.to === 'string') routeTo(msg.to);
+    };
+    sw.addEventListener('message', onMessage);
+    return () => sw.removeEventListener('message', onMessage);
+  }, [routeTo]);
   /** The day Month should open on, when an event in Search was tapped. */
-  const [monthDay, setMonthDay] = useState<DayKey | null>(null);
+  const [monthDay, setMonthDay] = useState<DayKey | null>(() => currentRoute().day ?? null);
   /**
    * A finished timer, waiting to be offered.
    *
@@ -260,17 +328,8 @@ function Shell() {
         return (
           <Search
             data={data}
-            onOpenAssignment={(id) => {
-              const found =
-                data?.assignments.find((a) => a.id === id) ??
-                data?.completedToday.find((a) => a.id === id);
-              if (found) setOpenAssignment(found);
-              else void loadAssignment(id).then((a) => a && setOpenAssignment(a));
-            }}
-            onOpenDay={(day) => {
-              navigate('month');
-              setMonthDay(day);
-            }}
+            onOpenAssignment={openWork}
+            onOpenDay={(day) => navigate('month', { day })}
             onOpenInbox={(id) => {
               const found = data?.inbox.find((i) => i.id === id);
               if (found) setOpenInbox(found);
@@ -344,10 +403,11 @@ function Shell() {
       {/* Lives at the shell so opening a piece of work from Week does not need
           Week to know how to edit one. */}
       <SheetPresence>
-      {openAssignment && screen !== 'today' && (
+      {openAssignment && (
         <Suspense fallback={null}>
           <AssignmentEditor
             open
+            url={formatRoute({ screen, open: { kind: 'work', id: openAssignment.id } })}
             assignment={openAssignment}
             courses={data?.courses ?? []}
             subtasks={data?.subtasks ?? []}
@@ -359,9 +419,10 @@ function Shell() {
       )}
       </SheetPresence>
       <SheetPresence>
-      {openInbox && screen !== 'today' && (
+      {openInbox && (
         <Suspense fallback={null}>
           <Triage
+            url={formatRoute({ screen, open: { kind: 'inbox', id: openInbox.id } })}
             item={openInbox}
             courses={data?.courses ?? []}
             userId={session.user.id}

@@ -98,6 +98,22 @@ export function renderReminder(title: string, appUrl?: string): OutboundMessage 
   return { title: 'Now', body: title, deepLink: appUrl };
 }
 
+/**
+ * A link into the app at one place, such as "/?work=<id>" for the work a
+ * reminder is about. Every notification used to open the app's root, so a
+ * reminder about one assignment landed on whatever screen was open. Paths
+ * match src/lib/route.ts. Undefined without an app address; the app's root if
+ * the address will not parse, never a broken link.
+ */
+export function linkTo(appUrl: string | undefined, path: string): string | undefined {
+  if (!appUrl) return undefined;
+  try {
+    return new URL(path, appUrl).toString();
+  } catch {
+    return appUrl;
+  }
+}
+
 /** Keyed per day for repeating items, so tomorrow's reminder is a new one. */
 export function checklistReminderKey(itemId: string, localDay: DayKey): string {
   return `checklist:${localDay}:${itemId}`;

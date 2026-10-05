@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { EASE } from '../lib/motion';
+import { currentRoute, formatRoute } from '../lib/route';
 import { aboodSummary, appearanceSummary, notificationsSummary } from '../lib/settingsSummary';
 import {
   bridgeStatus,
@@ -80,13 +81,28 @@ export function Settings() {
    * Which page is open, and the slide between pages: forward comes in from
    * the right, Back from the left (rule 12), and each page opens at its top.
    */
-  const [page, setPage] = useState<PageId | null>(null);
+  const [page, setPage] = useState<PageId | null>(() => pageFrom(currentRoute().page));
   const stage = useRef<HTMLDivElement>(null);
   const direction = useRef<1 | -1>(1);
+  // Each page is an address (/settings/abood), so Back returns to the list
+  // and a reload stays on the page.
   const go = (next: PageId | null) => {
     direction.current = next ? 1 : -1;
+    if (next) window.history.pushState(null, '', formatRoute({ screen: 'settings', page: next }));
+    else if (pageFrom(currentRoute().page)) window.history.back();
     setPage(next);
   };
+  useEffect(() => {
+    const onPop = () => {
+      const r = currentRoute();
+      if (r.screen !== 'settings') return;
+      const next = pageFrom(r.page);
+      direction.current = next ? 1 : -1;
+      setPage(next);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
     const el = stage.current;
@@ -366,6 +382,8 @@ export function Settings() {
 }
 
 type PageId = 'notifications' | 'timezone' | 'appearance' | 'calendar' | 'abood' | 'data';
+const PAGE_IDS: PageId[] = ['notifications', 'timezone', 'appearance', 'calendar', 'abood', 'data'];
+const pageFrom = (p: string | undefined): PageId | null => (PAGE_IDS.includes(p as PageId) ? (p as PageId) : null);
 
 const GLYPHS: Record<string, string> = {
   bell: 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',

@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
+import { afterSettled, popEntry } from '../lib/history';
 import { createPortal } from 'react-dom';
 import { flyText, recedePage, restorePage } from '../lib/motion';
 
@@ -81,9 +82,15 @@ interface SheetProps {
    * field below it.
    */
   titleInput?: { value: string; onChange: (value: string) => void; label: string };
+  /**
+   * The address while the sheet is open, such as "?work=<id>" on the current
+   * screen, so the open thing can be linked to and reloaded into. Without it
+   * the sheet still takes a history entry at the same address.
+   */
+  url?: string;
 }
 
-export function Sheet({ open: openProp, onClose, title, children, dock = false, flightFrom, titleInput }: SheetProps) {
+export function Sheet({ open: openProp, onClose, title, children, dock = false, flightFrom, titleInput, url }: SheetProps) {
   const presence = useContext(Closing);
   const open = openProp && !presence?.closing;
   const panel = useRef<HTMLDivElement>(null);
@@ -107,6 +114,38 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
   useEffect(() => {
     closeRef.current = onClose;
   }, [onClose]);
+
+  /*
+   * A history entry while open: Back closes the sheet rather than leaving
+   * the screen, and closing it any other way pops the entry again. See
+   * lib/history.ts for why a push waits for a Back in flight.
+   */
+  const entry = useId();
+  const urlRef = useRef(url);
+  urlRef.current = url;
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    let pushed = false;
+    const onPop = () => {
+      if ((window.history.state as { sheet?: string } | null)?.sheet === entry) return;
+      pushed = false;
+      closeRef.current();
+    };
+    afterSettled(() => {
+      if (!live) return;
+      const here = window.location.pathname + window.location.search;
+      window.history.pushState({ ...(window.history.state ?? {}), sheet: entry }, '', urlRef.current ?? here);
+      pushed = true;
+      window.addEventListener('popstate', onPop);
+    });
+    return () => {
+      live = false;
+      window.removeEventListener('popstate', onPop);
+      if (pushed && (window.history.state as { sheet?: string } | null)?.sheet === entry) popEntry();
+    };
+    // Only on opening and closing; the address is read when it is pushed.
+  }, [open, entry]);
 
   useEffect(() => {
     if (!open) return;

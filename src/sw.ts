@@ -179,10 +179,13 @@ self.addEventListener('notificationclick', (event) => {
         includeUncontrolled: true,
       });
 
-      // Focus an open window rather than opening a second copy.
+      // Focus an open window rather than opening a second copy, and send it
+      // where the notification points: focusing alone left a reminder about
+      // one piece of work landing on whatever screen happened to be open.
       for (const client of clientList) {
         if ('focus' in client) {
           await client.focus();
+          client.postMessage({ type: 'navigate', to: target });
           return;
         }
       }

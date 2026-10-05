@@ -36,6 +36,7 @@ import {
   checklistReminderKey,
   checklistRemindersDue,
   renderReminder,
+  linkTo,
   type RemindableAssignment,
   type RemindableItem,
 } from '../_shared/reminders.ts';
@@ -397,7 +398,8 @@ async function runEscalations(
 
     if ((count ?? 0) > 0) continue;
 
-    const msg = renderEscalation([event], localDay, settings.timezone, APP_URL);
+    // Opens tomorrow in Month, where the exam is.
+    const msg = renderEscalation([event], localDay, settings.timezone, linkTo(APP_URL, `/month?day=${addDays(localDay, 1)}`));
     const outcome = await deliver(deps, settings.user_id, 'escalation', localDay, msg, key);
 
     if (outcome.delivered) sent.push(event.title);
@@ -435,9 +437,9 @@ async function runReminders(
     return (count ?? 0) > 0;
   };
 
-  const send = async (title: string, key: string) => {
+  const send = async (title: string, key: string, link = APP_URL) => {
     if (await alreadySent(key)) return;
-    const msg = renderReminder(title, APP_URL);
+    const msg = renderReminder(title, link);
     const outcome = await deliver(deps, settings.user_id, 'reminder', localDay, msg, key);
     if (outcome.delivered) sent.push(title);
   };
@@ -478,7 +480,8 @@ async function runReminders(
     .not('remind_at', 'is', null);
 
   for (const a of assignmentRemindersDue((work ?? []) as RemindableAssignment[], now)) {
-    await send(a.title, assignmentReminderKey(a.id, a.remind_at!));
+    // Opens that piece of work, not the app's front page.
+    await send(a.title, assignmentReminderKey(a.id, a.remind_at!), linkTo(APP_URL, `/?work=${a.id}`));
   }
 
   return sent;

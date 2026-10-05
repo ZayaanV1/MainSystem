@@ -6,8 +6,7 @@ import {
   checklistRemindersDue,
   renderReminder,
   type RemindableAssignment,
-  type RemindableItem,
-} from '../../supabase/functions/_shared/reminders';
+  type RemindableItem, linkTo } from '../../supabase/functions/_shared/reminders';
 
 const TZ = 'America/Toronto';
 const DAY = '2026-08-18'; // a Tuesday
@@ -141,5 +140,17 @@ describe('idempotency keys', () => {
 
   it('keeps checklist and assignment keys from colliding', () => {
     expect(checklistReminderKey('x', DAY)).not.toBe(assignmentReminderKey('x', DAY));
+  });
+});
+
+describe('linkTo', () => {
+  it('links into the app at one place, with or without a trailing slash on the address', () => {
+    expect(linkTo('https://planner.example', '/?work=abc')).toBe('https://planner.example/?work=abc');
+    expect(linkTo('https://planner.example/', '/month?day=2026-10-05')).toBe('https://planner.example/month?day=2026-10-05');
+  });
+
+  it('is nothing without an address, and the address itself if it will not parse', () => {
+    expect(linkTo(undefined, '/?work=abc')).toBeUndefined();
+    expect(linkTo('not a url', '/?work=abc')).toBe('not a url');
   });
 });

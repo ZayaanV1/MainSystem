@@ -65,6 +65,7 @@ import {
 } from '../lib/planner';
 import { activeTimezone, addDays, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 import { applyPending } from '../lib/optimistic';
+import { formatRoute } from '../lib/route';
 import { useOutbox } from '../lib/useOutbox';
 import { useNow } from '../lib/useNow';
 import { announce } from '../lib/announce';
@@ -745,6 +746,7 @@ export function Today({
         {triaging && (
           <Suspense fallback={null}>
             <Triage
+              url={formatRoute({ screen: 'today', open: { kind: 'inbox', id: triaging.id } })}
               item={triaging}
               courses={data?.courses ?? []}
               userId={userId}
@@ -760,6 +762,7 @@ export function Today({
           <Suspense fallback={null}>
             <AssignmentEditor
               open
+              url={formatRoute({ screen: 'today', open: { kind: 'work', id: openAssignment.id } })}
               assignment={openAssignment}
               courses={data?.courses ?? []}
               subtasks={data?.subtasks ?? []}
