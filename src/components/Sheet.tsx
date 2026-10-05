@@ -75,9 +75,15 @@ interface SheetProps {
    * title of the slip that was tapped.
    */
   flightFrom?: string;
+  /**
+   * The heading as an editable field: the editor's title is edited where the
+   * flying title lands, rather than once in the heading and again in a Title
+   * field below it.
+   */
+  titleInput?: { value: string; onChange: (value: string) => void; label: string };
 }
 
-export function Sheet({ open: openProp, onClose, title, children, dock = false, flightFrom }: SheetProps) {
+export function Sheet({ open: openProp, onClose, title, children, dock = false, flightFrom, titleInput }: SheetProps) {
   const presence = useContext(Closing);
   const open = openProp && !presence?.closing;
   const panel = useRef<HTMLDivElement>(null);
@@ -135,7 +141,7 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
   const [present, setPresent] = useState(open);
   if (open && !present) setPresent(true);
   const scrim = useRef<HTMLDivElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
+  const heading = useRef<HTMLElement>(null);
 
   // A docked panel on a wide screen sits beside the page; nothing recedes
   // and nothing flies, or the page you kept open would shrink away from you.
@@ -262,7 +268,38 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
         <div aria-hidden className={`sheet-handle ${dock ? 'lg:hidden' : ''}`} />
 
         <div className="mb-5 flex items-center justify-between gap-4">
-          <h2 ref={heading} className="section-title sheet-title">{title}</h2>
+          {titleInput ? (
+            <textarea
+              ref={(el) => {
+                heading.current = el;
+                // Grows with the title rather than scrolling inside one line.
+                if (el) {
+                  el.style.height = 'auto';
+                  el.style.height = `${el.scrollHeight}px`;
+                }
+              }}
+              rows={1}
+              value={titleInput.value}
+              aria-label={titleInput.label}
+              onChange={(e) => titleInput.onChange(e.target.value)}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = 'auto';
+                el.style.height = `${el.scrollHeight}px`;
+              }}
+              // A title is one line of meaning: Enter finishes it instead of
+              // breaking it.
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+              }}
+              className="sheet-title sheet-title-input"
+            />
+          ) : (
+            <h2 ref={(el) => void (heading.current = el)} className="section-title sheet-title">{title}</h2>
+          )}
           <button type="button" onClick={onClose} aria-label="Close" className="btn btn-quiet btn-icon">
             <svg
               aria-hidden
