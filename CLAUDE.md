@@ -114,7 +114,7 @@ Streaks are no longer on this list; they are an opt-in module (rule 3). Notes ti
 - **Challenge rules openly.** Nothing in this file is beyond challenge. Name the rule, what it costs, the evidence, and a replacement worded to go straight in here. Never break or route around a rule quietly; until the owner changes it, follow it.
 - Complete files. Never `// ... rest unchanged`.
 - After each piece of work: what changed, what the owner needs to do, **what is still not working or unverified**, and the suggested next step.
-- **Performance has a budget**, because the app must run at the display's native rate: 8.3 ms per animated frame at 120Hz (6.9 ms at 144Hz), with a solid 60fps floor on mid-range phones; eager JavaScript at or under 150 KB gzip (197 KB as of 3 Oct 2026 — to be met); every list query bounded. Measure with traces at the real refresh rate rather than describing anything as smooth. Formerly "Don't optimize prematurely. One user, a few thousand rows" — changed Oct 2026; the unbounded 350-row event query was that sentence in practice.
+- **Performance has a budget**, because the app must run at the display's native rate: 8.3 ms per animated frame at 120Hz (6.9 ms at 144Hz), with a solid 60fps floor on mid-range phones; eager JavaScript at or under 150 KB gzip (met 4 Oct 2026 at 148.5 KB: sheets and first-run screens load on demand, and storage-js is stubbed — see the UI overview below); every list query bounded. Measure with traces at the real refresh rate rather than describing anything as smooth. Formerly "Don't optimize prematurely. One user, a few thousand rows" — changed Oct 2026; the unbounded 350-row event query was that sentence in practice.
 - Prefer boring, well-understood dependencies, and one of each kind. **No animation library**: the platform is the engine. `lib/motion.ts` hands the browser keyframes through the Web Animations API, so motion keeps its shape while a screen renders and Safari does not hold it to 60fps. Formerly "one animation engine, not two" — the app shipped two (Motion, about 41 KB gzip, and anime.js, about 16 KB), both driving frames from JavaScript; removed Oct 2026, taking eager JavaScript from 203 KB to about 158 KB.
 - If something in the spec is ambiguous or looks wrong, say so before building it.
 
@@ -1166,6 +1166,57 @@ glow. Guards in `tests/motion.test.ts`, each verified against a planted
 violation: no reduced-motion cut, every conditionally shown sheet wrapped in
 `SheetPresence`, Sheet never returns null on close, both work lists rendered
 through presence. NOT verified on a phone.
+
+### The UI overview — six batches, 4 Oct 2026
+
+Proposed as a live prototype ("Life Planner screens", claude.ai artifact
+RBFCN4aEB8eYDo8sAwU7XF) after running the real app with a week of sample
+data at 375 x 812, and approved whole. Shipped in order, each pushed and
+checked: F (nine defects), T (Today), W (Week and Month), E (the editor),
+S (Search and Abood's first questions), G (Settings).
+
+**What a phone's first screen holds now.** On Today: the weekday and date on
+one line, the checklist as one scrolling row of tick pills (the full list,
+the back-fill strip and editing in a sheet behind the last pill), the next
+class as one ribbon with a.m./p.m., the briefing as a one-line lede, then
+work grouped Late / Today / Tomorrow / This week, with Later and No date
+folded (folds are the reader's, kept on the device). What is late and the
+next thing due today are above the fold. Tickets are 72 px: the stub says how
+long (the clock time today, minutes under an hour, "Today / end of day" for a
+date-only deadline, never "0 today"), one line of facts, and a ring on the
+right that finishes it and punches the stub. Start-by and the link moved to
+the editor, where they are acted on.
+
+**Rules learned, each now a guard or a convention:**
+
+- **Tabular figures never on a clock time.** Schibsted's `tnum` swaps the
+  colon, comma, full stop and % for figure-width forms ("3 :00", "Study
+  group : COEN 231"). The body is proportional; counts and grid dates are
+  tabular; times align by their column's width. A ticking timer keeps
+  tabular digits with proportional colons (FocusBar).
+- **A percentage height needs a definite parent.** Week's chart drew no bars
+  from 9 Sep to 4 Oct: end-aligned flex columns sized to their labels, so
+  every bar was a percentage of nothing. WeekStrip replaced it.
+- **A chip that vanishes shifts the row under the finger.** The editor keeps
+  the day it opened with as a chip, and relative reminders disable in place
+  rather than disappearing.
+- **Suspense goes inside a SheetPresence condition, never around it.**
+  SheetPresence reads whether it has children to know a sheet is open; a
+  Suspense element is always there, so a wrapped sheet would never close.
+- **`@supabase/storage-js` is a stub** (`src/lib/vendor/storage-stub.ts`,
+  aliased in vite.config.ts). supabase-js constructs it on every client and
+  nothing here uses storage; with iceberg-js it was 6 KB of the budget.
+  `tests/vendor.test.ts` builds the real client through the alias and fails
+  if anything reads `supabase.storage`. Remove the alias before using it.
+- **Section labels are kickers**, never the tag pill, which reads as a
+  control (markup guard). Times are joined by `formatTimeRange`: one period
+  when both ends share it, both across noon.
+
+**Not verified on a phone.** Everything above was checked in a 375 x 812 and
+320 px browser with sample data, both themes, and the live deploy's sign-in
+screen. The tick pills' horizontal scroll, the strip's jump on iOS Safari,
+the editable sheet title with the iOS keyboard, and 120 Hz motion on an
+iPhone have not been watched on hardware.
 
 ### Bugs found by verifying rather than assuming
 
