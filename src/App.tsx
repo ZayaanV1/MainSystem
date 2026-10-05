@@ -234,7 +234,7 @@ function Shell() {
 
     switch (screen) {
       case 'settings':
-        return <Settings onBack={home} />;
+        return <Settings />;
       case 'week':
         return (
           <Week

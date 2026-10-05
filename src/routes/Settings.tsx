@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { EASE } from '../lib/motion';
+import { aboodSummary, appearanceSummary, notificationsSummary } from '../lib/settingsSummary';
 import {
   bridgeStatus,
   forgetFact,
@@ -19,7 +21,7 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
-import { hasOwnGroqKey, setOwnGroqKey } from '../lib/planner';
+import { hasOwnGroqKey, loadDigestSettings, setOwnGroqKey, type DigestSettings as DigestSettingsRow } from '../lib/planner';
 import { applyTheme, readTheme, writeTheme, type ThemeChoice } from '../lib/theme';
 import { setAppearance, useAppearance, type GlassLevel, type MotionLevel, type SlipStyle } from '../lib/appearance';
 import { EmptyState } from '../components/EmptyState';
@@ -62,7 +64,7 @@ const PUSH_COPY: Record<PushStatus, string> = {
   subscribed: 'Push is enabled, and the server knows about this device.',
 };
 
-export function Settings({ onBack }: { onBack: () => void }) {
+export function Settings() {
   const { signOut, session } = useAuth();
   const userId = session?.user.id ?? '';
 
@@ -73,6 +75,49 @@ export function Settings({ onBack }: { onBack: () => void }) {
   const [sw, setSw] = useState<SwState>({ status: 'registering' });
 
   useEffect(() => subscribeSw(setSw), []);
+
+  /*
+   * Which page is open, and the slide between pages: forward comes in from
+   * the right, Back from the left (rule 12), and each page opens at its top.
+   */
+  const [page, setPage] = useState<PageId | null>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const direction = useRef<1 | -1>(1);
+  const go = (next: PageId | null) => {
+    direction.current = next ? 1 : -1;
+    setPage(next);
+  };
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+    const el = stage.current;
+    if (!el || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    el.animate(
+      [
+        { opacity: 0, transform: `translateX(${direction.current * 28}px)` },
+        { opacity: 1, transform: 'none' },
+      ],
+      { duration: 320, easing: EASE.glide },
+    );
+  }, [page]);
+
+  // What each row says it is set to.
+  const appearance = useAppearance();
+  const [digest, setDigest] = useState<DigestSettingsRow | null>(null);
+  const [keys, setKeys] = useState<{ groq: boolean; gemini: boolean } | null>(null);
+  const [telegram, setTelegram] = useState<boolean | null>(null);
+  const [checkins, setCheckins] = useState<CheckinSettings | null>(null);
+  useEffect(() => {
+    if (page !== null) return;
+    void loadDigestSettings().then(setDigest);
+    void Promise.all([hasOwnGroqKey(), hasOwnApiKey()]).then(([groq, gemini]) => setKeys({ groq, gemini }));
+    void telegramLinked().then(setTelegram);
+    void loadCheckins().then(setCheckins);
+  }, [page]);
+  const summary = {
+    notifications: notificationsSummary(push, digest),
+    appearance: appearanceSummary(readTheme(), appearance),
+    abood: aboodSummary(keys, telegram, checkins),
+  };
 
   const reload = useCallback(async () => {
     const [rows, status] = await Promise.all([fetchDeliveryLog(), pushStatus()]);
@@ -133,151 +178,243 @@ export function Settings({ onBack }: { onBack: () => void }) {
     void reload();
   }
 
+  /*
+   * One short page of grouped rows, each saying what it is set to and opening
+   * into its own page (the UI overview). The same fourteen sections, none
+   * removed (rule 13): they were one 5,600 px page in the order they were
+   * built, with the AI keys between the delivery log and iMessage.
+   */
+  const pages: Record<PageId, { title: string; body: ReactNode }> = {
+    notifications: {
+      title: 'Notifications',
+      body: (
+        <>
+          <section className="mb-8">
+            <SectionHead title="This device" />
+            <Card className="p-4">
+              <p className="type-body text-text-mid">{push ? PUSH_COPY[push] : 'Checking.'}</p>
+
+              {/* The registration result, stated outright. This failed
+                  silently for two days: no registration, no error, and a
+                  status line confidently reporting success. */}
+              {sw.status === 'failed' && (
+                <p className="mt-2 type-note text-t-overdue">Service worker did not register: {sw.error}</p>
+              )}
+              {sw.status === 'unsupported' && (
+                <p className="mt-2 max-w-prose type-note text-text-low">This browser has no service worker support.</p>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button variant="primary" onClick={sendTest} disabled={testing}>
+                  {testing ? 'Sending' : 'Send test notification'}
+                </Button>
+
+                {/* Offered for every state a tap can actually fix. Hiding it
+                    when the browser claimed success is what let a
+                    half-registered device sit there looking fine. */}
+                {(push === 'needs-permission' || push === 'device-only' || push === 'no-service-worker') && (
+                  <Button onClick={enablePush}>{push === 'device-only' ? 'Register this device' : 'Enable push here'}</Button>
+                )}
+              </div>
+
+              {message && <p className="type-caption mt-4 text-text-mid">{message}</p>}
+            </Card>
+          </section>
+
+          <section className="mb-8">
+            <SectionHead title="Morning digest" />
+            <DigestSettings />
+          </section>
+
+          <section className="mb-8">
+            <SectionHead title="Delivery log" />
+            {log.length === 0 ? (
+              <EmptyState>No delivery attempts recorded yet.</EmptyState>
+            ) : (
+              <Card>
+                {log.map((row) => (
+                  <div key={row.id} className="flex items-baseline gap-3 border-b border-ink-600 px-4 py-3 last:border-b-0">
+                    <span
+                      aria-hidden
+                      className={[
+                        'h-2 w-2 shrink-0 rounded-pill',
+                        row.status === 'sent' ? 'bg-t-done' : row.status === 'failed' ? 'bg-t-overdue' : 'bg-text-low',
+                      ].join(' ')}
+                    />
+                    <div className="flex-1">
+                      {/* Status is written as well as coloured — colour is
+                          never the only signal, including here. */}
+                      <div className="type-label text-text-hi">
+                        {row.status} &middot; {row.kind}
+                        {row.channel ? ` · ${row.channel}` : ''}
+                      </div>
+                      {row.error && <div className="type-caption text-text-mid">{row.error}</div>}
+                    </div>
+                    <span className="type-caption shrink-0 text-text-low">
+                      {formatDay(localDayKey(new Date(row.created_at)))} {formatTime(new Date(row.created_at))}
+                    </span>
+                  </div>
+                ))}
+              </Card>
+            )}
+          </section>
+        </>
+      ),
+    },
+    timezone: { title: 'Time zone', body: <TimeZone userId={userId} bare /> },
+    appearance: { title: 'Appearance', body: <Appearance bare /> },
+    calendar: { title: 'Calendar feed', body: <CalendarFeed bare /> },
+    abood: {
+      title: 'Abood',
+      body: (
+        <>
+          <GroqKey userId={userId} />
+          <ApiKey userId={userId} />
+          <TextAbood userId={userId} />
+          <IMessageAbood userId={userId} />
+          <AboodTextsFirst userId={userId} />
+          <AboodMemory />
+        </>
+      ),
+    },
+    data: {
+      title: 'Your data',
+      body: (
+        <>
+          <section className="mb-8">
+            <SectionHead title="Export" />
+            <Card className="p-4">
+              <p className="type-body mb-4 text-text-mid">
+                Everything this app holds, in one file. You can leave whenever you want.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => void exportJson()}>Export JSON</Button>
+                <Button onClick={() => void exportCsv()}>Export CSV</Button>
+              </div>
+            </Card>
+          </section>
+          <DeleteAccount />
+        </>
+      ),
+    },
+  };
+
+  const email = session?.user.email ?? '';
+  const open = page ? pages[page] : null;
+
   return (
     <main className="page-frame">
-      <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
-        <h1 className="page-title">Settings</h1>
-        <Button variant="quiet" onClick={onBack}>
-          Today
-        </Button>
-      </header>
-
-      <section className="mb-8">
-        <SectionHead title="Notifications" />
-
-        <Card className="p-4">
-          <p className="type-body text-text-mid">{push ? PUSH_COPY[push] : 'Checking.'}</p>
-
-          {/* The registration result, stated outright. This failed silently
-              for two days: no registration, no error, and a status line
-              confidently reporting success. */}
-          {sw.status === 'failed' && (
-            <p className="mt-2 type-note text-t-overdue">
-              Service worker did not register: {sw.error}
-            </p>
-          )}
-          {sw.status === 'unsupported' && (
-            <p className="mt-2 max-w-prose type-note text-text-low">
-              This browser has no service worker support.
-            </p>
-          )}
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Button variant="primary" onClick={sendTest} disabled={testing}>
-              {testing ? 'Sending' : 'Send test notification'}
-            </Button>
-
-            {/* Offered for every state a tap can actually fix. Hiding it when
-                the browser claimed success is what let a half-registered
-                device sit there looking fine. */}
-            {(push === 'needs-permission' ||
-              push === 'device-only' ||
-              push === 'no-service-worker') && (
-              <Button onClick={enablePush}>
-                {push === 'device-only' ? 'Register this device' : 'Enable push here'}
-              </Button>
-            )}
-          </div>
-
-          {message && <p className="type-caption mt-4 text-text-mid">{message}</p>}
-        </Card>
-      </section>
-
-      <TimeZone userId={userId} />
-
-      <section className="mb-8">
-        <SectionHead title="Morning digest" />
-        <DigestSettings />
-      </section>
-
-      <section className="mb-8">
-        <SectionHead title="Delivery log" />
-
-        {log.length === 0 ? (
-          <EmptyState>No delivery attempts recorded yet.</EmptyState>
+      <div ref={stage} key={page ?? 'root'}>
+        {open ? (
+          <>
+            <button type="button" className="settings-back" onClick={() => go(null)}>
+              <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 6-6 6 6 6" />
+              </svg>
+              Settings
+            </button>
+            <h1 className="page-title mb-6 px-4">{open.title}</h1>
+            {open.body}
+          </>
         ) : (
-          <Card>
-            {log.map((row) => (
-              <div
-                key={row.id}
-                className="flex items-baseline gap-3 border-b border-ink-600 px-4 py-3 last:border-b-0"
-              >
-                <span
-                  aria-hidden
-                  className={[
-                    'h-2 w-2 shrink-0 rounded-pill',
-                    row.status === 'sent'
-                      ? 'bg-t-done'
-                      : row.status === 'failed'
-                        ? 'bg-t-overdue'
-                        : 'bg-text-low',
-                  ].join(' ')}
-                />
+          <>
+            <h1 className="page-title mb-6 px-4">Settings</h1>
 
-                <div className="flex-1">
-                  {/* Status is written as well as coloured — colour is never
-                      the only signal, including here. */}
-                  <div className="type-label text-text-hi">
-                    {row.status} &middot; {row.kind}
-                    {row.channel ? ` · ${row.channel}` : ''}
-                  </div>
-                  {row.error && <div className="type-caption text-text-mid">{row.error}</div>}
-                </div>
+            <div className="mat settings-account mb-6">
+              <span aria-hidden className="settings-avatar">
+                {(email[0] ?? '?').toUpperCase()}
+              </span>
+              <span className="min-w-0">
+                <b className="block truncate">{email || 'Signed in'}</b>
+                <span className="type-note text-text-low">Signed in · build {__BUILD_ID__}</span>
+              </span>
+            </div>
 
-                <span className="type-caption shrink-0 text-text-low">
-                  {formatDay(localDayKey(new Date(row.created_at)))}{' '}
-                  {formatTime(new Date(row.created_at))}
-                </span>
+            <div className="flex flex-col gap-4">
+              <div className="mat settings-rows">
+                <SettingsRow icon="bell" tone="ember" label="Notifications and digest" value={summary.notifications} onOpen={() => go('notifications')} />
+                <SettingsRow icon="globe" label="Time zone" value={`${activeTimezone().replace(/_/g, ' ')} (${zoneAbbrev()})`} onOpen={() => go('timezone')} />
               </div>
-            ))}
-          </Card>
+
+              <div className="mat settings-rows">
+                <SettingsRow icon="sun" tone="ink" label="Appearance" value={summary.appearance} onOpen={() => go('appearance')} />
+                <SettingsRow icon="calendar" label="Calendar feed" value="Your deadlines in any calendar app" onOpen={() => go('calendar')} />
+              </div>
+
+              <div className="mat settings-rows">
+                <SettingsRow icon="chat" label="Abood" value={summary.abood} onOpen={() => go('abood')} />
+              </div>
+
+              <div className="mat settings-rows">
+                <SettingsRow icon="box" tone="ink" label="Your data" value="Export JSON or CSV · delete the account" onOpen={() => go('data')} />
+                <SettingsRow icon="out" tone="ink" label="Sign out" value={email || null} onOpen={() => void signOut()} chevron={false} />
+              </div>
+            </div>
+
+            {/* Which build this device is running. An installed app can keep
+                an old version until it is closed and reopened, and without
+                this there was no way to tell from the phone whether a deploy
+                had arrived. */}
+            <p className="type-note mt-8 mb-12 px-4 text-text-low">
+              Build {__BUILD_ID__} · {__BUILD_TIME__}
+            </p>
+          </>
         )}
-      </section>
-
-      <ApiKey userId={userId} />
-
-      <GroqKey userId={userId} />
-
-      <TextAbood userId={userId} />
-
-      <IMessageAbood userId={userId} />
-
-      <AboodTextsFirst userId={userId} />
-
-      <AboodMemory />
-
-      <CalendarFeed />
-
-      <Appearance />
-
-      <section className="mb-8">
-        <SectionHead title="Your data" />
-        <Card className="p-4">
-          <p className="type-body mb-4 text-text-mid">
-            Everything this app holds, in one file. You can leave whenever you want.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => void exportJson()}>Export JSON</Button>
-            <Button onClick={() => void exportCsv()}>Export CSV</Button>
-          </div>
-        </Card>
-      </section>
-
-      <DeleteAccount />
-
-      <section className="mb-12">
-        <Button variant="quiet" onClick={() => void signOut()}>
-          Sign out
-        </Button>
-      </section>
-
-      {/* Which build this device is running. An installed app can keep an old
-          version until it is closed and reopened, and without this there was
-          no way to tell from the phone whether a deploy had arrived. */}
-      <p className="type-note mb-12 px-4 text-text-low">
-        Build {__BUILD_ID__} · {__BUILD_TIME__}
-      </p>
+      </div>
     </main>
+  );
+}
+
+type PageId = 'notifications' | 'timezone' | 'appearance' | 'calendar' | 'abood' | 'data';
+
+const GLYPHS: Record<string, string> = {
+  bell: 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
+  globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20',
+  sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  calendar: 'M3.5 10h17M8 3v4M16 3v4M6.5 5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3',
+  chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.5A8 8 0 1 1 21 12',
+  box: 'M21 8v12H3V8M1 3h22v5H1zM10 12h4',
+  out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+};
+
+/**
+ * One Settings row: what it is, what it is set to, and where it goes. The
+ * value line is the point: most visits to Settings are to check something,
+ * and a row that says its value answers that without opening anything.
+ */
+function SettingsRow({
+  icon,
+  tone = 'phthalo',
+  label,
+  value,
+  onOpen,
+  chevron = true,
+}: {
+  icon: keyof typeof GLYPHS;
+  tone?: 'ember' | 'ink' | 'phthalo';
+  label: string;
+  value: string | null;
+  onOpen: () => void;
+  chevron?: boolean;
+}) {
+  return (
+    <button type="button" className="settings-row" onClick={onOpen}>
+      <span aria-hidden className="settings-ico" data-tone={tone}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d={GLYPHS[icon]} />
+        </svg>
+      </span>
+      <span className="settings-row-label">
+        <b>{label}</b>
+        {/* Reserved even while loading, so rows do not grow when values land. */}
+        <span>{value ?? '\u00a0'}</span>
+      </span>
+      {chevron && (
+        <svg aria-hidden className="settings-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+          <path d="m9 6 6 6-6 6" />
+        </svg>
+      )}
+    </button>
   );
 }
 
@@ -293,7 +430,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
  * optimistic layer was computed in the old zone; recomputing them one by one
  * is how one gets missed.
  */
-function TimeZone({ userId }: { userId: string }) {
+function TimeZone({ userId, bare = false }: { userId: string; bare?: boolean }) {
   const current = activeTimezone();
   const device = detectedTimezone();
   const [choice, setChoice] = useState(current);
@@ -324,7 +461,7 @@ function TimeZone({ userId }: { userId: string }) {
 
   return (
     <section className="mb-8">
-      <SectionHead title="Time zone" />
+      {!bare && <SectionHead title="Time zone" />}
       <Card className="flex flex-col gap-4 p-4">
         <p className="type-body text-text-mid">
           Days, deadlines and the morning digest use {current.replace(/_/g, ' ')} ({zoneAbbrev()}).
@@ -382,7 +519,7 @@ function TimeZone({ userId }: { userId: string }) {
  * link reaches can read your deadlines until it is rotated. Saying that
  * plainly, next to the button that reveals it, is the whole safeguard.
  */
-function CalendarFeed() {
+function CalendarFeed({ bare = false }: { bare?: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -409,7 +546,7 @@ function CalendarFeed() {
 
   return (
     <section className="mb-8">
-      <SectionHead title="Calendar feed" />
+      {!bare && <SectionHead title="Calendar feed" />}
       <p className="type-note mb-3 max-w-prose px-4 text-text-low">
         Subscribe to this in any calendar app and your deadlines appear there. Titles and times
         only — never notes.
@@ -563,7 +700,7 @@ function ApiKey({ userId }: { userId: string }) {
  * account. The same person wants dark on a phone at night and light on a
  * laptop at noon, and syncing it would make one change when the other did.
  */
-function Appearance() {
+function Appearance({ bare = false }: { bare?: boolean }) {
   const [choice, setChoice] = useState<ThemeChoice>(() => readTheme());
 
   // Keeps this control honest if the theme is changed from somewhere else in
@@ -575,7 +712,7 @@ function Appearance() {
   // Rule 13: the slip that was replaced stays a choice.
   const look = useAppearance();
   const slipOptions: { value: SlipStyle; label: string; hint: string }[] = [
-    { value: 'ticket', label: 'Ticket', hint: 'The countdown in a stub you punch to finish.' },
+    { value: 'ticket', label: 'Ticket', hint: 'The countdown in a stub; the ring finishes it and punches the stub.' },
     { value: 'glass', label: 'Glass', hint: 'The countdown on the right, a ring to tick.' },
   ];
 
@@ -597,7 +734,7 @@ function Appearance() {
 
   return (
     <section className="mb-8">
-      <SectionHead title="Appearance" />
+      {!bare && <SectionHead title="Appearance" />}
       <Card className="p-4">
         <div role="radiogroup" aria-label="Theme" className="flex flex-wrap gap-2">
           {options.map((o) => (
