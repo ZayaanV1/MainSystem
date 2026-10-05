@@ -806,6 +806,14 @@ textarea.well {
   color: var(--text-low);
 }
 
+/* What was typed, marked in a search result. */
+.search-mark {
+  border-radius: 0.1875rem;
+  padding: 0 0.0625rem;
+  color: inherit;
+  background: var(--selection);
+}
+
 /* ---- the navigation capsule ---------------------------------------------------- */
 
 /* Previous, Today and Next as one glass shape. Three separate buttons beside a

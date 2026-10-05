@@ -250,7 +250,7 @@ function Shell() {
       case 'search':
         return (
           <Search
-            onBack={home}
+            data={data}
             onOpenAssignment={(id) => {
               const found =
                 data?.assignments.find((a) => a.id === id) ??

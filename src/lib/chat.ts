@@ -31,7 +31,19 @@ export async function loadChat(limit = 50): Promise<ChatMessage[]> {
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  return ((data ?? []) as ChatMessage[]).reverse();
+  return inOrder((data ?? []) as ChatMessage[]);
+}
+
+/**
+ * Oldest first, and on an equal timestamp the question before its answer.
+ *
+ * Reversing a newest-first page put a reply above its question whenever the
+ * two shared a timestamp, which a single transaction makes them do: now() is
+ * the transaction's time, not the row's.
+ */
+export function inOrder(messages: ChatMessage[]): ChatMessage[] {
+  const rank = (m: ChatMessage) => (m.role === 'user' ? 0 : 1);
+  return [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at) || rank(a) - rank(b));
 }
 
 export async function saveMessage(

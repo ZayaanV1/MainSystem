@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { rememberOpened } from '../lib/recent';
 import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
@@ -102,6 +103,11 @@ export function AssignmentEditor({
   onSaved: () => void;
 }) {
   const [opened] = useState<AssignmentFields>(() => fromAssignment(assignment));
+  // Offered back by an empty Search. Recorded here because every way into a
+  // piece of work, from any screen, comes through this sheet.
+  useEffect(() => {
+    rememberOpened({ id: assignment.id, title: assignment.title });
+  }, [assignment.id, assignment.title]);
   const [fields, setFields] = useState<AssignmentFields>(opened);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);

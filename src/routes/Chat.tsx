@@ -3,6 +3,7 @@ import { Button } from '../components/Button';
 import { PromptInput } from '../components/kit/PromptInput';
 import { ThinkingText } from '../components/kit/ThinkingText';
 import { EmptyState } from '../components/EmptyState';
+import { Chip } from '../components/Chip';
 import { useAuth } from '../lib/auth';
 import { askChat } from '../lib/assist';
 import { clearChat, loadChat, markActionTaken, saveMessage, type ChatMessage } from '../lib/chat';
@@ -23,6 +24,14 @@ import { formatDay, formatTime, todayKey } from '../lib/time';
  * with a button, exactly like an extracted syllabus date, and
  * declining leaves the proposal in the transcript rather than erasing it.
  */
+/** The questions people ask first, offered on an empty conversation. */
+const STARTERS = [
+  'What is due this week?',
+  'What should I start on now?',
+  'When is my next exam?',
+  'What did I leave without a date?',
+];
+
 export function Chat({ courses, onBack, onChanged }: {
   courses: Course[];
   onBack: () => void;
@@ -61,8 +70,8 @@ export function Chat({ courses, onBack, onChanged }: {
     bottom.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, thinking]);
 
-  async function send() {
-    const text = draft.trim();
+  async function send(asked?: string) {
+    const text = (asked ?? draft).trim();
     if (!text || thinking || spent) return;
 
     setDraft('');
@@ -213,12 +222,28 @@ export function Chat({ courses, onBack, onChanged }: {
 
       <div className="mb-6 flex flex-1 flex-col gap-4 px-4">
         {messages.length === 0 && (
-          <EmptyState>
-            <span>
-              Ask about your own work, classes or checklist. It only knows what is in this app, and
-              says so when it does not know.
-            </span>
-          </EmptyState>
+          <div className="flex flex-col gap-4">
+            <EmptyState>
+              <span>
+                Ask about your own work, classes or checklist. It only knows what is in this app, and
+                says so when it does not know.
+              </span>
+            </EmptyState>
+            {/*
+              Somewhere to start (the UI overview). An empty conversation asks
+              you to think of a question before you can ask one; these are the
+              ones people ask first, and a tap asks it.
+            */}
+            {!spent && (
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Questions to start with">
+                {STARTERS.map((q) => (
+                  <Chip key={q} onClick={() => void send(q)}>
+                    {q}
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {messages.map((m) => (

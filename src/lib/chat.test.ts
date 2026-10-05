@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('./supabase', () => ({ supabase: {} }));
 import { validateChat } from '../../supabase/functions/_shared/chat';
+import { inOrder, type ChatMessage } from './chat';
 
 /**
  * "A confidently wrong deadline is worse than no chatbot." Everything here is
@@ -184,5 +187,20 @@ describe('catching a reply that sounds like a script', () => {
       ),
     ).toEqual([]);
     expect(scripted('might what?')).toEqual([]);
+  });
+});
+
+describe('inOrder', () => {
+  const msg = (id: string, role: 'user' | 'assistant', at: string) =>
+    ({ id, role, content: id, created_at: at }) as ChatMessage;
+
+  it('reads oldest first, with a question before an answer that shares its timestamp', () => {
+    const page = [
+      msg('a2', 'assistant', '2026-10-03T21:05:00Z'),
+      msg('q2', 'user', '2026-10-03T21:05:00Z'),
+      msg('a1', 'assistant', '2026-10-03T21:03:00Z'),
+      msg('q1', 'user', '2026-10-03T21:03:00Z'),
+    ];
+    expect(inOrder(page).map((m) => m.id)).toEqual(['q1', 'a1', 'q2', 'a2']);
   });
 });
