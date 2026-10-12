@@ -436,12 +436,53 @@ textarea.well {
   padding: 0;
 }
 
-/* ---- Today: the top of the day ---------------------------------------------- */
+/* ---- Today: its sections, in the account's order ------------------------------
 
-.today-stack {
+   One column on a phone, sorted by the inline `order` each section carries,
+   with the two column wrappers flattened away; on a desk the work keeps the
+   wide column and the side column holds what helps with it. */
+
+.today-layout {
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
+}
+
+.today-main,
+.today-side {
+  display: contents;
+}
+
+/* Sections with headings of their own get room above them; the top of the
+   day stays tight so the work reaches the first screen. */
+.today-layout [data-section='work'],
+.today-layout [data-section='ahead'],
+.today-layout [data-section='inbox'],
+.today-layout [data-section='lowbattery'] {
+  margin-top: 0.75rem;
+}
+
+/* A section with nothing to say (What's ahead in a normal week) takes no
+   space at all, gap included. */
+.today-layout [data-section]:empty {
+  display: none;
+}
+
+@media (width >= 64rem) {
+  .today-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 0 2rem;
+  }
+
+  .today-main,
+  .today-side {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.875rem;
+  }
 }
 
 .today-date {
@@ -1157,7 +1198,7 @@ button.chip:active {
 /* ---- a slip: one piece of work -------------------------------------------------- */
 
 .slip {
-  --mat-r: 1.125rem;
+  --mat-r: var(--r-slip);
 }
 
 
@@ -1330,6 +1371,9 @@ button.chip:active {
   flex-shrink: 0;
   width: 2.75rem;
   height: 1.625rem;
+  /* The base 44px floor would stretch the track into a disc; the row or
+     label around a switch is its tap target. */
+  min-height: 0;
   margin: 0;
   border-radius: var(--r-pill);
   background: var(--ink-600);
@@ -1362,6 +1406,132 @@ button.chip:active {
 
 .settings-switch:disabled {
   opacity: 0.4;
+}
+
+/* ---- arranging Today ------------------------------------------------------
+   Rows with a drag handle, up and down arrows and a switch. A row that is
+   off stays in its place at reduced strength, so its position is still
+   chosen; a row being dragged lifts above the others. */
+.arrange-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.arrange-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3.75rem;
+  padding: 0.5rem 0.75rem 0.5rem 0.25rem;
+  background: transparent;
+  touch-action: pan-y;
+}
+
+.arrange-row + .arrange-row {
+  box-shadow: inset 0 1px 0 var(--ink-600);
+}
+
+.arrange-row[data-dragging] {
+  z-index: 2;
+  border-radius: var(--r-card);
+  background: var(--ink-700);
+  box-shadow: 0 12px 28px -10px var(--shadow-drop), 0 0 0 1px var(--ink-600);
+  transition: none;
+}
+
+.arrange-row[data-dragging] + .arrange-row {
+  box-shadow: none;
+}
+
+.arrange-handle {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.75rem;
+  color: var(--text-low);
+  cursor: grab;
+  touch-action: none;
+}
+
+.arrange-row[data-dragging] .arrange-handle {
+  cursor: grabbing;
+  color: var(--text-hi);
+}
+
+.arrange-label {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.arrange-label b {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--text-hi);
+}
+
+.arrange-label span {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--text-low);
+}
+
+.arrange-row[data-off] .arrange-label {
+  opacity: 0.5;
+}
+
+.arrange-move {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.arrange-move button {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.75rem;
+  border-radius: var(--r-tight);
+  color: var(--text-mid);
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+.arrange-move button:hover:not(:disabled) {
+  background: var(--ink-700);
+  color: var(--text-hi);
+}
+
+.arrange-move button:disabled {
+  opacity: 0.25;
+}
+
+.arrange-switch {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.arrange-lock {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-low);
+}
+
+label.arrange-row {
+  cursor: pointer;
 }
 
 /* ---- a row you swipe: native horizontal scrolling with snap points --------- */
@@ -1475,7 +1645,7 @@ button.chip:active {
 
 .slip-ticket {
   --stub: 4.125rem;
-  --mat-r: 1rem;
+  --mat-r: var(--r-slip);
   display: grid;
   grid-template-columns: var(--stub) minmax(0, 1fr) auto;
   align-items: stretch;
@@ -2081,3 +2251,231 @@ button.chip:active {
 }
 
 } /* @layer components */
+
+/* ============================================================================
+   THEME MATERIALS
+   The parts of a theme that are not colour or a token: what a surface is made
+   of. Colour stays in tokens.css; every value here is a token or a geometry.
+   Each rule matches the theme on the root and on a .skin-<name> element, so
+   the picker's miniatures are drawn in the same material as the app.
+   ========================================================================= */
+
+/* Letterpress: paper, not glass. An ink hairline where the glass rim was, no
+   inner light, flat fills on the buttons, a printed serif for headings. */
+:is(:root[data-skin='letterpress'], .skin-letterpress) .mat {
+  background: var(--ink-800);
+  box-shadow:
+    0 0 0 1px var(--ink-600),
+    0 2px 0 -1px var(--ink-600);
+}
+:is(:root[data-skin='letterpress'], .skin-letterpress) .mat::before,
+:is(:root[data-skin='letterpress'], .skin-letterpress) .mat-hero::after {
+  display: none;
+}
+:is(:root[data-skin='letterpress'], .skin-letterpress) .btn-primary {
+  background: var(--accent);
+  box-shadow: none;
+}
+:is(:root[data-skin='letterpress'], .skin-letterpress) .btn-secondary {
+  background: var(--accent-2);
+  box-shadow: none;
+}
+:is(:root[data-skin='letterpress'], .skin-letterpress) :is(.chip, .tick-pill, .nav-capsule) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--ink-600);
+}
+
+/* Instrument: a black panel. A full hairline rim instead of a lit corner,
+   square corners from the tokens, an amber glow in the dark, and display text
+   set as readouts. */
+:is(:root[data-skin='instrument'], .skin-instrument) .mat {
+  background: var(--ink-800);
+  box-shadow:
+    0 0 0 1px var(--atmo-ember),
+    0 0 26px -14px var(--now-glow);
+}
+:is(:root[data-skin='instrument'], .skin-instrument) .mat::before {
+  background: var(--mat-rim);
+  opacity: 0.45;
+}
+:is(:root[data-skin='instrument'], .skin-instrument) .mat-hero::after {
+  opacity: 0.25;
+}
+:is(:root[data-skin='instrument'], .skin-instrument) :is(.type-masthead, .page-title, .month-title) {
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+}
+
+/* Fjord: shade without rims, soft and diffuse. */
+:is(:root[data-skin='fjord'], .skin-fjord) .mat {
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    0 22px 44px -28px rgb(var(--shadow-color) / 0.55);
+}
+:is(:root[data-skin='fjord'], .skin-fjord) .mat::before {
+  opacity: 0.3;
+}
+
+/* High contrast: solid surfaces with 2px borders, no glass, no gradients,
+   and a focus ring that cannot be missed. */
+:is(:root[data-skin='contrast'], .skin-contrast) .mat {
+  background: var(--ink-800);
+  box-shadow: inset 0 0 0 2px var(--ink-600);
+}
+:is(:root[data-skin='contrast'], .skin-contrast) .mat::before,
+:is(:root[data-skin='contrast'], .skin-contrast) .mat-hero::after {
+  display: none;
+}
+:is(:root[data-skin='contrast'], .skin-contrast) :is(.chip, .tick-pill, .nav-capsule, .tk-defer) {
+  box-shadow: inset 0 0 0 2px var(--ink-600);
+}
+:is(:root[data-skin='contrast'], .skin-contrast) .btn-primary {
+  background: var(--accent);
+  box-shadow: none;
+}
+:is(:root[data-skin='contrast'], .skin-contrast) .btn-secondary {
+  background: var(--accent-2);
+  box-shadow: none;
+}
+:is(:root[data-skin='contrast'], .skin-contrast) .well {
+  border-width: 2px;
+  border-color: var(--ink-600);
+}
+:root[data-skin='contrast'] .fx-glass {
+  background: var(--ink-800);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-skin='contrast'] :focus-visible {
+  outline-width: 3px;
+}
+
+/* ---- the theme picker: real miniatures of Today ----------------------------- */
+
+.theme-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.625rem;
+}
+
+.theme-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.5rem 0.75rem;
+  border-radius: var(--r-card);
+  text-align: left;
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  transition:
+    transform 180ms var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.theme-card:active {
+  transform: scale(0.97);
+  transition-duration: 70ms;
+}
+
+.theme-card[aria-checked='true'] {
+  box-shadow:
+    inset 0 0 0 2px var(--accent-2-lit),
+    0 12px 26px -16px var(--aura-phthalo);
+}
+
+.theme-card .kicker {
+  margin-top: 0.375rem;
+  font-size: 0.5625rem;
+}
+
+.theme-card-name {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--text-hi);
+}
+
+/* The miniature: a 300px-wide composition of real pieces, scaled to the card,
+   carrying its theme's tokens, material and face through the skin classes. */
+.theme-mini {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: calc(var(--r-card) - 2px);
+  container-type: inline-size;
+  color: var(--text-hi);
+  background:
+    radial-gradient(80% 50% at 100% 0%, var(--atmo-ember), transparent 70%),
+    radial-gradient(90% 50% at 0% 100%, var(--atmo-phthalo), transparent 72%),
+    var(--ink-900);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  pointer-events: none;
+}
+
+.theme-mini-page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  width: 300px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 14px;
+  transform-origin: 0 0;
+  transform: scale(calc(100cqi / 300px));
+}
+
+.theme-mini-mast {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.theme-mini-mast .type-masthead {
+  font-size: 2.25rem;
+}
+
+.theme-mini-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.theme-mini-pills .tick-pill {
+  min-height: 36px;
+  font-size: 0.8125rem;
+}
+
+.theme-mini-slip {
+  min-height: 64px;
+}
+
+.theme-mini-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-mini-actions .btn {
+  min-height: 38px;
+  padding-inline: 14px;
+  font-size: 0.8125rem;
+}
+
+.theme-preview-bar {
+  position: sticky;
+  bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1rem);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  border-radius: var(--r-pill);
+  background: var(--ink-700);
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    var(--shadow-lg);
+}

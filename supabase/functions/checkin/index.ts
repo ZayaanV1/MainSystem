@@ -239,7 +239,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const { data: accounts } = await admin
     .from('app_settings')
     .select('user_id, timezone, gemini_api_key, groq_api_key, abood_checkin_every_hours, abood_checkin_from, abood_checkin_until')
-    .eq('abood_checkins', true);
+    .eq('abood_checkins', true)
+    // Abood switched off as a module: its check-ins stop with it.
+    .not('modules_off', 'cs', '{abood}');
 
   const results: Record<string, string> = {};
   for (const a of (accounts ?? []) as Record<string, unknown>[]) {

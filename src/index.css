@@ -66,6 +66,54 @@
   src: url('/fonts/PublicSans-600.woff2') format('woff2');
 }
 
+/* The themes' own faces. Declared, never preloaded: a face downloads only when
+   text set in it is drawn, so these cost nothing unless their theme is chosen,
+   and the service worker leaves them out of the install for the same reason.
+   Letterpress earns a serif, Instrument a monospace for its readouts, and High
+   contrast the face the Braille Institute drew for legibility. All OFL. */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Fraunces-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Fraunces-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/IBMPlexMono-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/IBMPlexMono-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/AtkinsonHyperlegible-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/AtkinsonHyperlegible-700.woff2') format('woff2');
+}
+
 /* ============================================================================
    Token -> utility mapping.
 
@@ -1086,6 +1134,11 @@
     animation: vt-in-left 340ms cubic-bezier(0.2, 0, 0, 1) both;
   }
 
+  /* A new look grows from where it was chosen, over the old one. */
+  html[data-transition='sweep']::view-transition-new(root) {
+    animation: vt-sweep 620ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+
   /* No place in the nav order, so no direction to claim. */
   html[data-transition='none']::view-transition-old(root),
   html[data-transition='fade']::view-transition-old(root) {
@@ -1103,6 +1156,10 @@
  * of the way. The old half also leaves faster than the new half arrives, so
  * the incoming screen is never waiting behind an empty frame.
  */
+@keyframes vt-sweep {
+  from { clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 50%)); }
+  to { clip-path: circle(150vmax at var(--vt-x, 50%) var(--vt-y, 50%)); }
+}
 @keyframes vt-out-left {
   to { opacity: 0; transform: translateX(-4%); }
 }

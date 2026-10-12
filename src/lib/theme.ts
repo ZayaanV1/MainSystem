@@ -45,6 +45,15 @@ export function applyTheme(choice: ThemeChoice): void {
   // Absent for system, so the media query in tokens.css is what decides.
   if (choice === 'system') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', choice);
+  syncChrome();
+}
+
+/**
+ * The status bar and the address bar follow the ground of whatever theme and
+ * mode are showing.
+ */
+function syncChrome(): void {
+  const root = document.documentElement;
 
   /*
    * The status bar and the address bar read this, and it must be a literal
@@ -93,4 +102,58 @@ export function watchSystemTheme(onChange: () => void): () => void {
   };
   mq.addEventListener('change', handler);
   return () => mq.removeEventListener('change', handler);
+}
+
+/* ============================================================================
+   Themes: a whole look, chosen per account.
+
+   Five complete themes, each a designed dark and light pair (tokens.css,
+   THEMES). The theme follows the account so the phone and the laptop match;
+   light or dark (above) stays per device. The account's choice is cached here
+   so index.html can apply it before the first paint: a cached theme never
+   flashes, and a new device shows the default for one load at most.
+   ========================================================================= */
+
+export type Skin = 'cloisonne' | 'letterpress' | 'instrument' | 'fjord' | 'contrast';
+
+export const SKINS: { id: Skin; name: string; line: string; reference: string }[] = [
+  { id: 'cloisonne', name: 'Cloisonné', line: 'Burnt orange and phthalo, enamel lit from inside', reference: 'Cloisonné enamel' },
+  { id: 'letterpress', name: 'Letterpress', line: 'Press-blue ink on laid paper, set in a serif', reference: 'A letterpress proof' },
+  { id: 'instrument', name: 'Instrument', line: 'Amber phosphor on a black panel, square and exact', reference: 'A cockpit panel' },
+  { id: 'fjord', name: 'Fjord', line: 'Fog, birch and fjord blue, soft and unhurried', reference: 'A Nordic morning' },
+  { id: 'contrast', name: 'High contrast', line: 'Black, white and one bright colour, for any light', reference: 'Signage, and a face drawn for legibility' },
+];
+
+const SKIN_KEY = 'planner.skin';
+
+export function isSkin(v: unknown): v is Skin {
+  return SKINS.some((s) => s.id === v);
+}
+
+export function readSkin(): Skin {
+  try {
+    const raw = localStorage.getItem(SKIN_KEY);
+    return isSkin(raw) ? raw : 'cloisonne';
+  } catch {
+    return 'cloisonne';
+  }
+}
+
+/** Show a theme now. The default is the absence of the attribute, as for mode. */
+export function applySkin(skin: Skin): void {
+  const root = document.documentElement;
+  if (skin === 'cloisonne') root.removeAttribute('data-skin');
+  else root.setAttribute('data-skin', skin);
+  syncChrome();
+}
+
+/** Remember a theme on this device, for the pre-paint script, and show it. */
+export function cacheSkin(skin: Skin): void {
+  try {
+    if (skin === 'cloisonne') localStorage.removeItem(SKIN_KEY);
+    else localStorage.setItem(SKIN_KEY, skin);
+  } catch {
+    // Not fatal: the account still holds it, and it applies after load.
+  }
+  applySkin(skin);
 }

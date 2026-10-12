@@ -5,6 +5,7 @@ import { durationLabel, freeGaps } from '../../lib/blocks';
 import { effortMinutes, type DayGroup } from '../../lib/week';
 import type { Assignment, Course } from '../../lib/planner';
 import type { DayKey } from '../../lib/time';
+import { moduleOn, usePreferences } from '../../lib/preferences';
 import {
   buildDay,
   clock,
@@ -201,6 +202,7 @@ export function DueToggle({ a, onToggle }: { a: Assignment; onToggle: () => void
 
 /** The facts under a deadline's title, identical in every style. */
 export function DueFacts({ item }: { item: DueItem }) {
+  const gradesOn = moduleOn('grades', usePreferences());
   const a = item.assignment;
   return (
     <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -208,7 +210,7 @@ export function DueFacts({ item }: { item: DueItem }) {
         {item.urgency.label}
       </span>
       {item.course && <span className="tag type-caption">{item.course.code ?? item.course.name}</span>}
-      {typeof a.weight_percent === 'number' && (
+      {gradesOn && typeof a.weight_percent === 'number' && (
         <span className="tag type-caption">{a.weight_percent}% of grade</span>
       )}
       {item.steps && (

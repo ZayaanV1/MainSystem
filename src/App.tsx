@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell, Page, type NavItem } from './components/AppShell';
 import { keepFeedsLive } from './lib/feeds';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -62,6 +62,9 @@ import { FocusResult } from './components/FocusResult';
  * it was. Hand-rolled; the mapping is one small file.
  */
 import { currentRoute, formatRoute, type Route, type Screen } from './lib/route';
+import { adoptPreferences, moduleOn, usePreferences } from './lib/preferences';
+import { EmptyState } from './components/EmptyState';
+import { Button } from './components/Button';
 
 /**
  * The rail's contents.
@@ -253,6 +256,9 @@ function Shell() {
     if (!session) return;
 
     void adoptAccountTimezone(session.user.id).finally(() => setZoneReady(true));
+    // The account's theme, Today's arrangement and its modules; cached, so
+    // this only corrects a device that has not seen the latest choice.
+    void adoptPreferences();
     void needsOnboarding().then(setFirstRun).catch(() => setFirstRun(false));
 
     startOutbox();
@@ -270,10 +276,16 @@ function Shell() {
    * adopted it yet gains nothing. Before any subscription exists this is one
    * cheap request that finds no feeds.
    */
+  const prefs = usePreferences();
+  const feedsOn = moduleOn('feeds', prefs);
   useEffect(() => {
-    if (!session || !zoneReady) return;
+    if (!session || !zoneReady || !feedsOn) return;
     return keepFeedsLive();
-  }, [session, zoneReady]);
+  }, [session, zoneReady, feedsOn]);
+
+  // A switched-off module leaves the tab bar; its screen stays reachable by
+  // address and says how to bring it back rather than going blank.
+  const nav = useMemo(() => NAV.filter((item) => item.id !== 'ask' || moduleOn('abood', prefs)), [prefs]);
 
   // Nothing is rendered until the stored session has been read back, so the
   // sign-in screen does not flash on every launch.
@@ -338,6 +350,21 @@ function Shell() {
           />
         );
       case 'ask':
+        if (!moduleOn('abood', prefs))
+          return (
+            <main className="page-frame">
+              <h1 className="page-title mb-6 px-4">Abood</h1>
+              <EmptyState
+                action={
+                  <Button variant="secondary" onClick={() => navigate('settings', { page: 'arrange' })}>
+                    Today and modules
+                  </Button>
+                }
+              >
+                Abood is switched off. Everything it remembered is kept, and switching it back on brings it all back.
+              </EmptyState>
+            </main>
+          );
         return <Chat courses={data?.courses ?? []} onBack={home} onChanged={bumped} />;
       case 'plan':
         return <Plan courses={data?.courses ?? []} onBack={home} onChanged={bumped} />;
@@ -347,7 +374,7 @@ function Shell() {
   }
 
   return (
-    <AppShell current={screen} items={NAV} onNavigate={navigate}>
+    <AppShell current={screen} items={nav} onNavigate={navigate}>
       <SyncBanner />
 
       {/*

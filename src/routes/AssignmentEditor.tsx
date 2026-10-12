@@ -33,6 +33,7 @@ import {
   type ReminderMode,
 } from '../lib/dueChoices';
 import { startBy, urgencyFor } from '../lib/urgency';
+import { moduleOn, usePreferences } from '../lib/preferences';
 
 /**
  * Edit one assignment.
@@ -112,6 +113,7 @@ export function AssignmentEditor({
     rememberOpened({ id: assignment.id, title: assignment.title });
   }, [assignment.id, assignment.title]);
   const [fields, setFields] = useState<AssignmentFields>(opened);
+  const gradesOn = moduleOn('grades', usePreferences());
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // The exact pickers, behind their chips: shown when chosen, or when the
@@ -191,8 +193,8 @@ export function AssignmentEditor({
   // What More details holds, said in a line so it need not be opened to know.
   const detailSummary = [
     fields.effort_minutes ? durationLabel(fields.effort_minutes) : null,
-    typeof fields.weight_percent === 'number' ? `${fields.weight_percent}%` : null,
-    typeof fields.grade_percent === 'number' ? `scored ${fields.grade_percent}%` : null,
+    gradesOn && typeof fields.weight_percent === 'number' ? `${fields.weight_percent}%` : null,
+    gradesOn && typeof fields.grade_percent === 'number' ? `scored ${fields.grade_percent}%` : null,
     fields.link ? 'link' : null,
     fields.notes?.trim() ? 'notes' : null,
   ].filter(Boolean);
@@ -410,6 +412,7 @@ export function AssignmentEditor({
                 hint={start ? `Start by ${formatDay(start)}` : 'Used to work out when to start.'}
               />
 
+              {gradesOn && (
               <div className="grid grid-cols-2 gap-3">
                 <Field
                   label="Worth"
@@ -441,6 +444,7 @@ export function AssignmentEditor({
                   hint="% you got, once marked"
                 />
               </div>
+              )}
 
               <div className="flex flex-col gap-2">
                 <Field

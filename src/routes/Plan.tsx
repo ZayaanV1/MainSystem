@@ -12,6 +12,7 @@ import { SyllabusImport } from './SyllabusImport';
 import { EmptyState } from '../components/EmptyState';
 import { Field } from '../components/Field';
 import { useAuth } from '../lib/auth';
+import { moduleOn, usePreferences } from '../lib/preferences';
 import { dueTimestamp, looksFarOff, parseBulk, summarise, type ParsedRow } from '../lib/bulk';
 import { enqueue } from '../lib/outbox';
 import {
@@ -46,6 +47,7 @@ export function Plan({ courses, onBack, onChanged }: {
 }) {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
+  const prefs = usePreferences();
 
   const [text, setText] = useState('');
   const [preview, setPreview] = useState<ParsedRow[] | null>(null);
@@ -123,7 +125,7 @@ export function Plan({ courses, onBack, onChanged }: {
         Above the importer on purpose. Once a syllabus has been read this is
         the answer it produced, and it is the reason to read another one.
       */}
-      <Grades courses={courses} />
+      {moduleOn('grades', prefs) && <Grades courses={courses} />}
 
       {/*
         Above the syllabus importer, because it is the cheaper of the two ways
@@ -131,6 +133,7 @@ export function Plan({ courses, onBack, onChanged }: {
         weekday, and making someone paste a syllabus to express "every Tuesday"
         is friction where there need be none.
       */}
+      {moduleOn('series', prefs) && (
       <section className="mb-8">
         <SectionHead title="Something every week" />
         <p className="type-note -mt-2 mb-3 px-4 text-text-low">
@@ -156,6 +159,7 @@ export function Plan({ courses, onBack, onChanged }: {
           onChanged={onChanged}
         />
       </section>
+      )}
 
       {/*
         Above the one-time importer, because it is now the main way a calendar
@@ -163,7 +167,7 @@ export function Plan({ courses, onBack, onChanged }: {
         timetable you want as ordinary events you own and can edit. This is
         for a calendar that keeps changing and has to stay right on its own.
       */}
-      <CalendarFeeds onChanged={onChanged} />
+      {moduleOn('feeds', prefs) && <CalendarFeeds onChanged={onChanged} />}
 
       <section className="mb-8">
         <SectionHead title="Bring in your timetable" />

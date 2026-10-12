@@ -151,7 +151,22 @@ export function SwipeRow({
     el.addEventListener('touchcancel', onLift, { passive: true });
     el.addEventListener('scroll', onScroll, { passive: true });
     el.addEventListener('scrollend', onEnd);
+
+    /*
+     * Back home whenever the row's box comes back or changes size. Today stays
+     * mounted while another screen shows, inside a hidden container, and a
+     * hidden element loses its scroll position: every row came back scrolled
+     * to its start, showing the Done panel instead of the work. A resize (a
+     * theme's wider face, a rotation) moves home too.
+     */
+    const resized = new ResizeObserver(() => {
+      if (fingerDown || gesture || el.clientWidth === 0) return;
+      if (Math.abs(el.scrollLeft - home) > 1) el.scrollLeft = home;
+    });
+    resized.observe(el);
+
     return () => {
+      resized.disconnect();
       window.clearTimeout(timer);
       el.removeEventListener('touchstart', onStart);
       el.removeEventListener('touchend', onLift);

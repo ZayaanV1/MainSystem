@@ -34,6 +34,30 @@ function buildId(): string {
   }
 }
 
+/**
+ * Each theme's ground in dark and light, for the pre-paint script in
+ * index.html: { cloisonne: [dark, light], letterpress: [...], ... }. Read from
+ * tokens.css so the status bar matches the ground for every theme without a
+ * second copy of any colour.
+ */
+function themeGrounds(): string {
+  const tokens = readFileSync(new URL('./src/styles/tokens.css', import.meta.url), 'utf8');
+  const inkIn = (selector: string): string => {
+    const at = tokens.indexOf(selector);
+    if (at < 0) throw new Error(`tokens.css has no block ${selector}`);
+    const m = /--ink-900:\s*(#[0-9a-fA-F]{6})/u.exec(tokens.slice(at));
+    if (!m) throw new Error(`no --ink-900 after ${selector}`);
+    return m[1];
+  };
+  const grounds: Record<string, [string, string]> = {
+    cloisonne: [inkGround(), inkIn(":root[data-theme='light'] {")],
+  };
+  for (const skin of ['letterpress', 'instrument', 'fjord', 'contrast']) {
+    grounds[skin] = [inkIn(`:root[data-skin='${skin}'] {`), inkIn(`:root[data-skin='${skin}'][data-theme='light'] {`)];
+  }
+  return JSON.stringify(grounds);
+}
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -48,6 +72,10 @@ export default defineConfig({
     ),
   },
   plugins: [
+    {
+      name: 'theme-grounds',
+      transformIndexHtml: (html) => html.replace('__THEME_GROUNDS__', themeGrounds()),
+    },
     react(),
     tailwindcss(),
 
@@ -65,6 +93,9 @@ export default defineConfig({
 
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,woff2,png,svg}'],
+        // The themes' own faces are fetched, and then cached, only when their
+        // theme is chosen; everyone else never downloads them.
+        globIgnores: ['**/fonts/{Fraunces,IBMPlexMono,AtkinsonHyperlegible}-*.woff2'],
       },
 
       // Registering the worker in dev would serve a stale bundle after every

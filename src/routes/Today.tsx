@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import { Pressable } from '../components/Pressable';
 import { AssignmentRow } from '../components/AssignmentRow';
@@ -66,6 +67,7 @@ import {
 import { activeTimezone, addDays, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 import { applyPending } from '../lib/optimistic';
 import { formatRoute } from '../lib/route';
+import { moduleOn, usePreferences, type TodaySection } from '../lib/preferences';
 import { useOutbox } from '../lib/useOutbox';
 import { useNow } from '../lib/useNow';
 import { announce } from '../lib/announce';
@@ -98,6 +100,7 @@ export function Today({
 }) {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
+  const prefs = usePreferences();
   const [askingTime, setAskingTime] = useState<Assignment | null>(null);
   // The last piece of work finished from this screen, offered back for a moment.
   const [finished, setFinished] = useState<{ id: string; title: string } | null>(null);
@@ -409,6 +412,212 @@ export function Today({
     );
   }
 
+  /*
+   * Each of Today's sections, by name, so the account's arrangement can place
+   * them. Built here rather than inline so the order is data, not layout.
+   */
+  const assistOn = moduleOn('assist', prefs);
+  const sections: Record<TodaySection, ReactNode> = {
+    capture: (
+      <CaptureBox className="" send={(body) => capture(userId, body)} />
+    ),
+    checklist: (
+        <div>
+          {data === null ? (
+            // Loading is not empty: no invitation to add while the list is
+            // still on its way.
+            <div aria-hidden className="tick-pills">
+              <span className="tick-pill skeleton-wait w-36" />
+              <span className="tick-pill skeleton-wait w-28" />
+            </div>
+          ) : (
+            <TickPills
+              items={pills}
+              isDone={(id) => isDone(id, today)}
+              onToggle={(id) => void toggle(id, today)}
+              onOpenList={() => setChecklistOpen(true)}
+              onAdd={() => setEditorFor({ item: null })}
+            />
+          )}
+          {/* Said once, for this day, and never compared to any other. A
+              moment can be praised safely; a streak cannot. */}
+          {pillsDone && <p className="mt-2 px-4 type-note text-t-done">That's everything for today.</p>}
+        </div>
+
+    ),
+    ribbon: (
+      <>
+        {data && (
+          <NowNext
+            events={data.events}
+            today={today}
+            courseFor={(id) => data.courses.find((c) => c.id === id)}
+          />
+        )}
+
+      </>
+    ),
+    briefing: assistOn ? <Briefing dep={loaded} today={today} /> : null,
+    work: (
+      <>
+          <section aria-labelledby="work-heading">
+            <h2 id="work-heading" className="sr-only">
+              Work
+            </h2>
+            {/*
+              `data === null` is checked FIRST and separately, because
+              `!data?.assignments.length` is also true while the fetch is still
+              in flight — so this branch rendered "Nothing due." on every app
+              open, for the whole duration of the load. Loading and empty are
+              different facts and this screen is where the difference matters.
+            */}
+            {data === null ? (
+              <SkeletonList rows={3} kind="work" />
+            ) : !work.list.length ? (
+              workCleared ? (
+                <p className="enter-fade px-4 py-8 type-body text-t-done">
+                  That's all the work due today, done.
+                </p>
+              ) : (
+                <EmptyState>Nothing due.</EmptyState>
+              )
+            ) : (
+              <div ref={setWorkList} className="flex flex-col gap-4">
+                {groupsShown.list.map(({ item: g, key, leaving }) => {
+                  const isFolded = folded.has(g.id);
+                  const live = g.items.filter((x) => !x.p.leaving).length;
+                  const asksHere = g.id === askGroup;
+                  return (
+                    <div key={key} data-presence={key} className="work-group" inert={leaving || undefined}>
+                      <div className="work-group-head">
+                        <button
+                          type="button"
+                          className="work-group-toggle"
+                          aria-expanded={!isFolded}
+                          aria-controls={`work-${g.id}`}
+                          onClick={(e) => toggleFold(g.id, e.currentTarget)}
+                        >
+                          <span className="work-group-title">{g.label}</span>
+                          <span key={live} className="section-count" aria-label={`${live} ${live === 1 ? 'item' : 'items'}`}>
+                            {live}
+                          </span>
+                          <svg aria-hidden className="work-group-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+                        {asksHere && assistOn && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="lg:hidden"
+                            aria-expanded={askOpen}
+                            onClick={() => setAskOpen(!askOpen)}
+                          >
+                            What now?
+                          </Button>
+                        )}
+                      </div>
+
+                      {asksHere && assistOn && (
+                        <div className="lg:hidden">
+                          <Suspense fallback={null}>
+                          <WhatNow
+                            open={askOpen}
+                            onClose={() => setAskOpen(false)}
+                            assignments={data.assignments}
+                            courses={data.courses}
+                            deferrals={data.deferrals}
+                            sized={sized}
+                            onOpen={setOpenAssignment}
+                          />
+                          </Suspense>
+                        </div>
+                      )}
+
+                      {/* A heading on its way out has already lost its
+                          last row; drawing the old rows again would bring
+                          one back for the length of the exit. */}
+                      {!isFolded && !leaving && (
+                        <div id={`work-${g.id}`} className="flex flex-col gap-2">
+                          {g.items.map(({ p: { item: a, key: rowKey, leaving: rowLeaving } }) => (
+                            <div key={rowKey} data-presence={rowKey} inert={rowLeaving || undefined}>
+                              <AssignmentRow
+                                // A row leaving because it was finished shows
+                                // itself finished on the way out.
+                                assignment={rowLeaving && work.hintOf(rowKey) === 'done' ? { ...a, status: 'done' } : a}
+                                progress={subtaskProgress(data.subtasks, a.id)}
+                                course={data.courses.find((c) => c.id === a.course_id)}
+                                now={now}
+                                onToggleDone={() => finish(a)}
+                                onDefer={() => {
+                                  work.hint(a.id, 'defer');
+                                  void deferAssignment(userId, a, addDays(todayKey(), 1));
+                                  announce(`${a.title} moved to tomorrow`);
+                                }}
+                                onOpen={() => setOpenAssignment(a)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {askingTime && <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />}
+      </>
+    ),
+    ahead: (
+          <Ahead
+            assignments={data?.assignments ?? []}
+            deferrals={data?.deferrals ?? {}}
+            cal={cal}
+            sized={sized}
+          />
+
+    ),
+    inbox: (
+          <section>
+            <SectionHead title="Inbox" count={data?.inbox.length || null} />
+            {Boolean(data?.inbox.length) && (
+              <p className="type-note -mt-2 mb-3 px-4 text-text-low">Tap one to sort it out.</p>
+            )}
+            {data === null ? null : !inbox.list.length ? (
+              inboxCleared ? (
+                <p className="enter-fade px-4 py-8 type-body text-t-done">Inbox clear.</p>
+              ) : (
+                <EmptyState>Capture anything here. Sort it later.</EmptyState>
+              )
+            ) : (
+              <div ref={inbox.containerRef}>
+                <Card>
+                  {inbox.list.map(({ item: entry, key, leaving }) => (
+                    <Pressable
+                      className="mat-row gap-3 px-4 py-3"
+                      key={key}
+                      data-presence={key}
+                      inert={leaving || undefined}
+                      onClick={() => setTriaging(entry)}
+                    >
+                      <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 self-start rounded-pill bg-text-low" />
+                      <span className="type-quote text-text-hi">{entry.body}</span>
+                    </Pressable>
+                  ))}
+                </Card>
+              </div>
+            )}
+          </section>
+
+    ),
+  };
+  const shown = prefs.order.filter((id) => !prefs.hidden.includes(id) && sections[id] !== null);
+  const SIDE: ReadonlySet<TodaySection> = new Set(['ahead', 'inbox']);
+  const mainSections = shown.filter((id) => !SIDE.has(id));
+  const sideSections = shown.filter((id) => SIDE.has(id));
+
   return (
     <>
     <main
@@ -471,169 +680,30 @@ export function Today({
       {data && <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />}
 
       {/*
-        The top of the day, in the order a morning is lived: catch the thought,
-        tick the daily things, see where to be, read the one sentence the app
-        has for you. Tight on purpose (the UI overview): on a 375 x 812 phone,
-        what is late and the next thing due today sit above the fold.
+        Today's sections, in the order the account chose (Settings, Today and
+        modules), skipping any it hid; capture and the work are always shown.
+        The default is the order a morning is lived: catch the thought, tick
+        the daily things, see where to be, read the one sentence the app has
+        for you, then the work. On a phone everything is one column sorted by
+        that order; on a desk the work keeps the wide column and what helps
+        with it (What now, what is ahead, the inbox) sits beside it, in the
+        same relative order.
       */}
-      <div className="today-stack mb-6">
-        <CaptureBox className="" send={(body) => capture(userId, body)} />
-
-        <div>
-          {data === null ? (
-            // Loading is not empty: no invitation to add while the list is
-            // still on its way.
-            <div aria-hidden className="tick-pills">
-              <span className="tick-pill skeleton-wait w-36" />
-              <span className="tick-pill skeleton-wait w-28" />
+      <div className="today-layout">
+        <div className="today-main">
+          {mainSections.map((id) => (
+            <div key={id} data-section={id} style={{ order: shown.indexOf(id) }}>
+              {sections[id]}
             </div>
-          ) : (
-            <TickPills
-              items={pills}
-              isDone={(id) => isDone(id, today)}
-              onToggle={(id) => void toggle(id, today)}
-              onOpenList={() => setChecklistOpen(true)}
-              onAdd={() => setEditorFor({ item: null })}
-            />
-          )}
-          {/* Said once, for this day, and never compared to any other. A
-              moment can be praised safely; a streak cannot. */}
-          {pillsDone && <p className="mt-2 px-4 type-note text-t-done">That's everything for today.</p>}
+          ))}
         </div>
 
-        {data && (
-          <NowNext
-            events={data.events}
-            today={today}
-            courseFor={(id) => data.courses.find((c) => c.id === id)}
-          />
-        )}
-
-        <Briefing dep={loaded} today={today} />
-      </div>
-
-      {/*
-        Two columns once there is room: the work, and beside it what helps you
-        act on it — What now answered without asking, what is coming, and the
-        inbox still waiting to be sorted. They stack in that order on a phone.
-      */}
-      <div className="lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start lg:gap-8 xl:gap-10">
-        <div className="min-w-0">
-          <section className="mb-8" aria-labelledby="work-heading">
-            <h2 id="work-heading" className="sr-only">
-              Work
-            </h2>
-            {/*
-              `data === null` is checked FIRST and separately, because
-              `!data?.assignments.length` is also true while the fetch is still
-              in flight — so this branch rendered "Nothing due." on every app
-              open, for the whole duration of the load. Loading and empty are
-              different facts and this screen is where the difference matters.
-            */}
-            {data === null ? (
-              <SkeletonList rows={3} kind="work" />
-            ) : !work.list.length ? (
-              workCleared ? (
-                <p className="enter-fade px-4 py-8 type-body text-t-done">
-                  That's all the work due today, done.
-                </p>
-              ) : (
-                <EmptyState>Nothing due.</EmptyState>
-              )
-            ) : (
-              <div ref={setWorkList} className="flex flex-col gap-4">
-                {groupsShown.list.map(({ item: g, key, leaving }) => {
-                  const isFolded = folded.has(g.id);
-                  const live = g.items.filter((x) => !x.p.leaving).length;
-                  const asksHere = g.id === askGroup;
-                  return (
-                    <div key={key} data-presence={key} className="work-group" inert={leaving || undefined}>
-                      <div className="work-group-head">
-                        <button
-                          type="button"
-                          className="work-group-toggle"
-                          aria-expanded={!isFolded}
-                          aria-controls={`work-${g.id}`}
-                          onClick={(e) => toggleFold(g.id, e.currentTarget)}
-                        >
-                          <span className="work-group-title">{g.label}</span>
-                          <span key={live} className="section-count" aria-label={`${live} ${live === 1 ? 'item' : 'items'}`}>
-                            {live}
-                          </span>
-                          <svg aria-hidden className="work-group-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                            <path d="m6 9 6 6 6-6" />
-                          </svg>
-                        </button>
-                        {asksHere && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="lg:hidden"
-                            aria-expanded={askOpen}
-                            onClick={() => setAskOpen(!askOpen)}
-                          >
-                            What now?
-                          </Button>
-                        )}
-                      </div>
-
-                      {asksHere && (
-                        <div className="lg:hidden">
-                          <Suspense fallback={null}>
-                          <WhatNow
-                            open={askOpen}
-                            onClose={() => setAskOpen(false)}
-                            assignments={data.assignments}
-                            courses={data.courses}
-                            deferrals={data.deferrals}
-                            sized={sized}
-                            onOpen={setOpenAssignment}
-                          />
-                          </Suspense>
-                        </div>
-                      )}
-
-                      {/* A heading on its way out has already lost its
-                          last row; drawing the old rows again would bring
-                          one back for the length of the exit. */}
-                      {!isFolded && !leaving && (
-                        <div id={`work-${g.id}`} className="flex flex-col gap-2">
-                          {g.items.map(({ p: { item: a, key: rowKey, leaving: rowLeaving } }) => (
-                            <div key={rowKey} data-presence={rowKey} inert={rowLeaving || undefined}>
-                              <AssignmentRow
-                                // A row leaving because it was finished shows
-                                // itself finished on the way out.
-                                assignment={rowLeaving && work.hintOf(rowKey) === 'done' ? { ...a, status: 'done' } : a}
-                                progress={subtaskProgress(data.subtasks, a.id)}
-                                course={data.courses.find((c) => c.id === a.course_id)}
-                                now={now}
-                                onToggleDone={() => finish(a)}
-                                onDefer={() => {
-                                  work.hint(a.id, 'defer');
-                                  void deferAssignment(userId, a, addDays(todayKey(), 1));
-                                  announce(`${a.title} moved to tomorrow`);
-                                }}
-                                onOpen={() => setOpenAssignment(a)}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          {askingTime && <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />}
-        </div>
-
-        <div className="min-w-0">
+        <div className="today-side">
           {/* On a desk there is room to answer What now without being asked:
               making a stuck person first decide to ask is the decision they
               were stuck on. On a phone it is the pill on the first group. */}
-          <div className="hidden lg:block">
+          {assistOn && (
+          <div className="hidden lg:block" style={{ order: -1 }}>
             <Suspense fallback={null}>
             <WhatNow
               alwaysOpen
@@ -646,45 +716,16 @@ export function Today({
             </Suspense>
           </div>
 
-          <Ahead
-            assignments={data?.assignments ?? []}
-            deferrals={data?.deferrals ?? {}}
-            cal={cal}
-            sized={sized}
-          />
+          )}
+          {sideSections.map((id) => (
+            <div key={id} data-section={id} style={{ order: shown.indexOf(id) }}>
+              {sections[id]}
+            </div>
+          ))}
 
-          <section className="mb-8 flex-1">
-            <SectionHead title="Inbox" count={data?.inbox.length || null} />
-            {Boolean(data?.inbox.length) && (
-              <p className="type-note -mt-2 mb-3 px-4 text-text-low">Tap one to sort it out.</p>
-            )}
-            {data === null ? null : !inbox.list.length ? (
-              inboxCleared ? (
-                <p className="enter-fade px-4 py-8 type-body text-t-done">Inbox clear.</p>
-              ) : (
-                <EmptyState>Capture anything here. Sort it later.</EmptyState>
-              )
-            ) : (
-              <div ref={inbox.containerRef}>
-                <Card>
-                  {inbox.list.map(({ item: entry, key, leaving }) => (
-                    <Pressable
-                      className="mat-row gap-3 px-4 py-3"
-                      key={key}
-                      data-presence={key}
-                      inert={leaving || undefined}
-                      onClick={() => setTriaging(entry)}
-                    >
-                      <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 self-start rounded-pill bg-text-low" />
-                      <span className="type-quote text-text-hi">{entry.body}</span>
-                    </Pressable>
-                  ))}
-                </Card>
-              </div>
-            )}
-          </section>
-
-          <div className="mb-8 px-4">
+          {moduleOn('lowbattery', prefs) && (
+            <div data-section="lowbattery" style={{ order: 98 }}>
+          <div className="px-4">
             <Button
               variant="quiet"
               onClick={() => void setLowBattery(userId, true).then(reload)}
@@ -693,6 +734,10 @@ export function Today({
             </Button>
           </div>
 
+            </div>
+          )}
+
+          <div style={{ order: 99 }}>
           {status && (
             <footer className="border-t border-ink-600 px-4 py-4">
               <p className={`type-caption ${status.warn ? 'text-t-critical' : 'text-text-low'}`}>
@@ -700,6 +745,7 @@ export function Today({
               </p>
             </footer>
           )}
+          </div>
         </div>
       </div>
 
@@ -1034,7 +1080,7 @@ function Ahead({
   if (!ahead.warning && stuck.length === 0 && !cal.summary) return null;
 
   return (
-    <section className="mb-8 flex flex-col gap-3 px-4">
+    <section className="flex flex-col gap-3 px-4">
       {ahead.warning && <p className="type-body text-t-approaching">{ahead.warning}</p>}
 
       {/* Stated as a fact about the estimates, not about the person. It is

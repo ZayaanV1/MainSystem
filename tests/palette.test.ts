@@ -301,3 +301,82 @@ describe('text on a calendar block can be read', () => {
     expect(triplet(block, 'text-mid-rgb')).toEqual(rgb(hex(block, 'text-mid')).map((x) => Math.round(x * 255)));
   });
 });
+
+/* ============================================================================
+   Themes. Five themes, each a dark and light pair: ten palettes, which is too
+   many to check by eye. Each is read from its scoped block in tokens.css
+   (.skin-<name>.mode-<mode>, the complete set the picker draws with), and
+   every text and urgency pairing is held to its floor. The root blocks that
+   the app itself applies are checked against those, so the two copies of a
+   theme cannot drift apart.
+   ========================================================================= */
+
+const SKINS = ['cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast'] as const;
+const MODES = ['dark', 'light'] as const;
+
+/** A block's declarations, by the exact selector text that opens it. */
+function block(selector: string): Record<string, string> {
+  const at = TOKENS.indexOf(`${selector} {`);
+  if (at < 0) throw new Error(`no block ${selector}`);
+  const body = TOKENS.slice(at + selector.length + 2, TOKENS.indexOf('}', at));
+  const out: Record<string, string> = {};
+  for (const m of body.matchAll(/--([a-z0-9-]+):\s*([^;]+);/g)) out[m[1]] = m[2].trim();
+  return out;
+}
+
+const PAIRS: [fg: string, bg: string, floor: number][] = [
+  ['text-hi', 'ink-900', 7],
+  ['text-mid', 'ink-800', 4.5],
+  ['text-low', 'ink-800', 4.5],
+  ['on-accent', 'accent', 4.5],
+  ['on-accent-2', 'accent-2', 4.5],
+  ['on-accent-2', 'accent-2-mid', 4.5],
+  ['accent-2-lit', 'ink-800', 4.5],
+  ['t-distant', 'ink-800', 4.5],
+  ['t-approaching', 'ink-800', 4.5],
+  ['t-urgent', 'ink-800', 4.5],
+  ['t-critical', 'ink-800', 4.5],
+  ['t-overdue', 'ink-800', 4.5],
+  ['t-done', 'ink-800', 4.5],
+  // A mark, not text: a filled button has to stand out from the page.
+  ['accent', 'ink-900', 3],
+];
+
+describe('every theme holds its floors, in both modes', () => {
+  for (const skin of SKINS) {
+    for (const mode of MODES) {
+      it(`${skin}, ${mode}`, () => {
+        const t = block(`.skin-${skin}.mode-${mode}`);
+        const failures = PAIRS.filter(([fg, bg, floor]) => contrast(t[fg], t[bg]) < floor).map(
+          ([fg, bg, floor]) => `${fg} on ${bg}: ${contrast(t[fg], t[bg]).toFixed(2)} < ${floor}`,
+        );
+        expect(failures).toEqual([]);
+      });
+    }
+  }
+
+  it('the courses stay readable as marks on every card', () => {
+    // 2.6:1, the floor the light palette has always held: a course dot is a
+    // mark beside the course's written name, never the only signal.
+    for (const skin of SKINS) {
+      for (const mode of MODES) {
+        const t = block(`.skin-${skin}.mode-${mode}`);
+        for (let n = 1; n <= 8; n++) expect(contrast(t[`c-${n}`], t['ink-800'])).toBeGreaterThanOrEqual(2.6);
+      }
+    }
+  });
+
+  it('applies the same values the picker previews', () => {
+    for (const skin of SKINS.filter((s) => s !== 'cloisonne')) {
+      const pairs: [string, string][] = [
+        [`:root[data-skin='${skin}']`, `.skin-${skin}.mode-dark`],
+        [`:root[data-skin='${skin}'][data-theme='light']`, `.skin-${skin}.mode-light`],
+      ];
+      for (const [applied, previewed] of pairs) {
+        const a = block(applied);
+        const p = block(previewed);
+        for (const [k, v] of Object.entries(a)) expect(`${k}: ${p[k]}`).toBe(`${k}: ${v}`);
+      }
+    }
+  });
+});

@@ -100,9 +100,16 @@ export async function converse(opts: {
 
   const { data: settings } = await admin
     .from('app_settings')
-    .select('gemini_api_key, groq_api_key, timezone')
+    .select('gemini_api_key, groq_api_key, timezone, modules_off')
     .eq('user_id', userId)
     .maybeSingle();
+
+  // Switched off in the app (Settings, Today and modules): say so rather than
+  // answer, and rather than go silent, which reads as broken.
+  if (((settings?.modules_off as string[] | null) ?? []).includes('abood')) {
+    await send('Abood is switched off in your planner. Turn it back on in Settings, under Today and modules.');
+    return;
+  }
 
   const rawGemini = (settings?.gemini_api_key as string | null)?.trim() || null;
   const ownGemini = rawGemini && !rawGemini.startsWith('gsk_') ? rawGemini : null;

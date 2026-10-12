@@ -25,6 +25,8 @@ import { Field } from '../components/Field';
 import { Sheet, SheetPresence } from '../components/Sheet';
 import { PromptInput } from '../components/kit/PromptInput';
 import { ThinkingText } from '../components/kit/ThinkingText';
+import { ThemePicker } from '../components/ThemePicker';
+import { ArrangeToday } from '../components/ArrangeToday';
 
 /**
  * The design system specimen. Development only — reached at /?specimen.
@@ -132,6 +134,14 @@ export function Specimen() {
           {lowBattery ? 'Exit low battery' : 'Low battery'}
         </Button>
       </div>
+
+      <Section title="ThemePicker — real miniatures, tap to preview">
+        <ThemePicker userId="specimen" />
+      </Section>
+
+      <Section title="ArrangeToday — order, hide, switch modules off">
+        <ArrangeToday userId="specimen" />
+      </Section>
 
       <Section title="Capture">
         <CaptureBox send={async () => undefined} />

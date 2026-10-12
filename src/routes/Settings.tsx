@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { EASE } from '../lib/motion';
+import { sweepFrom } from '../lib/transition';
+import { ThemePicker } from '../components/ThemePicker';
+import { ArrangeToday } from '../components/ArrangeToday';
+import { TODAY_SECTIONS, moduleOn, usePreferences, type Preferences } from '../lib/preferences';
 import { currentRoute, formatRoute } from '../lib/route';
 import { aboodSummary, appearanceSummary, notificationsSummary } from '../lib/settingsSummary';
 import {
@@ -118,6 +122,7 @@ export function Settings() {
 
   // What each row says it is set to.
   const appearance = useAppearance();
+  const prefs = usePreferences();
   const [digest, setDigest] = useState<DigestSettingsRow | null>(null);
   const [keys, setKeys] = useState<{ groq: boolean; gemini: boolean } | null>(null);
   const [telegram, setTelegram] = useState<boolean | null>(null);
@@ -278,18 +283,25 @@ export function Settings() {
       ),
     },
     timezone: { title: 'Time zone', body: <TimeZone userId={userId} bare /> },
-    appearance: { title: 'Appearance', body: <Appearance bare /> },
+    appearance: { title: 'Appearance', body: <Appearance bare userId={userId} /> },
+    arrange: { title: 'Today and modules', body: <ArrangeToday userId={userId} /> },
     calendar: { title: 'Calendar feed', body: <CalendarFeed bare /> },
     abood: {
-      title: 'Abood',
+      // With Abood switched off the keys stay reachable: they also fund food
+      // parsing and the briefing, which do not stop with the chatbot.
+      title: moduleOn('abood', prefs) ? 'Abood' : 'AI keys',
       body: (
         <>
           <GroqKey userId={userId} />
           <ApiKey userId={userId} />
-          <TextAbood userId={userId} />
-          <IMessageAbood userId={userId} />
-          <AboodTextsFirst userId={userId} />
-          <AboodMemory />
+          {moduleOn('abood', prefs) && (
+            <>
+              <TextAbood userId={userId} />
+              <IMessageAbood userId={userId} />
+              <AboodTextsFirst userId={userId} />
+              <AboodMemory />
+            </>
+          )}
         </>
       ),
     },
@@ -354,11 +366,18 @@ export function Settings() {
 
               <div className="mat settings-rows">
                 <SettingsRow icon="sun" tone="ink" label="Appearance" value={summary.appearance} onOpen={() => go('appearance')} />
-                <SettingsRow icon="calendar" label="Calendar feed" value="Your deadlines in any calendar app" onOpen={() => go('calendar')} />
+                <SettingsRow icon="grid" tone="ink" label="Today and modules" value={arrangeSummary(prefs)} onOpen={() => go('arrange')} />
+                {moduleOn('feeds', prefs) && (
+                  <SettingsRow icon="calendar" label="Calendar feed" value="Your deadlines in any calendar app" onOpen={() => go('calendar')} />
+                )}
               </div>
 
               <div className="mat settings-rows">
-                <SettingsRow icon="chat" label="Abood" value={summary.abood} onOpen={() => go('abood')} />
+                {moduleOn('abood', prefs) ? (
+                  <SettingsRow icon="chat" label="Abood" value={summary.abood} onOpen={() => go('abood')} />
+                ) : (
+                  <SettingsRow icon="chat" tone="ink" label="AI keys" value="Your own Groq or Gemini key" onOpen={() => go('abood')} />
+                )}
               </div>
 
               <div className="mat settings-rows">
@@ -381,14 +400,24 @@ export function Settings() {
   );
 }
 
-type PageId = 'notifications' | 'timezone' | 'appearance' | 'calendar' | 'abood' | 'data';
-const PAGE_IDS: PageId[] = ['notifications', 'timezone', 'appearance', 'calendar', 'abood', 'data'];
+type PageId = 'notifications' | 'timezone' | 'appearance' | 'arrange' | 'calendar' | 'abood' | 'data';
+const PAGE_IDS: PageId[] = ['notifications', 'timezone', 'appearance', 'arrange', 'calendar', 'abood', 'data'];
+
+/** What the arrangement row says: the usual, or how it differs. */
+function arrangeSummary(prefs: Preferences): string {
+  const parts: string[] = [];
+  if (prefs.order.some((s, i) => s !== TODAY_SECTIONS[i])) parts.push('Rearranged');
+  if (prefs.hidden.length) parts.push(`${prefs.hidden.length} hidden`);
+  if (prefs.modulesOff.length) parts.push(`${prefs.modulesOff.length} ${prefs.modulesOff.length === 1 ? 'module' : 'modules'} off`);
+  return parts.length ? parts.join(' · ') : 'The usual order, everything on';
+}
 const pageFrom = (p: string | undefined): PageId | null => (PAGE_IDS.includes(p as PageId) ? (p as PageId) : null);
 
 const GLYPHS: Record<string, string> = {
   bell: 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
   globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20',
   sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
   calendar: 'M3.5 10h17M8 3v4M16 3v4M6.5 5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3',
   chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.5A8 8 0 1 1 21 12',
   box: 'M21 8v12H3V8M1 3h22v5H1zM10 12h4',
@@ -718,7 +747,7 @@ function ApiKey({ userId }: { userId: string }) {
  * account. The same person wants dark on a phone at night and light on a
  * laptop at noon, and syncing it would make one change when the other did.
  */
-function Appearance({ bare = false }: { bare?: boolean }) {
+function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }) {
   const [choice, setChoice] = useState<ThemeChoice>(() => readTheme());
 
   // Keeps this control honest if the theme is changed from somewhere else in
@@ -753,17 +782,26 @@ function Appearance({ bare = false }: { bare?: boolean }) {
   return (
     <section className="mb-8">
       {!bare && <SectionHead title="Appearance" />}
+      <p className="kicker mb-3 px-4">Theme</p>
+      <div className="mb-6 px-4">
+        <ThemePicker userId={userId} />
+      </div>
       <Card className="p-4">
-        <div role="radiogroup" aria-label="Theme" className="flex flex-wrap gap-2">
+        <p className="kicker mb-2">Light or dark</p>
+        <div role="radiogroup" aria-label="Light or dark" className="flex flex-wrap gap-2">
           {options.map((o) => (
             <Chip
               key={o.value}
               role="radio"
               aria-checked={choice === o.value}
               selected={choice === o.value}
-              onClick={() => {
-                setChoice(o.value);
-                writeTheme(o.value);
+              onClick={(e) => {
+                const from = e.currentTarget;
+                // The mode sweeps in from the chip, as a theme does.
+                sweepFrom(from, () => {
+                  setChoice(o.value);
+                  writeTheme(o.value);
+                });
               }}
             >
               {o.label}
@@ -771,8 +809,8 @@ function Appearance({ bare = false }: { bare?: boolean }) {
           ))}
         </div>
         <p className="type-note mt-3 text-text-low">
-          {options.find((o) => o.value === choice)?.hint}. This is remembered on
-          this device only.
+          {options.find((o) => o.value === choice)?.hint}. Remembered on this device, because the right mode
+          depends on where the screen is.
         </p>
 
         <p className="kicker mt-6 mb-2">Work slips</p>

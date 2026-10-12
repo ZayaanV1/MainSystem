@@ -27,7 +27,7 @@
  * gated on it and nothing breaks without it.
  */
 
-type Direction = 'forward' | 'back' | 'none';
+type Direction = 'forward' | 'back' | 'none' | 'sweep';
 
 /**
  * The API is already declared on Document in current TypeScript DOM libs, but
@@ -100,4 +100,17 @@ export function directionBetween<T>(order: readonly T[], from: T, to: T): Direct
   const b = order.indexOf(to);
   if (a === -1 || b === -1 || a === b) return 'none';
   return b > a ? 'forward' : 'back';
+}
+
+/**
+ * A change of look that sweeps out from where it was asked for: a theme or a
+ * mode grows from the card or chip that chose it, across the whole app at
+ * once. Under reduced motion it is the plain cross-fade.
+ */
+export function sweepFrom(origin: Element | null, apply: () => void): void {
+  const root = document.documentElement;
+  const r = origin?.getBoundingClientRect();
+  root.style.setProperty('--vt-x', r ? `${r.left + r.width / 2}px` : '50%');
+  root.style.setProperty('--vt-y', r ? `${r.top + r.height / 2}px` : '50%');
+  withTransition(apply, 'sweep');
 }

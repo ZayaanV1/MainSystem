@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, CSSProperties, MouseEvent, ReactNode } from 'react';
 
 /**
  * Chip.
@@ -16,7 +16,7 @@ interface ChipProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onCli
   /** A course token name, e.g. '--c-3'. Renders as a 6px dot. */
   courseVar?: string;
   selected?: boolean;
-  onClick?: () => void;
+  onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
   children: ReactNode;
 }
 

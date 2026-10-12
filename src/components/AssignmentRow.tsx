@@ -9,6 +9,7 @@ import { formatDay, formatTime, localDayKey } from '../lib/time';
 import type { Assignment, Course } from '../lib/planner';
 import { SwipeRow } from './SwipeRow';
 import { courseVar } from '../lib/planner';
+import { moduleOn, usePreferences } from '../lib/preferences';
 
 /**
  * One assignment, as a slip.
@@ -117,6 +118,8 @@ export function AssignmentRow({
 }: AssignmentRowProps) {
   const due = assignment.due_at ? new Date(assignment.due_at) : null;
   const done = assignment.status === 'done';
+  // Grades switched off: worth and marks stay stored, only unshown.
+  const gradesOn = moduleOn('grades', usePreferences());
 
   const urgency = urgencyFor(due, { done, now, thresholds });
   const count = countdown(urgency, due, assignment.due_has_time);
@@ -185,8 +188,8 @@ export function AssignmentRow({
       code,
       face.when,
       assignment.effort_minutes ? durationLabel(assignment.effort_minutes) : null,
-      typeof assignment.weight_percent === 'number' ? `${assignment.weight_percent}%` : null,
-      typeof assignment.grade_percent === 'number' ? `scored ${assignment.grade_percent}%` : null,
+      (gradesOn && typeof assignment.weight_percent === 'number') ? `${assignment.weight_percent}%` : null,
+      (gradesOn && typeof assignment.grade_percent === 'number') ? `scored ${assignment.grade_percent}%` : null,
       progress ? `${progress.done} of ${progress.total} steps` : null,
     ].filter((f): f is string => Boolean(f));
 
@@ -361,8 +364,8 @@ export function AssignmentRow({
 
           <span className="sr-only">{urgency.label}.</span>
 
-          {(typeof assignment.weight_percent === 'number' ||
-            typeof assignment.grade_percent === 'number' ||
+          {((gradesOn && typeof assignment.weight_percent === 'number') ||
+            (gradesOn && typeof assignment.grade_percent === 'number') ||
             assignment.link ||
             (showStart && start) ||
             progress) && (
@@ -371,14 +374,14 @@ export function AssignmentRow({
                 What it is worth, when that is known — stated as a share of the
                 course, since "30" beside a due date reads as minutes.
               */}
-              {typeof assignment.weight_percent === 'number' && (
+              {(gradesOn && typeof assignment.weight_percent === 'number') && (
                 <span className="tag type-caption">{assignment.weight_percent}% of grade</span>
               )}
               {/*
                 A recorded mark. Never coloured by how good it is: a red 52 and
                 a green 91 would be the app grading the person.
               */}
-              {typeof assignment.grade_percent === 'number' && (
+              {(gradesOn && typeof assignment.grade_percent === 'number') && (
                 <span className="tag type-caption">scored {assignment.grade_percent}%</span>
               )}
               {/*

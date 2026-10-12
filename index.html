@@ -62,18 +62,27 @@
       src/lib/theme.ts rather than imported, because importing it would mean
       waiting for the bundle — which is the thing being avoided.
     -->
+    <!--
+      The theme (per account, cached here) and the mode (per device) are both
+      applied before paint. GROUNDS is each theme's --ink-900 in dark and
+      light, written in at build time from tokens.css, so the status bar
+      cannot drift from the ground.
+    -->
     <script>
       (function () {
+        var GROUNDS = __THEME_GROUNDS__;
         try {
+          var root = document.documentElement;
           var c = localStorage.getItem('planner.theme');
-          if (c === 'light' || c === 'dark') {
-            document.documentElement.setAttribute('data-theme', c);
-          }
+          if (c === 'light' || c === 'dark') root.setAttribute('data-theme', c);
+          var s = localStorage.getItem('planner.skin');
+          if (!GROUNDS[s] || s === 'cloisonne') s = 'cloisonne';
+          else root.setAttribute('data-skin', s);
           var dark =
             c === 'dark' ||
             (c !== 'light' && !window.matchMedia('(prefers-color-scheme: light)').matches);
           var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', dark ? '#13100c' : '#f7f3ec');
+          if (m) m.setAttribute('content', GROUNDS[s][dark ? 0 : 1]);
         } catch (e) {
           /* storage unavailable — the media query still decides */
         }
