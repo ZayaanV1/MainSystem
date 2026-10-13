@@ -66,8 +66,10 @@ test.describe('upright', () => {
     await openToday(page);
     expect(await allOnScreen(page, '[role="group"][aria-label="Checklist"] > *')).toEqual([]);
     await page.locator('nav[aria-label="Main"]:visible').getByRole('button', { name: 'Week' }).click();
-    await expect(page.getByRole('group', { name: 'Show one course' }).getByRole('button', { name: 'PHYS 205' })).toBeVisible();
-    expect(await allOnScreen(page, '[role="group"][aria-label="Show one course"] button')).toEqual([]);
+    // Week's course filter moved into its options menu; the row of seven days is the pills left to check.
+    const strip = page.getByRole('group', { name: /Work due each day/ });
+    await expect(strip.getByRole('button')).toHaveCount(7);
+    expect(await allOnScreen(page, '[role="group"][aria-label^="Work due each day"] button')).toEqual([]);
   });
 
   test('a sheet rises as a centred column, not a slab across the screen', async ({ page }) => {

@@ -21,7 +21,7 @@ test.describe('Across the end of daylight saving time', () => {
 
   test('a deadline after the change keeps its wall-clock time', async ({ page }) => {
     await openToday(page);
-    await expect(page.getByText('Oct 31 · EDT')).toBeVisible();
+    await expect(page.getByText('Oct 31', { exact: true })).toBeVisible();
     // Sample: due six days from today at 5 p.m., which falls in EST.
     await expect(row(page, 'Assembly assignment 2')).toContainText('5:00 p.m.');
   });
@@ -38,6 +38,7 @@ test.describe('Just before midnight', () => {
 
   test('today is still Wednesday', async ({ page }) => {
     await openToday(page);
-    await expect(page.getByText('Oct 14 · EDT')).toBeVisible();
+    await expect(page.getByText('Oct 14', { exact: true })).toBeVisible();
+    await expect(page.getByText('Wednesday', { exact: true })).toBeVisible();
   });
 });

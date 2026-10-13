@@ -27,7 +27,7 @@ test('dragging work to another day moves it, and it can be undone', async ({ pag
   await page.mouse.move(from.x + 40, from.y + from.height / 2 + 10, { steps: 4 });
   await page.mouse.move(to.x + 40, to.y + to.height / 2, { steps: 12 });
   await page.mouse.up();
-  await expect(card).toContainText('Sat');
+  await expect(card).toContainText('3 days');
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(card).toContainText('Thu');
+  await expect(card).toContainText('tomorrow');
 });

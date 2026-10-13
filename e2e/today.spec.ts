@@ -4,7 +4,7 @@ import { test, expect, openToday, row } from './fixtures';
 test.describe('Today', () => {
   test('opens on Today with the day already sorted', async ({ page }) => {
     await openToday(page);
-    await expect(page.getByText('Oct 14 · EDT')).toBeVisible();
+    await expect(page.getByText('Oct 14', { exact: true })).toBeVisible();
     const work = page.getByRole('region', { name: 'Work' });
     await expect(work.getByRole('button', { name: 'Late 1 item' })).toBeVisible();
     await expect(row(page, 'Lab 3 report: sequential circuits')).toContainText('1 day late');
@@ -24,7 +24,8 @@ test.describe('Today', () => {
     await expect(page.getByRole('button', { name: 'In PHYS 205. Remove the course' })).toBeVisible();
     await box.press('Enter');
     await expect(row(page, 'Lab report')).toContainText('PHYS 205');
-    await expect(row(page, 'Lab report')).toContainText('Thu 5:00 p.m.');
+    await expect(row(page, 'Lab report')).toContainText('5:00 p.m.');
+    await expect(row(page, 'Lab report')).toContainText('Due tomorrow');
     await expect(page.getByRole('button', { name: 'Tomorrow 2 items' })).toBeVisible();
   });
 
@@ -62,7 +63,7 @@ test.describe('Today', () => {
 
   test('What now picks one task and says why', async ({ page }) => {
     await openToday(page);
-    await page.getByRole('button', { name: 'What now?' }).click();
+    await page.getByRole('button', { name: 'What now', exact: true }).first().click();
     await page.getByRole('button', { name: '30 min' }).click();
     const pick = page.getByRole('button', { name: /^What now · / });
     await expect(pick).toHaveCount(1);
@@ -92,8 +93,11 @@ test.describe('Editing work', () => {
     await row(page, 'Read chapter 6 and annotate').click();
     const sheet = page.getByRole('dialog', { name: 'Read chapter 6 and annotate' });
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole('group', { name: 'Due' }).getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
-    await sheet.getByRole('group', { name: 'Due' }).getByRole('button', { name: 'Fri 16' }).click();
+    // Due opens in place; the quick days are inside it.
+    await sheet.getByRole('button', { name: /^Due / }).click();
+    const quickDays = sheet.getByRole('group', { name: 'Quick days' });
+    await expect(quickDays.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
+    await quickDays.getByRole('button', { name: 'Fri 16' }).click();
     await sheet.getByRole('button', { name: 'Save' }).click();
     await expect(sheet).toBeHidden();
     await expect(row(page, 'Read chapter 6 and annotate')).toContainText('Fri');
