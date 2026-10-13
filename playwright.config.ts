@@ -5,7 +5,8 @@ import { defineConfig, devices } from '@playwright/test';
  * account from e2e/harness. Run with `npm run e2e`.
  *
  * The phone project is the one that matters: the app is used mostly on a
- * phone. Desktop runs only the specs that are about a keyboard and a mouse.
+ * phone. Desktop runs only the specs that are about a keyboard and a mouse,
+ * and tablet only the iPad's: upright with touch, and turned on its side.
  *
  * Every spec fixes the clock (see e2e/fixtures.ts), so "due at 3 p.m. today"
  * means the same thing at any hour the suite runs.
@@ -26,7 +27,18 @@ export default defineConfig({
     {
       name: 'phone',
       use: { ...devices['iPhone 13'], browserName: 'chromium' },
-      testIgnore: /\.desktop\.spec\.ts$/,
+      testIgnore: /\.(desktop|tablet)\.spec\.ts$/,
+    },
+    {
+      // An iPad Air held upright, as Safari reports it: touch, no hover, no
+      // fine pointer. Chromium stands in for WebKit, which is not installed.
+      name: 'tablet',
+      use: {
+        ...devices['iPad (gen 7)'],
+        browserName: 'chromium',
+        viewport: { width: 820, height: 1180 },
+      },
+      testMatch: /\.tablet\.spec\.ts$/,
     },
     {
       name: 'desktop',

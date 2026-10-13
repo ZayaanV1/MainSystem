@@ -606,6 +606,24 @@
   padding-bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1.75rem + var(--focus-bar-h, 0px));
 }
 
+/*
+ * An iPad held upright, or the app given two thirds of one in Split View.
+ *
+ * 768 to 1023 px was getting the phone column: 640 px with 90 px of nothing
+ * either side on an iPad Air, under a tab bar that ran wider than the page it
+ * served. Too wide for a phone column and too narrow for the rail, which would
+ * take a third of the width. So a tablet keeps the phone's tab bar and gets
+ * the desk's page: the frame widens and Today opens into its two columns.
+ *
+ * The bottom padding stays the phone's, because the tab bar is still there.
+ */
+@media (width >= 48rem) {
+  .page-frame {
+    max-width: 64rem;
+    padding-inline: 2rem;
+  }
+}
+
 @media (width >= 64rem) {
   .page-frame {
     max-width: 72rem;
@@ -737,13 +755,15 @@
  * fixing-an-instance-not-the-class mistake this codebase has made before.
  * A paragraph that genuinely wants the full width can still override it.
  *
- * Only above lg. On a phone the frame is already narrower than this.
+ * From tablet width up. On a phone the frame is already narrower than this.
  */
-@media (width >= 64rem) {
+@media (width >= 48rem) {
   main p {
     max-width: 62ch;
   }
+}
 
+@media (width >= 64rem) {
   /* Room for the columns that were already there and had none. */
   .page-frame {
     max-width: 64rem;

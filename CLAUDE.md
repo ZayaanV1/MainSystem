@@ -1320,7 +1320,7 @@ sync tests.
 ### End-to-end tests — 13 Oct 2026
 
 `npm run e2e` drives the real app in Chromium at phone size, plus two
-desktop specs: 50 tests, about 20 seconds. The sample harness that used to
+desktop specs and an iPad spec: 73 tests, about 35 seconds. The sample harness that used to
 live outside the repo is now `e2e/harness`: Vite swaps `src/lib/supabase.ts`
 for an in-memory account, and stubs a do-nothing service worker so dev
 registration stops erroring. Plan and results are in `e2e/TEST-PLAN.md`,
@@ -1352,6 +1352,31 @@ browser; run it before a push that touches a flow.
   test never checked it. Fixed in every copy of each theme.
 - **The month is a labelled group, not a grid** (BUG-004): role=grid promised
   arrow keys and rows of cells it never had.
+
+### iPad — 13 Oct 2026
+
+Three widths, not two. Below 48rem is the phone. **48-64rem is an upright
+iPad** (or two thirds of one in Split View): the phone's tab bar, the desk's
+page. The frame widens to 64rem, Today opens into its two columns with What
+now answered beside the work, chip rows wrap, and the tab bar holds all seven
+destinations, capped at 40rem and centred, with no More. Before this an iPad
+Air got a 640 px phone column with 90 px of nothing either side, under a tab
+bar 796 px wide, and chip rows cut mid-pill at the column's edge. From 64rem
+the rail takes over as before, 13rem wide below 80rem so an iPad on its side
+keeps the room for Today's second column.
+
+- **Touch is not inferred from width.** An iPad on its side is desk-wide and
+  still a finger: the 36 px pointer floor stays behind `pointer: fine`, and
+  the tablet tests check that `--tap` is 44 px there.
+- **The docked editor stopped at 90% of the height** on every wide screen,
+  laptops included: the bottom sheet's `max-h-[90dvh]` applied to the docked
+  panel too. Found by the iPad screenshots, not by anyone using it.
+- **Courses and Settings made the page wider than the screen** for the 300 ms
+  of their slide-in, on phones too. The content column is `overflow-x-clip`
+  (clip, not hidden, which would unstick every sticky header).
+- `e2e/ipad.tablet.spec.ts` runs as its own project: 820 x 1180 with touch,
+  and 1180 x 820 for the side. Chromium standing in for Safari; WebKit is
+  not installed, and a real iPad has not been checked.
 
 ### Bugs found by verifying rather than assuming
 

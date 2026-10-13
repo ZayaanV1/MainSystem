@@ -540,7 +540,7 @@ export function Today({
                           <Button
                             variant="secondary"
                             size="sm"
-                            className="lg:hidden"
+                            className="md:hidden"
                             aria-expanded={askOpen}
                             onClick={() => setAskOpen(!askOpen)}
                           >
@@ -550,7 +550,7 @@ export function Today({
                       </div>
 
                       {asksHere && assistOn && (
-                        <div className="lg:hidden">
+                        <div className="md:hidden">
                           <Suspense fallback={null}>
                           <WhatNow
                             open={askOpen}
@@ -724,9 +724,9 @@ export function Today({
         The default is the order a morning is lived: catch the thought, tick
         the daily things, see where to be, read the one sentence the app has
         for you, then the work. On a phone everything is one column sorted by
-        that order; on a desk the work keeps the wide column and what helps
-        with it (What now, what is ahead, the inbox) sits beside it, in the
-        same relative order.
+        that order; on a tablet or a desk the work keeps the wide column and
+        what helps with it (What now, what is ahead, the inbox) sits beside
+        it, in the same relative order.
       */}
       <div className="today-layout">
         <div className="today-main">
@@ -738,11 +738,12 @@ export function Today({
         </div>
 
         <div className="today-side">
-          {/* On a desk there is room to answer What now without being asked:
-              making a stuck person first decide to ask is the decision they
-              were stuck on. On a phone it is the pill on the first group. */}
+          {/* On a tablet or a desk there is room to answer What now without
+              being asked: making a stuck person first decide to ask is the
+              decision they were stuck on. On a phone it is the pill on the
+              first group. */}
           {assistOn && (
-          <div className="hidden lg:block" style={{ order: -1 }}>
+          <div className="hidden md:block" style={{ order: -1 }}>
             <Suspense fallback={null}>
             <WhatNow
               alwaysOpen

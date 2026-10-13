@@ -525,7 +525,10 @@ textarea.well {
   display: none;
 }
 
-@media (width >= 64rem) {
+/* Two columns from tablet width: an upright iPad has room to show What now
+   and the inbox beside the work, and on a 704 px page the work column is
+   still wider than a phone's. */
+@media (width >= 48rem) {
   .today-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
@@ -725,9 +728,11 @@ textarea.well {
   color: var(--text-mid);
 }
 
-@media (width >= 64rem) {
-  /* A desk has the width: the row wraps instead of hiding pills off the edge
-     of a column that has room for them. */
+@media (width >= 48rem) {
+  /* A tablet or a desk has the width: the row wraps instead of hiding pills
+     off the edge of a column that has room for them. On an upright iPad the
+     scrolling row was cut mid-pill at the column's edge, which reads as a
+     rendering fault rather than as more to scroll. */
   .tick-pills {
     flex-wrap: wrap;
     overflow: visible;
@@ -759,7 +764,7 @@ textarea.well {
   flex-shrink: 0;
 }
 
-@media (width >= 64rem) {
+@media (width >= 48rem) {
   .chip-row {
     flex-wrap: wrap;
     overflow: visible;
@@ -3081,7 +3086,7 @@ label.arrange-row {
   scroll-padding-inline: 1.5rem;
 }
 
-@media (width >= 64rem) {
+@media (width >= 48rem) {
   .sheet-panel .chip-row {
     margin-inline: 0;
     padding-inline: 0;

@@ -109,7 +109,7 @@ export function FocusBar({ onFinish }: FocusBarProps) {
       // Above the tab bar, below a sheet. Fixed so it survives every screen.
       // Floats just over the tab bar at the same width and shape, so the two
       // read as one stack of controls instead of a slab half under a pill.
-      className="fx-glass fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+var(--sp-3)+var(--tab-bar)+var(--sp-2))] z-40 flex items-center gap-3 rounded-card border border-ink-600 px-4 py-2 lg:inset-x-0 lg:bottom-0 lg:rounded-none lg:border-x-0 lg:border-b-0"
+      className="fx-glass fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+var(--sp-3)+var(--tab-bar)+var(--sp-2))] z-40 flex items-center gap-3 rounded-card border border-ink-600 px-4 py-2 md:mx-auto md:max-w-160 lg:inset-x-0 lg:bottom-0 lg:mx-0 lg:max-w-none lg:rounded-none lg:border-x-0 lg:border-b-0"
     >
       <span
         // Polite and atomic: it changes every second, and announcing each tick

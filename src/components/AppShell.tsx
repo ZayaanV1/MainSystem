@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { followCapsule, moveCapsule, popClose, popIcon, popOpen } from '../lib/motion';
+import { useMediaQuery } from '../lib/useMediaQuery';
 
 /**
  * The frame the whole app sits in.
@@ -51,7 +52,12 @@ export function AppShell<T extends string>({
       {/* min-w-0 so a wide child (a long title, a table) shrinks instead of
           pushing the rail off screen. */}
       {/* data-recede: this column sinks back behind an open sheet (Phase B). */}
-      <div data-recede className="min-w-0 flex-1">{children}</div>
+      {/* overflow-x-clip: Courses and Settings slide their pages in from 28px
+          to the right, and for the 300 ms of the slide the page was wider
+          than the screen and could be dragged sideways. Clip, not hidden:
+          hidden would make this a scroll container and unstick every sticky
+          header inside it. */}
+      <div data-recede className="min-w-0 flex-1 overflow-x-clip">{children}</div>
 
       <TabBar current={current} items={items} onNavigate={onNavigate} />
     </div>
@@ -70,6 +76,12 @@ export function AppShell<T extends string>({
  * Five slots, because that is what fits a thumb's reach across a phone without
  * shrinking targets below the tap floor. The rest live behind More rather than
  * being squeezed in — a sixth cramped item helps nobody.
+ *
+ * From tablet width every destination gets its own slot and More goes away.
+ * An upright iPad has the width for all seven, and hiding Courses and
+ * Settings behind a menu there was a phone's compromise kept where it buys
+ * nothing. The bar is capped and centred rather than stretched edge to edge:
+ * across 800 px each tab was a 155 px pill with a small icon lost in it.
  */
 const PRIMARY = 4;
 
@@ -82,14 +94,22 @@ function TabBar<T extends string>({
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
 }) {
-  const [more, setMore] = useState(false);
+  const [moreState, setMore] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
   const scrim = useRef<HTMLDivElement>(null);
   const lit = useRef<HTMLSpanElement>(null);
   const bar = useRef<HTMLElement>(null);
 
-  const shown = items.slice(0, PRIMARY);
-  const rest = items.slice(PRIMARY);
+  const roomy = useMediaQuery('(min-width: 48rem)');
+  // Turning the iPad with More open must not leave its scrim over the page
+  // once the menu is gone.
+  useEffect(() => {
+    if (roomy) setMore(false);
+  }, [roomy]);
+  const more = moreState && !roomy;
+
+  const shown = roomy ? items : items.slice(0, PRIMARY);
+  const rest = roomy ? [] : items.slice(PRIMARY);
   const inRest = rest.some((i) => i.id === current);
   const litIndex = Math.max(-1, shown.findIndex((i) => i.id === current));
   const litSlot = litIndex >= 0 ? litIndex : inRest || more ? PRIMARY : -1;
@@ -107,7 +127,7 @@ function TabBar<T extends string>({
       const now = bar.current?.querySelectorAll<HTMLElement>('[data-slot]');
       if (lit.current) moveCapsule(lit.current, now?.[litSlot] ?? null, 'x', { instant: true });
     });
-  }, [litSlot]);
+  }, [litSlot, roomy]);
 
   // The More menu opens from its button and closes back into it, instead of
   // appearing and vanishing.
@@ -168,7 +188,7 @@ function TabBar<T extends string>({
         aria-label="Main"
         // Glass, floating clear of the bottom edge so content passes under it
         // on both sides; the one surface that earns a backdrop read.
-        className="vt-chrome fx-glass tab-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+var(--sp-3))] z-50 flex h-[var(--tab-bar)] items-stretch overflow-hidden rounded-pill border border-ink-600 p-1.5 lg:hidden"
+        className="vt-chrome fx-glass tab-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+var(--sp-3))] z-50 flex h-[var(--tab-bar)] items-stretch overflow-hidden rounded-pill border border-ink-600 p-1.5 md:mx-auto md:max-w-160 lg:hidden"
       >
         <span ref={lit} aria-hidden className="nav-lit pointer-events-none absolute top-1.5 bottom-1.5 left-0 rounded-pill" style={{ opacity: 0 }} />
         {shown.map((item) => {
@@ -195,30 +215,32 @@ function TabBar<T extends string>({
           );
         })}
 
-        <button
-          type="button"
-          data-slot
-          onClick={(e) => {
-            if (more) {
-              void closeMore();
-              return;
-            }
-            popIcon(e.currentTarget.querySelector('svg'));
-            setMore(true);
-          }}
-          aria-expanded={more}
-          className={[
-            'tab-btn relative z-10 flex flex-1 flex-col items-center justify-center gap-1 rounded-pill',
-            more || inRest ? 'text-text-hi' : 'text-text-low',
-          ].join(' ')}
-        >
-          <span aria-hidden>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-              <path d="M5 12h.01M12 12h.01M19 12h.01" />
-            </svg>
-          </span>
-          <span className="type-caption">More</span>
-        </button>
+        {!roomy && (
+          <button
+            type="button"
+            data-slot
+            onClick={(e) => {
+              if (more) {
+                void closeMore();
+                return;
+              }
+              popIcon(e.currentTarget.querySelector('svg'));
+              setMore(true);
+            }}
+            aria-expanded={more}
+            className={[
+              'tab-btn relative z-10 flex flex-1 flex-col items-center justify-center gap-1 rounded-pill',
+              more || inRest ? 'text-text-hi' : 'text-text-low',
+            ].join(' ')}
+          >
+            <span aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+                <path d="M5 12h.01M12 12h.01M19 12h.01" />
+              </svg>
+            </span>
+            <span className="type-caption">More</span>
+          </button>
+        )}
       </nav>
     </>
   );
@@ -254,8 +276,10 @@ function Rail<T extends string>({
       ref={rail}
       aria-label="Main"
       // Sticky rather than fixed: it scrolls with a short page and pins on a
-      // long one, without the content needing a matching margin.
-      className="vt-chrome sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-1 border-r border-ink-600 bg-ink-800 px-3 py-6 lg:flex"
+      // long one, without the content needing a matching margin. Narrower
+      // below 80rem: on an iPad on its side 240 px was a quarter of the
+      // screen, taken from Today's second column.
+      className="vt-chrome sticky top-0 hidden h-dvh w-52 shrink-0 xl:w-60 flex-col gap-1 border-r border-ink-600 bg-ink-800 px-3 py-6 lg:flex"
     >
       <div className="mb-6 px-3">
         <span className="type-h2 text-text-hi">Planner</span>

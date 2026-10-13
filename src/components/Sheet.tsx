@@ -286,8 +286,11 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
           // Docked: a column against the right edge rather than a slab across
           // the bottom. The border replaces the rounded top corners, which
           // read as "this rose from below" and would be a lie here.
+          // lg:max-h-none because the 90dvh cap below is a bottom sheet's: on
+          // a docked panel it stopped the column a tenth short of the bottom
+          // edge, with the page showing through under it.
           dock
-            ? 'lg:h-full lg:max-w-[34rem] lg:rounded-none'
+            ? 'lg:h-full lg:max-h-none lg:max-w-[34rem] lg:rounded-none'
             : '',
           // A sheet taller than the screen must scroll, not overflow. The
           // history grid and a long editor both exceed a phone easily.
