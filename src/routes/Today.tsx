@@ -54,7 +54,7 @@ import {
   assignmentDueAt,
   capture,
   completionKey,
-  deferAssignment,
+  moveAssignment,
   loadCalibrationPairs,
   setActualMinutes,
   completionSet,
@@ -105,9 +105,10 @@ export function Today({
   const userId = session?.user.id ?? '';
   const prefs = usePreferences();
   const [askingTime, setAskingTime] = useState<Assignment | null>(null);
-  // The last piece of work finished from this screen, offered back for a moment.
-  const [finished, setFinished] = useState<{ id: string; title: string } | null>(null);
-  const dismissFinished = useCallback(() => setFinished(null), []);
+  // The last thing done to a piece of work from this screen (finished, or
+  // moved to tomorrow), offered back for a moment.
+  const [undoable, setUndoable] = useState<{ message: string; undo: () => void } | null>(null);
+  const dismissUndo = useCallback(() => setUndoable(null), []);
   const [pairs, setPairs] = useState<{ estimated: number; actual: number }[]>([]);
 
   const [loaded, setLoaded] = useState<TodayData | null>(null);
@@ -368,7 +369,17 @@ export function Today({
     // silent. The title is included because after a swipe the row may
     // already be gone from the list.
     announce(finishing ? `${a.title} marked done` : `${a.title} reopened`);
-    setFinished(finishing ? { id: a.id, title: a.title } : null);
+    setUndoable(
+      finishing
+        ? {
+            message: `“${a.title}” marked done`,
+            undo: () => {
+              void setAssignmentStatus(a.id, 'todo');
+              announce(`${a.title} reopened`);
+            },
+          }
+        : null,
+    );
     // Offered, never demanded. Marking done has to stay free.
     setAskingTime(finishing && a.effort_minutes !== null ? a : null);
   }
@@ -568,8 +579,16 @@ export function Today({
                                 onToggleDone={() => finish(a)}
                                 onDefer={() => {
                                   work.hint(a.id, 'defer');
-                                  void deferAssignment(userId, a, addDays(todayKey(), 1));
                                   announce(`${a.title} moved to tomorrow`);
+                                  void moveAssignment(userId, a, addDays(todayKey(), 1)).then((back) =>
+                                    setUndoable({
+                                      message: `“${a.title}” moved to tomorrow`,
+                                      undo: () => {
+                                        void back();
+                                        announce(`${a.title} moved back`);
+                                      },
+                                    }),
+                                  );
                                 }}
                                 onOpen={() => setOpenAssignment(a)}
                               />
@@ -855,13 +874,12 @@ export function Today({
     {/* Outside main: main is transformed while pulling to refresh, and a
         fixed bar inside a transformed parent is fixed to that parent. */}
     <UndoBar
-      message={finished ? `“${finished.title}” marked done` : null}
-      onDismiss={dismissFinished}
+      message={undoable?.message ?? null}
+      onDismiss={dismissUndo}
       onUndo={() => {
-        if (!finished) return;
-        void setAssignmentStatus(finished.id, 'todo');
-        announce(`${finished.title} reopened`);
-        setFinished(null);
+        const u = undoable;
+        setUndoable(null);
+        u?.undo();
       }}
     />
     </>

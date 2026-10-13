@@ -194,7 +194,7 @@ export function AssignmentRow({
     ].filter((f): f is string => Boolean(f));
 
     return (
-      <div className="slip-ticket-wrap relative" data-row={assignment.id} data-block={cv ? true : undefined} style={tint}>
+      <div className="slip-ticket-wrap relative" data-row={assignment.id} data-drag-work={assignment.id} data-block={cv ? true : undefined} style={tint}>
         <SwipeRow
           onRight={onToggleDone}
           onLeft={!done && assignment.due_at ? onDefer : undefined}
@@ -296,7 +296,7 @@ export function AssignmentRow({
   }
 
   return (
-    <div className="relative" data-row={assignment.id}>
+    <div className="relative" data-row={assignment.id} data-drag-work={assignment.id}>
       {/* Swiping is native scrolling (SwipeRow); the actions it reveals are
           never announced, because the slip's own buttons carry the names. */}
       <SwipeRow

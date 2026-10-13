@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
@@ -8,13 +8,14 @@ import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
 import {
   courseVar,
+  moveAssignment,
   setAssignmentStatus,
   subtaskProgress,
   type Assignment,
   type Course,
   type TodayData,
 } from '../lib/planner';
-import { formatDay, todayKey } from '../lib/time';
+import { addDays, formatDay, localDayKey, todayKey, type DayKey } from '../lib/time';
 import { effortMinutes, groupWeek, type DayGroup } from '../lib/week';
 import { WeekStrip, weekTotal } from '../components/WeekStrip';
 import { BubbleWeek, LedgerWeek, StylePicker, TicketWeek, type StyleProps } from '../components/calendar/WeekStyles';
@@ -23,6 +24,9 @@ import { readCalendarStyle, writeCalendarStyle, type CalendarStyle } from '../li
 import { withTransition } from '../lib/transition';
 import { useNow } from '../lib/useNow';
 import { SheetPresence } from '../components/Sheet';
+import { UndoBar } from '../components/UndoBar';
+import { useDragToDay } from '../lib/useDragToDay';
+import { useAuth } from '../lib/auth';
 
 // Loaded on the tap: the block arithmetic is not needed to draw the week.
 const PlanBlocks = lazy(() => import('./PlanBlocks').then((m) => ({ default: m.PlanBlocks })));
@@ -57,6 +61,91 @@ export function Week({
 }) {
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
   const [planning, setPlanning] = useState(false);
+
+  /*
+   * Work dragged to another day (lib/useDragToDay.ts): long-press on a
+   * phone, drag with a mouse. The move keeps its time of day, and the undo
+   * bar takes it back exactly, deferral record and all.
+   */
+  const { session } = useAuth();
+  const page = useRef<HTMLElement>(null);
+  const [moved, setMoved] = useState<{ message: string; undo: () => Promise<void> } | null>(null);
+  /*
+   * Selecting several pieces of work to move or finish together. While
+   * selecting, a tap on a row picks it instead of opening it (or ticking
+   * it), and one undo takes the whole batch back.
+   */
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const root = page.current;
+    if (!root || !selecting) return;
+    const onClick = (e: MouseEvent) => {
+      const row = (e.target as Element).closest<HTMLElement>('[data-drag-work]');
+      if (!row || !root.contains(row)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const id = row.dataset.dragWork as string;
+      setPicked((p) => {
+        const next = new Set(p);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    };
+    root.addEventListener('click', onClick, true);
+    return () => root.removeEventListener('click', onClick, true);
+  }, [selecting]);
+  // The rows are drawn by five different styles; the mark goes on each one's
+  // root, whichever style drew it.
+  useLayoutEffect(() => {
+    page.current?.querySelectorAll<HTMLElement>('[data-drag-work]').forEach((el) => {
+      el.toggleAttribute('data-picked', selecting && picked.has(el.dataset.dragWork as string));
+      el.toggleAttribute('data-selecting', selecting);
+    });
+  });
+  const stopSelecting = () => {
+    setSelecting(false);
+    setPicked(new Set());
+  };
+
+  async function moveAll(day: DayKey) {
+    if (!session) return;
+    const chosen = (data?.assignments ?? []).filter((a) => picked.has(a.id));
+    const list = chosen.filter((a) => !(a.due_at && localDayKey(new Date(a.due_at)) === day));
+    const already = chosen.length - list.length;
+    const undos = await Promise.all(list.map((a) => moveAssignment(session.user.id, a, day)));
+    stopSelecting();
+    if (list.length)
+      setMoved({
+        message: `${list.length} moved to ${day === todayKey() ? 'today' : formatDay(day)}${already ? `, ${already} already there` : ''}`,
+        undo: async () => {
+          for (const u of undos) await u();
+        },
+      });
+  }
+
+  async function finishAll() {
+    const list = (data?.assignments ?? []).filter((a) => picked.has(a.id) && a.status !== 'done');
+    await Promise.all(list.map((a) => setAssignmentStatus(a.id, 'done')));
+    stopSelecting();
+    if (list.length)
+      setMoved({
+        message: `${list.length} marked done`,
+        undo: async () => {
+          await Promise.all(list.map((a) => setAssignmentStatus(a.id, 'todo')));
+        },
+      });
+  }
+
+  useDragToDay(page, (id, day) => {
+    const a = data?.assignments.find((x) => x.id === id);
+    if (!a || !session) return;
+    if (a.due_at && localDayKey(new Date(a.due_at)) === day) return;
+    void moveAssignment(session.user.id, a, day).then((undo) =>
+      setMoved({ message: `“${a.title}” moved to ${day === todayKey() ? 'today' : formatDay(day)}`, undo }),
+    );
+  });
   const [style, setStyle] = useState<CalendarStyle>(readCalendarStyle);
   const now = useNow();
 
@@ -127,7 +216,7 @@ export function Week({
     grouping.days.every((d) => d.assignments.length === 0 && d.events.length === 0);
 
   return (
-    <main className="page-frame">
+    <main ref={page} className="page-frame">
       {/*
         One header row: the title, the range with the week's load, and the five
         styles as glyphs (the UI overview). The picker with its labels was
@@ -142,7 +231,14 @@ export function Week({
             {total > 0 && ` · ${total >= 60 ? `${Math.round(total / 6) / 10} h` : `${total} min`} of work`}
           </p>
         </div>
-        <StylePicker value={style} onChange={changeStyle} compact />
+        <div className="flex shrink-0 items-center gap-2">
+          {data && data.assignments.some((a) => a.status !== 'done') && (
+            <Button variant="quiet" size="sm" aria-pressed={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+              {selecting ? 'Cancel' : 'Select'}
+            </Button>
+          )}
+          <StylePicker value={style} onChange={changeStyle} compact />
+        </div>
       </header>
 
       {/* The shape of the week, and the way to move through it. */}
@@ -166,6 +262,43 @@ export function Week({
           </Suspense>
         )}
       </SheetPresence>
+
+      {selecting && (
+        <div className="bulk-bar enter-fade" role="toolbar" aria-label="Selected work">
+          <span className="bulk-count" aria-live="polite">
+            {picked.size ? `${picked.size} selected` : 'Tap work to select it'}
+          </span>
+          {picked.size > 0 && (
+            <>
+              <Button variant="quiet" size="sm" onClick={() => void moveAll(addDays(todayKey(), 1))}>
+                Tomorrow
+              </Button>
+              <label className="btn btn-quiet bulk-date">
+                Pick a day
+                <input
+                  type="date"
+                  aria-label="Move the selected work to a day"
+                  min={todayKey()}
+                  onChange={(e) => e.target.value && void moveAll(e.target.value as DayKey)}
+                />
+              </label>
+              <Button variant="primary" size="sm" onClick={() => void finishAll()}>
+                Mark done
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      <UndoBar
+        message={moved?.message ?? null}
+        onDismiss={() => setMoved(null)}
+        onUndo={() => {
+          const m = moved;
+          setMoved(null);
+          void m?.undo();
+        }}
+      />
 
       {courses.length > 0 && (
         <div className="chip-row mb-6" role="group" aria-label="Show one course">

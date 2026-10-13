@@ -648,32 +648,52 @@ export async function addEvent(
  * Six pushes over six months is a task you keep meaning to get to; six in a
  * week is a task that is blocked, and only dated rows can tell those apart.
  */
-export async function deferAssignment(
-  userId: string,
-  assignment: Assignment,
-  toDay: DayKey,
-): Promise<void> {
-  const fromDay = assignment.due_at ? localDayKey(new Date(assignment.due_at)) : null;
-
-  // The time of day is preserved. A task due at 09:00 that moves to tomorrow
-  // is still due at 09:00, and silently resetting it to end-of-day would move
-  // the deadline further than the tap asked for.
+/**
+ * The same deadline on another day.
+ *
+ * The time of day is preserved. A task due at 09:00 that moves to tomorrow
+ * is still due at 09:00, and silently resetting it to end-of-day would move
+ * the deadline further than the tap asked for.
+ */
+function dueOnDay(assignment: Assignment, toDay: DayKey): string | null {
   const time = assignment.due_at && assignment.due_has_time
     ? localHourMinute(new Date(assignment.due_at))
     : null;
+  return time ? wallClockToUTC(toDay, time.hour, time.minute).toISOString() : assignmentDueAt(toDay, null);
+}
 
-  await enqueue('assignments', 'update', {
-    due_at: time
-      ? wallClockToUTC(toDay, time.hour, time.minute).toISOString()
-      : assignmentDueAt(toDay, null),
-  }, { id: assignment.id });
-
-  await enqueue('deferrals', 'insert', {
-    user_id: userId,
-    assignment_id: assignment.id,
-    from_day: fromDay,
-    to_day: toDay,
-  });
+/**
+ * Moves work to another day by hand (dragged there), and returns how to take
+ * the move back.
+ *
+ * Later is a deferral and is recorded as one, the same row the Defer action
+ * writes, so the stuck-work reading sees it. Earlier is not: pulling work
+ * forward is the opposite of putting it off. Undo restores the deadline
+ * exactly and removes the deferral it wrote, so a mis-drop leaves no trace.
+ */
+export async function moveAssignment(
+  userId: string,
+  assignment: Assignment,
+  toDay: DayKey,
+): Promise<() => Promise<void>> {
+  const fromDay = assignment.due_at ? localDayKey(new Date(assignment.due_at)) : null;
+  const before = assignment.due_at;
+  await enqueue('assignments', 'update', { due_at: dueOnDay(assignment, toDay) }, { id: assignment.id });
+  let deferral: string | null = null;
+  if (fromDay && toDay > fromDay) {
+    deferral = crypto.randomUUID();
+    await enqueue('deferrals', 'insert', {
+      id: deferral,
+      user_id: userId,
+      assignment_id: assignment.id,
+      from_day: fromDay,
+      to_day: toDay,
+    });
+  }
+  return async () => {
+    await enqueue('assignments', 'update', { due_at: before }, { id: assignment.id });
+    if (deferral) await enqueue('deferrals', 'delete', {}, { id: deferral });
+  };
 }
 
 /**

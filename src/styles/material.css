@@ -1455,6 +1455,122 @@ button.chip:active {
   opacity: 0.4;
 }
 
+/* ---- dragging work to another day (lib/useDragToDay.ts) ----------------------
+   The row lifts into a ghost that follows the pointer; the original stays
+   in place, faded, so its old day is still readable; the day under the
+   pointer is outlined. A long press must not select text or open the
+   system menu on the row. */
+[data-drag-work] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+[data-drag-work][data-dragging] {
+  opacity: 0.35;
+}
+
+.drag-ghost {
+  position: fixed;
+  z-index: 90;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0.95;
+  transform: rotate(-1.5deg) scale(1.02);
+  filter: drop-shadow(0 18px 28px var(--shadow-drop));
+}
+
+[data-drop-over] {
+  border-radius: var(--r-card);
+  outline: 2px dashed var(--accent-2-lit);
+  outline-offset: 4px;
+}
+
+:root[data-dragging-work] {
+  cursor: grabbing;
+}
+
+/* ---- selecting several pieces of work (Week) ---------------------------------
+   A picked row is ringed in phthalo with a tick at its corner; the bar
+   sits where the undo bar does, above the tab bar. */
+[data-drag-work][data-selecting] {
+  position: relative;
+  cursor: pointer;
+}
+
+[data-drag-work][data-picked] {
+  border-radius: var(--r-card);
+  outline: 2px solid var(--accent-2-lit);
+  outline-offset: 3px;
+}
+
+[data-drag-work][data-picked]::after {
+  content: '\2713';
+  position: absolute;
+  top: -0.5rem;
+  right: -0.5rem;
+  z-index: 3;
+  display: grid;
+  width: 1.375rem;
+  height: 1.375rem;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--accent-2-mid);
+  box-shadow: 0 0 0 2px var(--ink-900);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--on-accent-2);
+}
+
+.bulk-bar {
+  position: fixed;
+  inset-inline: 1rem;
+  bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1.5rem + var(--focus-bar-h, 0px));
+  z-index: 41;
+  display: flex;
+  max-width: 34rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline: auto;
+  padding: 0.5rem 0.5rem 0.5rem 1.125rem;
+  border-radius: 1.5rem;
+  background: var(--ink-700);
+  box-shadow: inset 0 1px 0 var(--specular), var(--shadow-lg);
+}
+
+@media (width >= 64rem) {
+  .bulk-bar {
+    bottom: calc(1.5rem + var(--focus-bar-h, 0px));
+  }
+}
+
+.bulk-count {
+  min-width: 0;
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+/* A date input dressed as a button: the native picker opens on tap. */
+.bulk-date {
+  position: relative;
+  min-height: 2.25rem;
+  overflow: hidden;
+  padding-inline: 0.875rem;
+  font-size: 0.8125rem;
+}
+
+.bulk-date input {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 /* ---- the command palette (cmd/ctrl+K) -----------------------------------------
    Centred near the top, where the eye already is on a laptop; one field and
    a list that the arrow keys move through. */

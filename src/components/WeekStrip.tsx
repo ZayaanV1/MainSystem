@@ -72,6 +72,7 @@ export function WeekStrip({
             key={group.day}
             type="button"
             className="ws-day"
+            data-drop-day={group.day}
             aria-current={isToday ? 'date' : undefined}
             aria-label={`${isToday ? 'Today, ' : ''}${WEEKDAY_LONG[date.getUTCDay()]} ${date.getUTCDate()}, ${spoken}`}
             onClick={() => onJump(group.day)}

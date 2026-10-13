@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { readTitle } from '../lib/blocks';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Chip } from '../components/Chip';
@@ -9,6 +9,7 @@ import {
   EVENT_WINDOW_DAYS,
   courseVar,
   loadEvents,
+  moveAssignment,
   setAssignmentStatus,
   subtaskProgress,
   type Assignment,
@@ -16,7 +17,10 @@ import {
   type PlannerEvent,
   type TodayData,
 } from '../lib/planner';
-import { addDays, formatDay, todayKey, type DayKey } from '../lib/time';
+import { addDays, formatDay, localDayKey, todayKey, type DayKey } from '../lib/time';
+import { useDragToDay } from '../lib/useDragToDay';
+import { useAuth } from '../lib/auth';
+import { UndoBar } from '../components/UndoBar';
 import { buildMonth, load, monthLabel, shiftMonth, startOfMonth, type MonthCell } from '../lib/month';
 
 /**
@@ -58,6 +62,21 @@ export function Month({
   initialDay?: DayKey | null;
 }) {
   const today = todayKey();
+
+  // Work dragged from the day's list onto another day's tile, with undo, as
+  // in Week (lib/useDragToDay.ts).
+  const { session } = useAuth();
+  const page = useRef<HTMLElement>(null);
+  const [moved, setMoved] = useState<{ message: string; undo: () => Promise<void> } | null>(null);
+  useDragToDay(page, (id, day) => {
+    const a = data?.assignments.find((x) => x.id === id);
+    if (!a || !session) return;
+    if (a.due_at && localDayKey(new Date(a.due_at)) === day) return;
+    void moveAssignment(session.user.id, a, day as DayKey).then((undo) =>
+      setMoved({ message: `“${a.title}” moved to ${day === todayKey() ? 'today' : formatDay(day as DayKey)}`, undo }),
+    );
+  });
+
   const [anchor, setAnchor] = useState<DayKey>(startOfMonth(initialDay ?? today));
   const [selected, setSelected] = useState<DayKey | null>(initialDay ?? today);
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
@@ -130,7 +149,7 @@ export function Month({
   }
 
   return (
-    <main className="page-frame">
+    <main ref={page} className="page-frame">
       {/*
         The month as the heading, the year beside it, and the three ways to
         move in one capsule on the right. At 375 px the masthead-size name, the
@@ -241,6 +260,15 @@ export function Month({
           </div>
         </section>
       )}
+      <UndoBar
+        message={moved?.message ?? null}
+        onDismiss={() => setMoved(null)}
+        onUndo={() => {
+          const m = moved;
+          setMoved(null);
+          void m?.undo();
+        }}
+      />
     </main>
   );
 }
@@ -293,6 +321,7 @@ function DayCell({
       aria-pressed={selected}
       aria-label={`${formatDay(cell.day)}, ${description}`}
       data-out={cell.inMonth ? undefined : true}
+      data-drop-day={cell.day}
       className={[
         'day-tile',
         'flex aspect-square flex-col items-center justify-center gap-1.5',

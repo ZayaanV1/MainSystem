@@ -239,7 +239,7 @@ function Column({
           data-edge={edge}
           style={vars({ '--top': Math.min(Math.max(at, 0), span * 60) })}
         >
-          <div className="hours-flag">
+          <div className="hours-flag" data-drag-work={m.kind === 'due' ? m.assignment.id : undefined}>
             {m.kind === 'due' ? (
               <>
                 <DueToggle a={m.assignment} onToggle={() => props.onToggle(m.assignment)} />
@@ -321,7 +321,7 @@ function AllDay({ items, props }: { items: Item[]; props: StyleProps }) {
             <b className="hours-title">{it.headline}</b>
           </div>
         ) : (
-          <div key={it.id} className="hours-flag" data-static>
+          <div key={it.id} className="hours-flag" data-static data-drag-work={it.assignment.id}>
             <DueToggle a={it.assignment} onToggle={() => props.onToggle(it.assignment)} />
             <button
               type="button"

@@ -373,7 +373,7 @@ function BubbleEvent({ item, showSource }: { item: EventItem; showSource: boolea
 function BubbleDue({ item, onToggle, onOpen }: { item: DueItem; onToggle: () => void; onOpen: () => void }) {
   const c = clock(item.at);
   return (
-    <div className="bubble-row">
+    <div className="bubble-row" data-drag-work={item.assignment.id}>
       <div className="bubble-time blk-num">
         {item.timed ? (
           <>
@@ -488,7 +488,7 @@ function TicketEvent({ item }: { item: EventItem }) {
 function TicketDue({ item, onToggle, onOpen }: { item: DueItem; onToggle: () => void; onOpen: () => void }) {
   const c = clock(item.at);
   return (
-    <div className="ticket-wrap">
+    <div className="ticket-wrap" data-drag-work={item.assignment.id}>
       <article className="ticket" data-block style={tint(item.course)}>
         <div className="ticket-stub blk-num">
           <small>Due</small>
@@ -644,7 +644,7 @@ function LedgerDue({
 }) {
   const c = clock(item.at);
   return (
-    <li className="ledger-row blk-enter" data-block style={tint(item.course, { '--i': i })}>
+    <li className="ledger-row blk-enter" data-block data-drag-work={item.assignment.id} style={tint(item.course, { '--i': i })}>
       <div className="ledger-time blk-num">
         {item.timed ? (
           <>
