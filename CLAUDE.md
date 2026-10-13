@@ -1336,13 +1336,22 @@ browser; run it before a push that touches a flow.
   `page.goto` passed while proving nothing.
 - **Known failures are `test.fail` against a bug id.** The suite stays green
   while the bug is open and turns red the day it is fixed, so the mark is
-  removed, not forgotten. Open: BUG-002 (one failed chunk download blanks
-  Today until a reload), BUG-003 (dark `--text-low` at 4.14:1 on raised
-  surfaces; the palette test never checks `--ink-700`), BUG-004 (the month
-  grid has no rows or cells). All three proposed, not built.
-- **Accessibility runs axe on nine screens in both themes.** It found
-  BUG-003 and BUG-004 on its first run; neither shows to a sighted person
-  in light mode.
+  removed, not forgotten. None open: the first run's four bugs are fixed.
+- **Accessibility runs axe on nine screens in both modes, and Today in all
+  ten themes.** It found BUG-003 and BUG-004 on its first run; neither shows
+  to a sighted person in light mode.
+- **Code is loaded with `lazyRetry`, never `lazy`** (`src/lib/lazyRetry.tsx`).
+  React's lazy() keeps a failed import for the session, and one failed
+  download of the editor blanked all of Today (BUG-002). Each lazy piece now
+  fails on its own with Try again. Chromium also remembers a failed module
+  fetch, so the same address imported again rejects without a request: the
+  retry imports the failed file under a fresh `?retry=N` (Safari names no
+  file, so it reloads while online).
+- **`--text-low` is held on `--ink-700` too.** Four palettes were 4.28-4.34:1
+  on the raised surface the tab bar and pills sit on (BUG-003); the palette
+  test never checked it. Fixed in every copy of each theme.
+- **The month is a labelled group, not a grid** (BUG-004): role=grid promised
+  arrow keys and rows of cells it never had.
 
 ### Bugs found by verifying rather than assuming
 

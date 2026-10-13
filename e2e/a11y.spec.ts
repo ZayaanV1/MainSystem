@@ -21,28 +21,11 @@ const screens: { name: string; open: (page: import('@playwright/test').Page) => 
   },
 ];
 
-/**
- * Known failures, each tied to its bug in e2e/BUGS.md. test.fail() keeps
- * the suite green while they are open and turns red the moment one is fixed,
- * so the entry gets deleted rather than forgotten.
- */
-const KNOWN: Record<string, string> = {
-  'light Month': 'BUG-004: the month grid has buttons where rows and cells should be',
-  'dark Month': 'BUG-003 and BUG-004',
-  'dark Today': 'BUG-003: --text-low on raised surfaces is 4.14:1 in dark',
-  'dark Week': 'BUG-003',
-  'dark Search': 'BUG-003',
-  'dark Editor': 'BUG-003',
-  'dark First run': 'BUG-003',
-};
-
 for (const theme of ['light', 'dark'] as const) {
   test.describe(`Accessibility, ${theme}`, () => {
     test.use({ colorScheme: theme });
     for (const s of screens) {
       test(`${s.name} has no WCAG A or AA violations`, async ({ page }) => {
-        const known = KNOWN[`${theme} ${s.name}`];
-        test.fail(!!known, known);
         await s.open(page);
         // Let entrance motion finish so contrast is measured on the settled screen.
         await page.waitForTimeout(600);
@@ -50,4 +33,21 @@ for (const theme of ['light', 'dark'] as const) {
       });
     }
   });
+}
+
+// Every theme, in both modes. The palette test checks token pairs; the tab
+// bar is glass, composited over the page, so only the rendered screen shows
+// the contrast its labels really get (BUG-003 was 4.14:1 there, 4.29:1 on the
+// token alone).
+for (const skin of ['cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast'] as const) {
+  for (const theme of ['light', 'dark'] as const) {
+    test.describe(`Theme ${skin}, ${theme}`, () => {
+      test.use({ colorScheme: theme });
+      test('Today has no WCAG A or AA violations', async ({ page }) => {
+        await openToday(page, `?skin=${skin}`);
+        await page.waitForTimeout(600);
+        expect(await axeViolations(page)).toEqual([]);
+      });
+    });
+  }
 }

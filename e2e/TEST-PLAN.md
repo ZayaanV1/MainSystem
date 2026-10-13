@@ -37,7 +37,8 @@ inside a test, never with `page.goto`, or the check proves nothing.
 | F04-H1 | Edit work | happy | a quick due chip moves it | today | pass |
 | F04-N1 | Delete work | negative | one tap does not delete; two do | today | pass |
 | F04-E1 | Edit work | edge: reload | the link to the work reopens it | today | pass |
-| F04-E2 | Edit work | edge: its code fails to load | Today stays usable, a retry works | resilience | known fail (BUG-002) |
+| F04-E2 | Edit work | edge: its code fails to load | Today stays usable, Try again opens it, Close dismisses | resilience | pass (was BUG-002) |
+| F04-E3 | Any screen | edge: its code fails to load | the tab bar stays, Try again loads it | resilience | pass |
 | F05-H1 | Syllabus | happy | read, shown for checking, then added | plan | pass |
 | F05-N1 | Syllabus | negative: not confirmed | nothing on Week (rule 6) | plan | pass |
 | F06-H1 | Typed deadlines | happy | previewed, flags an assumed year | plan | pass |
@@ -57,12 +58,13 @@ inside a test, never with `page.goto`, or the check proves nothing.
 | T-E3 | Time | edge: 11:58 p.m. | still Wednesday, though Thursday in UTC | time | pass |
 | D-H1 | Command palette (desktop) | happy | Cmd/Ctrl+K, "week", Enter | keyboard.desktop | pass |
 | D-H2 | Drag to reschedule (desktop) | happy | dragged to Saturday, Undo restores Thursday | keyboard.desktop | pass |
-| A-1 | Accessibility | WCAG 2.1 AA, 9 screens, light and dark | no violations | a11y | 11 pass, 7 known fail (BUG-003, BUG-004) |
+| A-1 | Accessibility | WCAG 2.1 AA, 9 screens, light and dark | no violations | a11y | pass (was BUG-003, BUG-004) |
+| A-2 | Accessibility | Today in all five themes, light and dark | no violations | a11y | pass |
 
-**Totals, 13 Oct:** 50 tests, all green across three consecutive runs.
-That counts the 8 known failures, which are marked `test.fail` against their
-bug and pass only while the bug is still there. 1 S2 found and fixed; 3 S3
-open and proposed.
+**Totals, 13 Oct:** 62 tests, all green. The first run found one S2 and three
+S3 bugs (e2e/BUGS.md); all four are fixed. A bug that is found but not yet
+fixed gets a `test.fail` against its id: green while the bug is open, red the
+day it is fixed, so the mark is removed rather than forgotten.
 
 Not yet automated: long-press drag on a real touch screen, the syllabus photo
 and PDF paths, notifications, and the Abood chat (it needs the model).

@@ -48,11 +48,19 @@ of the session, until Reload.
 Evidence: `e2e/resilience.spec.ts` (marked `test.fail` until fixed).
 Also: the idle warm-up in `src/routes/Today.tsx` calls `void load()` for six
 sheets with no catch, so offline each one is an uncaught rejection.
-Suggested fix, about an hour: a `lazy` wrapper that retries the import on the
-next render instead of keeping the failure; the editor sheet in its own error
-boundary so a failure costs the sheet, not Today; `.catch(() => {})` on the
-warm-up.
-Status: open. Proposed, not built.
+Status: fixed, 13 Oct. `src/lib/lazyRetry.tsx` replaces every `lazy()`
+(20 of them). Each lazily loaded screen or sheet carries its own boundary for
+download failures only; it shows "Couldn't load this" with Try again and, for
+a sheet, Close; any other error is thrown on to the boundary above.
+
+The retry had a second bug inside it, found by measuring rather than
+assuming: Chromium remembers a module whose fetch failed, so importing the
+same address again rejects at once without a request. Try again therefore
+imports the failed file's address (read from the error) under a fresh
+`?retry=N`. Safari does not name the file, so there it reloads while online
+and keeps the bar while offline. The warm-up catches its own failures.
+Tests: `e2e/resilience.spec.ts` (a sheet, Close, and a whole screen),
+`src/lib/lazyRetry.test.ts` (each browser's wording).
 
 ### BUG-003: Low-emphasis text fails contrast on raised surfaces in dark mode
 
@@ -73,11 +81,14 @@ and the first run (marked `test.fail`).
 Suspected cause: `tests/palette.test.ts` checks `--text-low` on the ground
 (`--ink-900`) and the card surface (`--ink-800`), never on the raised surface
 (`--ink-700`) that the tab bar and pills sit on.
-Suggested fix: dark `--text-low` #8e8072 to #958778, the smallest step that
-clears 4.5:1 on both (4.54 and 4.71), plus a palette-test pair for
-`--text-low` on `--ink-700` across all ten themes. That test will report any
-other theme with the same gap.
-Status: open. Proposed, not built (a token change, so it is yours to approve).
+Status: fixed, 13 Oct, with the owner's approval. The new palette-test pairs
+(`--text-low` and `--text-mid` on `--ink-700`, all ten themes) found four
+palettes short, not one: Cloisonné, Letterpress and Fjord dark, Fjord light
+(4.28-4.34:1). Each `--text-low` moved the smallest step toward its
+`--text-mid` that clears 4.6:1; Cloisonné dark went to #958778 so its glass
+tab bar (#25221d) clears 4.5 too. Every copy of each theme was changed
+(applied, previewed, and Fjord light's system-preference block). axe now runs
+Today in all ten themes as well as nine screens in both modes, all clean.
 
 ### BUG-004: The month grid's buttons are not in rows and cells
 
@@ -90,10 +101,10 @@ contain `gridcell`s, so a screen reader can move by week and by day.
 Actual: the day buttons are direct children of the grid. axe:
 aria-required-children, critical.
 Evidence: `e2e/a11y.spec.ts`, Month, light and dark (marked `test.fail`).
-Suggested fix: wrap each week in `role="row"` and each day in
-`role="gridcell"`, or drop `role="grid"` and keep the buttons as a plain
-labelled group, since arrow-key grid navigation is not implemented anyway.
-Status: open. Proposed, not built.
+Status: fixed, 13 Oct. The month is now a labelled group, not a grid: a
+grid promises arrow-key movement between cells, which it never had, and
+each day button already says its weekday, date and count. Real grid
+navigation would be a keyboard feature of its own.
 
 ## To check (not reproduced)
 

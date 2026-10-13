@@ -1,4 +1,5 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyRetry } from './lib/lazyRetry';
 import { AppShell, Page, type NavItem } from './components/AppShell';
 import { keepFeedsLive } from './lib/feeds';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -34,24 +35,24 @@ import { formatDay, localDayKey, todayKey, type DayKey } from './lib/time';
  * screen in the build.
  */
 // Signed-in opens, which are nearly all of them, never show this.
-const SignIn = lazy(() => import('./routes/SignIn').then((m) => ({ default: m.SignIn })));
-const NewPassword = lazy(() => import('./routes/SignIn').then((m) => ({ default: m.NewPassword })));
-const CommandPalette = lazy(() => import('./components/CommandPalette').then((m) => ({ default: m.CommandPalette })));
+const SignIn = lazyRetry(() => import('./routes/SignIn'), (m) => m.SignIn);
+const NewPassword = lazyRetry(() => import('./routes/SignIn'), (m) => m.NewPassword);
+const CommandPalette = lazyRetry(() => import('./components/CommandPalette'), (m) => m.CommandPalette);
 import { Today } from './routes/Today';
 
-const Plan = lazy(() => import('./routes/Plan').then((m) => ({ default: m.Plan })));
-const Week = lazy(() => import('./routes/Week').then((m) => ({ default: m.Week })));
-const Month = lazy(() => import('./routes/Month').then((m) => ({ default: m.Month })));
-const Chat = lazy(() => import('./routes/Chat').then((m) => ({ default: m.Chat })));
-const Search = lazy(() => import('./routes/Search').then((m) => ({ default: m.Search })));
-const AssignmentEditor = lazy(() => import('./routes/AssignmentEditor').then((m) => ({ default: m.AssignmentEditor })));
-const Settings = lazy(() => import('./routes/Settings').then((m) => ({ default: m.Settings })));
-const Specimen = lazy(() => import('./routes/Specimen').then((m) => ({ default: m.Specimen })));
+const Plan = lazyRetry(() => import('./routes/Plan'), (m) => m.Plan);
+const Week = lazyRetry(() => import('./routes/Week'), (m) => m.Week);
+const Month = lazyRetry(() => import('./routes/Month'), (m) => m.Month);
+const Chat = lazyRetry(() => import('./routes/Chat'), (m) => m.Chat);
+const Search = lazyRetry(() => import('./routes/Search'), (m) => m.Search);
+const AssignmentEditor = lazyRetry(() => import('./routes/AssignmentEditor'), (m) => m.AssignmentEditor);
+const Settings = lazyRetry(() => import('./routes/Settings'), (m) => m.Settings);
+const Specimen = lazyRetry(() => import('./routes/Specimen'), (m) => m.Specimen);
 
 // The first run happens once per account; nobody else should download it.
-const Onboarding = lazy(() => import('./routes/Onboarding').then((m) => ({ default: m.Onboarding })));
+const Onboarding = lazyRetry(() => import('./routes/Onboarding'), (m) => m.Onboarding);
 // Already in the first chunk, because Today renders it; static here too.
-const Triage = lazy(() => import('./routes/Triage').then((m) => ({ default: m.Triage })));
+const Triage = lazyRetry(() => import('./routes/Triage'), (m) => m.Triage);
 import { useHotkeys } from './lib/useHotkeys';
 import { FocusBar } from './components/FocusBar';
 import { FocusResult } from './components/FocusResult';

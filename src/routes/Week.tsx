@@ -1,4 +1,5 @@
-import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazyRetry } from '../lib/lazyRetry';
 import { flushSync } from 'react-dom';
 import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
@@ -29,7 +30,7 @@ import { useDragToDay } from '../lib/useDragToDay';
 import { useAuth } from '../lib/auth';
 
 // Loaded on the tap: the block arithmetic is not needed to draw the week.
-const PlanBlocks = lazy(() => import('./PlanBlocks').then((m) => ({ default: m.PlanBlocks })));
+const PlanBlocks = lazyRetry(() => import('./PlanBlocks'), (m) => m.PlanBlocks);
 
 /**
  * Week — seven days at a glance.

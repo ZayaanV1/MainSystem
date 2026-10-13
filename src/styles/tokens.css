@@ -43,7 +43,7 @@
 
   --text-hi: #f6efe6; /* the cream. Also the inverted fill. */
   --text-mid: #c2b4a4;
-  --text-low: #8e8072;
+  --text-low: #958778;
 
   /* ---- brand: ember and phthalo ----------------------------------------
      FILLED SURFACES ONLY. Neither of these may ever state a status.
@@ -166,7 +166,7 @@
      note below). --c-0 is the wash for an event with no course.
      -------------------------------------------------------------------- */
   --text-mid-rgb: 194 180 164;
-  --text-low-rgb: 142 128 114;
+  --text-low-rgb: 149 135 120;
   --c-0-rgb: var(--text-mid-rgb);
   --c-1-rgb: 138 155 184;
   --c-2-rgb: 155 184 154;
@@ -531,9 +531,9 @@
   --ink-500: #484656;
   --text-hi: #efeae0;
   --text-mid: #bdb8ae;
-  --text-low: #8c887f;
+  --text-low: #928e84;
   --text-mid-rgb: 189 184 174;
-  --text-low-rgb: 140 136 127;
+  --text-low-rgb: 146 142 132;
   --accent: #8aa5f2;
   --accent-lit: #a9bdf6;
   --accent-deep: #6f8de6;
@@ -773,9 +773,9 @@
   --ink-500: #3b4957;
   --text-hi: #e9eef2;
   --text-mid: #b2bec8;
-  --text-low: #7f8c97;
+  --text-low: #84919c;
   --text-mid-rgb: 178 190 200;
-  --text-low-rgb: 127 140 151;
+  --text-low-rgb: 132 145 156;
   --accent: #7fb2e5;
   --accent-lit: #a2c7ee;
   --accent-deep: #5f98d6;
@@ -813,9 +813,9 @@
     --ink-500: #b1bcc5;
     --text-hi: #1c2630;
     --text-mid: #45515c;
-    --text-low: #5f6c78;
+    --text-low: #5b6773;
     --text-mid-rgb: 69 81 92;
-    --text-low-rgb: 95 108 120;
+    --text-low-rgb: 91 103 115;
     --accent: #2c5d8f;
     --accent-lit: #3a70a8;
     --accent-deep: #204872;
@@ -853,9 +853,9 @@
   --ink-500: #b1bcc5;
   --text-hi: #1c2630;
   --text-mid: #45515c;
-  --text-low: #5f6c78;
+  --text-low: #5b6773;
   --text-mid-rgb: 69 81 92;
-  --text-low-rgb: 95 108 120;
+  --text-low-rgb: 91 103 115;
   --accent: #2c5d8f;
   --accent-lit: #3a70a8;
   --accent-deep: #204872;
@@ -1048,9 +1048,9 @@
   --ink-500: #473b30;
   --text-hi: #f6efe6;
   --text-mid: #c2b4a4;
-  --text-low: #8e8072;
+  --text-low: #958778;
   --text-mid-rgb: 194 180 164;
-  --text-low-rgb: 142 128 114;
+  --text-low-rgb: 149 135 120;
   --accent: #e2622c;
   --accent-lit: #f07a45;
   --accent-deep: #cf5522;
@@ -1184,9 +1184,9 @@
   --ink-500: #484656;
   --text-hi: #efeae0;
   --text-mid: #bdb8ae;
-  --text-low: #8c887f;
+  --text-low: #928e84;
   --text-mid-rgb: 189 184 174;
-  --text-low-rgb: 140 136 127;
+  --text-low-rgb: 146 142 132;
   --accent: #8aa5f2;
   --accent-lit: #a9bdf6;
   --accent-deep: #6f8de6;
@@ -1456,9 +1456,9 @@
   --ink-500: #3b4957;
   --text-hi: #e9eef2;
   --text-mid: #b2bec8;
-  --text-low: #7f8c97;
+  --text-low: #84919c;
   --text-mid-rgb: 178 190 200;
-  --text-low-rgb: 127 140 151;
+  --text-low-rgb: 132 145 156;
   --accent: #7fb2e5;
   --accent-lit: #a2c7ee;
   --accent-deep: #5f98d6;
@@ -1524,9 +1524,9 @@
   --ink-500: #b1bcc5;
   --text-hi: #1c2630;
   --text-mid: #45515c;
-  --text-low: #5f6c78;
+  --text-low: #5b6773;
   --text-mid-rgb: 69 81 92;
-  --text-low-rgb: 95 108 120;
+  --text-low-rgb: 91 103 115;
   --accent: #2c5d8f;
   --accent-lit: #3a70a8;
   --accent-deep: #204872;
@@ -1782,6 +1782,14 @@
       the cases where phthalo has to be read rather than sat on: a link, an
       active nav label, a 3px indicator. Reaching for --accent-2 in those
       places produces text that is invisible on the ground it sits on.
+
+   3. --text-low is held on the raised surface (--ink-700) too, not only on
+      the ground and the card. The tab labels and checklist pills sit there,
+      and four palettes measured 4.28-4.34:1 (13 Oct 2026, BUG-003): Cloisonné,
+      Letterpress and Fjord dark, Fjord light. Each was moved the smallest step
+      toward its --text-mid that clears 4.6:1. Cloisonné dark went a step
+      further, to #958778, because its glass tab bar composites to #25221d,
+      lighter than --ink-700: 4.54:1 there.
 
    Ember and --t-overdue are 28 degrees apart, the closest pair in the
    palette. They are separated by ROLE instead: ember only ever fills a

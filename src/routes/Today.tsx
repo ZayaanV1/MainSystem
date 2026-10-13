@@ -1,6 +1,5 @@
 import {
   Suspense,
-  lazy,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { lazyRetry } from '../lib/lazyRetry';
 import { Pressable } from '../components/Pressable';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { Button } from '../components/Button';
@@ -33,12 +33,12 @@ const loadTriage = () => import('./Triage');
 const loadHistory = () => import('./History');
 const loadChecklistSheet = () => import('./ChecklistSheet');
 const loadWhatNow = () => import('./WhatNow');
-const WhatNow = lazy(() => loadWhatNow().then((m) => ({ default: m.WhatNow })));
-const AssignmentEditor = lazy(() => loadEditor().then((m) => ({ default: m.AssignmentEditor })));
-const ChecklistEditor = lazy(() => loadChecklistEditor().then((m) => ({ default: m.ChecklistEditor })));
-const Triage = lazy(() => loadTriage().then((m) => ({ default: m.Triage })));
-const History = lazy(() => loadHistory().then((m) => ({ default: m.History })));
-const ChecklistSheet = lazy(() => loadChecklistSheet().then((m) => ({ default: m.ChecklistSheet })));
+const WhatNow = lazyRetry(loadWhatNow, (m) => m.WhatNow);
+const AssignmentEditor = lazyRetry(loadEditor, (m) => m.AssignmentEditor);
+const ChecklistEditor = lazyRetry(loadChecklistEditor, (m) => m.ChecklistEditor);
+const Triage = lazyRetry(loadTriage, (m) => m.Triage);
+const History = lazyRetry(loadHistory, (m) => m.History);
+const ChecklistSheet = lazyRetry(loadChecklistSheet, (m) => m.ChecklistSheet);
 import { LowBattery } from './LowBattery';
 import type { ChecklistItem } from '../lib/checklist';
 import { FOLDED_BY_DEFAULT, GROUP_ORDER, groupWork, type GroupId } from '../lib/todayGroups';
@@ -186,7 +186,9 @@ export function Today({
     if (!loaded || prefetched.current) return;
     prefetched.current = true;
     const fetchAll = () => {
-      for (const load of [loadWhatNow, loadEditor, loadChecklistSheet, loadChecklistEditor, loadTriage, loadHistory]) void load();
+      // A warm-up that fails is not an error: the sheet downloads again when it
+      // is opened, and says so if it still cannot (lib/lazyRetry.tsx).
+      for (const load of [loadWhatNow, loadEditor, loadChecklistSheet, loadChecklistEditor, loadTriage, loadHistory]) load().catch(() => {});
     };
     if ('requestIdleCallback' in window) window.requestIdleCallback(fetchAll, { timeout: 2000 });
     else setTimeout(fetchAll, 600);

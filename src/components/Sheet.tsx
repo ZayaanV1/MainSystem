@@ -48,6 +48,15 @@ export function SheetPresence({ children }: { children: ReactNode }) {
   return <Closing.Provider value={value}>{shown ? children : last.current}</Closing.Provider>;
 }
 
+/**
+ * The surrounding SheetPresence, for something standing in for a Sheet that
+ * has no exit to animate: it must call done() itself when closing, or
+ * SheetPresence holds it on screen for ever. Null outside a SheetPresence.
+ */
+export function useSheetPresence() {
+  return useContext(Closing);
+}
+
 interface SheetProps {
   open: boolean;
   onClose: () => void;

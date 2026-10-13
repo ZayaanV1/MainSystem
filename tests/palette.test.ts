@@ -328,6 +328,11 @@ const PAIRS: [fg: string, bg: string, floor: number][] = [
   ['text-hi', 'ink-900', 7],
   ['text-mid', 'ink-800', 4.5],
   ['text-low', 'ink-800', 4.5],
+  // The raised surface: sheets, the tab bar, the checklist pills. Unchecked
+  // until 13 Oct, when axe measured dark --text-low there at 4.14:1 on the tab
+  // labels (BUG-003): a floor held on two surfaces says nothing about a third.
+  ['text-mid', 'ink-700', 4.5],
+  ['text-low', 'ink-700', 4.5],
   ['on-accent', 'accent', 4.5],
   ['on-accent-2', 'accent-2', 4.5],
   ['on-accent-2', 'accent-2-mid', 4.5],

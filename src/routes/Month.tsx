@@ -215,7 +215,14 @@ export function Month({
         ))}
       </div>
 
-      <div className="mb-8 grid grid-cols-7 gap-1.5 px-4" role="grid" aria-label={monthLabel(anchor)}>
+      {/*
+        A labelled group, not role="grid". A grid promises arrow-key movement
+        between cells and must hold rows of gridcells; this held neither, and
+        axe called it critical (BUG-004). Each day is a button that already
+        says its weekday, date and count, so nothing is lost by not being a
+        grid. Making it one is a keyboard feature, not this fix.
+      */}
+      <div className="mb-8 grid grid-cols-7 gap-1.5 px-4" role="group" aria-label={monthLabel(anchor)}>
         {grid.weeks.flat().map((cell) => (
           <DayCell
             key={cell.day}

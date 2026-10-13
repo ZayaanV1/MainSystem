@@ -21,16 +21,21 @@ const BENIGN = [/ResizeObserver loop completed with undelivered notifications/];
  * response, whatever it set out to check. A screen can look right while
  * throwing underneath, and the error is usually the earlier warning.
  */
-export const test = base.extend<{ clockAt: Date; guard: void }>({
+export const test = base.extend<{ clockAt: Date; allowErrors: RegExp | null; guard: void }>({
   clockAt: [NOW, { option: true }],
+  /**
+   * Console errors a test causes on purpose, such as a download it blocks.
+   * One pattern, not a list: test.use() reads an array as [value, options].
+   */
+  allowErrors: [null, { option: true }],
   guard: [
-    async ({ page, clockAt }, use) => {
+    async ({ page, clockAt, allowErrors }, use) => {
       const problems: string[] = [];
       page.on('console', (m) => {
-        if (m.type() === 'error' && !BENIGN.some((r) => r.test(m.text()))) problems.push(`console: ${m.text()}`);
+        if (m.type() === 'error' && ![...BENIGN, ...(allowErrors ? [allowErrors] : [])].some((r) => r.test(m.text()))) problems.push(`console: ${m.text()}`);
       });
       page.on('pageerror', (e) => {
-        if (!BENIGN.some((r) => r.test(e.message))) problems.push(`uncaught: ${e.message}`);
+        if (![...BENIGN, ...(allowErrors ? [allowErrors] : [])].some((r) => r.test(e.message))) problems.push(`uncaught: ${e.message}`);
       });
       page.on('response', (r) => {
         if (r.status() >= 500) problems.push(`${r.status()} from ${r.url()}`);
