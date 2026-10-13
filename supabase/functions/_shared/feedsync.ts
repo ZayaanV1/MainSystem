@@ -1,4 +1,5 @@
 import type { FeedInstance } from './feed.ts';
+import { namesTheEvent } from './examTitle.ts';
 
 /**
  * Turning a freshly read feed into the smallest set of database changes.
@@ -209,10 +210,7 @@ export function normaliseCode(code: string | null | undefined): string | null {
  * calling it one would send a false night-before warning.
  */
 export function kindOf(title: string): EventKind {
-  if (/\b(midterm|final exam|exam|test)\b/i.test(title) &&
-      !/\b(practice|sample|due|available|seat|registration|deadline|accommodation)/i.test(title)) {
-    return 'exam';
-  }
+  if (namesTheEvent(title, /\b(midterm|final exam|exam|test)\b/i)) return 'exam';
   // Timetable exports mark lab sections with a standalone LAB, in capitals.
   if (/(^|[\s-])LAB\b/.test(title)) return 'lab';
   return 'other';

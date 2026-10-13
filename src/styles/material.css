@@ -287,6 +287,16 @@ textarea.well {
   color: var(--accent-2-lit);
 }
 
+.capture-read-title {
+  flex-basis: 100%;
+  order: -1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
 .capture-part {
   display: inline-flex;
   min-height: 2rem;

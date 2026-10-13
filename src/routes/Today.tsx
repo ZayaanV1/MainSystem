@@ -444,8 +444,9 @@ export function Today({
                 course_id: r.course?.id ?? null,
                 due_at: assignmentDueAt(r.day, r.time),
                 due_has_time: Boolean(r.time),
+                notes: r.original,
               })
-            : addEvent(userId, { title: r.title, kind: r.kind, day: r.day, time: r.time, course_id: r.course?.id ?? null })
+            : addEvent(userId, { title: r.title, kind: r.kind, day: r.day, time: r.time, course_id: r.course?.id ?? null, notes: r.original })
         }
       />
     ),

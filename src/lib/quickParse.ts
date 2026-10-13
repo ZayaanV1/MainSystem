@@ -1,4 +1,5 @@
 import { addDays, isoWeekday, type DayKey } from './time';
+import { namesTheEvent } from '../../supabase/functions/_shared/examTitle';
 
 /**
  * Plain-language capture, read on the device.
@@ -30,6 +31,11 @@ export interface QuickRead {
   course: CourseRef | null;
   /** Exams and presentations become events, which get the night-before escalation. */
   kind: 'work' | 'exam' | 'presentation';
+  /**
+   * What was typed, kept beside the title whenever the title is not the whole
+   * of it, so the wording the thought arrived in is never lost to the reading.
+   */
+  original: string | null;
 }
 
 const WEEKDAYS: Record<string, number> = {
@@ -42,9 +48,18 @@ const WEEKDAYS: Record<string, number> = {
   sun: 7, sunday: 7,
 };
 
+/*
+ * A month is its full name or its exact abbreviation, never any word that
+ * begins like one. The pattern used to be `(mar)[a-z]*`, which read "mark 3
+ * problems" as 3 March, "read novel 2 chapters" as 2 November and "decide 3
+ * topics" as 3 December, then cut those words out of the title.
+ */
 const MONTHS: Record<string, number> = {
-  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4, may: 5,
+  jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9, september: 9,
+  oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12,
 };
+const MONTH_NAMES = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join('|');
 
 const NUMBER_WORDS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7 };
 
@@ -75,9 +90,8 @@ function findDay(text: string, today: DayKey): { day: DayKey; span: Span } | nul
     if (day) return { day, span: [m.index, m.index + m[0].length] };
   }
 
-  const monthNames = Object.keys(MONTHS).join('|');
-  const monthFirst = new RegExp(`\\b(${monthNames})[a-z]*\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`);
-  const dayFirst = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${monthNames})[a-z]*\\b`);
+  const monthFirst = new RegExp(`\\b(${MONTH_NAMES})\\b\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`);
+  const dayFirst = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_NAMES})\\b`);
   if ((m = monthFirst.exec(lower))) {
     const day = nearestYear(today, MONTHS[m[1]], Number(m[2]));
     if (day) return { day, span: [m.index, m.index + m[0].length] };
@@ -106,14 +120,20 @@ function findDay(text: string, today: DayKey): { day: DayKey; span: Span } | nul
     if ((m[2] === 'sat' || m[2] === 'sun') && !m[1]) continue;
     const want = WEEKDAYS[m[2]];
     const now = isoWeekday(today);
-    const ahead = ((want - now + 7) % 7) || 7;
+    // "this tue" said on a Tuesday is today; a bare "tue" is next week's.
+    const ahead = ((want - now + 7) % 7) || (m[1]?.trim() === 'this' ? 0 : 7);
     // The leading word goes with the day: "lab due fri" leaves "Lab".
     return { day: addDays(today, ahead), span: [m.index, m.index + m[0].length] };
   }
   return null;
 }
 
-function findTime(text: string): { time: string; span: Span } | null {
+/**
+ * A clock time. "5pm" is always one. A bare "14:30" counts only after a word
+ * that makes it a time ("at 14:30", "by 9:00") or beside a day that was read:
+ * on its own, "read john 3:16" and "ratio 1:20" are not deadlines.
+ */
+function findTime(text: string, hasDay: boolean): { time: string; span: Span } | null {
   const lower = text.toLowerCase();
   let m: RegExpExecArray | null;
   if ((m = /\b(\d{1,2})(?::([0-5]\d))?\s*(am|pm|a\.m\.|p\.m\.)(?=\s|$|[,.;!?])/.exec(lower))) {
@@ -124,8 +144,10 @@ function findTime(text: string): { time: string; span: Span } | null {
     if (!pm && h === 12) h = 0;
     return { time: `${pad(h)}:${m[2] ?? '00'}`, span: [m.index, m.index + m[0].length] };
   }
-  if ((m = /\b([01]?\d|2[0-3]):([0-5]\d)\b/.exec(lower))) {
-    return { time: `${pad(Number(m[1]))}:${m[2]}`, span: [m.index, m.index + m[0].length] };
+  const clock = /(?:\b(at|by|before|until|due)\s+|@\s*)?\b([01]?\d|2[0-3]):([0-5]\d)\b/g;
+  while ((m = clock.exec(lower))) {
+    if (!m[1] && !m[0].includes('@') && !hasDay) continue;
+    return { time: `${pad(Number(m[2]))}:${m[3]}`, span: [m.index, m.index + m[0].length] };
   }
   if ((m = /\b(noon|midday|midnight)\b/.exec(lower))) {
     // A deadline "at midnight" means the end of that day, not its first minute.
@@ -200,7 +222,7 @@ export function readCapture(text: string, o: ReadOptions): QuickRead | null {
   if (raw.length < 3 || o.without?.date) return null;
 
   const dayHit = findDay(raw, o.today);
-  const timeHit = findTime(raw);
+  const timeHit = findTime(raw, Boolean(dayHit));
   if (!dayHit && !timeHit) return null;
 
   let day = dayHit?.day ?? o.today;
@@ -211,8 +233,19 @@ export function readCapture(text: string, o: ReadOptions): QuickRead | null {
   const spans = [dayHit?.span, timeHit?.span, courseHit?.span].filter((s): s is Span => Boolean(s));
   const title = titleWithout(raw, spans) || raw;
 
-  const lower = title.toLowerCase();
-  const kind = /\b(midterm|exam|final exam|finals)\b/.test(lower) ? 'exam' : /\bpresentation\b/.test(lower) ? 'presentation' : 'work';
+  // The sync's narrow rule: "study for midterm" is work, not an exam.
+  const kind = namesTheEvent(title, /\b(midterm|exam|final exam|finals)\b/i)
+    ? 'exam'
+    : namesTheEvent(title, /\bpresentation\b/i)
+      ? 'presentation'
+      : 'work';
 
-  return { title, day, time: timeHit?.time ?? null, course: courseHit?.course ?? null, kind };
+  return {
+    title,
+    day,
+    time: timeHit?.time ?? null,
+    course: courseHit?.course ?? null,
+    kind,
+    original: title === raw ? null : raw,
+  };
 }

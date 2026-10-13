@@ -115,6 +115,9 @@ export function CaptureBox({
           <span className="capture-read-label">
             {read.kind === 'work' ? 'Adds as work' : read.kind === 'exam' ? 'Adds as an exam' : 'Adds as a presentation'}
           </span>
+          {/* The title it will be saved under, since reading a date takes words
+              out of what was typed. What was typed is kept in its notes. */}
+          <span className="capture-read-title">{read.title}</span>
           <button
             type="button"
             className="capture-part hit-expand"

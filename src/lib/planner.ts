@@ -580,6 +580,8 @@ export async function addAssignment(
     effort_minutes?: number | null;
     /** Share of the final course grade. The syllabus importer supplies this. */
     weight_percent?: number | null;
+    /** Capture keeps the wording a read title was taken from here. */
+    notes?: string | null;
   },
 ): Promise<void> {
   await enqueue('assignments', 'insert', {
@@ -590,6 +592,7 @@ export async function addAssignment(
     due_has_time: fields.due_has_time ?? false,
     effort_minutes: fields.effort_minutes ?? null,
     weight_percent: fields.weight_percent ?? null,
+    notes: fields.notes?.trim() || null,
   });
 }
 

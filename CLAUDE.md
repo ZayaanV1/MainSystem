@@ -122,7 +122,8 @@ Streaks are no longer on this list; they are an opt-in module (rule 3). Notes ti
 
 The app has to look, move and feel like a product from Google or Apple. That is the point of the work, not polish saved for the end.
 
-- **Animation quality comes first.** Prefer `transform` and `opacity`, played by the browser (CSS or the Web Animations API) rather than a JavaScript loop, because they keep their shape while the screen is busy. Use clip-path, filters or other painted properties when they make the motion better and it stays smooth on a mid-range phone; judge it by watching it on a phone, not by a frame counter. Never animate layout (height, width, grid tracks, top/left): it is never the better animation. Formerly "Compositor only … never paint-heavy properties every frame"; changed Oct 2026 on the owner's word that the priority is good animation, not frame rate.
+- **Animation quality comes first.** Prefer `transform` and `opacity`, played by the browser (CSS or the Web Animations API) rather than a JavaScript loop, because they keep their shape while the screen is busy. Use clip-path, filters or other painted properties when they make the motion better and it stays smooth on a mid-range phone. Never animate layout (height, width, grid tracks, top/left): it is never the better animation. Formerly "Compositor only … never paint-heavy properties every frame"; changed Oct 2026 on the owner's word that the priority is good animation, not frame rate.
+- **Motion is judged on a real device, and claims about frame rate are measured there.** A dev-only frame meter (`?frames`) records frame intervals during a gesture or transition and reports the median and the worst 1%. A change that animates ships with numbers from the owner's ProMotion MacBook or iPhone, or it is marked unmeasured. Formerly "judge it by watching it on a phone, not by a frame counter", which contradicted the brief's demand for traces at the real refresh rate; changed 13 Oct 2026 on the owner's approval. A cloud session has no display and cannot measure 120 Hz at all, so the numbers have to come from the owner's hardware. The meter itself is not built yet: it is the next motion proposal, and until it exists every animation claim is "unmeasured".
 - **Safari holds JavaScript-driven animation to 60fps** by default ("Prefer Page Rendering Updates near 60fps", on the Mac and on iPhone, installed app included); native scrolling and browser-played animations are not held to it. That is why gestures ride native scrolling (`SwipeRow`, sheets) and motion goes through `lib/motion.ts`. Where JavaScript must move something every frame (a 2-D drag), drive it off frame timestamps, never a fixed per-frame step.
 - **A named motion system**, applied everywhere: a small set of physically plausible springs and easings with names, settling without overshoot on a press. Animations are interruptible — a tap mid-transition never stalls. Gestures follow the finger 1:1 and settle with momentum. Entrances are staged and exits are as considered as entrances (formerly "leaving is a cut"). Shared-element transitions carry an item from list to detail (`flyText`). The View Transitions API is for whole-screen changes and the appearance switch only: it covers the page with snapshots while it runs, so anything a finger is involved in, list to detail included, uses an interruptible animation instead.
 - **Touch first.** Hover transforms only behind `(hover: hover) and (pointer: fine)`. Presses scale in place, respond instantly, and never lift then dip or shift layout.
@@ -135,6 +136,8 @@ Formerly, design-system.md's direction "Instrument": restrained motion, no loopi
 ## Stack
 
 React + Vite + TypeScript + Tailwind, PWA · Supabase (Postgres, auth, RLS, edge functions) · Vercel · scheduled edge functions for the digest, feeds and check-ins · one swappable LLM module (Groq first, Gemini fallback) shared by the syllabus reader, task breakdown, briefing and chatbot.
+
+**Every text-only model path goes Groq first, Gemini behind it; documents and embeddings stay on Gemini.** Groq's chat models cannot read a PDF or a photo and Groq has no embedding model, so the syllabus reader and memory recall are Gemini's; the briefing, task breakdown, check-ins and chat are text and go to Groq first. Decided 13 Oct 2026: the audit found only chat routed this way, so the briefing and breakdown spent the Gemini quota that PDF reading and embeddings depend on, while Groq's 200,000 tokens a day went mostly unused. Moving them is part of the AI-paths fix batch, not yet built.
 
 Free tiers were the rule while this served one person, and they do not survive
 contact with many. One shared key funds every user's model calls unless an
@@ -149,6 +152,7 @@ design input, not an afterthought.
 
 - Dates: store UTC timestamps, render in the account's zone, compute "today" from the local date. (Was `America/Toronto` until the app became multi-user.)
 - **Every screen and every open item has a URL.** Navigation goes through history so the back gesture works everywhere, notifications and the share sheet can open a specific thing, and a list-to-detail transition has two real ends. Hand-rolled, no router dependency. Built 4 Oct 2026: `lib/route.ts` maps `/`, `/week`, `/month?day=`, `/settings/<page>` and `?work=<id>` / `?inbox=<id>`; every Sheet takes a history entry so Back closes it (`lib/history.ts` holds a push until any Back in flight lands); reminders link to their work and exam escalations to tomorrow in Month; a tapped notification routes an already-open window.
+- **A feature the owner's own phone cannot run is not built for it as though it could.** iOS Safari does not support the Web Share Target API for an installed web app, and web push on iOS shows no notification action buttons. Share-sheet capture and "Done" / "Snooze" on a notification are built for Android and desktop, where they work; on iOS, sharing into the app goes through an Apple Shortcut ("Add to Planner") posting to an authenticated endpoint, proposed on its own. A control that renders and does nothing on the primary device is rule 11's inert feature. Decided 13 Oct 2026.
 - **Grade tools compute exactly what is asked and show the arithmetic.** "What do I need on the final", what-if scenarios — never a colour for a good or bad mark, never a verdict. Formerly "no projection, no running average, no verdict", which blocked the tools themselves.
 - **Nothing important is hidden by default; the user may hide what they choose.** Customisation never deletes data — turning a module off hides it, turning it on restores everything. (The original brief said "nothing important is hidden behind a tap", which would have forbidden a Today the user arranges.)
 - Exact precision for anything summed (grade weights): store as numeric, don't accumulate float error.
@@ -1278,6 +1282,40 @@ would. Set it to the deployed URL when convenient.
 guard and the callout suppression), the photo option on the syllabus step,
 the badge on an installed PWA, and a real reset email end to end. All were
 checked in the sample harness at 375 x 812 and 1280 x 800.
+
+### Second audit, and capture that reads honestly — 13 Oct 2026
+
+A second read-only pass over `e409dbb`, run from a cloud session with no
+Supabase credentials, the live URL blocked by the network policy, and no phone
+or display: nothing in it was read from the live database, tested on iOS or
+measured at 120 Hz. Thirteen findings and four fix batches; the report is the
+artifact "Planner audit, 13 October" (2Jh5nwsaAxyQgXGLd474yg). The owner
+approved the three rule challenges (measured motion, Groq first for text,
+iOS-only limits) and batch 1.
+
+**Capture was inventing deadlines out of ordinary words.** The month patterns
+were `(mar)[a-z]*`, so any word that began like a month was one: "mark 3
+problems from ch 4" became "Problems from ch 4", due 3 March 2027; "read
+novel 2 chapters" was due 2 November; "decide 3 topics" 3 December. The words
+read as a date were then cut from the title, and the preview showed the date
+but not the title, so Enter filed a thought as dated work with a wrong
+deadline and lost words. Months now match as a whole word or exact
+abbreviation; a bare "14:30" counts only beside a day or after "at", "by" and
+the like ("read john 3:16" is not a deadline); "this tue" said on a Tuesday is
+today. The preview shows the title, and what was typed is kept in the work's
+notes whenever the title is only part of it.
+
+**Study tasks became exams.** Capture called anything containing "midterm"
+an exam, so "study for midterm thu" became an event with no done toggle and a
+false night-before escalation. The calendar sync already had a narrow rule;
+both now use `_shared/examTitle.ts`, which also excludes study, review, prep,
+rehearsal, slides and office hours. That changes the sync too: "Midterm
+review session" in a feed is no longer an exam once `feeds` is redeployed.
+
+Guards, each verified to FAIL against the old code first (34 failures): a
+corpus of 35 everyday phrases that must stay thoughts, twelve dated phrases
+that must still parse, and the exam-adjacent titles in both the capture and
+sync tests.
 
 ### Bugs found by verifying rather than assuming
 

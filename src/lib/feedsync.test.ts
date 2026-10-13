@@ -318,6 +318,9 @@ describe('reading a mirrored event', () => {
     ['MATH 205 - Practice Problems Midterm (NOT MANDATORY) Due', 'other'],
     ['Deadline to submit documentation for exam accommodations', 'other'],
     ['Lab report due', 'other'],
+    ['Midterm review session', 'other'],
+    ['Final exam prep workshop', 'other'],
+    ['Study group - midterm', 'other'],
   ])('reads %s as %s', (title, kind) => {
     expect(kindOf(title)).toBe(kind);
   });
