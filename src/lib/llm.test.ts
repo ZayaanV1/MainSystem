@@ -259,3 +259,31 @@ describe('withFallback and a per-minute throttle', () => {
     expect((await withFallback(daily, good).complete({ instruction: '', input: '', schema: {} })).ok).toBe(false);
   });
 });
+
+describe('courseForFact', () => {
+  const courses = [
+    { id: 'elec', code: 'ELEC 364', name: 'Signals and Systems' },
+    { id: 'phys', code: 'PHYS 205', name: 'Electricity and Magnetism' },
+    { id: 'art', code: null, name: 'Drawing' },
+  ];
+
+  it('files a fact on the course whose code it names, however it is spaced', async () => {
+    const { courseForFact } = await import('../../supabase/functions/_shared/abood');
+    expect(courseForFact('ELEC 364 labs are in H-821', courses)).toBe('elec');
+    expect(courseForFact('The TA for elec364 is Priya', courses)).toBe('elec');
+    expect(courseForFact('Electricity and Magnetism has a midterm review on Fridays', courses)).toBe('phys');
+  });
+
+  it('files nothing when no course or more than one is named', async () => {
+    const { courseForFact } = await import('../../supabase/functions/_shared/abood');
+    expect(courseForFact('Works at the library on Saturdays', courses)).toBeNull();
+    expect(courseForFact('ELEC 364 and PHYS 205 share a lab room', courses)).toBeNull();
+  });
+
+  it('does not match a short name inside another word', async () => {
+    const { courseForFact } = await import('../../supabase/functions/_shared/abood');
+    // "Drawing" is 7 letters but must be a whole phrase, not part of "drawings".
+    expect(courseForFact('Keeps old drawings in a folder', courses)).toBeNull();
+    expect(courseForFact('Drawing class meets in the studio', courses)).toBe('art');
+  });
+});

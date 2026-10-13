@@ -376,7 +376,7 @@ function Shell() {
           );
         return <Chat courses={data?.courses ?? []} onBack={home} onChanged={bumped} />;
       case 'plan':
-        return <Plan courses={data?.courses ?? []} onBack={home} onChanged={bumped} />;
+        return <Plan courses={data?.courses ?? []} onBack={home} onChanged={bumped} onOpenWork={openWork} />;
       default:
         return null;
     }
@@ -443,7 +443,9 @@ function Shell() {
         <Suspense fallback={null}>
           <AssignmentEditor
             open
-            url={formatRoute({ screen, open: { kind: 'work', id: openAssignment.id } })}
+            // Keeps the course page under it in the address, so a reload with
+            // the editor open lands back on the same page.
+            url={formatRoute({ ...currentRoute(), screen, open: { kind: 'work', id: openAssignment.id } })}
             assignment={openAssignment}
             courses={data?.courses ?? []}
             subtasks={data?.subtasks ?? []}

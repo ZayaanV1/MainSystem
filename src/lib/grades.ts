@@ -111,3 +111,56 @@ export function gradeSummary(g: CourseGrades): string | null {
     g.unmarked > 0 ? `, across ${g.unmarked} ${g.unmarked === 1 ? 'item' : 'items'}` : ''
   }.`;
 }
+
+/**
+ * What it would take: the average needed on everything not yet marked to
+ * finish at `target`, for a course out of 100.
+ *
+ * Asked for, never volunteered. This is the one forward-looking number here,
+ * and it is allowed because the person supplies the goal and the answer is
+ * arithmetic on marks a marker already wrote down: no projection of how they
+ * WILL do, only what the rest would have to average. It is shown only after
+ * a target is typed, so it never appears on its own after a bad first mark.
+ *
+ * The rest is 100 minus what is marked, including weight no syllabus has
+ * named yet: that share of the course still exists whether or not the app
+ * has read it.
+ */
+export type Needed =
+  | { kind: 'all-marked'; earned: number }
+  | { kind: 'already'; earned: number }
+  | { kind: 'needs'; average: number; remaining: number }
+  | { kind: 'beyond'; average: number; remaining: number };
+
+export function neededOnRest(g: CourseGrades, target: number): Needed {
+  const remaining = round2(100 - g.weightMarked);
+  if (remaining <= 0) return { kind: 'all-marked', earned: g.earned };
+  const short = target - g.earned;
+  if (short <= 0) return { kind: 'already', earned: g.earned };
+  const average = Math.round((short / remaining) * 1000) / 10;
+  return average > 100 ? { kind: 'beyond', average, remaining } : { kind: 'needs', average, remaining };
+}
+
+export function neededSentence(n: Needed, target: number): string {
+  switch (n.kind) {
+    case 'all-marked':
+      return `Everything is marked: ${n.earned} points.`;
+    case 'already':
+      return `${n.earned} points are already banked, which is at least ${target}.`;
+    case 'needs':
+      return `An average of ${n.average} on the remaining ${n.remaining}% would make ${target}.`;
+    case 'beyond':
+      return `${target} would take ${n.average} on the remaining ${n.remaining}%, more than the rest can give.`;
+  }
+}
+
+/**
+ * The course with some unmarked items given a hypothetical mark. A what-if
+ * is never saved: it is a copy of the items with marks filled in, run through
+ * the same subtraction as the real ones.
+ */
+export function withWhatIf<T extends Weighted & { id: string }>(items: T[], marks: Record<string, number>): CourseGrades {
+  return courseGrades(
+    items.map((i) => (i.grade_percent === null && typeof marks[i.id] === 'number' ? { ...i, grade_percent: marks[i.id] } : i)),
+  );
+}

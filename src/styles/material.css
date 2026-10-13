@@ -1408,6 +1408,119 @@ button.chip:active {
   opacity: 0.4;
 }
 
+/* ---- a course's page --------------------------------------------------------
+   The course tile opens it. A header in the course's own material (its wash
+   and rim, never a fill of its colour), then the page's sections. */
+.course-tile {
+  width: 100%;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.course-tile:active {
+  transform: scale(0.97);
+}
+
+.course-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1.75rem;
+  padding: 1rem 1rem 1.125rem;
+  --mat-r: var(--r-hero);
+}
+
+.course-head .page-title {
+  margin: 0.5rem 0 0;
+}
+
+.course-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.625rem 1rem;
+  text-align: left;
+}
+
+.course-when {
+  display: flex;
+  width: 5.25rem;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.course-when b {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--text-hi);
+}
+
+.course-when span {
+  font-size: 0.75rem;
+  color: var(--text-low);
+}
+
+.course-text {
+  padding-block: 0.75rem;
+  resize: vertical;
+}
+
+.course-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  box-shadow: inset 0 1px 0 var(--ink-600);
+}
+
+.course-ask .well {
+  max-width: 8rem;
+}
+
+.course-link {
+  display: block;
+  border-radius: var(--r-tight);
+}
+
+.course-link:hover .type-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.course-link-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.course-link-add > :last-child {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.course-syllabus {
+  padding: 0.25rem 1rem 1rem;
+}
+
+.course-syllabus summary {
+  display: flex;
+  min-height: var(--tap);
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.course-syllabus summary::-webkit-details-marker {
+  display: none;
+}
+
+.course-syllabus[open] summary {
+  margin-bottom: 0.5rem;
+}
+
 /* ---- the first run ---------------------------------------------------------
    One phone-width column. Progress and Skip setup at the top, the step in
    the middle, and the way forward in a bar at the bottom where a thumb is,
@@ -1447,7 +1560,7 @@ button.chip:active {
 }
 
 .firstrun-skip,
-.firstrun-link {
+.link-button {
   flex-shrink: 0;
   min-height: 2.75rem;
   padding: 0 0.625rem;
@@ -1460,13 +1573,14 @@ button.chip:active {
 
 .firstrun-skip:hover,
 .firstrun-skip:active,
-.firstrun-link:hover,
-.firstrun-link:active {
+.link-button:hover,
+.link-button:active {
   background: var(--glass-fill);
   color: var(--text-hi);
 }
 
-.firstrun-link {
+/* A quiet action written as words: Read a different one, Try some marks. */
+.link-button {
   align-self: flex-start;
   color: var(--text-mid);
 }

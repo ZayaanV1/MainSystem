@@ -14,6 +14,7 @@ describe('routes', () => {
   it('reads Month’s day, a Settings page and an open item', () => {
     expect(parseRoute('/month', '?day=2026-10-07')).toEqual({ screen: 'month', day: '2026-10-07' });
     expect(parseRoute('/settings/abood', '')).toEqual({ screen: 'settings', page: 'abood' });
+    expect(parseRoute(`/plan/${id}`, '')).toEqual({ screen: 'plan', course: id });
     expect(parseRoute('/week', `?work=${id}`)).toEqual({ screen: 'week', open: { kind: 'work', id } });
     expect(parseRoute('/', `?inbox=${id}`)).toEqual({ screen: 'today', open: { kind: 'inbox', id } });
   });
@@ -22,6 +23,7 @@ describe('routes', () => {
     expect(parseRoute('/month', '?day=tomorrow')).toEqual({ screen: 'month' });
     expect(parseRoute('/', '?work=<script>')).toEqual({ screen: 'today' });
     expect(parseRoute('/settings/../../etc', '')).toEqual({ screen: 'settings' });
+    expect(parseRoute('/plan/not-a-course!', '')).toEqual({ screen: 'plan' });
   });
 
   it('writes back what it reads', () => {
@@ -29,6 +31,8 @@ describe('routes', () => {
       { screen: 'today' },
       { screen: 'month', day: '2026-10-07' },
       { screen: 'settings', page: 'notifications' },
+      { screen: 'plan', course: id },
+      { screen: 'plan', course: id, open: { kind: 'work', id } },
       { screen: 'search', open: { kind: 'work', id } },
       { screen: 'today', open: { kind: 'inbox', id } },
     ];

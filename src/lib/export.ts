@@ -13,12 +13,50 @@ import { supabase } from './supabase';
  * worse than no export.
  */
 
-const EXPORTED_TABLES = [
-  'app_settings',
-  'notification_channels',
-  'push_subscriptions',
-  'delivery_log',
-] as const;
+/**
+ * Every table that holds something of yours, with the columns to read.
+ *
+ * '*' unless the table's reads are limited by column (migration 0034): a
+ * select of every column there is refused outright, which used to fail the
+ * whole export at its first table. Abood's facts leave out their embeddings,
+ * which are 768 numbers each and mean nothing outside this database.
+ *
+ * Only these are left out, each for a reason (and a test fails if a new table
+ * is in neither list): one-time Telegram link codes, and texts queued for the
+ * iMessage bridge, which exist for seconds.
+ */
+export const EXPORTED: Record<string, string> = {
+  app_settings: [
+    'user_id', 'timezone', 'digest_hour', 'digest_minute', 'digest_enabled',
+    'assignment_window_days', 'event_window_days', 'critical_days', 'urgent_days',
+    'approaching_days', 'low_battery', 'created_at', 'updated_at',
+    'weekly_review_enabled', 'weekly_review_weekday', 'onboarded_at', 'abood_checkins',
+    'abood_checkin_every_hours', 'abood_checkin_from', 'abood_checkin_until',
+    'theme', 'today_order', 'today_hidden', 'modules_off',
+  ].join(','),
+  courses: '*',
+  course_pages: '*',
+  assignments: '*',
+  assignment_series: '*',
+  subtasks: '*',
+  deferrals: '*',
+  events: '*',
+  calendar_feeds: '*',
+  checklist_items: '*',
+  checklist_completions: '*',
+  inbox_items: '*',
+  daily_summaries: '*',
+  chat_messages: '*',
+  memory_facts: 'id,fact,source,course_id,created_at',
+  notification_channels: '*',
+  push_subscriptions: '*',
+  delivery_log: '*',
+  imessage_links: '*',
+  imessage_bridges: 'user_id,address,last_seen,created_at',
+  ai_usage: '*',
+};
+
+export const NOT_EXPORTED = ['telegram_link_codes', 'imessage_outbox'] as const;
 
 export interface ExportBundle {
   exportedAt: string;
@@ -28,9 +66,9 @@ export interface ExportBundle {
 export async function collectExport(): Promise<ExportBundle> {
   const tables: Record<string, unknown[]> = {};
 
-  for (const table of EXPORTED_TABLES) {
-    const { data, error } = await supabase.from(table).select('*');
-    if (error) throw new Error(`Couldn't read ${table}. ${error.message}`);
+  for (const [table, columns] of Object.entries(EXPORTED)) {
+    const { data, error } = await supabase.from(table).select(columns);
+    if (error) throw new Error(`Couldn’t read ${table.replace(/_/g, ' ')}. ${error.message}`);
     tables[table] = data ?? [];
   }
 

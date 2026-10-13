@@ -55,7 +55,7 @@ const EMBED_DIMS = 768;
 export async function gatherContext(admin: any, userId: string, today: string, tz: string, opts: BuildOptions = {}) {
   const monthOut = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [assignments, events, checklist, completions, weighted] =
+  const [assignments, events, checklist, completions, weighted, weightedEvents, pages] =
     await Promise.all([
       admin
         .from('assignments')
@@ -88,6 +88,20 @@ export async function gatherContext(admin: any, userId: string, today: string, t
         .eq('user_id', userId)
         .not('weight_percent', 'is', null)
         .limit(300),
+      // Exams and presentations carry weights too (0035), usually the largest
+      // share of a course. Standing here left them out while the Courses
+      // screen counted them, so the two disagreed about the same course.
+      admin
+        .from('events')
+        .select('weight_percent, grade_percent, courses(code, name)')
+        .eq('user_id', userId)
+        .not('weight_percent', 'is', null)
+        .limit(100),
+      admin
+        .from('course_pages')
+        .select('office_hours, contacts, links, courses(code, name)')
+        .eq('user_id', userId)
+        .limit(40),
     ]);
 
   const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
@@ -103,7 +117,7 @@ export async function gatherContext(admin: any, userId: string, today: string, t
   // projection — a forecast would be a guess dressed as a fact.
   const byCourse = new Map<string, { known: number; marked: number; earned: number }>();
   // deno-lint-ignore no-explicit-any
-  for (const w of (weighted.data ?? []) as any[]) {
+  for (const w of [...(weighted.data ?? []), ...(weightedEvents.data ?? [])] as any[]) {
     const name = w.courses?.code ?? w.courses?.name;
     if (!name) continue;
     const c = byCourse.get(name) ?? { known: 0, marked: 0, earned: 0 };
@@ -161,6 +175,15 @@ export async function gatherContext(admin: any, userId: string, today: string, t
       weightMarked: Math.round(c.marked * 100) / 100,
       earned: Math.round(c.earned * 100) / 100,
     })),
+    // deno-lint-ignore no-explicit-any
+    coursePages: ((pages.data ?? []) as any[])
+      .filter((p) => courseOf(p))
+      .map((p) => ({
+        course: courseOf(p) as string,
+        office_hours: String(p.office_hours ?? ''),
+        contacts: String(p.contacts ?? ''),
+        links: Array.isArray(p.links) ? p.links.filter((l: { url?: unknown }) => typeof l?.url === 'string') : [],
+      })),
   }, opts);
 }
 
@@ -273,6 +296,14 @@ export async function learn(
     .limit(200);
   const known = ((existing ?? []) as { fact: string }[]).map((r) => r.fact);
 
+  // The account's courses, so a fact about one is filed on its page.
+  const { data: courseRows } = await admin
+    .from('courses')
+    .select('id, code, name')
+    .eq('user_id', userId)
+    .eq('archived', false);
+  const courses = (courseRows ?? []) as CourseRef[];
+
   const saved: string[] = [];
   for (const fact of validateFacts({ facts: offered }, known)) {
     const v = await embed(fact, geminiKey);
@@ -282,9 +313,40 @@ export async function learn(
       p_embedding: v ? vectorLiteral(v) : null,
       p_source: source,
     });
-    if (data) saved.push(fact);
+    if (!data) continue;
+    saved.push(fact);
+    const course = courseForFact(fact, courses);
+    if (course) {
+      await admin.from('memory_facts').update({ course_id: course }).eq('user_id', userId).eq('fact', fact);
+    }
   }
   return saved;
+}
+
+export interface CourseRef {
+  id: string;
+  code: string | null;
+  name: string;
+}
+
+/**
+ * The one course a fact is about, by its code or its full name, or null.
+ *
+ * Words only, no model: "ELEC 364 labs are in H-821" names ELEC 364 whether
+ * it is written "ELEC364" or "elec 364". A fact naming two courses, or none,
+ * is filed under neither, because filing it on the wrong page is worse than
+ * leaving it in general memory where it already is.
+ */
+export function courseForFact(fact: string, courses: CourseRef[]): string | null {
+  const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const f = ` ${fact.toLowerCase().replace(/[^a-z0-9]+/g, ' ')} `;
+  const fs = squash(fact);
+  const hits = courses.filter((c) => {
+    if (c.code && squash(c.code).length >= 4 && fs.includes(squash(c.code))) return true;
+    const name = c.name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return name.length >= 6 && f.includes(` ${name} `);
+  });
+  return hits.length === 1 ? hits[0].id : null;
 }
 
 /* ============================================================================

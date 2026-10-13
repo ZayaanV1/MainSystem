@@ -44,6 +44,8 @@ export interface ContextInput {
   checklist: { id: string; title: string; done_today: boolean; doses_remaining: number | null }[];
   /** Academic standing per course: weight decided against weight on the calendar. */
   grades?: { course: string; weightKnown: number; weightMarked: number; earned: number }[];
+  /** What the person wrote on each course's page: office hours, contacts, links. */
+  coursePages?: { course: string; office_hours: string; contacts: string; links: { label: string; url: string }[] }[];
 }
 
 export interface BuiltContext {
@@ -150,6 +152,9 @@ function localStamp(iso: string, withTime: boolean, tz: string, today?: DayKey):
  * is shown JSON tends to answer in the shape of the JSON, which is the wrong
  * register for "what's due this week".
  */
+/** A user-written field on one line, bounded, so it cannot crowd the prompt. */
+const oneLine = (v: string) => v.replace(/\s+/g, ' ').trim().slice(0, 240);
+
 export function buildContext(input: ContextInput, opts: BuildOptions = {}): BuiltContext {
   const knownIds = new Set<string>();
   const lines: string[] = [];
@@ -244,6 +249,19 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
             ? `, ${n(g.earned)} points banked (${Math.round((g.earned / g.weightMarked) * 100)}% on what is marked)`
             : ', none marked yet'),
       );
+    }
+    lines.push('');
+  }
+
+  const pages = (input.coursePages ?? []).filter((p) => p.office_hours.trim() || p.contacts.trim() || p.links.length);
+  if (pages.length) {
+    lines.push('COURSE PAGES (written by the user)');
+    for (const p of pages) {
+      const bits: string[] = [];
+      if (p.office_hours.trim()) bits.push(`office hours: ${oneLine(p.office_hours)}`);
+      if (p.contacts.trim()) bits.push(`contacts: ${oneLine(p.contacts)}`);
+      if (p.links.length) bits.push(`links: ${p.links.slice(0, 6).map((l) => `${l.label} <${l.url}>`).join(', ')}`);
+      lines.push(`  ${p.course}: ${bits.join('; ')}`);
     }
     lines.push('');
   }

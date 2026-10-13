@@ -16,6 +16,7 @@ import {
 } from '../lib/planner';
 import type { SyllabusItem } from '../../supabase/functions/_shared/syllabus';
 import { todayKey, type DayKey } from '../lib/time';
+import { keepSyllabusText } from '../lib/coursePage';
 import { urgencyFor } from '../lib/urgency';
 import { Tickets } from './SignIn';
 
@@ -76,6 +77,7 @@ export function Onboarding({ userId, onDone }: { userId: string; onDone: () => v
   const [syllabusCourse, setSyllabusCourse] = useState<string | null>(null);
   const [added, setAdded] = useState<Found[]>([]);
   const [syllabusProblem, setSyllabusProblem] = useState<string | null>(null);
+  const [syllabusText, setSyllabusText] = useState('');
 
   const [daily, setDaily] = useState<string[]>([]);
   const [extra, setExtra] = useState<string[]>([]);
@@ -147,6 +149,8 @@ export function Onboarding({ userId, onDone }: { userId: string; onDone: () => v
         });
       }
     }
+    // The text the deadlines came from, kept on the course's page.
+    await keepSyllabusText(userId, syllabusCourse, syllabusText);
     setBusy(false);
     setAdded((a) => [...a, ...keeping]);
     setFound(null);
@@ -236,6 +240,7 @@ export function Onboarding({ userId, onDone }: { userId: string; onDone: () => v
             added={added.length}
             problem={syllabusProblem}
             onProblem={setSyllabusProblem}
+            onText={setSyllabusText}
           />
         )}
         {id === 'daily' && (
@@ -401,6 +406,7 @@ function Syllabus({
   added,
   problem,
   onProblem,
+  onText,
 }: {
   courses: Course[];
   courseId: string | null;
@@ -410,6 +416,8 @@ function Syllabus({
   added: number;
   problem: string | null;
   onProblem: (p: string | null) => void;
+  /** The text read, kept for the course's page; empty for a PDF or photo. */
+  onText: (text: string) => void;
 }) {
   const [text, setText] = useState('');
   const [reading, setReading] = useState(false);
@@ -429,6 +437,7 @@ function Syllabus({
       onProblem('No deadlines in that. The evaluation or schedule section is the part to use.');
       return;
     }
+    onText(input.text ?? '');
     onFound(result.items.map((i) => ({ ...i, keep: true })));
   }
 
@@ -470,7 +479,7 @@ function Syllabus({
               onToggle={() => onFound(found.map((x, n) => (n === i ? { ...x, keep: !x.keep } : x)))}
             />
           ))}
-          <button type="button" className="firstrun-link" onClick={() => onFound(null)}>
+          <button type="button" className="link-button" onClick={() => onFound(null)}>
             Read a different one
           </button>
         </div>

@@ -236,6 +236,7 @@ describe('migrations apply', () => {
       'chat_messages',
       'checklist_completions',
       'checklist_items',
+      'course_pages',
       'courses',
       'daily_summaries',
       'deferrals',

@@ -140,6 +140,22 @@ export function Settings() {
     abood: aboodSummary(keys, telegram, checkins),
   };
 
+  // A failed export used to vanish as an unhandled rejection: the button did
+  // nothing and said nothing. It says what failed now.
+  const [exporting, setExporting] = useState(false);
+  const [exportProblem, setExportProblem] = useState<string | null>(null);
+  async function runExport(run: () => Promise<void>) {
+    setExporting(true);
+    setExportProblem(null);
+    try {
+      await run();
+    } catch (e) {
+      setExportProblem(`${(e as Error).message} Nothing was downloaded; try again.`);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const reload = useCallback(async () => {
     const [rows, status] = await Promise.all([fetchDeliveryLog(), pushStatus()]);
     setLog(rows);
@@ -316,9 +332,14 @@ export function Settings() {
                 Everything this app holds, in one file. You can leave whenever you want.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button onClick={() => void exportJson()}>Export JSON</Button>
-                <Button onClick={() => void exportCsv()}>Export CSV</Button>
+                <Button disabled={exporting} onClick={() => void runExport(exportJson)}>Export JSON</Button>
+                <Button disabled={exporting} onClick={() => void runExport(exportCsv)}>Export CSV</Button>
               </div>
+              {exportProblem && (
+                <p role="alert" className="mt-3 type-note text-t-overdue">
+                  {exportProblem}
+                </p>
+              )}
             </Card>
           </section>
           <DeleteAccount />

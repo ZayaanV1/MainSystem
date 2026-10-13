@@ -13,6 +13,7 @@ import type { DayKey } from './time';
  *   /week  /month  /search  /ask  /plan
  *   /month?day=2026-10-07  Month, open on a day
  *   /settings/abood        a Settings page
+ *   /plan/<course id>      a course's page
  *   ?work=<id>             a piece of work open in the editor, on any screen
  *   ?inbox=<id>            a captured thought open to sort, on any screen
  */
@@ -25,6 +26,8 @@ export interface Route {
   day?: DayKey;
   /** A Settings page. */
   page?: string;
+  /** A course's page, under Courses. */
+  course?: string;
   /** Something open over the screen. */
   open?: { kind: 'work' | 'inbox'; id: string };
 }
@@ -45,6 +48,7 @@ export function parseRoute(pathname: string, search: string): Route {
   const day = q.get('day');
   if (screen === 'month' && day && DAY.test(day)) route.day = day as DayKey;
   if (screen === 'settings' && parts[1] && PAGE.test(parts[1])) route.page = parts[1];
+  if (screen === 'plan' && parts[1] && ID.test(parts[1])) route.course = parts[1];
 
   const work = q.get('work');
   const inbox = q.get('inbox');
@@ -57,6 +61,7 @@ export function parseRoute(pathname: string, search: string): Route {
 export function formatRoute(route: Route): string {
   let path = route.screen === 'today' ? '/' : `/${route.screen}`;
   if (route.screen === 'settings' && route.page) path += `/${route.page}`;
+  if (route.screen === 'plan' && route.course) path += `/${route.course}`;
   const q = new URLSearchParams();
   if (route.screen === 'month' && route.day) q.set('day', route.day);
   if (route.open) q.set(route.open.kind, route.open.id);

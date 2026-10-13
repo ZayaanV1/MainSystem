@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { courseGrades, gradeSummary } from './grades';
+import { courseGrades, gradeSummary, neededOnRest, neededSentence, withWhatIf } from './grades';
 import type { Assignment } from './planner';
 
 const work = (o: Partial<Assignment> & { id: string }): Assignment => ({
@@ -127,5 +127,51 @@ describe('exams and presentations', () => {
     const g = courseGrades([{ weight_percent: 10, grade_percent: 0 }]);
     expect(g.weightMarked).toBe(10);
     expect(g.unmarked).toBe(0);
+  });
+});
+
+describe('neededOnRest', () => {
+  // A 30% midterm at 80 banks 24; 70% of the course is still to come.
+  const g = courseGrades([
+    { weight_percent: 30, grade_percent: 80 },
+    { weight_percent: 20, grade_percent: null },
+  ]);
+
+  it('works out the average the rest would need', () => {
+    expect(neededOnRest(g, 80)).toEqual({ kind: 'needs', average: 80, remaining: 70 });
+    expect(neededOnRest(g, 59)).toEqual({ kind: 'needs', average: 50, remaining: 70 });
+  });
+
+  it('counts weight no syllabus has named as still to come', () => {
+    // Only 50% is known, but the remaining share is 100 - 30 marked.
+    expect(neededOnRest(g, 94).kind).toBe('needs');
+  });
+
+  it('says when the target is already banked', () => {
+    expect(neededOnRest(g, 20)).toEqual({ kind: 'already', earned: 24 });
+  });
+
+  it('says plainly when the rest cannot give it', () => {
+    expect(neededOnRest(g, 99)).toEqual({ kind: 'beyond', average: 107.1, remaining: 70 });
+    expect(neededSentence(neededOnRest(g, 99), 99)).toBe('99 would take 107.1 on the remaining 70%, more than the rest can give.');
+  });
+
+  it('knows when everything is marked', () => {
+    const all = courseGrades([{ weight_percent: 100, grade_percent: 71 }]);
+    expect(neededOnRest(all, 80)).toEqual({ kind: 'all-marked', earned: 71 });
+  });
+});
+
+describe('withWhatIf', () => {
+  const items = [
+    { id: 'a', weight_percent: 30, grade_percent: 80 },
+    { id: 'b', weight_percent: 20, grade_percent: null },
+  ];
+
+  it('fills unmarked items with a hypothetical mark, without touching real ones', () => {
+    const g = withWhatIf(items, { a: 10, b: 90 });
+    expect(g.earned).toBe(42);
+    expect(g.weightMarked).toBe(50);
+    expect(items[1].grade_percent).toBeNull();
   });
 });

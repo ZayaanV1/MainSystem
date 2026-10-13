@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
+import { keepSyllabusText } from '../lib/coursePage';
 import { Sheet } from '../components/Sheet';
 import { readFile, readSyllabus } from '../lib/assist';
 import { addAssignment, addEvent, assignmentDueAt, type Course } from '../lib/planner';
@@ -137,6 +138,9 @@ export function SyllabusImport({
         });
       }
     }
+
+    // The text the deadlines came from, kept on the course's page.
+    await keepSyllabusText(userId, courseId, text);
 
     setBusy(false);
     onImported();

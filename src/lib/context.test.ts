@@ -13,6 +13,18 @@ const base: ContextInput = {
 const ctx = (o: Partial<ContextInput>) => buildContext({ ...base, ...o });
 
 describe('buildContext', () => {
+  it('includes what was written on course pages, and nothing for empty ones', () => {
+    const { text } = ctx({
+      coursePages: [
+        { course: 'ELEC 364', office_hours: 'Tue 2-4 p.m.,\n EV 3.301', contacts: '', links: [{ label: 'Moodle', url: 'https://moodle.example.edu/364' }] },
+        { course: 'PHYS 205', office_hours: '', contacts: '', links: [] },
+      ],
+    });
+    expect(text).toContain('COURSE PAGES (written by the user)');
+    expect(text).toContain('ELEC 364: office hours: Tue 2-4 p.m., EV 3.301; links: Moodle <https://moodle.example.edu/364>');
+    expect(text).not.toContain('PHYS 205:');
+  });
+
   it('collects every id the model may cite or act on', () => {
     const { knownIds } = ctx({
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2026-09-01T03:59:00Z', due_has_time: true, status: 'todo', effort_minutes: 120 }],

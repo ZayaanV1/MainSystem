@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { SectionHead } from '../components/SectionHead';
 import { Pressable } from '../components/Pressable';
 import { Button } from '../components/Button';
@@ -13,6 +13,9 @@ import { EmptyState } from '../components/EmptyState';
 import { Field } from '../components/Field';
 import { useAuth } from '../lib/auth';
 import { moduleOn, usePreferences } from '../lib/preferences';
+import { currentRoute, formatRoute } from '../lib/route';
+import { EASE } from '../lib/motion';
+import { CoursePage } from './CoursePage';
 import { dueTimestamp, looksFarOff, parseBulk, summarise, type ParsedRow } from '../lib/bulk';
 import { enqueue } from '../lib/outbox';
 import {
@@ -40,14 +43,53 @@ import { formatDay, localDayKey } from '../lib/time';
  * written until it has been shown. A row the parser guessed at is marked as
  * guessed, and a row it could not read is excluded rather than approximated.
  */
-export function Plan({ courses, onBack, onChanged }: {
+export function Plan({ courses, onBack, onChanged, onOpenWork }: {
   courses: Course[];
   onBack: () => void;
   onChanged: () => void;
+  onOpenWork?: (id: string) => void;
 }) {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
   const prefs = usePreferences();
+
+  /*
+   * A course's page is an address under Courses (/plan/<id>), so Back
+   * returns to the list and a reload stays on the page. It slides in from
+   * the right and back out to the left, as Settings' pages do (rule 12).
+   */
+  const [courseId, setCourseId] = useState<string | null>(() => currentRoute().course ?? null);
+  const stage = useRef<HTMLDivElement>(null);
+  const direction = useRef<1 | -1>(1);
+  useEffect(() => {
+    const onPop = () => {
+      const r = currentRoute();
+      if (r.screen !== 'plan') return;
+      direction.current = r.course ? 1 : -1;
+      setCourseId(r.course ?? null);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+    const el = stage.current;
+    if (!el || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    el.animate([{ opacity: 0, transform: `translateX(${direction.current * 28}px)` }, { opacity: 1, transform: 'none' }], {
+      duration: 320,
+      easing: EASE.glide,
+    });
+  }, [courseId]);
+  const openCourse = (id: string) => {
+    direction.current = 1;
+    window.history.pushState(null, '', formatRoute({ screen: 'plan', course: id }));
+    setCourseId(id);
+  };
+  const closeCourse = () => {
+    direction.current = -1;
+    if (currentRoute().course) window.history.back();
+    setCourseId(null);
+  };
 
   const [text, setText] = useState('');
   const [preview, setPreview] = useState<ParsedRow[] | null>(null);
@@ -110,7 +152,26 @@ export function Plan({ courses, onBack, onChanged }: {
     }
   }
 
+  if (courseId) {
+    const course = courses.find((c) => c.id === courseId);
+    return (
+      <div ref={stage} key={courseId}>
+        {course ? (
+          <CoursePage course={course} userId={userId} onBack={closeCourse} onOpenWork={onOpenWork} />
+        ) : (
+          <main className="page-frame">
+            <button type="button" className="settings-back" onClick={closeCourse}>
+              Courses
+            </button>
+            <EmptyState>That course isn’t on your list. It may be archived; restore it from Archive under Courses.</EmptyState>
+          </main>
+        )}
+      </div>
+    );
+  }
+
   return (
+    <div ref={stage} key="list">
     <main className="page-frame">
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="page-title">Courses and syllabus</h1>
@@ -119,7 +180,7 @@ export function Plan({ courses, onBack, onChanged }: {
         </Button>
       </header>
 
-      <CourseEditor userId={userId} courses={courses} onChanged={onChanged} />
+      <CourseEditor userId={userId} courses={courses} onChanged={onChanged} onOpen={openCourse} />
 
       {/*
         Above the importer on purpose. Once a syllabus has been read this is
@@ -283,6 +344,7 @@ export function Plan({ courses, onBack, onChanged }: {
       />
 
     </main>
+    </div>
   );
 }
 
@@ -396,10 +458,12 @@ function CourseEditor({
   userId,
   courses,
   onChanged,
+  onOpen,
 }: {
   userId: string;
   courses: Course[];
   onChanged: () => void;
+  onOpen: (id: string) => void;
 }) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -529,11 +593,14 @@ function CourseEditor({
           {courses.map((c) => {
             const cv = courseVar(c.colour_index);
             return (
-              <div
+              <button
+                type="button"
                 key={c.id}
-                className="mat flex min-h-24 flex-col justify-end gap-1 px-4 py-3.5"
+                className="mat course-tile flex min-h-24 flex-col items-start justify-end gap-1 px-4 py-3.5 text-left"
                 data-block={cv ? true : undefined}
                 style={cv ? ({ '--b': `var(${cv}-rgb)` } as CSSProperties) : undefined}
+                onClick={() => onOpen(c.id)}
+                aria-label={`Open ${c.code ?? c.name}`}
               >
                 <span aria-hidden className="chip-dot mb-auto" />
                 <span className="numeral text-text-hi" style={{ fontSize: '1.375rem', letterSpacing: '-0.02em' }}>
@@ -542,7 +609,7 @@ function CourseEditor({
                 {c.code && c.name !== c.code && (
                   <span className="type-note line-clamp-2 text-text-mid">{c.name}</span>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
