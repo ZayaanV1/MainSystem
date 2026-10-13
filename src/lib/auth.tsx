@@ -10,11 +10,13 @@ import {
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { clearCache } from './readcache';
+import { readAuthLink } from './authLink';
 
 /**
  * Auth.
  *
- * Email and password, one account. Not magic links: Supabase's built-in SMTP
+ * Email and password. A forgotten password is reset by an emailed link,
+ * which is rare enough for Supabase's built-in email. Not magic links: Supabase's built-in SMTP
  * is rate-limited to a handful of messages an hour, and being locked out of
  * your own planner because you signed in twice is precisely the kind of
  * friction this app cannot afford.
@@ -26,7 +28,17 @@ import { clearCache } from './readcache';
 interface AuthState {
   session: Session | null;
   loading: boolean;
+  /**
+   * Opened from a password-reset email: signed in by the link, and owed a
+   * new password before anything else.
+   */
+  recovering: boolean;
+  /** An email link that could not be used (expired, or used already). */
+  linkError: string | null;
   signIn(email: string, password: string): Promise<{ error: string | null }>;
+  requestReset(email: string): Promise<{ error: string | null }>;
+  setNewPassword(password: string): Promise<{ error: string | null }>;
+  dismissLinkError(): void;
   signUp(
     email: string,
     password: string,
@@ -39,18 +51,38 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    const start = async () => {
+      // A link from an email (reset, or confirming a new account) signs in
+      // here. The fragment is cleared first, so a reload or a shared
+      // screenshot never carries the token.
+      const link = readAuthLink(window.location.hash);
+      if (link) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        if (link.tokens) {
+          const { error } = await supabase.auth.setSession(link.tokens);
+          if (error) setLinkError('That link has expired. Ask for a new one below.');
+          else if (link.type === 'recovery') setRecovering(true);
+        } else if (link.error) {
+          setLinkError(/expired|invalid/i.test(link.error) ? 'That link has expired. Ask for a new one below.' : link.error);
+        }
+      }
+      const { data } = await supabase.auth.getSession();
       if (!active) return;
       setSession(data.session);
       setLoading(false);
-    });
+    };
+    void start();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true);
+      if (event === 'SIGNED_OUT') setRecovering(false);
     });
 
     return () => {
@@ -83,7 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * them.
    */
   const signUp = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // The confirmation link returns here, signed in. Without an explicit
+    // address Supabase uses the project's Site URL, which still pointed at a
+    // development port nobody runs, so every confirmation link went nowhere.
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    });
 
     if (error) return { error: error.message, confirmationSent: false, alreadyExists: false };
 
@@ -96,6 +135,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       confirmationSent: !alreadyExists && !data.session,
     };
   }, []);
+
+  /**
+   * Emails a link that opens the app signed in, straight to a new-password
+   * screen. The address it returns to must be on the project's redirect
+   * list, or Supabase sends people to the Site URL instead.
+   *
+   * Supabase answers the same whether or not the address has an account,
+   * so nobody can use this to find out who does.
+   */
+  const requestReset = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/`,
+    });
+    if (!error) return { error: null };
+    return {
+      error: /rate limit|too many|seconds/i.test(error.message)
+        ? 'Too many emails for now. Wait a few minutes and send it again.'
+        : error.message,
+    };
+  }, []);
+
+  const setNewPassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { error: error.message };
+    setRecovering(false);
+    return { error: null };
+  }, []);
+
+  const dismissLinkError = useCallback(() => setLinkError(null), []);
 
   const signOut = useCallback(async () => {
     /*
@@ -114,8 +182,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ session, loading, signIn, signUp, signOut }),
-    [session, loading, signIn, signUp, signOut],
+    () => ({
+      session,
+      loading,
+      recovering,
+      linkError,
+      signIn,
+      signUp,
+      signOut,
+      requestReset,
+      setNewPassword,
+      dismissLinkError,
+    }),
+    [session, loading, recovering, linkError, signIn, signUp, signOut, requestReset, setNewPassword, dismissLinkError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

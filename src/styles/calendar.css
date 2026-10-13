@@ -860,6 +860,18 @@
   bottom: 0.1875rem;
 }
 
+/* A segmented switch that heads a form (Segmented, fill): full width,
+   equal options. */
+.style-seg[data-fill] {
+  width: 100%;
+}
+
+.style-seg[data-fill] .style-opt {
+  flex: 1;
+  justify-content: center;
+  padding-inline: 0.75rem;
+}
+
 /* One capsule for the whole picker, moved by moveCapsule (motion.ts). */
 .style-opt-lit {
   position: absolute;

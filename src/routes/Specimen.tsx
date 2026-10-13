@@ -27,6 +27,7 @@ import { PromptInput } from '../components/kit/PromptInput';
 import { ThinkingText } from '../components/kit/ThinkingText';
 import { ThemePicker } from '../components/ThemePicker';
 import { ArrangeToday } from '../components/ArrangeToday';
+import { Segmented } from '../components/Segmented';
 
 /**
  * The design system specimen. Development only — reached at /?specimen.
@@ -134,6 +135,10 @@ export function Specimen() {
           {lowBattery ? 'Exit low battery' : 'Low battery'}
         </Button>
       </div>
+
+      <Section title="Segmented — one capsule sliding between two to four options">
+        <SegmentedDemo />
+      </Section>
 
       <Section title="ThemePicker — real miniatures, tap to preview">
         <ThemePicker userId="specimen" />
@@ -396,5 +401,23 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="type-h2 mb-3 px-4 text-text-hi">{title}</h2>
       {children}
     </section>
+  );
+}
+
+function SegmentedDemo() {
+  const [mode, setMode] = useState<'in' | 'up'>('in');
+  return (
+    <div className="max-w-sm">
+      <Segmented
+        label="Sign in or start"
+        options={[
+          { value: 'in', label: 'Sign in' },
+          { value: 'up', label: 'New account' },
+        ]}
+        value={mode}
+        onChange={setMode}
+        fill
+      />
+    </div>
   );
 }

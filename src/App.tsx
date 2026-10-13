@@ -35,6 +35,7 @@ import type { DayKey } from './lib/time';
  */
 // Signed-in opens, which are nearly all of them, never show this.
 const SignIn = lazy(() => import('./routes/SignIn').then((m) => ({ default: m.SignIn })));
+const NewPassword = lazy(() => import('./routes/SignIn').then((m) => ({ default: m.NewPassword })));
 import { Today } from './routes/Today';
 
 const Plan = lazy(() => import('./routes/Plan').then((m) => ({ default: m.Plan })));
@@ -103,7 +104,7 @@ function NotConfigured() {
 }
 
 function Shell() {
-  const { session, loading } = useAuth();
+  const { session, loading, recovering } = useAuth();
   const [screen, setScreen] = useState<Screen>(() => currentRoute().screen);
 
   /**
@@ -295,6 +296,14 @@ function Shell() {
     return (
       <Suspense fallback={null}>
         <SignIn />
+      </Suspense>
+    );
+
+  // Opened from a reset email: the new password comes first.
+  if (recovering)
+    return (
+      <Suspense fallback={null}>
+        <NewPassword />
       </Suspense>
     );
 

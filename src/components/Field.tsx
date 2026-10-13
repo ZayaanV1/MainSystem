@@ -16,9 +16,11 @@ interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
   label: string;
   hint?: ReactNode;
   error?: string | null;
+  /** A control inside the well's right edge, such as Show on a password. */
+  trailing?: ReactNode;
 }
 
-export function Field({ label, hint, error, className = '', ...rest }: FieldProps) {
+export function Field({ label, hint, error, trailing, className = '', ...rest }: FieldProps) {
   const id = useId();
   const describedBy = `${id}-note`;
 
@@ -31,16 +33,19 @@ export function Field({ label, hint, error, className = '', ...rest }: FieldProp
         {label}
       </label>
 
-      <input
-        {...rest}
-        id={id}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={hint || error ? describedBy : undefined}
-        // A recessed well that lights in ember when it has focus. The error
-        // state is the well's own aria-invalid rule, so it cannot drift from
-        // what a screen reader is told.
-        className={['well type-body', className].join(' ')}
-      />
+      <span className={trailing ? 'field-trail' : 'contents'}>
+        <input
+          {...rest}
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={hint || error ? describedBy : undefined}
+          // A recessed well that lights in ember when it has focus. The error
+          // state is the well's own aria-invalid rule, so it cannot drift from
+          // what a screen reader is told.
+          className={['well type-body', className].join(' ')}
+        />
+        {trailing}
+      </span>
 
       {(hint || error) && (
         <p
