@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:tz": "for z in UTC Asia/Tokyo Australia/Lord_Howe Pacific/Kiritimati America/Los_Angeles; do echo \"== $z\"; TZ=$z vitest run; done",
+    "e2e": "playwright test",
+    "e2e:phone": "playwright test --project=phone",
     "setup": "node scripts/setup.mjs",
     "test:notify": "node scripts/notify.mjs",
     "check:deno": "npx --yes deno@2 check supabase/functions/dispatch/index.ts supabase/functions/assist/index.ts supabase/functions/calendar/index.ts supabase/functions/feeds/index.ts supabase/functions/telegram/index.ts supabase/functions/imessage/index.ts supabase/functions/checkin/index.ts",
@@ -26,7 +28,9 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@electric-sql/pglite": "^0.5.5",
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",

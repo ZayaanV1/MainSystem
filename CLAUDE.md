@@ -1317,6 +1317,33 @@ corpus of 35 everyday phrases that must stay thoughts, twelve dated phrases
 that must still parse, and the exam-adjacent titles in both the capture and
 sync tests.
 
+### End-to-end tests — 13 Oct 2026
+
+`npm run e2e` drives the real app in Chromium at phone size, plus two
+desktop specs: 50 tests, about 20 seconds. The sample harness that used to
+live outside the repo is now `e2e/harness`: Vite swaps `src/lib/supabase.ts`
+for an in-memory account, and stubs a do-nothing service worker so dev
+registration stops erroring. Plan and results are in `e2e/TEST-PLAN.md`,
+bugs in `e2e/BUGS.md`. It is not part of `npm run check`, which needs no
+browser; run it before a push that touches a flow.
+
+- **Every test fails on a console error, an uncaught exception or a 5xx**,
+  whatever it checks (`e2e/fixtures.ts`). The clock is fixed at Wed 14 Oct
+  2026, 10 a.m. Toronto, so the sample's relative dates mean the same thing at
+  any hour; three specs move it to cross DST, midnight and a Vancouver phone.
+- **Navigate with the tab bar inside a test, never `page.goto`.** The sample
+  is in memory and a reload resets it. Two checks first written with
+  `page.goto` passed while proving nothing.
+- **Known failures are `test.fail` against a bug id.** The suite stays green
+  while the bug is open and turns red the day it is fixed, so the mark is
+  removed, not forgotten. Open: BUG-002 (one failed chunk download blanks
+  Today until a reload), BUG-003 (dark `--text-low` at 4.14:1 on raised
+  surfaces; the palette test never checks `--ink-700`), BUG-004 (the month
+  grid has no rows or cells). All three proposed, not built.
+- **Accessibility runs axe on nine screens in both themes.** It found
+  BUG-003 and BUG-004 on its first run; neither shows to a sighted person
+  in light mode.
+
 ### Bugs found by verifying rather than assuming
 
 Each of these was invisible in the UI and only surfaced by reading what
@@ -1420,6 +1447,14 @@ actually reached the database. Worth remembering as a working method.
   whole install; the worker never activated and `serviceWorker.ready` hung
   forever. Registered is not working, and a promise that never settles is far
   harder to find than one that rejects.
+- **Low-battery mode handed over the most overdue task**, the one thing its
+  own comment forbids. `chooseWork` had no idea of "now", so with nothing of
+  30 minutes or less its fallback sorted by due date oldest first. Its test
+  for "avoided longest" passed only because that sample had a 15-minute task
+  in it. On the sample account it offered a day-late two-hour lab report on
+  the bad-day screen, over a 45-minute set due that afternoon. Now overdue
+  work is offered only when nothing is still ahead, least overdue first.
+  Found by the first end-to-end run, not by reading the code.
 
 ---
 

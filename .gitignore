@@ -38,3 +38,12 @@ supabase/.branches
 
 # transient local auth handoff for verification
 public/_session.json
+
+# Playwright output
+/test-results/
+/playwright-report/
+/blob-report/
+
+# Competitor research from the replica skills. Kept local: the repository is
+# public, and the raw review text is other people's writing.
+/replica/
