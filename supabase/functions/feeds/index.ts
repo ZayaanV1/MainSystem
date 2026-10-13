@@ -71,7 +71,9 @@ function corsFor(req: Request): Record<string, string> {
     origin === APP_URL ||
     /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
     /^http:\/\/localhost(:\d+)?$/i.test(origin) ||
-    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
+    // The native iOS shell (Capacitor) loads the bundle from this scheme.
+    origin === 'capacitor://localhost';
 
   return {
     'Access-Control-Allow-Origin': allowed && origin ? origin : APP_URL || '*',
