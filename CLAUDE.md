@@ -1378,6 +1378,64 @@ keeps the room for Today's second column.
   and 1180 x 820 for the side. Chromium standing in for Safari; WebKit is
   not installed, and a real iPad has not been checked.
 
+### Classes typed by hand — 13 Oct 2026
+
+For a student whose school gives no calendar file: every planner this one
+competes with lets you type a repeating class, and timetable setup is the most
+complained-about job in student-planner reviews. Proposed as "Life Planner
+classes" (artifact 7oY5JY9sEaiTbQjVRPUTry), approved with the recommended
+answer to all five questions, plus the import hour fix below. Migration 0038.
+
+- **Plan > Your classes.** Course chips, a name with the course's code as a
+  fixed prefix (stored as "COEN 231 Lecture", because Search, Abood, Month's
+  tiles and the published .ics read the title and none of them can see a
+  colour), days, start and end with length chips, room, first and last class.
+  A new class starts with the term of one already running, and the sheet stays
+  open after Add for the next.
+- **The preview is the write.** `_shared/classes.ts`: `meetingDays` and
+  `planClass` draw the term grid and make the rows. Tap a date to skip it;
+  skips live on the class (`skip_days`), so an edit never brings one back. A
+  clock change inside the term is named, and each session is converted from
+  its own date in the account's zone (`sessionOn`), so 10:15 is 10:15 on both
+  sides of 1 November.
+- **Edited as a series, unlike repeating work.** A class carries no done
+  state, so Change it rewrites the sessions from a chosen day: kept days are
+  updated in place (ids hold), dropped days removed, new days added, and
+  nothing before that day is touched. The preview says how many of each. End
+  it removes the sessions after a last day; Delete it removes those still to
+  come and keeps the past unless asked.
+- **One transaction per save.** `save_class` and `delete_class` are SECURITY
+  INVOKER, so RLS applies as the caller, with the account from `auth.uid()`;
+  both are revoked from anon. Sessions take their title, course and room from
+  the class row. A plan made stale by another device is refused whole (40001),
+  never half applied. `events.series_id` is a composite key with `user_id`,
+  `on delete set null (series_id)`, which needs Postgres 15.
+- **Kind `class`.** The enum value is added in 0038 and used nowhere in it: a
+  new enum value cannot be used in the transaction that adds it. Today's Up
+  next, Week and Month needed nothing, since they draw any timed event. Week's
+  kicker reads Class for a class with no course, course pages label it,
+  escalation never fires for it, and the briefing reads it as timetable.
+- **The published .ics no longer doubles a course prefix**
+  ("COEN 231: COEN 231 Lecture"); a title that already starts with its course
+  is left as it is.
+- **The migration harness grants USAGE on schema auth** to the API roles, as
+  Supabase does. A SECURITY INVOKER function looks `auth.uid()` up by name as
+  the caller; a policy, stored resolved, never needed it.
+
+**Corrected from the proposal.** It said adding the sessions already past
+means "Month then shows the whole term". Month reads events from today
+forward only, so past sessions are written (the record of the term, which
+Search and export see) and Month does not draw them. The preview now says
+"as the record of the term". Showing past days in Month is its own proposal.
+
+**Next, approved as follow-ups and not built:** an A/B day rotation (its own
+session); tapping a class in Week or Month to open it (events have no editor);
+Import a timetable making class series instead of loose events; the calendar
+sync marking timetable lectures as `class`.
+
+**Not verified** on a phone or an iPad, including the native date and time
+pickers in iOS Safari: Chromium at 390 px in both modes only.
+
 ### Bugs found by verifying rather than assuming
 
 Each of these was invisible in the UI and only surfaced by reading what
@@ -1481,6 +1539,14 @@ actually reached the database. Worth remembering as a working method.
   whole install; the worker never activated and `serviceWorker.ready` hung
   forever. Registered is not working, and a promise that never settles is far
   harder to find than one that rejects.
+- **Import a timetable put a term an hour out.** A UTC-stamped time (a
+  trailing Z) was converted with the DEVICE's offset on the day of the paste,
+  so a timetable pasted after the clocks went back put every September class
+  an hour early, and a laptop in another city moved them all. Each stamp is
+  now converted in the account's zone on its own date, and a weekly rule
+  stamped in UTC keeps its UTC time, which is what Google and Apple Calendar
+  show for the same file. Seven tests across 1 November failed against the
+  old parser first.
 - **Low-battery mode handed over the most overdue task**, the one thing its
   own comment forbids. `chooseWork` had no idea of "now", so with nothing of
   30 minutes or less its fallback sorted by due date oldest first. Its test

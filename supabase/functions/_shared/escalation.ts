@@ -16,7 +16,7 @@ import type { OutboundMessage } from './types.ts';
 export interface EscalatableEvent {
   id: string;
   title: string;
-  kind: 'exam' | 'lab' | 'presentation' | 'other';
+  kind: 'exam' | 'lab' | 'presentation' | 'class' | 'other';
   starts_at: string;
   all_day: boolean;
   location: string | null;

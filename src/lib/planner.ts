@@ -102,7 +102,8 @@ export interface PlannerEvent {
   id: string;
   course_id: string | null;
   title: string;
-  kind: 'exam' | 'lab' | 'presentation' | 'other';
+  /** `class` is a session of a class typed by hand (see lib/classes.ts). */
+  kind: 'exam' | 'lab' | 'presentation' | 'class' | 'other';
   starts_at: string;
   ends_at: string | null;
   all_day: boolean;

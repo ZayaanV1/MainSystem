@@ -246,7 +246,7 @@ function ComingUp({
           {items.map((i) => {
             const when = new Date(i.at);
             const day = formatDay(localDayKey(when));
-            const label = i.kind === 'work' ? urgencyFor(when).label : i.e.kind === 'exam' ? 'Exam' : i.e.kind === 'presentation' ? 'Presentation' : i.e.kind === 'lab' ? 'Lab' : 'Event';
+            const label = i.kind === 'work' ? urgencyFor(when).label : i.e.kind === 'exam' ? 'Exam' : i.e.kind === 'presentation' ? 'Presentation' : i.e.kind === 'lab' ? 'Lab' : i.e.kind === 'class' ? 'Class' : 'Event';
             const tone = i.kind === 'work' ? urgencyFor(when).colourVar : '--text-mid';
             const body = (
               <>

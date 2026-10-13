@@ -41,6 +41,7 @@ export const EXPORTED: Record<string, string> = {
   subtasks: '*',
   deferrals: '*',
   events: '*',
+  class_series: '*',
   calendar_feeds: '*',
   checklist_items: '*',
   checklist_completions: '*',

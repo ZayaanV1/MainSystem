@@ -7,6 +7,9 @@ import { RepeatingWork } from './RepeatingWork';
 import { SeriesList } from './SeriesList';
 import { CalendarImport } from './CalendarImport';
 import { CalendarFeeds } from './CalendarFeeds';
+import { ClassList } from './ClassList';
+import { ClassSheet } from './ClassSheet';
+import { loadClasses, type ClassSummary } from '../lib/classes';
 import { courseGrades, gradeSummary } from '../lib/grades';
 import { SyllabusImport } from './SyllabusImport';
 import { EmptyState } from '../components/EmptyState';
@@ -101,6 +104,33 @@ export function Plan({ courses, onBack, onChanged, onOpenWork }: {
   const [seriesKey, setSeriesKey] = useState(0);
   const [importingCalendar, setImportingCalendar] = useState(false);
 
+  /*
+   * Classes typed by hand. Loaded here rather than in the list because the
+   * sheet needs them too: a new class starts with the term of one already
+   * running, so five courses means typing a term once.
+   */
+  const [classes, setClasses] = useState<ClassSummary[] | null>(null);
+  const [classesFailed, setClassesFailed] = useState(false);
+  const [classSheet, setClassSheet] = useState<{ key: number; open: boolean; editing: ClassSummary | null }>({
+    key: 0,
+    open: false,
+    editing: null,
+  });
+  const reloadClasses = useCallback(async () => {
+    const { items, error } = await loadClasses();
+    setClassesFailed(Boolean(error));
+    setClasses(error ? [] : items);
+  }, []);
+  useEffect(() => {
+    void reloadClasses();
+  }, [reloadClasses]);
+  const openClass = (editing: ClassSummary | null) =>
+    setClassSheet((s) => ({ key: s.key + 1, open: true, editing }));
+  const lastClass = useMemo(
+    () => (classes ?? []).filter((c) => c.series.last_day >= localDayKey()).at(0)?.series ?? null,
+    [classes],
+  );
+
   const courseRefs = useMemo(
     () => courses.map((c) => ({ id: c.id, name: c.name, code: c.code })),
     [courses],
@@ -187,6 +217,31 @@ export function Plan({ courses, onBack, onChanged, onOpenWork }: {
         the answer it produced, and it is the reason to read another one.
       */}
       {moduleOn('grades', prefs) && <Grades courses={courses} />}
+
+      {/*
+        For the student whose school gives no calendar file: type each class
+        once and every week of the term fills in. Above the feeds and the
+        importer because it is the way in that needs nothing else, and the
+        list of classes it makes lives here too.
+      */}
+      <section className="mb-8">
+        <SectionHead title="Your classes" count={classes?.length || null} />
+        <p className="type-note -mt-2 mb-3 px-4 text-text-low">
+          No calendar file from your school? Type each class once and every week of the term fills in.
+        </p>
+        <ClassList
+          items={classes}
+          failed={classesFailed}
+          courses={courses}
+          onRetry={() => void reloadClasses()}
+          onOpen={(item) => openClass(item)}
+        />
+        <div className="px-4">
+          <Button variant="secondary" onClick={() => openClass(null)}>
+            Add a class
+          </Button>
+        </div>
+      </section>
 
       {/*
         Above the syllabus importer, because it is the cheaper of the two ways
@@ -331,6 +386,19 @@ export function Plan({ courses, onBack, onChanged, onOpenWork }: {
         courses={courses}
         onCreated={() => {
           setSeriesKey((n) => n + 1);
+          onChanged();
+        }}
+      />
+
+      <ClassSheet
+        key={classSheet.key}
+        open={classSheet.open}
+        onClose={() => setClassSheet((s) => ({ ...s, open: false }))}
+        courses={courses}
+        editing={classSheet.editing}
+        term={lastClass}
+        onSaved={() => {
+          void reloadClasses();
           onChanged();
         }}
       />

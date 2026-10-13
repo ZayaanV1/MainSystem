@@ -96,6 +96,7 @@ const db: Record<string, any[]> = {
   ],
   deferrals: Array.from({ length: 7 }, (_, n) => ({ id: id('d', n + 1), user_id: USER, assignment_id: id('a', 8), created_at: at(-n - 1, 10) })),
   assignment_series: [],
+  class_series: [],
   chat_messages: [
     { id: id('m', 1), user_id: USER, role: 'user', content: 'what do i have tomorrow?', proposed_action: null, action_taken: false, referenced_ids: null, failed: false, via: 'app', created_at: at(-1, 21, 3) },
     { id: id('m', 2), user_id: USER, role: 'assistant', content: 'Tomorrow is lighter than today.\n\nThe chapter 6 reading for COEN 231 is due at 11:59 p.m., and that is the only deadline.', proposed_action: null, action_taken: false, referenced_ids: null, failed: false, via: 'app', created_at: at(-1, 21, 3) },
@@ -258,8 +259,34 @@ const listeners = new Set<(e: string, s: any) => void>();
 export const isConfigured = true;
 export const supabase: any = {
   from: (t: string) => new Query(t),
-  rpc: async (name: string) => {
+  rpc: async (name: string, args: any = {}) => {
     if (name === 'own_key_status') return { data: [{ gemini: false, groq: true }], error: null };
+    // save_class and delete_class as migration 0038 writes them: the class row,
+    // then removals, updates and inserts of its own sessions, all or nothing.
+    if (name === 'save_class') {
+      const c = args.p_class;
+      const mine = (id: string) => db.events.find((e) => e.id === id && e.series_id === c.id);
+      if ((args.p_remove ?? []).some((id: string) => !mine(id)) || (args.p_update ?? []).some((u: any) => !mine(u.id))) {
+        return { data: null, error: { message: 'This class changed somewhere else. Nothing was saved.', code: '40001' } };
+      }
+      const row = { ...c, user_id: USER, location: c.location || null };
+      const i = db.class_series.findIndex((s) => s.id === c.id);
+      if (i >= 0) db.class_series[i] = { ...db.class_series[i], ...row }; else db.class_series.push({ ...row, created_at: new Date().toISOString() });
+      db.events = db.events.filter((e) => !(args.p_remove ?? []).includes(e.id));
+      const fields = { title: row.title, course_id: row.course_id, location: row.location };
+      for (const u of args.p_update ?? []) Object.assign(mine(u.id), { starts_at: u.starts_at, ends_at: u.ends_at, ...fields });
+      for (const n of args.p_insert ?? []) {
+        db.events.push({ id: crypto.randomUUID(), user_id: USER, kind: 'class', all_day: false, feed_id: null, series_id: c.id, starts_at: n.starts_at, ends_at: n.ends_at, ...fields });
+      }
+      return { data: (args.p_remove ?? []).length + (args.p_update ?? []).length + (args.p_insert ?? []).length, error: null };
+    }
+    if (name === 'delete_class') {
+      const before = db.events.length;
+      db.events = db.events.filter((e) => !((args.p_remove ?? []).includes(e.id) && e.series_id === args.p_id));
+      for (const e of db.events) if (e.series_id === args.p_id) e.series_id = null;
+      db.class_series = db.class_series.filter((s) => s.id !== args.p_id);
+      return { data: before - db.events.length, error: null };
+    }
     if (name === 'ensure_ics_token') return { data: 'sample-token', error: null };
     return { data: null, error: null };
   },

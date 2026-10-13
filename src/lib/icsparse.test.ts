@@ -54,9 +54,9 @@ describe('parseIcs — a single event', () => {
     expect(events[0].day).toBe('2026-10-19');
   });
 
-  it('converts a UTC stamp into the reader zone', () => {
+  it('converts a UTC stamp into the account zone', () => {
     // 15:30Z is 11:30 in Toronto, which is UTC-4 in September.
-    const { events } = parseIcs(event(['SUMMARY:Lab', 'DTSTART:20260908T153000Z']), -240);
+    const { events } = parseIcs(event(['SUMMARY:Lab', 'DTSTART:20260908T153000Z']), 'America/Toronto');
     expect(events[0]).toMatchObject({ day: '2026-09-08', time: '11:30' });
   });
 
@@ -175,5 +175,75 @@ describe('parseIcs — what it refuses to guess', () => {
   it('survives an empty feed without throwing', () => {
     expect(parseIcs('')).toEqual({ events: [], skipped: [] });
     expect(parseIcs(ics(''))).toEqual({ events: [], skipped: [] });
+  });
+});
+
+/**
+ * The import hour bug. A UTC stamp was converted with the DEVICE's offset on
+ * the day of the paste, so a term pasted in December put every September
+ * class an hour early, and a laptop in another city moved them all. Each
+ * stamp is now converted in the account's zone on its own date.
+ */
+describe('parseIcs — UTC stamps across a clock change', () => {
+  const TORONTO = 'America/Toronto';
+
+  it('reads a September stamp as EDT and a November one as EST, whenever it is pasted', () => {
+    const sept = parseIcs(event(['SUMMARY:Lecture', 'DTSTART:20260908T141500Z']), TORONTO).events[0];
+    const nov = parseIcs(event(['SUMMARY:Lecture', 'DTSTART:20261110T151500Z']), TORONTO).events[0];
+    expect(sept).toMatchObject({ day: '2026-09-08', time: '10:15' });
+    expect(nov).toMatchObject({ day: '2026-11-10', time: '10:15' });
+  });
+
+  it('converts each week of a UTC rule on its own date, across 1 November', () => {
+    // 14:15Z every Tuesday: 10:15 while Toronto is UTC-4, and 9:15 once it is
+    // UTC-5. That is what the file says, and what Google or Apple Calendar
+    // would show for it.
+    const { events } = parseIcs(
+      event(['SUMMARY:Lecture', 'DTSTART:20261020T141500Z', 'RRULE:FREQ=WEEKLY;BYDAY=TU;COUNT=4']),
+      TORONTO,
+    );
+    expect(events[0].occurrences).toEqual([
+      { day: '2026-10-20', time: '10:15' },
+      { day: '2026-10-27', time: '10:15' },
+      { day: '2026-11-03', time: '09:15' },
+      { day: '2026-11-10', time: '09:15' },
+    ]);
+    expect(events[0].days).toEqual(['2026-10-20', '2026-10-27', '2026-11-03', '2026-11-10']);
+  });
+
+  it('keeps a local rule at its wall-clock time across the same change', () => {
+    const { events } = parseIcs(
+      event(['SUMMARY:Lecture', 'DTSTART;TZID=America/Toronto:20261027T101500', 'RRULE:FREQ=WEEKLY;COUNT=2']),
+      TORONTO,
+    );
+    expect(events[0].occurrences).toEqual([
+      { day: '2026-10-27', time: '10:15' },
+      { day: '2026-11-03', time: '10:15' },
+    ]);
+  });
+
+  it('moves a late UTC stamp to the local day it falls on', () => {
+    // 03:00Z on Wednesday is 11 p.m. on Tuesday in Toronto.
+    const { events } = parseIcs(
+      event(['SUMMARY:Night lab', 'DTSTART:20261028T030000Z', 'RRULE:FREQ=WEEKLY;COUNT=2']),
+      TORONTO,
+    );
+    expect(events[0].occurrences).toEqual([
+      { day: '2026-10-27', time: '23:00' },
+      { day: '2026-11-03', time: '22:00' },
+    ]);
+  });
+
+  it('uses the account zone, not Toronto', () => {
+    const { events } = parseIcs(event(['SUMMARY:Lab', 'DTSTART:20261110T151500Z']), 'America/Vancouver');
+    expect(events[0]).toMatchObject({ day: '2026-11-10', time: '07:15' });
+  });
+
+  it('bounds a UTC rule by its UNTIL in the same calendar', () => {
+    const { events } = parseIcs(
+      event(['SUMMARY:Lecture', 'DTSTART:20261020T141500Z', 'RRULE:FREQ=WEEKLY;UNTIL=20261103T141500Z']),
+      TORONTO,
+    );
+    expect(events[0].days).toEqual(['2026-10-20', '2026-10-27', '2026-11-03']);
   });
 });

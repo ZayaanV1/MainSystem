@@ -159,6 +159,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // deno-lint-ignore no-explicit-any
   const courseOf = (r: any) => r.courses?.code ?? r.courses?.name ?? null;
+  // "COEN 231: Lecture", but a title that already starts with its course —
+  // every class typed by hand does — is not given it twice.
+  const titled = (course: string | null, title: string) =>
+    course && !title.toLowerCase().startsWith(course.toLowerCase()) ? `${course}: ${title}` : title;
 
   const ics: IcsEvent[] = [];
 
@@ -175,8 +179,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       allDay: !a.due_has_time,
       summary: [
         a.status === 'done' ? '✓' : '',
-        course ? `${course}:` : '',
-        a.title,
+        titled(course, a.title),
       ].filter(Boolean).join(' '),
       description: null,
     });
@@ -190,7 +193,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       start: new Date(e.starts_at),
       end: e.ends_at ? new Date(e.ends_at) : null,
       allDay: Boolean(e.all_day),
-      summary: [course ? `${course}:` : '', e.title].filter(Boolean).join(' '),
+      summary: titled(course, e.title),
       description: null,
     });
   }

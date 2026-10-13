@@ -381,7 +381,7 @@ function TicketEvent({ item }: { item: EventItem }) {
   // What kind of thing this is, as specifically as the data allows: the
   // meeting type from a timetable, else the course, else the calendar it
   // came from. "Event" only when nothing better is known.
-  const kicker = item.read.type ?? item.course?.code ?? item.event.source ?? 'Event';
+  const kicker = item.read.type ?? item.course?.code ?? item.event.source ?? (item.event.kind === 'class' ? 'Class' : 'Event');
 
   return (
     <div className="ticket-wrap" data-now={item.state === 'now' || undefined}>

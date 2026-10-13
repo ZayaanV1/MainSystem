@@ -1,4 +1,4 @@
-import { addDays, isoWeekday, type DayKey } from './time.ts';
+import { addDays, isoWeekday, localDayKey, localHourMinute, type DayKey } from './time.ts';
 
 /**
  * Reading an .ics feed, so a university timetable can come IN.
@@ -33,6 +33,13 @@ export interface ParsedEvent {
   endTime: string | null;
   /** Every day this event falls on, first occurrence included. */
   days: DayKey[];
+  /**
+   * Each occurrence's local day and wall-clock time, in the same order as
+   * `days`. The time is not always the first one's: a weekly rule stamped in
+   * UTC keeps its UTC time, so in Toronto it is an hour earlier on the clock
+   * after 1 November, exactly as Google or Apple Calendar would show it.
+   */
+  occurrences: { day: DayKey; time: string | null }[];
   /** True when the event repeated, so the UI can say "13 weeks" not "13 events". */
   repeats: boolean;
 }
@@ -92,54 +99,68 @@ function unescapeText(v: string): string {
 }
 
 interface Stamp {
+  /** Local calendar day, in the account's zone for a UTC stamp. */
   day: DayKey;
   time: string | null;
+  /** Set for a stamp that carried a Z: its own day and time in UTC. */
+  utc: { day: DayKey; time: string } | null;
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** A UTC instant as the account's local day and wall-clock time. */
+function localOf(instantMs: number, tz: string): { day: DayKey; time: string } {
+  const at = new Date(instantMs);
+  const { hour, minute } = localHourMinute(at, tz);
+  return { day: localDayKey(at, tz), time: `${pad(hour)}:${pad(minute)}` };
 }
 
 /**
  * A DTSTART value into a local day and wall-clock time.
  *
- * A trailing Z means UTC and is converted; anything else — a TZID parameter or
- * a floating time — is taken at face value as local. That is the pragmatic
- * reading rather than the correct one, and it is stated here because it is the
- * assumption most likely to be wrong: a feed published in a zone other than
- * the reader's, without a Z, will be off by that difference. University
- * timetables publish in the university's zone, which is the zone of the person
- * attending, so in practice this holds.
+ * A trailing Z means UTC and is converted into the account's zone AT THAT
+ * INSTANT. It used to be converted with the device's offset on the day of the
+ * paste, so a timetable pasted in December put every September class an hour
+ * early, and one pasted from a laptop in another city moved them by the
+ * difference.
+ *
+ * Anything else — a TZID parameter or a floating time — is taken at face value
+ * as local. That is the pragmatic reading rather than the correct one, and it
+ * is stated here because it is the assumption most likely to be wrong: a feed
+ * published in a zone other than the account's, without a Z, will be off by
+ * that difference. University timetables publish in the university's zone,
+ * which is the zone of the person attending, so in practice this holds.
  */
-function parseStamp(value: string, zoneOffsetMinutes: number): Stamp | null {
+function parseStamp(value: string, tz: string): Stamp | null {
   const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?$/.exec(value.trim());
   if (!m) return null;
 
   const [, y, mo, d, hh, mm, , z] = m;
 
   // Date-only: an all-day entry.
-  if (hh === undefined) return { day: `${y}-${mo}-${d}` as DayKey, time: null };
+  if (hh === undefined) return { day: `${y}-${mo}-${d}` as DayKey, time: null, utc: null };
 
   if (z) {
-    const utc = Date.UTC(+y, +mo - 1, +d, +hh, +mm);
-    const local = new Date(utc + zoneOffsetMinutes * 60_000);
-    const p = (n: number) => String(n).padStart(2, '0');
-    return {
-      day: `${local.getUTCFullYear()}-${p(local.getUTCMonth() + 1)}-${p(local.getUTCDate())}` as DayKey,
-      time: `${p(local.getUTCHours())}:${p(local.getUTCMinutes())}`,
-    };
+    const utc = { day: `${y}-${mo}-${d}` as DayKey, time: `${hh}:${mm}` };
+    return { ...localOf(Date.UTC(+y, +mo - 1, +d, +hh, +mm), tz), utc };
   }
 
-  return { day: `${y}-${mo}-${d}` as DayKey, time: `${hh}:${mm}` };
+  return { day: `${y}-${mo}-${d}` as DayKey, time: `${hh}:${mm}`, utc: null };
 }
 
 const BYDAY: Record<string, number> = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 7 };
 
 /**
- * Expands a weekly RRULE into the days it lands on.
+ * Expands a weekly RRULE into the days it lands on, in the start's own
+ * calendar: local days for a local start, UTC days for a UTC one (BYDAY means
+ * a weekday in DTSTART's zone).
  *
  * Weekly only, and that is a deliberate stop rather than an unfinished bit.
  * A timetable is weekly; monthly and yearly rules in a course feed are
  * overwhelmingly one-off administrative entries, and a rule this cannot read
  * makes its event a single occurrence with a note rather than a wrong series.
  */
-function expandWeekly(rule: string, first: Stamp, zoneOffsetMinutes: number): DayKey[] | null {
+function expandWeekly(rule: string, first: Stamp, tz: string): DayKey[] | null {
   const parts = new Map<string, string>();
   for (const p of rule.split(';')) {
     const [k, v] = p.split('=');
@@ -151,7 +172,9 @@ function expandWeekly(rule: string, first: Stamp, zoneOffsetMinutes: number): Da
   const interval = Math.max(1, Number(parts.get('INTERVAL') ?? '1') || 1);
   const count = parts.has('COUNT') ? Number(parts.get('COUNT')) : null;
   const untilRaw = parts.get('UNTIL');
-  const until = untilRaw ? parseStamp(untilRaw, zoneOffsetMinutes)?.day ?? null : null;
+  const untilStamp = untilRaw ? parseStamp(untilRaw, tz) : null;
+  const until = untilStamp ? (first.utc ? untilStamp.utc?.day ?? untilStamp.day : untilStamp.day) : null;
+  const firstDay = first.utc?.day ?? first.day;
 
   const wanted = (parts.get('BYDAY') ?? '')
     .split(',')
@@ -159,7 +182,7 @@ function expandWeekly(rule: string, first: Stamp, zoneOffsetMinutes: number): Da
     .filter((n): n is number => Boolean(n));
 
   // No BYDAY means "the weekday the first occurrence falls on".
-  const weekdays = wanted.length > 0 ? wanted : [isoWeekday(first.day)];
+  const weekdays = wanted.length > 0 ? wanted : [isoWeekday(firstDay)];
 
   const out: DayKey[] = [];
   // A bound even when the rule has neither COUNT nor UNTIL, which is legal and
@@ -167,14 +190,14 @@ function expandWeekly(rule: string, first: Stamp, zoneOffsetMinutes: number): Da
   const horizonDays = 7 * 53;
 
   for (let offset = 0; offset <= horizonDays; offset++) {
-    const day = addDays(first.day, offset);
+    const day = addDays(firstDay, offset);
     if (until && day > until) break;
 
     // Which week of the pattern this is, for INTERVAL.
     const week = Math.floor(offset / 7);
     if (week % interval !== 0) continue;
     if (!weekdays.includes(isoWeekday(day))) continue;
-    if (day < first.day) continue;
+    if (day < firstDay) continue;
 
     out.push(day);
     if (count !== null && out.length >= count) break;
@@ -187,11 +210,12 @@ function expandWeekly(rule: string, first: Stamp, zoneOffsetMinutes: number): Da
 /**
  * Parses a calendar feed.
  *
- * `zoneOffsetMinutes` is the reader's offset from UTC, used only to convert
- * stamps that explicitly carry a Z. It is passed in rather than read from the
+ * `tz` is the account's zone, used only to convert stamps that explicitly
+ * carry a Z — each on its own date, so one on either side of a clock change
+ * gets the offset in force on its day. Passed in rather than read from the
  * host so this stays pure and testable across zones.
  */
-export function parseIcs(text: string, zoneOffsetMinutes = 0): ParseResult {
+export function parseIcs(text: string, tz = 'UTC'): ParseResult {
   const lines = unfold(text);
   const events: ParsedEvent[] = [];
   const skipped: string[] = [];
@@ -223,21 +247,24 @@ export function parseIcs(text: string, zoneOffsetMinutes = 0): ParseResult {
         continue;
       }
 
-      const start = parseStamp(startRaw, zoneOffsetMinutes);
+      const start = parseStamp(startRaw, tz);
       if (!start) {
         skipped.push(`"${summary}" has a start date this cannot read.`);
         continue;
       }
 
-      const end = cur.DTEND ? parseStamp(cur.DTEND, zoneOffsetMinutes) : null;
+      const end = cur.DTEND ? parseStamp(cur.DTEND, tz) : null;
 
-      let days: DayKey[] = [start.day];
+      let occurrences: { day: DayKey; time: string | null }[] = [{ day: start.day, time: start.time }];
       let repeats = false;
 
       if (cur.RRULE) {
-        const expanded = expandWeekly(cur.RRULE, start, zoneOffsetMinutes);
+        const expanded = expandWeekly(cur.RRULE, start, tz);
         if (expanded && expanded.length > 0) {
-          days = expanded;
+          const utc = start.utc;
+          occurrences = utc
+            ? expanded.map((d) => localOf(Date.parse(`${d}T${utc.time}:00Z`), tz))
+            : expanded.map((day) => ({ day, time: start.time }));
           repeats = expanded.length > 1;
         } else {
           // Read as a single occurrence and SAY SO, rather than inventing a
@@ -253,7 +280,8 @@ export function parseIcs(text: string, zoneOffsetMinutes = 0): ParseResult {
         day: start.day,
         time: start.time,
         endTime: end?.time ?? null,
-        days,
+        days: occurrences.map((o) => o.day),
+        occurrences,
         repeats,
       });
       continue;

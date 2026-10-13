@@ -5,7 +5,7 @@ import { Pressable } from '../components/Pressable';
 import { Sheet } from '../components/Sheet';
 import { addEvent, type Course } from '../lib/planner';
 import { parseIcs, type ParsedEvent } from '../../supabase/functions/_shared/icsparse';
-import { formatDay } from '../lib/time';
+import { activeTimezone, formatDay } from '../lib/time';
 
 /**
  * Importing a timetable.
@@ -54,10 +54,11 @@ export function CalendarImport({ open, onClose, userId, courses, onImported }: C
   const [result, setResult] = useState<string | null>(null);
 
   function run() {
-    // The reader's offset from UTC, for stamps that carry a Z. Taken from the
-    // host rather than a setting because it describes THIS device's clock.
-    const offset = -new Date().getTimezoneOffset();
-    setParsed(parseIcs(text, offset));
+    // The account's zone, for stamps that carry a Z, applied on each one's
+    // own date. It was this device's offset on the day of the paste, which
+    // put a September class an hour early when the term was pasted in
+    // December, and moved every class when the laptop was in another city.
+    setParsed(parseIcs(text, activeTimezone()));
     setExcluded(new Set());
     setResult(null);
   }
@@ -71,7 +72,7 @@ export function CalendarImport({ open, onClose, userId, courses, onImported }: C
 
     let written = 0;
     for (const e of chosen) {
-      for (const day of e.days) {
+      for (const { day, time } of e.occurrences) {
         await addEvent(userId, {
           title: e.summary,
           // Everything imported is a plain event. Calling a lecture an "exam"
@@ -79,7 +80,7 @@ export function CalendarImport({ open, onClose, userId, courses, onImported }: C
           // weekday at 20:00 is how someone turns notifications off entirely.
           kind: 'other',
           day,
-          time: e.time,
+          time,
           course_id: courseId,
           notes: e.location,
         });

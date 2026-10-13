@@ -52,6 +52,11 @@ const PLATFORM_STUB = `
   create role anon;
   create role service_role;
 
+  -- As on Supabase, where the API roles can name auth.uid(). A policy never
+  -- needed this (its function is stored resolved), but a SECURITY INVOKER
+  -- function looks auth.uid() up by name as the caller.
+  grant usage on schema auth to anon, authenticated;
+
   -- Supabase's default privileges, applied BEFORE the migrations as they are
   -- in production: every new table is granted to authenticated, and every new
   -- function is executable by anon and authenticated. Granting after the
@@ -236,6 +241,7 @@ describe('migrations apply', () => {
       'chat_messages',
       'checklist_completions',
       'checklist_items',
+      'class_series',
       'course_pages',
       'courses',
       'daily_summaries',
@@ -1302,5 +1308,149 @@ describe('exam weights', () => {
                values ('${USER_A}', 'Bad', 'exam', now(), 101)`),
     ).rejects.toThrow(/events_grade_percent_range/);
     await db.exec(`delete from public.events where title = 'Midterm'`);
+  });
+});
+
+describe('classes typed by hand', () => {
+  const CLASS_A = 'cccccccc-0000-0000-0000-00000000000a';
+  /** A Tue/Thu lecture as the app sends it. */
+  const lecture = (over: Record<string, unknown> = {}) => ({
+    id: CLASS_A,
+    course_id: null,
+    title: 'COEN 231 Lecture',
+    weekdays: [2, 4],
+    start_time: '10:15',
+    end_time: '11:30',
+    location: 'H-937',
+    first_day: '2026-10-27',
+    last_day: '2026-11-05',
+    skip_days: [],
+    ...over,
+  });
+  // 27 and 29 Oct in EDT, 3 and 5 Nov in EST: the same 10:15 across the change.
+  const sessions = [
+    { starts_at: '2026-10-27T14:15:00Z', ends_at: '2026-10-27T15:30:00Z' },
+    { starts_at: '2026-10-29T14:15:00Z', ends_at: '2026-10-29T15:30:00Z' },
+    { starts_at: '2026-11-03T15:15:00Z', ends_at: '2026-11-03T16:30:00Z' },
+    { starts_at: '2026-11-05T15:15:00Z', ends_at: '2026-11-05T16:30:00Z' },
+  ];
+  const save = (cls: object, insert: object[], update: object[] = [], remove: string[] = []) =>
+    db.query<{ n: number }>(`select public.save_class($1::jsonb, $2::jsonb, $3::jsonb, $4::uuid[]) as n`, [
+      JSON.stringify(cls),
+      JSON.stringify(insert),
+      JSON.stringify(update),
+      remove,
+    ]);
+  const ids = async () =>
+    (await db.query<{ id: string; starts_at: string }>(
+      `select id, starts_at from public.events where series_id = '${CLASS_A}' order by starts_at`,
+    )).rows;
+
+  it('accepts class as a kind of event', async () => {
+    await db.exec(`insert into public.events (user_id, title, kind, starts_at) values ('${USER_A}', 'Typed', 'class', now())`);
+    await db.exec(`delete from public.events where title = 'Typed'`);
+  });
+
+  it('writes a class and its sessions in one call, as the caller', async () => {
+    await asUser(USER_A, async () => {
+      expect((await save(lecture(), sessions)).rows[0].n).toBe(4);
+      const rows = await db.query<{ kind: string; title: string; location: string; user_id: string }>(
+        `select kind, title, location, user_id from public.events where series_id = '${CLASS_A}'`,
+      );
+      expect(rows.rows).toHaveLength(4);
+      // Title and room come from the class, so a session cannot disagree with it.
+      expect(rows.rows.every((r) => r.kind === 'class' && r.title === 'COEN 231 Lecture' && r.location === 'H-937' && r.user_id === USER_A)).toBe(true);
+    });
+  });
+
+  it('moves, removes and renames in place, or does nothing at all', async () => {
+    await asUser(USER_A, async () => {
+      await save(lecture(), sessions);
+      const before = await ids();
+
+      // Later sessions to 10:30 and a new room; the last one removed.
+      const moved = before.slice(2, 3).map((r) => ({ id: r.id, starts_at: '2026-11-03T15:30:00Z', ends_at: '2026-11-03T16:45:00Z' }));
+      expect((await save(lecture({ location: 'MB 2.130' }), [], moved, [before[3].id])).rows[0].n).toBe(2);
+      const after = await db.query<{ id: string; location: string; starts_at: Date }>(
+        `select id, location, starts_at from public.events where series_id = '${CLASS_A}' order by starts_at`,
+      );
+      expect(after.rows).toHaveLength(3);
+      expect(after.rows[2].id).toBe(before[2].id);
+      expect(new Date(after.rows[2].starts_at).toISOString()).toBe('2026-11-03T15:30:00.000Z');
+      expect(after.rows[2].location).toBe('MB 2.130');
+
+      // A plan made before another device removed a session is refused whole.
+      await db.exec('savepoint stale');
+      await expect(
+        save(lecture({ title: 'Renamed' }), sessions.slice(0, 1), [], [before[3].id]),
+      ).rejects.toThrow(/changed somewhere else/);
+      await db.exec('rollback to savepoint stale');
+      const still = await db.query<{ title: string }>(`select title from public.class_series where id = '${CLASS_A}'`);
+      expect(still.rows[0].title).toBe('COEN 231 Lecture');
+      expect(await ids()).toHaveLength(3);
+    });
+  });
+
+  it('refuses a class whose end is not after its start, or with no days', async () => {
+    await asUser(USER_A, async () => {
+      await db.exec('savepoint a');
+      await expect(save(lecture({ end_time: '10:00' }), [])).rejects.toThrow(/class_series_order/);
+      await db.exec('rollback to savepoint a');
+      await expect(save(lecture({ weekdays: [] }), [])).rejects.toThrow(/check constraint/);
+    });
+    await asUser(USER_A, async () => {
+      await expect(save(lecture({ weekdays: [8] }), [])).rejects.toThrow(/check constraint/);
+    });
+  });
+
+  it('keeps one account out of another\'s class', async () => {
+    await db.exec(`
+      insert into public.class_series (id, user_id, title, weekdays, start_time, end_time, first_day, last_day)
+      values ('${CLASS_A}', '${USER_A}', 'COEN 231 Lecture', '{2,4}', '10:15', '11:30', '2026-10-27', '2026-11-05')`);
+    try {
+      // B cannot see it, cannot overwrite it through save_class, and cannot
+      // attach an event of its own to it.
+      await asUser(USER_B, async () => {
+        expect((await db.query(`select 1 from public.class_series`)).rows).toHaveLength(0);
+        await db.exec('savepoint b');
+        await expect(save(lecture({ title: 'Hijacked' }), [])).rejects.toThrow(/row-level security/);
+        await db.exec('rollback to savepoint b');
+        await expect(
+          db.exec(`insert into public.events (user_id, title, starts_at, series_id) values ('${USER_B}', 'forged', now(), '${CLASS_A}')`),
+        ).rejects.toThrow(/foreign key/);
+      });
+    } finally {
+      await db.exec(`delete from public.class_series where id = '${CLASS_A}'`);
+    }
+  });
+
+  it('deletes the class and the sessions asked for, and keeps the rest unlinked', async () => {
+    await asUser(USER_A, async () => {
+      await save(lecture(), sessions);
+      const rows = await ids();
+      // The two still to come are removed; the two that happened stay.
+      expect((await db.query<{ n: number }>(`select public.delete_class($1, $2::uuid[]) as n`, [CLASS_A, rows.slice(2).map((r) => r.id)])).rows[0].n).toBe(2);
+      expect((await db.query(`select 1 from public.class_series where id = '${CLASS_A}'`)).rows).toHaveLength(0);
+      const kept = await db.query<{ series_id: string | null }>(
+        `select series_id from public.events where id = any($1::uuid[])`,
+        [rows.slice(0, 2).map((r) => r.id)],
+      );
+      expect(kept.rows).toEqual([{ series_id: null }, { series_id: null }]);
+    });
+  });
+
+  it('is not offered to anyone signed out', async () => {
+    const res = await db.query<{ save: boolean; del: boolean }>(
+      `select has_function_privilege('anon', 'public.save_class(jsonb, jsonb, jsonb, uuid[])', 'execute') as save,
+              has_function_privilege('anon', 'public.delete_class(uuid, uuid[])', 'execute') as del`,
+    );
+    expect(res.rows[0]).toEqual({ save: false, del: false });
+  });
+
+  it('keeps a session from claiming both a feed and a class', async () => {
+    const r = await db.query<{ def: string }>(
+      `select pg_get_constraintdef(oid) as def from pg_constraint where conname = 'events_one_origin'`,
+    );
+    expect(r.rows[0].def).toMatch(/series_id IS NULL\) OR \(feed_id IS NULL/);
   });
 });
