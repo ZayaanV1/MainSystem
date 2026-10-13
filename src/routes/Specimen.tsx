@@ -28,6 +28,7 @@ import { ThinkingText } from '../components/kit/ThinkingText';
 import { ThemePicker } from '../components/ThemePicker';
 import { ArrangeToday } from '../components/ArrangeToday';
 import { Segmented } from '../components/Segmented';
+import { CommandPalette } from '../components/CommandPalette';
 
 /**
  * The design system specimen. Development only — reached at /?specimen.
@@ -135,6 +136,10 @@ export function Specimen() {
           {lowBattery ? 'Exit low battery' : 'Low battery'}
         </Button>
       </div>
+
+      <Section title="CommandPalette — cmd/ctrl+K on a laptop">
+        <PaletteDemo />
+      </Section>
 
       <Section title="Segmented — one capsule sliding between two to four options">
         <SegmentedDemo />
@@ -419,5 +424,27 @@ function SegmentedDemo() {
         fill
       />
     </div>
+  );
+}
+
+function PaletteDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Open the palette
+      </Button>
+      {open && (
+        <CommandPalette
+          onClose={() => setOpen(false)}
+          commands={[
+            { id: 'do', group: 'Do', label: 'Capture a thought', run: () => {} },
+            { id: 'go', group: 'Go to', label: 'Week', run: () => {} },
+            { id: 'w', group: 'Work', label: 'Problem set 4: interference', hint: 'PHYS 205 · Thu', run: () => {} },
+            { id: 'c', group: 'Courses', label: 'PHYS 205', hint: 'Waves and Optics', run: () => {} },
+          ]}
+        />
+      )}
+    </>
   );
 }

@@ -3,6 +3,7 @@ import { EASE } from '../lib/motion';
 import { sweepFrom } from '../lib/transition';
 import { ThemePicker } from '../components/ThemePicker';
 import { ArrangeToday } from '../components/ArrangeToday';
+import { badgeOn, badgeSupported, setBadgeOn } from '../lib/badge';
 import { TODAY_SECTIONS, moduleOn, usePreferences, type Preferences } from '../lib/preferences';
 import { currentRoute, formatRoute } from '../lib/route';
 import { aboodSummary, appearanceSummary, notificationsSummary } from '../lib/settingsSummary';
@@ -142,6 +143,7 @@ export function Settings() {
 
   // A failed export used to vanish as an unhandled rejection: the button did
   // nothing and said nothing. It says what failed now.
+  const [badge, setBadge] = useState(badgeOn);
   const [exporting, setExporting] = useState(false);
   const [exportProblem, setExportProblem] = useState<string | null>(null);
   async function runExport(run: () => Promise<void>) {
@@ -254,7 +256,25 @@ export function Settings() {
                 )}
               </div>
 
-              {message && <p className="type-caption mt-4 text-text-mid">{message}</p>}
+              {message && <p className="type-note mt-4 text-text-mid">{message}</p>}
+
+              {badgeSupported() && (
+                <label className="mt-4 flex items-center justify-between gap-4 border-t border-ink-600 pt-4">
+                  <span className="min-w-0">
+                    <span className="block type-label text-text-hi">Today’s count on the app icon</span>
+                    <span className="type-note text-text-low">What is due today and still open. It falls as you finish, and never counts what was missed.</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="settings-switch"
+                    checked={badge}
+                    onChange={(e) => {
+                      setBadgeOn(e.target.checked);
+                      setBadge(e.target.checked);
+                    }}
+                  />
+                </label>
+              )}
             </Card>
           </section>
 

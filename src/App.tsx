@@ -17,7 +17,7 @@ import {
   type InboxItem,
   type TodayData,
 } from './lib/planner';
-import type { DayKey } from './lib/time';
+import { formatDay, localDayKey, todayKey, type DayKey } from './lib/time';
 /*
  * Split by route.
  *
@@ -36,6 +36,7 @@ import type { DayKey } from './lib/time';
 // Signed-in opens, which are nearly all of them, never show this.
 const SignIn = lazy(() => import('./routes/SignIn').then((m) => ({ default: m.SignIn })));
 const NewPassword = lazy(() => import('./routes/SignIn').then((m) => ({ default: m.NewPassword })));
+const CommandPalette = lazy(() => import('./components/CommandPalette').then((m) => ({ default: m.CommandPalette })));
 import { Today } from './routes/Today';
 
 const Plan = lazy(() => import('./routes/Plan').then((m) => ({ default: m.Plan })));
@@ -65,6 +66,9 @@ import { FocusResult } from './components/FocusResult';
 import { currentRoute, formatRoute, type Route, type Screen } from './lib/route';
 import { adoptPreferences, moduleOn, usePreferences } from './lib/preferences';
 import { EmptyState } from './components/EmptyState';
+import { applyBadge, badgeCount } from './lib/badge';
+import type { Command } from './components/CommandPalette';
+import { applyTheme, writeTheme } from './lib/theme';
 import { Button } from './components/Button';
 
 /**
@@ -118,6 +122,14 @@ function Shell() {
    */
   const navigate = useCallback(
     (next: Screen, extra: Omit<Route, 'screen'> = {}) => {
+      // Within the same screen (Courses to a course's page, Settings to one
+      // of its pages): a new address, announced the way Back announces one,
+      // so the screen's own page handling moves.
+      if (next === screen && (extra.course || extra.page)) {
+        window.history.pushState(null, '', formatRoute({ screen: next, ...extra }));
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        return;
+      }
       if (next === screen && !extra.day) return;
       setMonthDay(next === 'month' ? (extra.day ?? null) : null);
       window.history.pushState(null, '', formatRoute({ screen: next, ...extra }));
@@ -133,10 +145,13 @@ function Shell() {
     are typing, because a shortcut that eats a keystroke mid-sentence is worse
     than no shortcut — and "/" is exactly what someone typing a date presses.
   */
+  const [palette, setPalette] = useState(false);
   useHotkeys({
     onSearch: () => navigate('search'),
+    onPalette: () => setPalette((open) => !open),
     onEscape: () => {
-      if (openAssignment) setOpenAssignment(null);
+      if (palette) setPalette(false);
+      else if (openAssignment) setOpenAssignment(null);
       else if (screen !== 'today') navigate('today');
     },
   });
@@ -284,9 +299,75 @@ function Shell() {
     return keepFeedsLive();
   }, [session, zoneReady, feedsOn]);
 
+  // Today's count on the home-screen icon (lib/badge.ts), kept current as
+  // the day loads and as work is ticked off.
+  useEffect(() => {
+    if (data) void applyBadge(badgeCount(data.assignments, todayKey()));
+  }, [data]);
+
   // A switched-off module leaves the tab bar; its screen stays reachable by
   // address and says how to bring it back rather than going blank.
   const nav = useMemo(() => NAV.filter((item) => item.id !== 'ask' || moduleOn('abood', prefs)), [prefs]);
+
+  // The command palette's entries, built only while it is open. Each runs the
+  // same function a tap would (components/CommandPalette.tsx).
+  const commands = useMemo<Command[]>(() => {
+    if (!palette) return [];
+    const list: Command[] = [
+      {
+        id: 'do-capture',
+        group: 'Do',
+        label: 'Capture a thought',
+        keywords: 'add new inbox note write',
+        run: () => {
+          navigate('today');
+          window.setTimeout(() => document.getElementById('capture')?.focus(), 380);
+        },
+      },
+      {
+        id: 'do-mode',
+        group: 'Do',
+        label: 'Switch light or dark',
+        keywords: 'theme mode night day appearance',
+        run: () => {
+          const t = document.documentElement.getAttribute('data-theme');
+          const dark = t ? t === 'dark' : !window.matchMedia('(prefers-color-scheme: light)').matches;
+          const next = dark ? 'light' : 'dark';
+          withTransition(() => {
+            writeTheme(next);
+            applyTheme(next);
+          });
+        },
+      },
+      ...nav.map((item) => ({ id: `go-${item.id}`, group: 'Go to' as const, label: item.label, run: () => navigate(item.id) })),
+    ];
+    const pages: [string, string, string?][] = [
+      ['notifications', 'Notifications and digest', 'push morning digest weekly review badge'],
+      ['timezone', 'Time zone', 'zone clock'],
+      ['appearance', 'Appearance', 'theme dark light glass motion slips'],
+      ['arrange', 'Today and modules', 'arrange order hide sections modules switch off'],
+      ...(moduleOn('feeds', prefs) ? ([['calendar', 'Calendar feed', 'ics subscribe google apple outlook']] as [string, string, string][]) : []),
+      ['abood', moduleOn('abood', prefs) ? 'Abood' : 'AI keys', 'groq gemini key telegram imessage memory'],
+      ['data', 'Your data', 'export json csv delete account'],
+    ];
+    for (const [page, label, keywords] of pages)
+      list.push({ id: `set-${page}`, group: 'Settings', label, keywords, run: () => navigate('settings', { page }) });
+    const courses = data?.courses ?? [];
+    for (const a of data?.assignments ?? []) {
+      if (a.status === 'done') continue;
+      const course = courses.find((c) => c.id === a.course_id);
+      list.push({
+        id: `work-${a.id}`,
+        group: 'Work',
+        label: a.title,
+        hint: [course?.code ?? course?.name, a.due_at ? formatDay(localDayKey(new Date(a.due_at))) : null].filter(Boolean).join(' · '),
+        run: () => openWork(a.id),
+      });
+    }
+    for (const c of courses)
+      list.push({ id: `course-${c.id}`, group: 'Courses', label: c.code ?? c.name, keywords: c.name, hint: c.code ? c.name : undefined, run: () => navigate('plan', { course: c.id }) });
+    return list;
+  }, [palette, nav, prefs, data, navigate, openWork]);
 
   // Nothing is rendered until the stored session has been read back, so the
   // sign-in screen does not flash on every launch.
@@ -339,6 +420,7 @@ function Shell() {
             data={data}
             onOpenAssignment={setOpenAssignment}
             onPlan={() => navigate('plan')}
+            onChanged={bumped}
           />
         );
       case 'month':
@@ -385,6 +467,12 @@ function Shell() {
   return (
     <AppShell current={screen} items={nav} onNavigate={navigate}>
       <SyncBanner />
+
+      {palette && (
+        <Suspense fallback={null}>
+          <CommandPalette commands={commands} onClose={() => setPalette(false)} />
+        </Suspense>
+      )}
 
       {/*
         Above every screen, because a timer you have to navigate back to is a

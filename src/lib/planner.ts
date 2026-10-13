@@ -614,12 +614,15 @@ export async function addEvent(
     notes?: string | null;
     /** Share of the final course grade, from a syllabus. */
     weight_percent?: number | null;
+    /** How long it lasts, for a timed event such as a suggested work block. */
+    minutes?: number | null;
   },
 ): Promise<void> {
   const [hour, minute] = fields.time ? fields.time.split(':').map(Number) : [0, 0];
   const startsAt = fields.time
     ? wallClockToUTC(fields.day, hour, minute)
     : startOfDayUTC(fields.day);
+  const endsAt = fields.time && fields.minutes ? new Date(startsAt.getTime() + fields.minutes * 60_000).toISOString() : null;
 
   await enqueue('events', 'insert', {
     user_id: userId,
@@ -627,6 +630,7 @@ export async function addEvent(
     kind: fields.kind,
     course_id: fields.course_id ?? null,
     starts_at: startsAt.toISOString(),
+    ends_at: endsAt,
     all_day: !fields.time,
     notes: fields.notes ?? null,
     weight_percent: fields.weight_percent ?? null,

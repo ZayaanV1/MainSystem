@@ -11,6 +11,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { clearCache } from './readcache';
 import { readAuthLink } from './authLink';
+import { applyBadge } from './badge';
 
 /**
  * Auth.
@@ -178,6 +179,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      * a fast second sign-in reads the previous account's day.
      */
     await clearCache();
+    // The icon's count belongs to the account leaving.
+    await applyBadge(0);
     await supabase.auth.signOut();
   }, []);
 

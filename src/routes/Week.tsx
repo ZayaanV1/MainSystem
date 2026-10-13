@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
@@ -22,6 +22,10 @@ import { HoursWeek } from '../components/calendar/Hours';
 import { readCalendarStyle, writeCalendarStyle, type CalendarStyle } from '../lib/calendarStyle';
 import { withTransition } from '../lib/transition';
 import { useNow } from '../lib/useNow';
+import { SheetPresence } from '../components/Sheet';
+
+// Loaded on the tap: the block arithmetic is not needed to draw the week.
+const PlanBlocks = lazy(() => import('./PlanBlocks').then((m) => ({ default: m.PlanBlocks })));
 
 /**
  * Week — seven days at a glance.
@@ -42,13 +46,17 @@ export function Week({
   data,
   onOpenAssignment,
   onPlan,
+  onChanged,
 }: {
   data: TodayData | null;
   onOpenAssignment: (a: Assignment) => void;
   /** Takes you where work is added. Used only by the empty state. */
   onPlan: () => void;
+  /** Something was added here (suggested blocks) that the day should re-read. */
+  onChanged?: () => void;
 }) {
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
+  const [planning, setPlanning] = useState(false);
   const [style, setStyle] = useState<CalendarStyle>(readCalendarStyle);
   const now = useNow();
 
@@ -141,6 +149,23 @@ export function Week({
       <div className="mb-4">
         <WeekStrip days={grouping.days} today={today} onJump={jumpTo} />
       </div>
+
+      {/* When to do it: blocks in the week's free time, offered to keep or drop. */}
+      {data && data.assignments.some((a) => a.status !== 'done' && a.due_at) && (
+        <div className="mb-4 px-4">
+          <Button variant="secondary" size="sm" onClick={() => setPlanning(true)}>
+            Find time for this week’s work
+          </Button>
+        </div>
+      )}
+
+      <SheetPresence>
+        {planning && data && (
+          <Suspense fallback={null}>
+            <PlanBlocks data={data} onClose={() => setPlanning(false)} onAdded={() => onChanged?.()} />
+          </Suspense>
+        )}
+      </SheetPresence>
 
       {courses.length > 0 && (
         <div className="chip-row mb-6" role="group" aria-label="Show one course">

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEven
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { SectionHead } from '../components/SectionHead';
+import { SheetPresence } from '../components/Sheet';
+import { ExamPrep } from './ExamPrep';
 import {
   EMPTY_PAGE,
   forgetCourseFact,
@@ -37,16 +39,21 @@ export function CoursePage({
   userId,
   onBack,
   onOpenWork,
+  onChanged,
 }: {
   course: Course;
   userId: string;
   onBack: () => void;
   onOpenWork?: (id: string) => void;
+  /** Something was added here that Today should show. */
+  onChanged?: () => void;
 }) {
   const prefs = usePreferences();
   const [loaded, setLoaded] = useState<Awaited<ReturnType<typeof loadCourse>> | null>(null);
   const [page, setPage] = useState<Page>(EMPTY_PAGE);
   const [facts, setFacts] = useState<CourseFact[]>([]);
+  const [prepFor, setPrepFor] = useState<CourseEvent | null>(null);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -59,7 +66,7 @@ export function CoursePage({
     return () => {
       live = false;
     };
-  }, [course.id]);
+  }, [course.id, revision]);
 
   const cv = courseVar(course.colour_index);
   const tint = cv ? ({ '--b': `var(${cv}-rgb)` } as CSSProperties) : undefined;
@@ -89,7 +96,22 @@ export function CoursePage({
             </p>
           )}
 
-          <ComingUp work={loaded.work} events={loaded.events} onOpenWork={onOpenWork} />
+          <ComingUp work={loaded.work} events={loaded.events} onOpenWork={onOpenWork} onPrep={setPrepFor} />
+
+          <SheetPresence>
+            {prepFor && (
+              <ExamPrep
+                exam={prepFor}
+                course={course}
+                userId={userId}
+                onClose={() => setPrepFor(null)}
+                onAdded={() => {
+                  setRevision((n) => n + 1);
+                  onChanged?.();
+                }}
+              />
+            )}
+          </SheetPresence>
 
           {moduleOn('grades', prefs) && <Standing work={loaded.work} events={loaded.events} />}
 
@@ -189,7 +211,17 @@ export function CoursePage({
 }
 
 /** What is next for the course: open work and the events still ahead, by date. */
-function ComingUp({ work, events, onOpenWork }: { work: Assignment[]; events: CourseEvent[]; onOpenWork?: (id: string) => void }) {
+function ComingUp({
+  work,
+  events,
+  onOpenWork,
+  onPrep,
+}: {
+  work: Assignment[];
+  events: CourseEvent[];
+  onOpenWork?: (id: string) => void;
+  onPrep?: (exam: CourseEvent) => void;
+}) {
   const today = todayKey();
   const items = useMemo(() => {
     const open = work
@@ -230,13 +262,22 @@ function ComingUp({ work, events, onOpenWork }: { work: Assignment[]; events: Co
                 </span>
               </>
             );
-            return i.kind === 'work' && onOpenWork ? (
-              <button key={i.id} type="button" className="mat-row course-row" onClick={() => onOpenWork(i.id)}>
-                {body}
-              </button>
-            ) : (
+            if (i.kind === 'work' && onOpenWork)
+              return (
+                <button key={i.id} type="button" className="mat-row course-row" onClick={() => onOpenWork(i.id)}>
+                  {body}
+                </button>
+              );
+            // An exam or presentation still ahead can be planned for.
+            const preppable = i.kind === 'event' && onPrep && (i.e.kind === 'exam' || i.e.kind === 'presentation') && localDayKey(when) > today;
+            return (
               <div key={i.id} className="mat-row course-row">
                 {body}
+                {preppable && (
+                  <Button variant="secondary" size="sm" onClick={() => onPrep(i.e)}>
+                    Plan prep
+                  </Button>
+                )}
               </div>
             );
           })}

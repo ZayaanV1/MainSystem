@@ -49,6 +49,9 @@ import { subscribeOutbox } from '../lib/outbox';
 import { adjustedEstimate, calibration, forecast, stuckTasks } from '../lib/intelligence';
 import { dailySummary } from '../lib/assist';
 import {
+  addAssignment,
+  addEvent,
+  assignmentDueAt,
   capture,
   completionKey,
   deferAssignment,
@@ -419,7 +422,21 @@ export function Today({
   const assistOn = moduleOn('assist', prefs);
   const sections: Record<TodaySection, ReactNode> = {
     capture: (
-      <CaptureBox className="" send={(body) => capture(userId, body)} />
+      <CaptureBox
+        className=""
+        send={(body) => capture(userId, body)}
+        courses={data?.courses ?? []}
+        addWork={(r) =>
+          r.kind === 'work'
+            ? addAssignment(userId, {
+                title: r.title,
+                course_id: r.course?.id ?? null,
+                due_at: assignmentDueAt(r.day, r.time),
+                due_has_time: Boolean(r.time),
+              })
+            : addEvent(userId, { title: r.title, kind: r.kind, day: r.day, time: r.time, course_id: r.course?.id ?? null })
+        }
+      />
     ),
     checklist: (
         <div>

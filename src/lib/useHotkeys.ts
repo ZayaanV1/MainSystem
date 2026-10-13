@@ -23,8 +23,13 @@ import { useEffect } from 'react';
  */
 
 export interface Hotkeys {
-  /** cmd/ctrl+K, or a bare "/" outside a text field. */
+  /** A bare "/" outside a text field; also cmd/ctrl+K when there is no palette. */
   onSearch?: () => void;
+  /**
+   * cmd/ctrl+K: the command palette. Works from inside a text field too,
+   * because the combination types nothing and so cannot eat a keystroke.
+   */
+  onPalette?: () => void;
   /** Escape, for closing whatever is open. */
   onEscape?: () => void;
 }
@@ -41,7 +46,7 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
-export function useHotkeys({ onSearch, onEscape }: Hotkeys): void {
+export function useHotkeys({ onSearch, onPalette, onEscape }: Hotkeys): void {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       // Escape is the one shortcut that SHOULD work while typing — it is how
@@ -55,16 +60,22 @@ export function useHotkeys({ onSearch, onEscape }: Hotkeys): void {
         return;
       }
 
-      if (isTyping(e.target)) return;
-
       // metaKey on a Mac, ctrlKey elsewhere. Checking both rather than
       // sniffing the platform: a Mac with an external PC keyboard sends ctrl,
       // and platform detection would get that wrong for no benefit.
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+        if (onPalette) {
+          e.preventDefault();
+          onPalette();
+          return;
+        }
+        if (isTyping(e.target)) return;
         e.preventDefault();
         onSearch?.();
         return;
       }
+
+      if (isTyping(e.target)) return;
 
       // The bare "/" convention. Guarded by every modifier being absent, so it
       // cannot swallow a browser or OS combination that happens to produce a
@@ -77,5 +88,5 @@ export function useHotkeys({ onSearch, onEscape }: Hotkeys): void {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onSearch, onEscape]);
+  }, [onSearch, onPalette, onEscape]);
 }

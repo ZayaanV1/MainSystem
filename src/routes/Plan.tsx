@@ -157,7 +157,7 @@ export function Plan({ courses, onBack, onChanged, onOpenWork }: {
     return (
       <div ref={stage} key={courseId}>
         {course ? (
-          <CoursePage course={course} userId={userId} onBack={closeCourse} onOpenWork={onOpenWork} />
+          <CoursePage course={course} userId={userId} onBack={closeCourse} onOpenWork={onOpenWork} onChanged={onChanged} />
         ) : (
           <main className="page-frame">
             <button type="button" className="settings-back" onClick={closeCourse}>
