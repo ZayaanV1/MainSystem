@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { followCapsule, moveCapsule, popClose, popIcon, popOpen } from '../lib/motion';
 import { useMediaQuery } from '../lib/useMediaQuery';
+import { StatusVeil } from './CompactBar';
 
 /**
  * The frame the whole app sits in.
@@ -59,6 +60,7 @@ export function AppShell<T extends string>({
           header inside it. */}
       <div data-recede className="min-w-0 flex-1 overflow-x-clip">{children}</div>
 
+      <StatusVeil />
       <TabBar current={current} items={items} onNavigate={onNavigate} />
     </div>
   );
@@ -183,6 +185,11 @@ function TabBar<T extends string>({
         </div>
       )}
 
+      {/* In Safari on an iPhone, Safari's own toolbar floats under this one,
+          and the page showed through the gap between the two. Drawn only
+          there (index.css, data-ios-browser). */}
+      <div aria-hidden className="tab-veil lg:hidden" />
+
       <nav
         ref={bar}
         aria-label="Main"
@@ -210,7 +217,7 @@ function TabBar<T extends string>({
               ].join(' ')}
             >
               <span aria-hidden>{item.icon}</span>
-              <span className="type-caption">{item.short ?? item.label}</span>
+              <span className="tab-label">{item.short ?? item.label}</span>
             </button>
           );
         })}
@@ -238,7 +245,7 @@ function TabBar<T extends string>({
                 <path d="M5 12h.01M12 12h.01M19 12h.01" />
               </svg>
             </span>
-            <span className="type-caption">More</span>
+            <span className="tab-label">More</span>
           </button>
         )}
       </nav>

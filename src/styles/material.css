@@ -553,53 +553,44 @@ textarea.well {
   color: var(--text-low);
 }
 
-/* The briefing as a lede: one line until More. */
+/* The briefing as a sentence: two lines, More only when there is more. */
 .brief {
   display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  min-height: 3rem;
-  padding: 0.25rem 0.375rem 0.25rem 1rem;
-  --mat-r: var(--r-card);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  padding-inline: 1rem;
 }
 
 .brief-text {
-  flex: 1;
-  min-width: 0;
+  display: -webkit-box;
   overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: 0.9375rem;
   line-height: 1.5;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--text-hi);
-}
-
-.brief[data-open] {
-  align-items: flex-start;
-  padding-block: 0.625rem;
+  text-wrap: pretty;
+  color: var(--text-mid);
 }
 
 .brief[data-open] .brief-text {
-  white-space: normal;
-  text-wrap: pretty;
+  display: block;
 }
 
 .brief-more {
-  flex-shrink: 0;
-  min-height: 2.5rem;
-  padding: 0 0.625rem;
+  min-height: 2rem;
+  margin-left: -0.375rem;
+  padding: 0 0.375rem;
   border-radius: var(--r-pill);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--accent-2-lit);
-  transition: transform 180ms var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .brief-more:active {
-  transform: scale(0.94);
-  background: var(--glass-fill-hover);
+  opacity: 0.55;
   transition-duration: 70ms;
 }
 
@@ -716,10 +707,8 @@ textarea.well {
 }
 
 .tick-pill-meta {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 500;
   color: var(--text-low);
 }
 
@@ -790,12 +779,13 @@ textarea.well {
   color: var(--text-low);
 }
 
+/* On the page rather than on a card (the iPhone review): the strip is an
+   index, and a card made it one more object between the title and the week. */
 .week-strip {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.25rem;
-  padding: 0.75rem 0.625rem 0.625rem;
-  --mat-r: var(--r-card);
+  padding: 0.5rem 0.25rem 0;
 }
 
 .ws-day {
@@ -818,10 +808,9 @@ textarea.well {
 }
 
 .ws-w {
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
   color: var(--text-low);
 }
 
@@ -1545,11 +1534,10 @@ button.chip:active {
   z-index: 41;
   display: flex;
   max-width: 34rem;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.25rem;
   margin-inline: auto;
-  padding: 0.5rem 0.5rem 0.5rem 1.125rem;
+  padding: 0.25rem 0.5rem 0.5rem 1.125rem;
   border-radius: 1.5rem;
   background: var(--ink-700);
   box-shadow: inset 0 1px 0 var(--specular), var(--shadow-lg);
@@ -1559,6 +1547,26 @@ button.chip:active {
   .bulk-bar {
     bottom: calc(1.5rem + var(--focus-bar-h, 0px));
   }
+}
+
+.bulk-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* The three actions share the row equally, so none wraps under another. */
+.bulk-acts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.375rem;
+  margin-left: -0.625rem;
+}
+
+.bulk-acts > * {
+  min-width: 0;
+  padding-inline: 0.5rem;
 }
 
 .bulk-count {
@@ -1572,10 +1580,14 @@ button.chip:active {
 /* A date input dressed as a button: the native picker opens on tap. */
 .bulk-date {
   position: relative;
-  min-height: 2.25rem;
+  display: inline-flex;
+  min-height: var(--tap);
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   padding-inline: 0.875rem;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .bulk-date input {
@@ -2523,10 +2535,8 @@ label.arrange-row {
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--text-mid);
 }
 
@@ -2931,6 +2941,15 @@ label.arrange-row {
   transition: color var(--dur-sheet) var(--ease-out);
 }
 
+/* Sentence case, as everywhere else: the uppercase caption made five
+   one-word labels the loudest type on the screen. */
+.tab-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
 
 /* The lit capsule behind the current place, in the rail and the tab bar. */
 .nav-lit {
@@ -3095,101 +3114,720 @@ label.arrange-row {
 
 /* ---- the editor ---------------------------------------------------------------- */
 
-/* The deadline read back in a line, with its urgency in words. */
-.ed-sum {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.75rem 0.875rem;
-  border-radius: var(--r-card);
-  background: var(--glass-fill);
-  box-shadow: inset 0 0 0 1px var(--glass-edge);
-}
-
-.ed-sum-when {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.ed-sum-when b {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 650;
-  line-height: 1.3;
-  color: var(--text-hi);
-}
-
-.ed-sum-when span {
-  font-size: 0.75rem;
-  color: var(--text-low);
-}
-
-.ed-sum-urg {
-  flex-shrink: 0;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.ed-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.ed-more {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  min-height: var(--tap);
-  padding-top: 0.25rem;
-  border-top: 1px solid var(--ink-600);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-mid);
-  transition: transform 180ms var(--ease-out);
-}
-
-.ed-more:active {
-  transform: scale(0.99);
-  transition-duration: 70ms;
-}
-
-.ed-more-sum {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 500;
-  color: var(--text-low);
-}
-
-.ed-more-sum > span {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.ed-more svg {
-  flex-shrink: 0;
-  transition: transform 320ms var(--ease-glide);
-}
-
-.ed-more[aria-expanded='true'] svg {
-  transform: rotate(180deg);
-}
-
 .sheet-handle {
   width: 2.5rem;
   height: 0.3125rem;
   margin: -0.5rem auto 1rem;
   border-radius: var(--r-pill);
   background: var(--ink-500);
+}
+
+/* Close and Save across the top of an editing sheet, held there while the
+   sheet scrolls, as an iOS navigation bar is. */
+.sheet-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  min-height: var(--tap);
+  align-items: center;
+  justify-content: space-between;
+  margin: -0.75rem -1.5rem 0.25rem;
+  padding-inline: 1rem;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+/* Solid only once the sheet has scrolled under it; at rest it is part of
+   the sheet, not a band across the top of it. */
+.sheet-panel[data-scrolled] .sheet-bar {
+  background: var(--ink-700);
+  box-shadow: inset 0 -1px 0 var(--ink-600);
+}
+
+/* ---- cells: an editor as one list of rows ------------------------------------------
+   The editor as iOS lays out a detail screen (the iPhone review, 12 Oct 2026):
+   grouped rows with a label on the left and the value on the right. A tap on
+   Course, Remind or Effort opens the system's own picker (a transparent
+   select over the row); Due opens in place. */
+
+.cells {
+  overflow: hidden;
+  border-radius: var(--r-card);
+  background: var(--ink-800);
+}
+
+.cells-h {
+  margin-bottom: 0.375rem;
+  padding-inline: 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-low);
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 3.125rem;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0 1rem;
+  font-size: 1rem;
+  text-align: left;
+  color: var(--text-hi);
+}
+
+.cell + .cell,
+.cell + .cell-x,
+.cell-x + .cell {
+  box-shadow: inset 0 1px 0 var(--ink-600);
+}
+
+button.cell:active,
+label.cell:active {
+  background: var(--glass-fill-hover);
+}
+
+.cell-v {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4375rem;
+  margin-left: auto;
+  text-align: right;
+  color: var(--text-mid);
+}
+
+.cell-v[data-tone='low'] {
+  color: var(--text-low);
+}
+
+.cell-v .chip-dot {
+  box-shadow: none;
+}
+
+.cell-chev {
+  flex-shrink: 0;
+  color: var(--text-low);
+  transition: transform 240ms var(--ease-out);
+}
+
+.cell[aria-expanded='true'] .cell-chev {
+  transform: rotate(90deg);
+}
+
+/* The system's own picker, opened by a tap anywhere on the row. */
+.cell-sel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.cell-in {
+  min-width: 0;
+  flex: 1;
+  min-height: 3rem;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-hi);
+}
+
+.cell-in:focus {
+  outline: none;
+}
+
+.cell-in::placeholder {
+  color: var(--text-low);
+}
+
+/* A number set against the right edge, with its unit after it. */
+.cell-num {
+  width: 4.5rem;
+  flex: none;
+  text-align: right;
+}
+
+.cell-unit {
+  color: var(--text-low);
+}
+
+.cell-act {
+  font-weight: 600;
+  color: var(--accent-2-lit);
+}
+
+.cell-end {
+  justify-content: center;
+  font-weight: 600;
+}
+
+/* Due, opened: the quick days, then the date and the time side by side. */
+.cell-x {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem 0.875rem;
+}
+
+.cell-dt {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+/* iOS gives date and time fields an intrinsic width of their own, which is
+   how the time field ran off the edge of the sheet: each now takes exactly
+   its half. */
+.cell-dt input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 2.75rem;
+  min-height: 0;
+  padding: 0 0.625rem;
+  /* WebKit draws a date's value at the top of the box otherwise. */
+  line-height: 2.75rem;
+  border-radius: 0.625rem;
+  background: var(--glass-fill);
+  font-size: 1rem;
+  color: var(--text-hi);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.cell-dt input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.cells-note {
+  margin-top: -0.75rem;
+  padding-inline: 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-low);
+}
+
+.cell-notes {
+  display: block;
+  width: 100%;
+  min-height: 5.25rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  resize: none;
+  background: none;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--text-hi);
+}
+
+.cell-notes:focus {
+  outline: none;
+}
+
+.cell-notes::placeholder {
+  color: var(--text-low);
+}
+
+/* ---- list rows: work drawn the way iOS draws a list ----------------------------
+   The default since the iPhone review (12 Oct 2026). A group of work is ONE
+   surface with thin dividers, not a stack of cards each with its own rim,
+   tint and glow. The divider starts after the circle, as in Reminders, so
+   the circles read as one column. Course is the 6 px dot; urgency colours
+   the "when" at the right edge and nothing else. */
+
+.lgroup {
+  overflow: hidden;
+  border-radius: var(--r-card);
+  background: var(--ink-800);
+}
+
+.lrow {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 3.75rem;
+  background: var(--ink-800);
+}
+
+/* One hairline between neighbours, inset past the circle; an event's starts
+   at its time column. Drawn by the lower row, so a row leaving takes its own
+   line with it. */
+.lgroup > :not(:first-child) .lrow::before,
+.lgroup > .lev:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 3.25rem;
+  height: 1px;
+  background: var(--ink-600);
+  pointer-events: none;
+}
+
+.lgroup > .lev:not(:first-child)::before {
+  left: 0.875rem;
+}
+
+/* Inside one surface a row swipes square; the surface keeps the corners. */
+.lgroup .swipe-row {
+  border-radius: 0;
+}
+
+.lrow-tick {
+  display: grid;
+  width: 3.25rem;
+  flex-shrink: 0;
+  place-items: center;
+  padding-left: 0.125rem;
+}
+
+.lrow-tick .tick {
+  width: 1.5rem;
+  height: 1.5rem;
+  box-shadow: none;
+}
+
+.lrow-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6875rem 1rem 0.6875rem 0;
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.lrow-body:active {
+  background: var(--glass-fill-hover);
+  transition-duration: 70ms;
+}
+
+.lrow-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1875rem;
+}
+
+.lrow-title {
+  font-size: 1rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.lrow-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.375rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--text-mid);
+}
+
+.lrow-meta .chip-dot {
+  box-shadow: none;
+}
+
+.lrow-sep {
+  margin-right: 0.375rem;
+  color: var(--text-low);
+}
+
+.lrow-when {
+  max-width: 7.5rem;
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding-top: 0.125rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* A pointer has no swipe, so tomorrow is a button there, shown on hover. */
+.lrow-defer {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lrow-defer {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    align-self: center;
+    place-items: center;
+    margin-right: 0.625rem;
+    border-radius: var(--r-pill);
+    color: var(--text-low);
+    opacity: 0;
+    transition:
+      opacity var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .lrow:hover .lrow-defer,
+  .lrow-defer:focus-visible {
+    opacity: 1;
+  }
+
+  .lrow-defer:hover {
+    color: var(--text-hi);
+    background: var(--glass-fill-hover);
+  }
+
+  .lrow-body:hover {
+    background: var(--glass-fill);
+  }
+}
+
+/* Selecting on Week: the circle becomes the selection, as in Mail. The ring
+   and corner tick the slips use would cut across the dividers here. */
+.lrow-wrap[data-picked] {
+  border-radius: 0;
+  outline: none;
+}
+
+.lrow-wrap[data-picked]::after {
+  content: none;
+}
+
+.lrow-wrap[data-selecting] .lrow-tick .tick {
+  border-color: var(--accent-2-lit);
+  background: transparent;
+}
+
+.lrow-wrap[data-picked] .lrow-tick .tick {
+  border-color: var(--accent-2);
+  background: var(--accent-2);
+}
+
+.lrow-wrap[data-picked] .lrow-tick .tick::after {
+  content: '\2713';
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--on-accent-2);
+}
+
+.lrow-wrap[data-picked] .lrow {
+  background: var(--ink-700);
+}
+
+/* An event among the rows: its time where work has its circle. Nothing to
+   tick, because you attend an exam rather than finish it. */
+.lev {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.6875rem 1rem 0.6875rem 0.875rem;
+  background: var(--ink-800);
+}
+
+.lev-time {
+  display: flex;
+  min-width: 3.75rem;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-hi);
+}
+
+.lev-time small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-low);
+}
+
+/* A run of empty days, said once. */
+.lempty {
+  padding: 0.125rem 1rem 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-low);
+}
+
+/* ---- the compact bar and the status veil (CompactBar.tsx) ------------------------
+   Installed to the Home Screen the status bar is transparent. The veil keeps
+   text from running under the clock on every screen; on a screen with a large
+   title, the compact bar takes over once the title has scrolled away. */
+
+.status-veil {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  /* Under every scrim (40 and up), so More and the sheets dim it too. */
+  z-index: 38;
+  height: env(safe-area-inset-top, 0px);
+  pointer-events: none;
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  opacity: 0;
+  transition: opacity 180ms var(--ease-out);
+}
+
+.status-veil[data-on] {
+  opacity: 1;
+}
+
+.compact-bar {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 39;
+  display: flex;
+  height: calc(env(safe-area-inset-top, 0px) + 2.75rem);
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top, 0px) 4.5rem 0;
+  pointer-events: none;
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: inset 0 -1px 0 var(--glass-edge);
+  opacity: 0;
+  transform: translateY(-0.375rem);
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out);
+}
+
+.compact-bar[data-on] {
+  pointer-events: auto;
+  opacity: 1;
+  transform: none;
+}
+
+.compact-bar-title {
+  overflow: hidden;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-hi);
+}
+
+.compact-bar-end {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0;
+  display: flex;
+  height: 2.75rem;
+  align-items: center;
+}
+
+/* A text button in a title row or a bar: What now, Close, Save. The tap
+   target is full size; only the label is small. */
+.bar-btn {
+  display: inline-flex;
+  min-height: var(--tap);
+  align-items: center;
+  padding-inline: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-2-lit);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.bar-btn:active {
+  opacity: 0.55;
+  transition-duration: 70ms;
+}
+
+.bar-btn:disabled {
+  color: var(--text-low);
+}
+
+.bar-btn[data-tone='quiet'] {
+  color: var(--text-mid);
+}
+
+.bar-btn[data-tone='strong'] {
+  font-weight: 700;
+  color: var(--accent-lit);
+}
+
+/* A round icon button in a title row: Week's menu. */
+.bar-round {
+  position: relative;
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: var(--r-pill);
+  color: var(--text-hi);
+  background: var(--glass-fill);
+  transition: transform 180ms var(--ease-out);
+}
+
+.bar-round::after {
+  content: '';
+  position: absolute;
+  inset: -0.25rem;
+}
+
+.bar-round:active {
+  transform: scale(0.9);
+  transition-duration: 70ms;
+}
+
+.bar-round[aria-expanded='true'] {
+  background: var(--glass-fill-hover);
+}
+
+/* ---- Week, List style: a day is a heading and one surface ----------------------- */
+
+.lday {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.lday-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 2rem;
+  padding-inline: 1rem;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--text-hi);
+}
+
+.lday-date {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-low);
+}
+
+.lday-load {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-low);
+}
+
+/* ---- a pull-down menu (Week's ⋯) ------------------------------------------------- */
+
+.pop-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+}
+
+.pop-menu {
+  position: fixed;
+  z-index: 56;
+  width: min(17rem, calc(100vw - 1rem));
+  max-height: calc(100svh - 12rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 0.375rem;
+  border-radius: 1rem;
+  background: var(--ink-700);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    inset 0 1px 0 var(--specular),
+    var(--shadow-lg);
+}
+
+.pop-item {
+  display: flex;
+  width: 100%;
+  min-height: var(--tap);
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0 1rem;
+  font-size: 1rem;
+  text-align: left;
+  color: var(--text-hi);
+}
+
+.pop-item:active,
+.pop-item:focus-visible {
+  background: var(--glass-fill-hover);
+  outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pop-item:hover {
+    background: var(--glass-fill);
+  }
+}
+
+.pop-icon {
+  display: grid;
+  width: 1.25rem;
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--text-mid);
+}
+
+.pop-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.pop-check {
+  display: grid;
+  width: 1rem;
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--accent-2-lit);
+}
+
+.pop-label {
+  padding: 0.5rem 1rem 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-low);
+}
+
+.pop-sep {
+  height: 1px;
+  margin: 0.375rem 0;
+  background: var(--ink-600);
+}
+
+/* ---- Add to Home Screen, once, in Safari on an iPhone (Today) ------------------------ */
+
+.install-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r-card);
+  background: var(--ink-800);
+}
+
+.install-hint-title {
+  margin-bottom: 0.125rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-hi);
 }
 
 } /* @layer components */

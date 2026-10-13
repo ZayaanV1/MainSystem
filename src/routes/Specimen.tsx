@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { CaptureBox } from '../components/CaptureBox';
 import { NowNext } from '../components/NowNext';
-import { EventSlip } from '../components/EventSlip';
+import { EventRow, EventSlip } from '../components/EventSlip';
+import { CompactBar } from '../components/CompactBar';
+import { useAppearance } from '../lib/appearance';
 import { CachedNotice, LoadFailure } from '../components/LoadFailure';
 import { Pressable } from '../components/Pressable';
 import { SkeletonList } from '../components/Skeleton';
@@ -121,6 +123,8 @@ export function Specimen() {
   const shown = usePresence(work, (a) => a.id);
   const [opened, setOpened] = useState<Assignment | null>(null);
   const [undo, setUndo] = useState<string | null>(null);
+  const title = useRef<HTMLHeadingElement>(null);
+  const listRows = useAppearance().slip === 'list';
   const drop = (id: string, kind: 'done' | 'defer') => {
     shown.hint(id, kind);
     setWork((w) => w.filter((a) => a.id !== id));
@@ -128,7 +132,9 @@ export function Specimen() {
 
   return (
     <main className="mx-auto max-w-160 px-4 py-8">
-      <h1 className="type-h1 mb-6 px-4 text-text-hi">Specimen</h1>
+      <h1 ref={title} className="type-h1 mb-6 px-4 text-text-hi">Specimen</h1>
+      {/* Scroll the page: the title folds into the compact bar. */}
+      <CompactBar title="Specimen" watch={title} />
 
       <div className="mb-8 flex flex-wrap gap-3 px-4">
         <Button onClick={() => setLight((v) => !v)}>{light ? 'Dark' : 'Light'}</Button>
@@ -171,7 +177,7 @@ export function Specimen() {
             </Button>
           }
         />
-        <div ref={shown.containerRef} className="flex flex-col gap-2.5">
+        <div ref={shown.containerRef} className={listRows ? 'lgroup' : 'flex flex-col gap-2.5'}>
           {shown.list.map(({ item: a, key, leaving }) => (
             <div key={key} data-presence={key} inert={leaving || undefined}>
               <AssignmentRow
@@ -189,6 +195,14 @@ export function Specimen() {
         <div className="flex flex-col gap-2.5 px-4">
           {sampleClasses().map((e) => (
             <EventSlip key={e.id} event={e} />
+          ))}
+        </div>
+      </Section>
+
+      <Section title="EventRow — an event among list rows, its time where work has its circle">
+        <div className="lgroup">
+          {sampleClasses().map((e) => (
+            <EventRow key={e.id} event={e} />
           ))}
         </div>
       </Section>

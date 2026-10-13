@@ -57,7 +57,7 @@ export function WeekStrip({
   }, []);
 
   return (
-    <div className="mat week-strip" role="group" aria-label="Work due each day. Choose a day to jump to it.">
+    <div className="week-strip" role="group" aria-label="Work due each day. Choose a day to jump to it.">
       {days.map((group, i) => {
         const m = minutes[i];
         const count = group.assignments.length;
@@ -97,7 +97,8 @@ export function WeekStrip({
   );
 }
 
-const WEEKDAY = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+// One letter, as a calendar's column heads: the accessible name has the day.
+const WEEKDAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const WEEKDAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const hours = (m: number) => (m >= 60 ? `${Math.round((m / 60) * 10) / 10}h` : `${m}m`);

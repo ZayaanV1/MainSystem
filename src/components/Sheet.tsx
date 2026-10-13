@@ -97,9 +97,16 @@ interface SheetProps {
    * the sheet still takes a history entry at the same address.
    */
   url?: string;
+  /**
+   * An iOS bar across the top: Close on the left and this on the right (an
+   * editor's Save), with the title below it rather than beside a close
+   * cross. For sheets that edit something, where Close and Save are the two
+   * ways out and belong where iOS puts them (the iPhone review, 12 Oct 2026).
+   */
+  bar?: ReactNode;
 }
 
-export function Sheet({ open: openProp, onClose, title, children, dock = false, flightFrom, titleInput, url }: SheetProps) {
+export function Sheet({ open: openProp, onClose, title, children, dock = false, flightFrom, titleInput, url, bar }: SheetProps) {
   const presence = useContext(Closing);
   const open = openProp && !presence?.closing;
   const panel = useRef<HTMLDivElement>(null);
@@ -281,6 +288,9 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
+        // Marks the panel once it has scrolled, so a bar held at the top
+        // can turn solid over what passes under it.
+        onScroll={bar ? (e) => e.currentTarget.toggleAttribute('data-scrolled', e.currentTarget.scrollTop > 4) : undefined}
         className={[
           'sheet-panel sheet-stage relative w-full max-w-160 px-6 pb-8 pt-6',
           // Docked: a column against the right edge rather than a slab across
@@ -318,7 +328,16 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
             sheet closes on the scrim, Escape and the close control. */}
         <div aria-hidden className={`sheet-handle ${dock ? 'lg:hidden' : ''}`} />
 
-        <div className="mb-5 flex items-center justify-between gap-4">
+        {bar && (
+          <div className="sheet-bar">
+            <button type="button" onClick={onClose} className="bar-btn" data-tone="quiet">
+              Close
+            </button>
+            {bar}
+          </div>
+        )}
+
+        <div className={bar ? 'mb-4 flex items-center' : 'mb-5 flex items-center justify-between gap-4'}>
           {titleInput ? (
             <textarea
               ref={(el) => {
@@ -351,6 +370,7 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
           ) : (
             <h2 ref={(el) => void (heading.current = el)} className="section-title sheet-title">{title}</h2>
           )}
+          {!bar && (
           <button type="button" onClick={onClose} aria-label="Close" className="btn btn-quiet btn-icon">
             <svg
               aria-hidden
@@ -365,6 +385,7 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
               <path d="M4 4l8 8M12 4l-8 8" />
             </svg>
           </button>
+          )}
         </div>
 
         {children}

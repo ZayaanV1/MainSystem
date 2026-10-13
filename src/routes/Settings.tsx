@@ -800,6 +800,7 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
   // Rule 13: the slip that was replaced stays a choice.
   const look = useAppearance();
   const slipOptions: { value: SlipStyle; label: string; hint: string }[] = [
+    { value: 'list', label: 'List', hint: 'Rows in one surface, the way iPhone lists are drawn. The circle on the left finishes it.' },
     { value: 'ticket', label: 'Ticket', hint: 'The countdown in a stub; the ring finishes it and punches the stub.' },
     { value: 'glass', label: 'Glass', hint: 'The countdown on the right, a ring to tick.' },
   ];
@@ -854,8 +855,8 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
           depends on where the screen is.
         </p>
 
-        <p className="kicker mt-6 mb-2">Work slips</p>
-        <div role="radiogroup" aria-label="Work slips" className="flex flex-wrap gap-2">
+        <p className="kicker mt-6 mb-2">Work</p>
+        <div role="radiogroup" aria-label="How work is drawn" className="flex flex-wrap gap-2">
           {slipOptions.map((o) => (
             <Chip
               key={o.value}

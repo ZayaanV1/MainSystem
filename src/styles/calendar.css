@@ -791,10 +791,9 @@
 
 
 /* ============================================================================
-   The style picker. A segmented control whose selection is a lit ember
-   capsule that slides between options (motion's shared layout does the
-   sliding), with a drawn miniature of each style so the choice is made by
-   looking rather than by reading the names.
+   The segmented control (Segmented.tsx). Its selection is a lit ember
+   capsule that slides between options. It began as Week's style picker,
+   which moved into Week's menu on 12 Oct 2026.
    ========================================================================= */
 
 .style-seg {
@@ -839,25 +838,6 @@
 
 .style-seg {
   position: relative;
-}
-
-/* Glyphs only, in Week's header. */
-.style-seg[data-compact] {
-  flex-shrink: 0;
-  gap: 0.125rem;
-  padding: 0.1875rem;
-}
-
-.style-seg[data-compact] .style-opt {
-  justify-content: center;
-  width: 2.25rem;
-  min-height: 2.25rem;
-  padding: 0;
-}
-
-.style-seg[data-compact] .style-opt-lit {
-  top: 0.1875rem;
-  bottom: 0.1875rem;
 }
 
 /* A segmented switch that heads a form (Segmented, fill): full width,

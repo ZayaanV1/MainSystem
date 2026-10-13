@@ -63,8 +63,10 @@ const VARIANTS: Record<Variant, string> = {
 
 const SIZES: Record<Size, string> = {
   md: 'px-5 type-label',
-  // Caption type, pill padding, and the same min-height as everything else.
-  sm: 'px-3 type-caption',
+  // Pill padding and the same min-height as everything else. Sentence case
+  // since the iPhone review (12 Oct 2026): it was the uppercase caption, and
+  // a row of small buttons read as a row of shouted labels.
+  sm: 'px-3.5 type-label',
 };
 
 export function Button({

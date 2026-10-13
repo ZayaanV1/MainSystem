@@ -191,6 +191,7 @@ describe('every primitive is on the specimen page', () => {
     SyncBanner: 'driven by the live outbox',
     SwipeRow: 'rendered by every AssignmentRow on the page',
     SheetPresence: 'wraps the specimen sheet',
+    StatusVeil: 'drawn by AppShell behind the status bar on every screen',
   };
 
   const specimen = readFileSync('src/routes/Specimen.tsx', 'utf8');

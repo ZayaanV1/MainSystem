@@ -1,6 +1,5 @@
-import { useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { followCapsule, moveCapsule } from '../../lib/motion';
-import { CALENDAR_STYLES, type CalendarStyle } from '../../lib/calendarStyle';
+import { type CSSProperties, type ReactNode } from 'react';
+import type { CalendarStyle } from '../../lib/calendarStyle';
 import { durationLabel, freeGaps } from '../../lib/blocks';
 import { effortMinutes, type DayGroup } from '../../lib/week';
 import type { Assignment, Course } from '../../lib/planner';
@@ -41,83 +40,27 @@ export interface StyleProps {
 }
 
 /* ============================================================================
-   The picker
+   The style's glyph, beside its name in Week's menu
    ========================================================================= */
 
-export function StylePicker({
-  value,
-  onChange,
-  compact = false,
-}: {
-  value: CalendarStyle;
-  onChange: (s: CalendarStyle) => void;
-  /**
-   * Glyphs only, the names kept for screen readers and as tooltips. Week's
-   * header holds the title and the picker on one row; with its labels the
-   * picker was wider than a phone and its last option was cut off.
-   */
-  compact?: boolean;
-}) {
-  const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const lit = useRef<HTMLSpanElement>(null);
-  const index = CALENDAR_STYLES.findIndex((s) => s.value === value);
-
-  // One ember capsule slides between the options and stretches as it goes,
-  // the same object as the tab bar's.
-  const seg = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (lit.current) moveCapsule(lit.current, refs.current[index] ?? null, 'x');
-    if (!seg.current) return;
-    return followCapsule(seg.current, () => {
-      if (lit.current) moveCapsule(lit.current, refs.current[index] ?? null, 'x', { instant: true });
-    });
-  }, [index]);
-
-  // A radiogroup moves with the arrow keys, which is what a screen reader
-  // user has been told to expect by the role.
-  const onKey = (e: KeyboardEvent, i: number) => {
-    const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
-    if (!step) return;
-    e.preventDefault();
-    const next = (i + step + CALENDAR_STYLES.length) % CALENDAR_STYLES.length;
-    onChange(CALENDAR_STYLES[next].value);
-    refs.current[next]?.focus();
-  };
-
-  return (
-    <div ref={seg} role="radiogroup" aria-label="Calendar style" className="style-seg" data-compact={compact || undefined}>
-      <span ref={lit} aria-hidden className="style-opt-lit" style={{ opacity: 0 }} />
-      {CALENDAR_STYLES.map((s, i) => {
-        const on = s.value === value;
-        return (
-          <button
-            type="button"
-            key={s.value}
-            ref={(el) => {
-              refs.current[i] = el;
-            }}
-            role="radio"
-            aria-checked={on}
-            tabIndex={on ? 0 : -1}
-            title={compact ? `${s.label}: ${s.hint}` : s.hint}
-            aria-label={compact ? s.label : undefined}
-            onClick={() => onChange(s.value)}
-            onKeyDown={(e) => onKey(e, i)}
-            className="style-opt"
-          >
-            <Glyph style={s.value} />
-            {!compact && <span>{s.label}</span>}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/** A drawn miniature of each style, in the text colour so it follows the pill. */
-function Glyph({ style }: { style: CalendarStyle }) {
+/**
+ * A drawn miniature of each style, in the text colour, so the choice in
+ * Week's menu is made by looking as well as by reading the names.
+ */
+export function StyleGlyph({ style }: { style: CalendarStyle }) {
   const common = { width: 18, height: 14, viewBox: '0 0 18 14', 'aria-hidden': true } as const;
   switch (style) {
+    case 'list':
+      return (
+        <svg {...common}>
+          <rect x="1" y="0.5" width="16" height="13" rx="2.5" fill="currentColor" opacity="0.28" />
+          <circle cx="4.5" cy="4" r="1.6" fill="none" stroke="currentColor" strokeWidth="1.1" />
+          <circle cx="4.5" cy="10" r="1.6" fill="none" stroke="currentColor" strokeWidth="1.1" />
+          <rect x="7.5" y="3.25" width="7.5" height="1.5" rx="0.75" fill="currentColor" />
+          <rect x="7.5" y="9.25" width="5.5" height="1.5" rx="0.75" fill="currentColor" />
+          <path d="M7.5 7h9.5" stroke="currentColor" strokeWidth="0.7" opacity="0.6" />
+        </svg>
+      );
     case 'rail':
       return (
         <svg {...common}>

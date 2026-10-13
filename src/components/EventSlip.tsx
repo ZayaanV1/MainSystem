@@ -3,27 +3,8 @@ import { formatTime, formatTimeRange } from '../lib/time';
 import type { Course, PlannerEvent } from '../lib/planner';
 import { tint } from './calendar/items';
 
-/**
- * An event, as a slip of its course's glass.
- *
- * The counterpart to AssignmentRow for things you attend rather than finish:
- * the same material and the same kicker-over-title shape, and no ring,
- * because you do not complete an exam — you sit it. Giving it a checkbox would
- * imply it is optional, and leaving one unticked forever would make the day
- * look unfinished.
- *
- * Timetable titles are read apart the same way the Week styles read them, so
- * "MB S2.210 - COEN 231-U - LEC" is "COEN 231 Lecture" here too.
- */
-export function EventSlip({
-  event,
-  course,
-  showSource = false,
-}: {
-  event: PlannerEvent;
-  course?: Course;
-  showSource?: boolean;
-}) {
+/** What an event says, however it is drawn: the slip here, or a list row. */
+function eventFace(event: PlannerEvent, course?: Course) {
   const read = readTitle(event.title);
   const start = new Date(event.starts_at);
   const end = event.ends_at ? new Date(event.ends_at) : null;
@@ -58,6 +39,32 @@ export function EventSlip({
       ? name
       : null;
 
+  return { read, when, a, under, place, detail };
+}
+
+/**
+ * An event, as a slip of its course's glass.
+ *
+ * The counterpart to AssignmentRow for things you attend rather than finish:
+ * the same material and the same kicker-over-title shape, and no ring,
+ * because you do not complete an exam — you sit it. Giving it a checkbox would
+ * imply it is optional, and leaving one unticked forever would make the day
+ * look unfinished.
+ *
+ * Timetable titles are read apart the same way the Week styles read them, so
+ * "MB S2.210 - COEN 231-U - LEC" is "COEN 231 Lecture" here too.
+ */
+export function EventSlip({
+  event,
+  course,
+  showSource = false,
+}: {
+  event: PlannerEvent;
+  course?: Course;
+  showSource?: boolean;
+}) {
+  const { read, when, a, under, place, detail } = eventFace(event, course);
+
   return (
     <div className="mat slip ev-slip" data-block style={tint(course)}>
       <span className="ev-time">
@@ -80,6 +87,60 @@ export function EventSlip({
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * An event as a list row (the iPhone review, 12 Oct 2026): its time where
+ * work has its circle, so events and work share one row shape inside a day.
+ * The start large, the end small under it; the course is the 6 px dot.
+ */
+export function EventRow({
+  event,
+  course,
+  showSource = false,
+}: {
+  event: PlannerEvent;
+  course?: Course;
+  showSource?: boolean;
+}) {
+  const { read, when, a, place, detail } = eventFace(event, course);
+  const end = event.ends_at ? new Date(event.ends_at) : null;
+  // The code once: a timetable headline ("COEN 231 Lecture") already says it.
+  const code = course ? (course.code ?? course.name) : null;
+  const codeShown = code && !read.headline.toLowerCase().includes(code.toLowerCase()) ? code : null;
+  const facts = [codeShown, detail, read.section, place, showSource ? event.source : null].filter(
+    (f): f is string => Boolean(f),
+  );
+
+  return (
+    <div className="lev">
+      <span className="lev-time">
+        {event.all_day ? (
+          'All day'
+        ) : (
+          <>
+            <span className="sr-only">{when}</span>
+            <span aria-hidden>{a.hm}</span>
+            <small aria-hidden>{end ? formatTime(end) : a.period}</small>
+          </>
+        )}
+      </span>
+      <span className="lrow-main">
+        <span className="slip-title lrow-title text-text-hi">{read.headline}</span>
+        {facts.length > 0 && (
+          <span className="lrow-meta">
+            {course && <span aria-hidden data-block className="chip-dot" style={tint(course)} />}
+            {facts.map((part, i) => (
+              <span key={i} className="whitespace-nowrap">
+                {i > 0 && <span aria-hidden className="lrow-sep">·</span>}
+                {part}
+              </span>
+            ))}
+          </span>
+        )}
+      </span>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerServiceWorker } from './lib/sw';
 import { applyTheme, readTheme, watchSystemTheme } from './lib/theme';
+import { markBrowserChrome } from './lib/install';
 import './index.css';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -16,6 +17,7 @@ registerServiceWorker();
  * would hold whatever it resolved at load.
  */
 applyTheme(readTheme());
+markBrowserChrome();
 watchSystemTheme(() => {});
 
 createRoot(document.getElementById('root')!).render(

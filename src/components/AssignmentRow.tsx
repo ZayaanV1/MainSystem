@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { clearTick, drawTick, haptic, punchTicket } from '../lib/motion';
 import { useNow } from '../lib/useNow';
-import { useAppearance } from '../lib/appearance';
+import { useAppearance, type SlipStyle } from '../lib/appearance';
+import { rowWhen } from '../lib/rowWhen';
 import { startBy, startByIsDue, urgencyFor, type Thresholds, type Urgency } from '../lib/urgency';
 import { stubSize, ticketFace } from '../lib/ticket';
 import { durationLabel } from '../lib/blocks';
@@ -12,7 +13,16 @@ import { courseVar } from '../lib/planner';
 import { moduleOn, usePreferences } from '../lib/preferences';
 
 /**
- * One assignment, as a slip.
+ * One assignment, in one of three forms chosen in Settings: a list row (the
+ * default since the iPhone review, 12 Oct 2026), a ticket or a glass slip.
+ *
+ * The list row is the iOS shape: the finish circle on the left, the title,
+ * one quiet line of course and size, and the when at the right edge, said
+ * only as far as its heading has not already said it (see `rowWhen`). Rows
+ * sit in one grouped card per heading rather than each being its own
+ * surface, because a page of separate cards was what read as cluttered.
+ *
+ * The rest of this note describes the slip forms, which stay as options.
  *
  * Each piece of work is its own surface now rather than a line in a shared
  * card: a slip of its course's glass, with the countdown to it set as a
@@ -62,6 +72,13 @@ interface AssignmentRowProps {
   onDefer?: () => void;
   /** Steps completed, when the work has been broken down. */
   progress?: { done: number; total: number } | null;
+  /**
+   * Draw it this way whatever Appearance says: Week's List style is list
+   * rows by definition, as its Bubble and Ledger styles have rows of their own.
+   */
+  look?: SlipStyle;
+  /** The heading above already names the day, so a list row says only the time. */
+  dayShown?: boolean;
 }
 
 /**
@@ -115,6 +132,8 @@ export function AssignmentRow({
   onOpen,
   onDefer,
   progress,
+  look,
+  dayShown = false,
 }: AssignmentRowProps) {
   const due = assignment.due_at ? new Date(assignment.due_at) : null;
   const done = assignment.status === 'done';
@@ -146,7 +165,8 @@ export function AssignmentRow({
    * mark is hidden before the first paint and draws in rather than flashing
    * fully drawn for a frame.
    */
-  const { slip: style } = useAppearance();
+  const { slip: chosen } = useAppearance();
+  const style = look ?? chosen;
   // The stub counts down live: the minute ticks over and "23 hours" becomes
   // "22" while the app is open, instead of waiting for something to re-render.
   const clock = useNow();
@@ -172,6 +192,111 @@ export function AssignmentRow({
   const cv = courseVar(course?.colour_index);
   const tint = (cv ? { '--b': `var(${cv}-rgb)` } : {}) as CSSProperties;
   const code = course ? (course.code ?? course.name) : null;
+
+  if (style === 'list') {
+    /*
+     * A list row (the iPhone review, 12 Oct 2026). One line of title, one of
+     * facts, and the "when" at the right edge saying only what the heading
+     * above it does not. The circle that finishes it is on the left, where
+     * Reminders puts it, so the eye runs down one column of circles. The
+     * course is the 6 px dot, as the colour law has it; urgency colours the
+     * "when" and nothing else. No card, rim, glow or tint: the group around
+     * the rows is the one surface.
+     */
+    const when = rowWhen(urgency, due, assignment.due_has_time, now ?? clock, { dayShown });
+    const facts = [
+      code,
+      assignment.effort_minutes ? durationLabel(assignment.effort_minutes) : null,
+      gradesOn && typeof assignment.weight_percent === 'number' ? `${assignment.weight_percent}%` : null,
+      gradesOn && typeof assignment.grade_percent === 'number' ? `scored ${assignment.grade_percent}%` : null,
+      // Start-by lives in the editor: on a row it was a third line on most
+      // work, and on late work it named a day already gone.
+      progress ? `${progress.done} of ${progress.total} steps` : null,
+    ].filter((f): f is string => Boolean(f));
+
+    return (
+      <div className="lrow-wrap" data-row={assignment.id} data-drag-work={assignment.id}>
+        <SwipeRow
+          onRight={onToggleDone}
+          onLeft={!done && assignment.due_at ? onDefer : undefined}
+          rightLabel={done ? 'Reopen' : 'Done'}
+        >
+          <div className="lrow" data-done={done || undefined}>
+            <button
+              type="button"
+              onClick={() => {
+                haptic();
+                onToggleDone();
+              }}
+              aria-pressed={done}
+              aria-label={
+                done
+                  ? `Mark ${assignment.title} not done`
+                  : `Mark ${assignment.title} done, ${urgency.label.toLowerCase()}`
+              }
+              className="lrow-tick"
+            >
+              <span ref={tickBox} aria-hidden className="tick" data-done={done || undefined}>
+                {done && (
+                  <svg viewBox="0 0 12 12" className="h-3 w-3">
+                    <path
+                      ref={tickPath}
+                      d="M2.5 6.2 L4.8 8.5 L9.5 3.8"
+                      fill="none"
+                      stroke="var(--ink-900)"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </span>
+            </button>
+
+            <button type="button" onClick={onOpen} disabled={!onOpen} className="lrow-body">
+              <span className="lrow-main">
+                <span className={`slip-title lrow-title ${done ? 'text-text-low line-through decoration-text-low' : 'text-text-hi'}`}>
+                  {assignment.title}
+                </span>
+                {facts.length > 0 && (
+                  <span className="lrow-meta">
+                    {code && cv && <span aria-hidden data-block className="chip-dot" style={tint} />}
+                    {facts.map((part, i) => (
+                      <span key={i} className="whitespace-nowrap">
+                        {i > 0 && <span aria-hidden className="lrow-sep">·</span>}
+                        {part}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </span>
+              {when && !done && (
+                <span aria-hidden className="lrow-when" style={{ color: `var(${urgency.colourVar})` }}>
+                  {when}
+                </span>
+              )}
+              <span className="sr-only">{urgency.label}.</span>
+            </button>
+
+            {onDefer && !done && assignment.due_at && (
+              <button
+                type="button"
+                onClick={onDefer}
+                aria-label={`Push "${assignment.title}" to tomorrow`}
+                title="Tomorrow"
+                // A pointer has no swipe; on a phone this is the left swipe.
+                className="lrow-defer"
+              >
+                <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12h12M12 6l6 6-6 6M20 5v14" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </SwipeRow>
+      </div>
+    );
+  }
 
   if (style === 'ticket') {
     /*

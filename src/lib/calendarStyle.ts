@@ -13,9 +13,10 @@
  * phone did. See theme.ts for the longer version of this argument.
  */
 
-export type CalendarStyle = 'rail' | 'bubble' | 'hours' | 'ticket' | 'ledger';
+export type CalendarStyle = 'list' | 'rail' | 'bubble' | 'hours' | 'ticket' | 'ledger';
 
 export const CALENDAR_STYLES: { value: CalendarStyle; label: string; hint: string }[] = [
+  { value: 'list', label: 'List', hint: 'Each day a group of rows, and empty days said once' },
   { value: 'rail', label: 'Rail', hint: 'The week on one spine, as a list' },
   { value: 'bubble', label: 'Bubble', hint: 'Tinted blocks sized by how long they run' },
   { value: 'hours', label: 'Hours', hint: 'An hour grid, with a line for now' },
@@ -25,6 +26,13 @@ export const CALENDAR_STYLES: { value: CalendarStyle; label: string; hint: strin
 
 const KEY = 'planner.calendarStyle';
 
+/**
+ * List, since the iPhone review (12 Oct 2026). Rail was the default and was
+ * stored as no value at all, so everyone who never chose moves to List, and
+ * a style anyone did choose is kept.
+ */
+const DEFAULT: CalendarStyle = 'list';
+
 function isStyle(v: unknown): v is CalendarStyle {
   return CALENDAR_STYLES.some((s) => s.value === v);
 }
@@ -32,16 +40,16 @@ function isStyle(v: unknown): v is CalendarStyle {
 export function readCalendarStyle(): CalendarStyle {
   try {
     const raw = localStorage.getItem(KEY);
-    return isStyle(raw) ? raw : 'rail';
+    return isStyle(raw) ? raw : DEFAULT;
   } catch {
     // Private mode or storage disabled: the default still renders the week.
-    return 'rail';
+    return DEFAULT;
   }
 }
 
 export function writeCalendarStyle(style: CalendarStyle): void {
   try {
-    if (style === 'rail') localStorage.removeItem(KEY);
+    if (style === DEFAULT) localStorage.removeItem(KEY);
     else localStorage.setItem(KEY, style);
   } catch {
     // Not fatal: the choice holds for this visit.

@@ -67,7 +67,7 @@ import {
   type InboxItem,
   type TodayData,
 } from '../lib/planner';
-import { activeTimezone, addDays, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
+import { activeTimezone, addDays, detectedTimezone, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 import { applyPending } from '../lib/optimistic';
 import { formatRoute } from '../lib/route';
 import { moduleOn, usePreferences, type TodaySection } from '../lib/preferences';
@@ -78,7 +78,10 @@ import { closeUp, measureBelow, revealList } from '../lib/motion';
 import { CaptureBox } from '../components/CaptureBox';
 import { UndoBar } from '../components/UndoBar';
 import { usePresence } from '../lib/usePresence';
-import { SheetPresence } from '../components/Sheet';
+import { Sheet, SheetPresence } from '../components/Sheet';
+import { CompactBar } from '../components/CompactBar';
+import { useAppearance } from '../lib/appearance';
+import { dismissInstallHint, shouldHintInstall } from '../lib/install';
 import { onFeedsChanged } from '../lib/feeds';
 import { usePullToRefresh } from '../lib/usePullToRefresh';
 
@@ -118,8 +121,12 @@ export function Today({
   const [editorFor, setEditorFor] = useState<{ item: ChecklistItem | null } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
-  // What now, opened from the pill on the first group (phones).
+  // What now, opened from the title row (phones).
   const [askOpen, setAskOpen] = useState(false);
+  const titleRow = useRef<HTMLDivElement>(null);
+  // List rows sit in one surface per group; the ticket and glass slips are
+  // separate objects with a gap between them.
+  const listRows = useAppearance().slip === 'list';
   // Which groups are folded: the reader's choice, kept on this device.
   const [folded, setFolded] = useState<Set<GroupId>>(readFolded);
   const [retrying, setRetrying] = useState(false);
@@ -250,11 +257,6 @@ export function Today({
     ? groupWork(work.list.map((p) => ({ p, due_at: p.item.due_at })), now, today)
     : null;
   const groupsShown = usePresence(grouped, (g) => g.id, { enter: true });
-  // What now? rides on the Today group, or on the first group when nothing
-  // is due today.
-  const liveGroups = (grouped ?? []).filter((g) => g.items.some((x) => !x.p.leaving));
-  const askGroup: GroupId | null =
-    liveGroups.find((g) => g.id === 'today')?.id ?? liveGroups[0]?.id ?? null;
 
   const setWorkList = (el: HTMLDivElement | null) => {
     workList.current = el;
@@ -433,6 +435,8 @@ export function Today({
    * them. Built here rather than inline so the order is data, not layout.
    */
   const assistOn = moduleOn('assist', prefs);
+  // What now chooses from open work, so it is offered only when there is some.
+  const askable = assistOn && Boolean(data?.assignments.some((a) => a.status !== 'done'));
   const sections: Record<TodaySection, ReactNode> = {
     capture: (
       <CaptureBox
@@ -517,7 +521,6 @@ export function Today({
                 {groupsShown.list.map(({ item: g, key, leaving }) => {
                   const isFolded = folded.has(g.id);
                   const live = g.items.filter((x) => !x.p.leaving).length;
-                  const asksHere = g.id === askGroup;
                   return (
                     <div key={key} data-presence={key} className="work-group" inert={leaving || undefined}>
                       <div className="work-group-head">
@@ -536,40 +539,13 @@ export function Today({
                             <path d="m6 9 6 6 6-6" />
                           </svg>
                         </button>
-                        {asksHere && assistOn && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="md:hidden"
-                            aria-expanded={askOpen}
-                            onClick={() => setAskOpen(!askOpen)}
-                          >
-                            What now?
-                          </Button>
-                        )}
                       </div>
-
-                      {asksHere && assistOn && (
-                        <div className="md:hidden">
-                          <Suspense fallback={null}>
-                          <WhatNow
-                            open={askOpen}
-                            onClose={() => setAskOpen(false)}
-                            assignments={data.assignments}
-                            courses={data.courses}
-                            deferrals={data.deferrals}
-                            sized={sized}
-                            onOpen={setOpenAssignment}
-                          />
-                          </Suspense>
-                        </div>
-                      )}
 
                       {/* A heading on its way out has already lost its
                           last row; drawing the old rows again would bring
                           one back for the length of the exit. */}
                       {!isFolded && !leaving && (
-                        <div id={`work-${g.id}`} className="flex flex-col gap-2">
+                        <div id={`work-${g.id}`} className={listRows ? 'lgroup' : 'flex flex-col gap-2'}>
                           {g.items.map(({ p: { item: a, key: rowKey, leaving: rowLeaving } }) => (
                             <div key={rowKey} data-presence={rowKey} inert={rowLeaving || undefined}>
                               <AssignmentRow
@@ -579,6 +555,8 @@ export function Today({
                                 progress={subtaskProgress(data.subtasks, a.id)}
                                 course={data.courses.find((c) => c.id === a.course_id)}
                                 now={now}
+                                // Under "Tomorrow" a row says only its time.
+                                dayShown={g.id === 'tomorrow'}
                                 onToggleDone={() => finish(a)}
                                 onDefer={() => {
                                   work.hint(a.id, 'defer');
@@ -677,36 +655,42 @@ export function Today({
           className="pointer-events-none absolute inset-x-0 -top-8 flex justify-center"
         >
           <span
-            className={`type-caption ${pull.armed || pull.refreshing ? 'text-accent-2-lit' : 'text-text-low'}`}
+            className={`type-note ${pull.armed || pull.refreshing ? 'text-accent-2-lit' : 'text-text-low'}`}
           >
             {pull.refreshing ? 'Refreshing' : pull.armed ? 'Release to refresh' : 'Pull to refresh'}
           </span>
         </div>
       )}
       {/*
-        The masthead, on one line: the weekday at display size and the date
-        beside it. Stacked, the two were 100 px of a phone's first screen; on
-        one line they are 44, and that difference is most of a ticket.
+        The large title, as iOS draws one (the iPhone review, 12 Oct 2026):
+        the date small above, the weekday large, and the screen's one
+        question as a text button on the same line. WHICH day it is is the
+        one piece of orientation a planner opens with, so the weekday
+        carries the type; "Today" survives as the accessible name. Once it
+        scrolls away it folds into the compact bar (CompactBar).
 
-        The weekday carries the type because WHICH day is the one piece of
-        orientation a planner opens with. "Today" survives as the accessible
-        name, because the landmark still has to announce what screen this is.
-
-        The hairline is ember at low alpha, fading out to the right: the only
-        place the brand appears as a rule rather than a fill, closing the
-        masthead without a divider that would cut the page in two.
+        The zone is said only when the account's differs from the device's:
+        travelling is when it matters, and at home it was a word on every
+        open that never changed.
       */}
-      <header className="mb-3.5 px-4">
+      <header className="mb-3 px-4">
         <h1 className="sr-only">Today</h1>
-        <div className="flex items-baseline justify-between gap-3">
-          <p aria-hidden className="type-masthead text-text-hi">
-            {weekdayName(today)}
-          </p>
-          <p className="today-date">
-            {monthDay(today)} &middot; {zoneAbbrev()}
-          </p>
+        <div ref={titleRow} className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="today-date">
+              {monthDay(today)}
+              {activeTimezone() !== detectedTimezone() && ` · ${zoneAbbrev()}`}
+            </p>
+            <p aria-hidden className="type-masthead text-text-hi">
+              {weekdayName(today)}
+            </p>
+          </div>
+          {askable && (
+            <button type="button" className="bar-btn -mr-2 md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
+              What now
+            </button>
+          )}
         </div>
-        <div aria-hidden className="masthead-rule mt-2.5" />
       </header>
 
       {/*
@@ -717,6 +701,7 @@ export function Today({
         <CachedNotice at={data.cachedAt} onRetry={() => void retry()} />
       )}
       {data && <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />}
+      <InstallHint />
 
       {/*
         Today's sections, in the order the account chose (Settings, Today and
@@ -877,6 +862,36 @@ export function Today({
     </main>
     {/* Outside main: main is transformed while pulling to refresh, and a
         fixed bar inside a transformed parent is fixed to that parent. */}
+    <CompactBar title="Today" watch={titleRow}>
+      {askable && (
+        <button type="button" className="bar-btn md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
+          What now
+        </button>
+      )}
+    </CompactBar>
+    {/* What now, asked from the title row: a short sheet with the one
+        question it asks (how long you have) and its one answer. On a
+        tablet or a desk it is already answered beside the work. */}
+    <SheetPresence>
+      {askOpen && data && (
+        <Sheet open title="What now?" onClose={() => setAskOpen(false)}>
+          <Suspense fallback={null}>
+            <WhatNow
+              open
+              onClose={() => setAskOpen(false)}
+              assignments={data.assignments}
+              courses={data.courses}
+              deferrals={data.deferrals}
+              sized={sized}
+              onOpen={(a) => {
+                setAskOpen(false);
+                setOpenAssignment(a);
+              }}
+            />
+          </Suspense>
+        </Sheet>
+      )}
+    </SheetPresence>
     <UndoBar
       message={undoable?.message ?? null}
       onDismiss={dismissUndo}
@@ -1055,31 +1070,79 @@ function Briefing({ dep, today }: { dep: TodayData | null; today: DayKey }) {
     }
   }, [text]);
 
+  // Whether two lines hold it all; More is offered only when they do not.
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const [clipped, setClipped] = useState(false);
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el || open) return;
+    const measure = () => setClipped(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text, open]);
+
   if (!text) return null;
 
   /*
-   * One line, and More opens the rest in place (the UI overview). The
-   * briefing is written so its first clause is the suggestion — "WeBWorK is
-   * due at 3 and the problem set tonight" — so the one line still carries the
-   * point, and the six lines it was cost the first screen its work.
+   * A sentence, not a card (the iPhone review, 12 Oct 2026). Two lines, and
+   * More opens the rest in place only when there is a rest: the briefing is
+   * written so its first clause is the suggestion, so two lines carry the
+   * point. As a card with a rim and an uppercase MORE it was the loudest
+   * thing above the work it was summarising.
    */
   return (
     <section ref={section} aria-label="Briefing">
-      <div className="mat brief" data-open={open || undefined}>
-        <p className="brief-text">{text}</p>
-        <button
-          type="button"
-          className="brief-more"
-          aria-expanded={open}
-          onClick={(e) => {
-            const card = e.currentTarget.closest('section');
-            if (card) followers.current = measureBelow(card);
-            setOpen(!open);
-          }}
-        >
-          {open ? 'Less' : 'More'}
-        </button>
+      <div className="brief" data-open={open || undefined}>
+        <p ref={textRef} className="brief-text">
+          {text}
+        </p>
+        {(clipped || open) && (
+          <button
+            type="button"
+            className="brief-more"
+            aria-expanded={open}
+            onClick={(e) => {
+              const card = e.currentTarget.closest('section');
+              if (card) followers.current = measureBelow(card);
+              setOpen(!open);
+            }}
+          >
+            {open ? 'Less' : 'More'}
+          </button>
+        )}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Add to Home Screen, said once, in Safari on an iPhone (lib/install.ts).
+ * Reminders cannot reach a browser tab on iOS, so this is the one place the
+ * app asks for anything on its first screen, and it does not ask twice.
+ */
+function InstallHint() {
+  const [show, setShow] = useState(shouldHintInstall);
+  if (!show) return null;
+  return (
+    <section aria-label="Add to Home Screen" className="install-hint mb-3.5">
+      <div className="min-w-0 flex-1">
+        <p className="install-hint-title">Add Planner to your Home Screen</p>
+        <p className="type-note text-text-mid">
+          Reminders only reach an iPhone app on the Home Screen. Tap Share, then Add to Home Screen.
+        </p>
+      </div>
+      <button
+        type="button"
+        className="bar-btn -mr-2 shrink-0"
+        onClick={() => {
+          dismissInstallHint();
+          setShow(false);
+        }}
+      >
+        Hide
+      </button>
     </section>
   );
 }

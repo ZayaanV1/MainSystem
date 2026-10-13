@@ -47,10 +47,7 @@ export function dayChoices(today: DayKey, ...current: (DayKey | null)[]): DayCho
   return [...days].sort().map((day) => ({ day, label: dayLabel(day, today) }));
 }
 
-/** Common deadline times. null is "end of day", which is how a date-only deadline is stored. */
-export const TIME_CHOICES: (string | null)[] = [null, '09:00', '12:00', '17:00', '23:59'];
-
-/** "End of day", "Noon", "5:00 p.m." */
+/** "End of day" (no time: how a date-only deadline is stored), "Noon", "5:00 p.m." */
 export function timeLabel(time: string | null): string {
   if (time === null) return 'End of day';
   if (time === '12:00') return 'Noon';

@@ -724,17 +724,21 @@
   }
 }
 
+/*
+ * Backwards fill and no will-change, so that once the entrance has played
+ * the screen holds no transform at all.
+ *
+ * It held one for the life of the screen (fill both, and a will-change that
+ * a comment here said was dropped and was not), and a transformed ancestor
+ * becomes the box that position: fixed is measured against. Every fixed bar
+ * inside a screen reached by the tab bar was placed against the whole page
+ * instead of the window: Week's selection bar and its undo bar sat below the
+ * last day, off screen, on any week longer than the phone. Found on 13 Oct by
+ * reading the selection bar's position, which was 1,678 px down a 874 px
+ * screen.
+ */
 @utility page-enter {
-  animation: page-in 170ms cubic-bezier(0.2, 0, 0, 1) both;
-  /* Promotes the layer before the first frame, so the animation does not pay
-     for its own layer creation on the frame it starts. */
-  will-change: opacity, transform;
-}
-
-/* The promotion is only useful while animating; holding it pins a layer in
-   memory for the life of the screen. */
-.page-enter {
-  animation-fill-mode: both;
+  animation: page-in 170ms cubic-bezier(0.2, 0, 0, 1) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1352,12 +1356,16 @@
    ------------------------------------------------------------------------ */
 :root[data-glass='off'] .fx-glass,
 :root[data-glass='off'] .sheet-scrim,
-:root[data-glass='off'] .composer-dock {
+:root[data-glass='off'] .composer-dock,
+:root[data-glass='off'] .compact-bar,
+:root[data-glass='off'] .status-veil {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
-:root[data-glass='off'] .fx-glass {
+:root[data-glass='off'] .fx-glass,
+:root[data-glass='off'] .compact-bar,
+:root[data-glass='off'] .status-veil {
   background-color: var(--ink-800);
 }
 
@@ -1398,11 +1406,36 @@
     scrim-in 250ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
+/* ---------------------------------------------------------------------------
+   Open in Safari on an iPhone rather than installed (lib/install.ts marks
+   <html>). Safari's toolbar floats below the app's tab bar, so the page gets
+   room to clear both, and a fade fills the gap between them that the page
+   used to show through. Unlayered, so it wins over page-frame's padding.
+   ------------------------------------------------------------------------ */
+.tab-veil {
+  display: none;
+}
+
+:root[data-ios-browser] .tab-veil {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 49;
+  display: block;
+  height: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 1.25rem);
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--ink-900) 45%);
+}
+
+:root[data-ios-browser] .page-frame {
+  padding-bottom: calc(var(--tab-bar) + env(safe-area-inset-bottom) + 4.5rem + var(--focus-bar-h, 0px));
+}
+
 /* The narrowest phones: five tabs at 320 px ran their labels together.
    Unlayered, so it wins over the type-caption utility it adjusts. */
 @media (width < 22.5rem) {
-  .tab-btn .type-caption {
+  .tab-btn .tab-label {
     font-size: 0.625rem;
-    letter-spacing: 0.02em;
+    letter-spacing: 0;
   }
 }
