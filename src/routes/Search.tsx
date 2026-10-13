@@ -43,7 +43,7 @@ export function Search({
   onOpenAssignment,
   onOpenDay,
   onOpenInbox,
-  onOpenCourses,
+  onOpenCourse,
 }: {
   data: TodayData | null;
   onOpenAssignment: (id: string) => void;
@@ -51,7 +51,8 @@ export function Search({
   onOpenDay: (day: DayKey) => void;
   /** A captured thought still to sort: triage it. */
   onOpenInbox: (id: string) => void;
-  onOpenCourses: () => void;
+  /** A course: its page. */
+  onOpenCourse: (id: string) => void;
 }) {
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[] | null>(null);
@@ -130,7 +131,7 @@ export function Search({
         : h.kind === 'inbox' && !h.done
           ? () => onOpenInbox(h.id)
           : h.kind === 'course'
-            ? onOpenCourses
+            ? () => onOpenCourse(h.id)
             : null;
 
   const row = (h: SearchHit, mark: string) => {

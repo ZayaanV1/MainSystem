@@ -230,9 +230,10 @@ ids anywhere in `src/` or the functions.
 
 ## Current status
 
-Phase: **the workhorse upgrade.** Phase A (audit and fixes) DONE 3 Oct 2026 —
-see "Phase A — audit and fixes" below. Phase B (the design system, raised to
-top-tier) is next. The original seven build phases were done 17-19 Aug 2026.
+Phase: **the workhorse upgrade.** Phases A (audit), B (design system), the
+UI overview, and C-E (themes, customisation, sign-in, course pages and the
+Phase E list) DONE 3-12 Oct 2026 — see "The workhorse upgrade — 12 Oct 2026"
+below. The original seven build phases were done 17-19 Aug 2026.
 
 ### Phase 2 — digest and survival. DONE, 18 Aug 2026
 
@@ -1218,10 +1219,77 @@ screen. The tick pills' horizontal scroll, the strip's jump on iOS Safari,
 the editable sheet title with the iOS keyboard, and 120 Hz motion on an
 iPhone have not been watched on hardware.
 
+### The workhorse upgrade — 12 Oct 2026
+
+Three proposals (themes, "Life Planner themes" artifact 7MWc19D1wyG6M3SvWm28EG;
+sign-in and first run, 8xjWnnsbGtaVDmXYv4Tj2a; the teardown,
+Arfumg86zW1HUMTeyLMw8C), approved whole and shipped in five pushes,
+87a9ef6 to aa0c3d6 plus the Search follow-up. Migrations 0036 and 0037.
+
+- **Themes.** Cloisonné (default), Letterpress, Instrument, Fjord and
+  Contrast, each a dark and a light. `[data-skin]` root blocks plus scoped
+  `.skin-<name>.mode-<mode>` blocks that draw the picker's miniatures; the
+  palette test holds all ten to the same floors. Theme per account
+  (`app_settings.theme`), light or dark per device, both set before first
+  paint. Display faces are self-hosted and excluded from the precache.
+- **Today and modules.** Sections reorder (arrows or drag) and hide; Capture
+  and Work always show. Six modules switch off: Abood (tab, check-ins,
+  Telegram and iMessage answer that it is off), Briefing and What now,
+  Grades, Repeating work, Calendar feeds, Low-battery mode. Off hides and
+  never deletes. The AI keys stay reachable with Abood off.
+- **Sign-in, reset, first run.** Password reset sends Supabase's link back to
+  the app (redirect list set 12 Oct), read once by `lib/authLink.ts` and
+  stripped from the address. First run: one bottom button that says what it
+  does, syllabus by text, PDF or photo with keep/drop, a preview of their
+  Today.
+- **Course pages** (`/plan/<id>`): coming up, the grade breakdown with "what
+  would it take" and what-ifs (asked for, never volunteered, nothing saved),
+  office hours, contacts, links, notes, the syllabus as read, and facts Abood
+  files on the course it names. Abood and Search read the pages.
+- **Phase E.** Plain-language capture on the device (`lib/quickParse.ts`);
+  command palette (cmd/ctrl+K); exam prep plans; blocks in free time
+  (`lib/suggestBlocks.ts`); drag to reschedule in Week and Month with undo;
+  Week's Select for bulk move and done; Today's Defer has undo; home-screen
+  badge (today's open work only, never overdue).
+
+**Rules learned, each now a guard or a convention:**
+
+- **Every export table, or a reason.** `tests/export.test.ts` fails if a table
+  in the migrations is in neither `EXPORTED` nor `NOT_EXPORTED`, and if the
+  export asks app_settings for a column it is not granted.
+- **A preview before a parsed write.** Capture shows what it read under the
+  field; nothing parsed is written that was not on screen at Enter.
+- **Nothing counts what was missed.** The badge counts today, not overdue;
+  blocks leave overdue work to Today rather than calling it unplaced.
+- **Text saves on leaving, not only on blur.** Course page fields save on
+  unmount and when the page is hidden, because Back from a keyboard or a
+  backgrounded app never blurs.
+- **material.css is inside `@layer components`; calendar.css is not.** An
+  override of an unlayered rule must itself be unlayered.
+- **The 44 px floor stretches anything without `min-height: 0`**, which drew
+  every settings switch as a disc for weeks.
+
+**Open, needs the owner:** the Supabase Site URL is still
+`http://localhost:3000`. Sign-up and reset links no longer depend on it (both
+pass the app's address), but any email template that uses `{{ .SiteURL }}`
+would. Set it to the deployed URL when convenient.
+
+**Not verified on a phone:** long-press drag on iOS Safari (the touchmove
+guard and the callout suppression), the photo option on the syllabus step,
+the badge on an installed PWA, and a real reset email end to end. All were
+checked in the sample harness at 375 x 812 and 1280 x 800.
+
 ### Bugs found by verifying rather than assuming
 
 Each of these was invisible in the UI and only surfaced by reading what
 actually reached the database. Worth remembering as a working method.
+
+- **Export exported settings, not the term.** It read four tables (settings,
+  channels, push subscriptions, the delivery log) and none of the work, and
+  its `select('*')` on app_settings has been refused since 0034 made that
+  table readable by column, so Export most likely failed at its first table.
+  The failure was an unhandled rejection: the button did nothing and said
+  nothing. Found while adding course pages to the export.
 
 - **Dose counter invented medication.** Deducting a floored amount but
   restoring the full amount meant a tap-and-untap at zero created a pill. The

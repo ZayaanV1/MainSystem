@@ -27,7 +27,7 @@ export async function search(
   const like = pattern(q);
   const quoted = orValue(like);
 
-  const [assignments, events, inbox, courses] = await Promise.all([
+  const [assignments, events, inbox, courses, pages] = await Promise.all([
     supabase
       .from('assignments')
       .select('id, title, due_at, status, courses(code, name)')
@@ -44,11 +44,18 @@ export async function search(
       .ilike('body', like)
       .limit(limit),
     supabase.from('courses').select('id, name, code').or(`name.ilike.${quoted},code.ilike.${quoted}`).limit(limit),
+    // What was written on a course's page: "where are office hours" finds
+    // the course whose page says so.
+    supabase
+      .from('course_pages')
+      .select('course_id, notes, office_hours, contacts, courses(code, name)')
+      .or(`notes.ilike.${quoted},office_hours.ilike.${quoted},contacts.ilike.${quoted}`)
+      .limit(limit),
   ]);
 
   // A failed read is not "nothing matches". Offline, every table errors, and
   // the screen used to report that confidently as an empty result.
-  const failed = [assignments, events, inbox, courses].some((r) => r.error);
+  const failed = [assignments, events, inbox, courses, pages].some((r) => r.error);
 
   const hits: SearchHit[] = [];
 
@@ -105,5 +112,32 @@ export async function search(
     });
   }
 
+  // A page whose writing matches, unless its course already matched by name.
+  for (const p of (pages.data ?? []) as (WithCourse & {
+    course_id: string; notes: string; office_hours: string; contacts: string;
+  })[]) {
+    if (hits.some((h) => h.kind === 'course' && h.id === p.course_id)) continue;
+    const field = [p.office_hours, p.contacts, p.notes].find((v) => v.toLowerCase().includes(q.toLowerCase())) ?? p.notes;
+    const name = p.courses?.code && p.courses?.name ? `${p.courses.code} — ${p.courses.name}` : (courseOf(p) ?? 'A course');
+    hits.push({
+      kind: 'course',
+      id: p.course_id,
+      title: name,
+      detail: snippet(field, q),
+      day: null,
+      done: false,
+    });
+  }
+
   return { hits: rankHits(hits, q, limit), failed };
+}
+
+/** The words around a match, on one line: "…office hours Tue 2–4 in EV 3.301…". */
+export function snippet(text: string, q: string, radius = 40): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  const at = flat.toLowerCase().indexOf(q.toLowerCase());
+  if (at < 0) return flat.slice(0, radius * 2);
+  const from = Math.max(0, at - radius);
+  const to = Math.min(flat.length, at + q.length + radius);
+  return `${from > 0 ? '…' : ''}${flat.slice(from, to)}${to < flat.length ? '…' : ''}`;
 }

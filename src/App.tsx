@@ -437,7 +437,7 @@ function Shell() {
               const found = data?.inbox.find((i) => i.id === id);
               if (found) setOpenInbox(found);
             }}
-            onOpenCourses={() => navigate('plan')}
+            onOpenCourse={(course) => navigate('plan', { course })}
           />
         );
       case 'ask':
