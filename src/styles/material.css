@@ -3939,10 +3939,10 @@ label.cell:active {
   background:
     linear-gradient(var(--mat-wash), var(--mat-wash)),
     var(--ink-800);
-  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .mat[data-block]:not(.theme-mini:not(.skin-nothing) *) {
-  box-shadow: inset 0 0 0 1px var(--mat-rim);
+  box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .mat:not(.theme-mini:not(.skin-nothing) *)::before {
   display: none;
@@ -3956,20 +3956,20 @@ label.cell:active {
   mask-image: radial-gradient(70% 90% at 100% 0%, var(--text-hi), transparent 70%);
 }
 :is(:root[data-skin='nothing'], .skin-nothing) :is(.mat-raised, .mat-hero):not(.theme-mini:not(.skin-nothing) *) {
-  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .mat-row + .mat-row:not(.theme-mini:not(.skin-nothing) *) {
-  box-shadow: inset 0 1px 0 var(--glass-edge);
+  box-shadow: inset 0 1px 0 var(--ink-700);
 }
 
 /* Buttons: a flat inverted slab with mono capitals, Nothing's "Discover". */
 :is(:root[data-skin='nothing'], .skin-nothing) .btn:not(.theme-mini:not(.skin-nothing) *) {
-  border-radius: var(--r-tight);
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  border-radius: var(--r-pill);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .btn-primary:not(.theme-mini:not(.skin-nothing) *) {
   background: var(--accent);
@@ -3977,12 +3977,13 @@ label.cell:active {
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .btn-secondary:not(.theme-mini:not(.skin-nothing) *) {
   color: var(--text-hi);
-  background: var(--ink-700);
-  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  background: var(--ink-600);
+  box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .btn-quiet:not(.theme-mini:not(.skin-nothing) *) {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+  color: var(--text-hi);
+  background: var(--ink-700);
+  box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .btn-icon:not(.theme-mini:not(.skin-nothing) *) {
   border-radius: var(--r-pill);
@@ -3990,8 +3991,8 @@ label.cell:active {
 
 /* Pills: hairline outlines, no light. Selected is inverted. */
 :is(:root[data-skin='nothing'], .skin-nothing) :is(.chip, .tick-pill, .nav-capsule, .style-seg):not(.theme-mini:not(.skin-nothing) *) {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+  background: var(--ink-800);
+  box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .chip[aria-pressed='true']:not(.theme-mini:not(.skin-nothing) *) {
   color: var(--on-accent);
@@ -4000,32 +4001,33 @@ label.cell:active {
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .chip[data-block][aria-pressed='true']:not(.theme-mini:not(.skin-nothing) *) {
   color: var(--text-hi);
-  background: linear-gradient(var(--blk-wash-top), var(--blk-wash-top));
-  box-shadow: inset 0 0 0 1px var(--blk-edge);
+  background: linear-gradient(var(--blk-wash-top), var(--blk-wash-top)), var(--ink-700);
+  box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .chip-dot:not(.theme-mini:not(.skin-nothing) *) {
   box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .style-opt:not(.theme-mini:not(.skin-nothing) *) {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .style-opt-lit:not(.theme-mini:not(.skin-nothing) *) {
-  background: var(--accent);
+  background: var(--ink-500);
   box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .nav-capsule > button:not(.theme-mini:not(.skin-nothing) *) {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-weight: 500;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 /* Fields: a flat well with a hairline, lit white (or black) when in use. */
 :is(:root[data-skin='nothing'], .skin-nothing) .well:not(.theme-mini:not(.skin-nothing) *) {
-  background: var(--ink-900);
+  border-color: transparent;
+  background: var(--ink-800);
   box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) :is(.well:focus, .well:focus-within):not(.theme-mini:not(.skin-nothing) *) {
@@ -4067,9 +4069,9 @@ label.cell:active {
 /* Labels: mono capitals. Small type a reader scans, never prose. */
 :is(:root[data-skin='nothing'], .skin-nothing) :is(.kicker, .today-date, .tick-pill-meta, .section-count, .tab-label, .now-pill, .month-year):not(.theme-mini:not(.skin-nothing) *) {
   font-family: var(--font-mono);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .section-count:not(.theme-mini:not(.skin-nothing) *) {
   font-size: 0.8125rem;
@@ -4077,10 +4079,10 @@ label.cell:active {
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .bar-btn:not(.theme-mini:not(.skin-nothing) *) {
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 :root[data-skin='nothing'] .type-caption:not(.theme-mini:not(.skin-nothing) *) {
   font-family: var(--font-mono);
@@ -4113,7 +4115,7 @@ label.cell:active {
 
 /* Navigation: the frosted bar, quiet; where you are is a flat grey slab. */
 :is(:root[data-skin='nothing'], .skin-nothing) .tab-bar:not(.theme-mini:not(.skin-nothing) *) {
-  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .nav-lit:not(.theme-mini:not(.skin-nothing) *) {
   background: var(--glass-fill-hover);
@@ -4381,10 +4383,10 @@ label.cell:active {
    the count on the matrix beside them. The work itself is what is large. */
 :is(:root[data-skin='nothing'], .skin-nothing) :is(.work-group-title, .section-title):not(.theme-mini:not(.skin-nothing) *) {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-mid);
 }
 :is(:root[data-skin='nothing'], .skin-nothing) :is(.work-group-toggle .section-count, .section-head .section-count):not(.theme-mini:not(.skin-nothing) *) {
@@ -4437,21 +4439,20 @@ label.cell:active {
 :is(:root[data-skin='nothing'], .skin-nothing) .settings-ico:not(.theme-mini:not(.skin-nothing) *) {
   color: var(--text-hi);
   background: transparent;
-  border-radius: var(--r-pill);
-  box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+  box-shadow: none;
 }
 :is(:root[data-skin='nothing'], .skin-nothing) .settings-avatar:not(.theme-mini:not(.skin-nothing) *) {
   font-family: var(--font-dot);
   font-weight: 800;
   color: var(--text-hi);
   background: var(--ink-700);
-  box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+  box-shadow: none;
 }
 
 /* Sheets: one flat surface with a hairline top edge, no light. */
 :is(:root[data-skin='nothing'], .skin-nothing) .sheet-panel:not(.theme-mini:not(.skin-nothing) *) {
   background: var(--ink-800);
-  box-shadow: inset 0 1px 0 var(--glass-edge-hover);
+  box-shadow: none;
 }
 
 /* An empty slot is a dotted outline: a place on the matrix nothing is lit in. */
@@ -4463,4 +4464,140 @@ label.cell:active {
 /* Loading is a field of unlit dots, pulsing. */
 :root[data-skin='nothing'] .skeleton:not(.theme-mini:not(.skin-nothing) *) {
   background: radial-gradient(circle, var(--ink-500) 0 1.5px, transparent 2px) 0 0 / 6px 6px;
+}
+
+
+/* ---- Dot matrix: Today's groups as Nothing OS widgets ----------------------------
+   Measured from the Nothing OS 5 press images (16 Oct 2026). A widget is one
+   solid slab with no outline; it names itself top-left in small mono, sentence
+   case; its figure sits beside the name; the content fills the rest. So each
+   group of work is one slab with its heading INSIDE it, rather than a heading
+   above a list. Folded, the widget is just its name and count. Only for list
+   rows (data-rows): a ticket or a glass slip is already its own object. */
+:is(:root[data-skin='nothing'], .skin-nothing) .work-group[data-rows]:not(.theme-mini:not(.skin-nothing) *) {
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--r-card);
+  background: var(--ink-800);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .work-group[data-rows] .work-group-head:not(.theme-mini:not(.skin-nothing) *) {
+  padding: 0.375rem 1rem 0 1.125rem;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .work-group[data-rows] .work-group-toggle:not(.theme-mini:not(.skin-nothing) *) {
+  min-height: var(--tap);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .work-group[data-rows] .lgroup:not(.theme-mini:not(.skin-nothing) *) {
+  border-radius: 0;
+}
+/* Capture: one filled pill, and a round grey send that turns white when
+   there is something to send. */
+:is(:root[data-skin='nothing'], .skin-nothing) .capture-send:not(.theme-mini:not(.skin-nothing) *) {
+  color: var(--text-hi);
+  background: var(--ink-700);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .capture-send:not(.theme-mini:not(.skin-nothing) *)::before {
+  background: var(--accent);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .capture-send[data-ready]:not(.theme-mini:not(.skin-nothing) *) {
+  box-shadow: none;
+}
+
+/* The date reads like a widget's dot-matrix date: "OCT 16". */
+:is(:root[data-skin='nothing'], .skin-nothing) .today-date:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-dot);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+}
+
+/* Ticks inside a filled pill are drawn on the pill, not on the ground. */
+:is(:root[data-skin='nothing'], .skin-nothing) .tick-pill:not(.theme-mini:not(.skin-nothing) *) {
+  color: var(--text-hi);
+}
+
+/* Week's days and lists, as widgets too: the day names itself inside the
+   slab in mono, its hours of work sit on the matrix at the right. */
+:is(:root[data-skin='nothing'], .skin-nothing) .lday:not(.theme-mini:not(.skin-nothing) *) {
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--r-card);
+  background: var(--ink-800);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .lday-head:not(.theme-mini:not(.skin-nothing) *) {
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0.375rem 1rem 0 1.125rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-mid);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .lday-date:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .lday-load:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-dot);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--text-hi);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .lday .lgroup:not(.theme-mini:not(.skin-nothing) *) {
+  border-radius: 0;
+}
+
+/* The countdown on the now/next card: mono, as written, not shouted. */
+:is(:root[data-skin='nothing'], .skin-nothing) .rb-away:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-mid);
+}
+
+/* The tab bar: one frosted pill, no outline. */
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.tab-bar, .tab-menu):not(.theme-mini:not(.skin-nothing) *) {
+  border-color: transparent;
+}
+
+/* A pill on the ground is a card-coloured slab; inside a card or a sheet,
+   where that colour is the surface itself, it steps to the lighter grey,
+   as Nothing OS's inner pills do ("Day average" in the Away Time widget). */
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.mat, .sheet-panel, .lday, .work-group) :is(.chip, .tick-pill, .nav-capsule, .style-seg):not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--ink-700);
+}
+
+/* Month as a Nothing calendar: bare numbers on round tiles, the chosen day a
+   grey disc, today a flat inverted disc. No cells drawn around the days. */
+:is(:root[data-skin='nothing'], .skin-nothing) .day-tile:not(.theme-mini:not(.skin-nothing) *) {
+  border-radius: var(--r-pill);
+  background: transparent;
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .day-tile[aria-pressed='true']:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--ink-800);
+  box-shadow: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(:root[data-skin='nothing'], .skin-nothing) .day-tile:hover:not(.theme-mini:not(.skin-nothing) *) {
+    background: var(--ink-800);
+  }
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .day-num[data-today]:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+/* A block with no course is drawn in glass elsewhere (calendar/items.ts,
+   tint). Here glass over a white slab lands on the ground's own grey, so a
+   block with no course is simply the slab; a course still tints its own. */
+:is(:root[data-skin='nothing'], .skin-nothing) .mat[data-block]:not([style*='--b:']):not(.theme-mini:not(.skin-nothing) *) {
+  --mat-wash: transparent;
 }

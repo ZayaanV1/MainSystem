@@ -523,7 +523,7 @@ export function Today({
                   const isFolded = folded.has(g.id);
                   const live = g.items.filter((x) => !x.p.leaving).length;
                   return (
-                    <div key={key} data-presence={key} className="work-group" inert={leaving || undefined}>
+                    <div key={key} data-presence={key} className="work-group" data-rows={listRows || undefined} inert={leaving || undefined}>
                       <div className="work-group-head">
                         <button
                           type="button"

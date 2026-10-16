@@ -1032,10 +1032,10 @@
    ones with the same jobs stand in: Doto, Geist and Geist Mono, all OFL. */
 :root[data-skin='nothing'] {
   --ink-900: #000000;
-  --ink-800: #111111;
-  --ink-700: #1b1b1b;
-  --ink-600: #2c2c2c;
-  --ink-500: #444444;
+  --ink-800: #1c1c1c;
+  --ink-700: #262626;
+  --ink-600: #333333;
+  --ink-500: #4d4d4d;
   --text-hi: #ffffff;
   --text-mid: #b5b5b5;
   --text-low: #8f8f8f;
@@ -1054,7 +1054,7 @@
   --glass-edge: rgb(255 255 255 / 0.14);
   --glass-fill-hover: rgb(255 255 255 / 0.12);
   --glass-edge-hover: rgb(255 255 255 / 0.28);
-  --surface-glass: rgb(17 17 17 / 0.72);
+  --surface-glass: rgb(28 28 28 / 0.72);
   --tag-surface: rgb(255 255 255 / 0.06);
   --selection: rgb(255 255 255 / 0.22);
   --shadow-color: 0 0 0;
@@ -1076,9 +1076,9 @@
   :root[data-skin='nothing']:not([data-theme='dark']) {
     --ink-900: #f0f0f0;
     --ink-800: #ffffff;
-    --ink-700: #e6e6e6;
-    --ink-600: #d4d4d4;
-    --ink-500: #b8b8b8;
+    --ink-700: #ebebeb;
+    --ink-600: #dcdcdc;
+    --ink-500: #bdbdbd;
     --text-hi: #000000;
     --text-mid: #3a3a3a;
     --text-low: #5c5c5c;
@@ -1113,15 +1113,16 @@
     --signal: #d71921;
     --dot-grid: rgb(0 0 0 / 0.13);
     --dot-off: rgb(0 0 0 / 0.09);
+    --block-wash: 0.09;
     color-scheme: light;
   }
 }
 :root[data-skin='nothing'][data-theme='light'] {
   --ink-900: #f0f0f0;
   --ink-800: #ffffff;
-  --ink-700: #e6e6e6;
-  --ink-600: #d4d4d4;
-  --ink-500: #b8b8b8;
+  --ink-700: #ebebeb;
+  --ink-600: #dcdcdc;
+  --ink-500: #bdbdbd;
   --text-hi: #000000;
   --text-mid: #3a3a3a;
   --text-low: #5c5c5c;
@@ -1156,6 +1157,7 @@
   --signal: #d71921;
   --dot-grid: rgb(0 0 0 / 0.13);
   --dot-off: rgb(0 0 0 / 0.09);
+  --block-wash: 0.09;
   color-scheme: light;
 }
 
@@ -1213,11 +1215,13 @@
   --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
   --font-dot: 'Doto', 'Geist Mono', ui-monospace, monospace;
   --font-mono: 'Geist Mono', ui-monospace, Menlo, monospace;
-  --r-tight: 6px;
-  --r-card: 16px;
-  --r-hero: 24px;
-  --r-sheet: 24px;
-  --r-slip: 14px;
+  /* Nothing OS widgets are round-cornered slabs: about a fifth of a small
+     widget's side, measured from the OS 5 press images. */
+  --r-tight: 10px;
+  --r-card: 24px;
+  --r-hero: 28px;
+  --r-sheet: 28px;
+  --r-slip: 22px;
 }
 
 /* ---- one theme on one element: the picker's miniatures ---- */
@@ -1904,10 +1908,10 @@
 
 .skin-nothing.mode-dark {
   --ink-900: #000000;
-  --ink-800: #111111;
-  --ink-700: #1b1b1b;
-  --ink-600: #2c2c2c;
-  --ink-500: #444444;
+  --ink-800: #1c1c1c;
+  --ink-700: #262626;
+  --ink-600: #333333;
+  --ink-500: #4d4d4d;
   --text-hi: #ffffff;
   --text-mid: #b5b5b5;
   --text-low: #8f8f8f;
@@ -1926,7 +1930,7 @@
   --glass-edge: rgb(255 255 255 / 0.14);
   --glass-fill-hover: rgb(255 255 255 / 0.12);
   --glass-edge-hover: rgb(255 255 255 / 0.28);
-  --surface-glass: rgb(17 17 17 / 0.72);
+  --surface-glass: rgb(28 28 28 / 0.72);
   --tag-surface: rgb(255 255 255 / 0.06);
   --selection: rgb(255 255 255 / 0.22);
   --shadow-color: 0 0 0;
@@ -1976,9 +1980,9 @@
 .skin-nothing.mode-light {
   --ink-900: #f0f0f0;
   --ink-800: #ffffff;
-  --ink-700: #e6e6e6;
-  --ink-600: #d4d4d4;
-  --ink-500: #b8b8b8;
+  --ink-700: #ebebeb;
+  --ink-600: #dcdcdc;
+  --ink-500: #bdbdbd;
   --text-hi: #000000;
   --text-mid: #3a3a3a;
   --text-low: #5c5c5c;
@@ -2037,7 +2041,7 @@
   --c-6-rgb: 162 136 136;
   --c-7-rgb: 141 148 121;
   --c-8-rgb: 121 130 162;
-  --block-wash: 0.16;
+  --block-wash: 0.09;
   --block-wash-top: 0.3;
   --block-edge: 0.7;
   --block-glow: 0.30;
