@@ -186,6 +186,15 @@
      be mistaken for a brand surface, a status or a course. */
   --focus-ring: #8fa8d8;
 
+  /* ---- the dot matrix ---------------------------------------------------
+     Introduced by the Nothing theme, which is the only one that sets them to
+     anything of its own. Defaults borrow from the glass so a dot-matrix piece
+     drawn in another theme stays in that theme's palette. --signal is a mark
+     the size of a dot, never a fill and never a status (see the theme). */
+  --signal: var(--accent);
+  --dot-grid: var(--glass-edge);
+  --dot-off: var(--glass-fill);
+
   /* ============ non-colour tokens ====================================== */
 
   /* Spacing — 4px scale. Nothing between these values. */
@@ -1006,8 +1015,166 @@
   color-scheme: light;
 }
 
+/* ---- Nothing: black, white and one red dot, set on a dot matrix. ----------
+   Drawn from Nothing's own interfaces (nothing.tech and Nothing OS, measured
+   15 Oct 2026): true black or paper-white ground, greys and nothing else,
+   inverted fills for the action, hairlines instead of shadows, a sparse dot
+   grid behind everything, and type in three voices — dot matrix for display,
+   a mono in capitals for labels and buttons, a plain grotesque for reading.
+
+   --signal is the theme's one red, and it is a DOT, never a fill or a state:
+   the ticking colon of the clock, and the live marker. It sits close to
+   --t-overdue in hue, so it is kept out of every shape urgency uses (bars,
+   labels, list text); nothing that is red here is ever about a deadline.
+   The brand accent is white in dark and black in light, as Nothing's own
+   buttons are; the primary action is the inverted surface, not a colour.
+   Their faces (Ndot, NType 82, Lettera Mono) are proprietary, so the open
+   ones with the same jobs stand in: Doto, Geist and Geist Mono, all OFL. */
+:root[data-skin='nothing'] {
+  --ink-900: #000000;
+  --ink-800: #111111;
+  --ink-700: #1b1b1b;
+  --ink-600: #2c2c2c;
+  --ink-500: #444444;
+  --text-hi: #ffffff;
+  --text-mid: #b5b5b5;
+  --text-low: #8f8f8f;
+  --text-mid-rgb: 181 181 181;
+  --text-low-rgb: 143 143 143;
+  --accent: #ffffff;
+  --accent-lit: #ffffff;
+  --accent-deep: #e0e0e0;
+  --on-accent: #000000;
+  --accent-2: #2c2c2c;
+  --accent-2-mid: #3a3a3a;
+  --accent-2-deep: #1f1f1f;
+  --accent-2-lit: #d4d4d4;
+  --on-accent-2: #ffffff;
+  --glass-fill: rgb(255 255 255 / 0.07);
+  --glass-edge: rgb(255 255 255 / 0.14);
+  --glass-fill-hover: rgb(255 255 255 / 0.12);
+  --glass-edge-hover: rgb(255 255 255 / 0.28);
+  --surface-glass: rgb(17 17 17 / 0.72);
+  --tag-surface: rgb(255 255 255 / 0.06);
+  --selection: rgb(255 255 255 / 0.22);
+  --shadow-color: 0 0 0;
+  --shadow-ember: 0 0 0 0 rgb(0 0 0 / 0);
+  --now-glow: rgb(227 37 46 / 0.5);
+  --specular: rgb(255 255 255 / 0.08);
+  --aura-phthalo: rgb(0 0 0 / 0);
+  --scrim: rgb(0 0 0 / 0.7);
+  --atmo-ember: rgb(0 0 0 / 0);
+  --atmo-phthalo: rgb(0 0 0 / 0);
+  --grain-strength: 0;
+  --focus-ring: #8fa8d8;
+  --signal: #e3252e;
+  --dot-grid: rgb(255 255 255 / 0.11);
+  --dot-off: rgb(255 255 255 / 0.11);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root[data-skin='nothing']:not([data-theme='dark']) {
+    --ink-900: #f0f0f0;
+    --ink-800: #ffffff;
+    --ink-700: #e6e6e6;
+    --ink-600: #d4d4d4;
+    --ink-500: #b8b8b8;
+    --text-hi: #000000;
+    --text-mid: #3a3a3a;
+    --text-low: #5c5c5c;
+    --text-mid-rgb: 58 58 58;
+    --text-low-rgb: 92 92 92;
+    --accent: #000000;
+    --accent-lit: #1f1f1f;
+    --accent-deep: #000000;
+    --on-accent: #ffffff;
+    --accent-2: #2c2c2c;
+    --accent-2-mid: #3a3a3a;
+    --accent-2-deep: #1f1f1f;
+    --accent-2-lit: #3a3a3a;
+    --on-accent-2: #ffffff;
+    --glass-fill: rgb(0 0 0 / 0.05);
+    --glass-edge: rgb(0 0 0 / 0.12);
+    --glass-fill-hover: rgb(0 0 0 / 0.08);
+    --glass-edge-hover: rgb(0 0 0 / 0.22);
+    --surface-glass: rgb(255 255 255 / 0.8);
+    --tag-surface: rgb(0 0 0 / 0.05);
+    --selection: rgb(0 0 0 / 0.16);
+    --shadow-color: 40 40 40;
+    --shadow-ember: 0 0 0 0 rgb(0 0 0 / 0);
+    --now-glow: rgb(215 25 33 / 0.45);
+    --specular: rgb(255 255 255 / 0.7);
+    --aura-phthalo: rgb(0 0 0 / 0);
+    --scrim: rgb(0 0 0 / 0.35);
+    --atmo-ember: rgb(0 0 0 / 0);
+    --atmo-phthalo: rgb(0 0 0 / 0);
+    --grain-strength: 0;
+    --focus-ring: #0038b8;
+    --signal: #d71921;
+    --dot-grid: rgb(0 0 0 / 0.13);
+    --dot-off: rgb(0 0 0 / 0.09);
+    color-scheme: light;
+  }
+}
+:root[data-skin='nothing'][data-theme='light'] {
+  --ink-900: #f0f0f0;
+  --ink-800: #ffffff;
+  --ink-700: #e6e6e6;
+  --ink-600: #d4d4d4;
+  --ink-500: #b8b8b8;
+  --text-hi: #000000;
+  --text-mid: #3a3a3a;
+  --text-low: #5c5c5c;
+  --text-mid-rgb: 58 58 58;
+  --text-low-rgb: 92 92 92;
+  --accent: #000000;
+  --accent-lit: #1f1f1f;
+  --accent-deep: #000000;
+  --on-accent: #ffffff;
+  --accent-2: #2c2c2c;
+  --accent-2-mid: #3a3a3a;
+  --accent-2-deep: #1f1f1f;
+  --accent-2-lit: #3a3a3a;
+  --on-accent-2: #ffffff;
+  --glass-fill: rgb(0 0 0 / 0.05);
+  --glass-edge: rgb(0 0 0 / 0.12);
+  --glass-fill-hover: rgb(0 0 0 / 0.08);
+  --glass-edge-hover: rgb(0 0 0 / 0.22);
+  --surface-glass: rgb(255 255 255 / 0.8);
+  --tag-surface: rgb(0 0 0 / 0.05);
+  --selection: rgb(0 0 0 / 0.16);
+  --shadow-color: 40 40 40;
+  --shadow-ember: 0 0 0 0 rgb(0 0 0 / 0);
+  --now-glow: rgb(215 25 33 / 0.45);
+  --specular: rgb(255 255 255 / 0.7);
+  --aura-phthalo: rgb(0 0 0 / 0);
+  --scrim: rgb(0 0 0 / 0.35);
+  --atmo-ember: rgb(0 0 0 / 0);
+  --atmo-phthalo: rgb(0 0 0 / 0);
+  --grain-strength: 0;
+  --focus-ring: #0038b8;
+  --signal: #d71921;
+  --dot-grid: rgb(0 0 0 / 0.13);
+  --dot-off: rgb(0 0 0 / 0.09);
+  color-scheme: light;
+}
+
 /* ---- what a theme is besides colour: its face and its corners ----------
    Not colour, but kept with the colour so a theme is read in one place. */
+/* A miniature starts from the default faces, so it never inherits those of the
+   theme the app around it is showing (Dot matrix sets the body face too); the
+   blocks below then give each miniature its own. */
+.theme-mini {
+  --font-display: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
+  --r-tight: 8px;
+  --r-card: 12px;
+  --r-hero: 28px;
+  --r-sheet: 20px;
+  --r-pill: 999px;
+  --r-slip: 1.0625rem;
+  font-family: var(--font-sans);
+}
 :root[data-skin='letterpress'], .skin-letterpress {
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --r-card: 6px;
@@ -1037,6 +1204,20 @@
   --r-card: 10px;
   --r-hero: 16px;
   --r-slip: 12px;
+}
+
+:root[data-skin='nothing'], .skin-nothing {
+  /* Headings read in Geist; the dot face is kept for what is display-sized
+     or a number (material.css, Nothing), where a dot matrix stays legible. */
+  --font-display: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-dot: 'Doto', 'Geist Mono', ui-monospace, monospace;
+  --font-mono: 'Geist Mono', ui-monospace, Menlo, monospace;
+  --r-tight: 6px;
+  --r-card: 16px;
+  --r-hero: 24px;
+  --r-sheet: 24px;
+  --r-slip: 14px;
 }
 
 /* ---- one theme on one element: the picker's miniatures ---- */
@@ -1689,6 +1870,149 @@
   --atmo-phthalo: rgb(90 31 158 / 0.09);
   --grain-strength: 0;
   --focus-ring: #0038b8;
+  --t-distant: #5c6178;
+  --t-approaching: #9e5972;
+  --t-urgent: #b44a6a;
+  --t-critical: #c83557;
+  --t-overdue: #d5203e;
+  --t-done: #017a58;
+  --t-done-partial: rgb(1 122 88 / 0.4);
+  --c-1: #7988a2;
+  --c-2: #88a288;
+  --c-3: #a28d79;
+  --c-4: #9479a2;
+  --c-5: #79a29e;
+  --c-6: #a28888;
+  --c-7: #8d9479;
+  --c-8: #7982a2;
+  --c-0-rgb: var(--text-mid-rgb);
+  --c-1-rgb: 121 136 162;
+  --c-2-rgb: 136 162 136;
+  --c-3-rgb: 162 141 121;
+  --c-4-rgb: 148 121 162;
+  --c-5-rgb: 121 162 158;
+  --c-6-rgb: 162 136 136;
+  --c-7-rgb: 141 148 121;
+  --c-8-rgb: 121 130 162;
+  --block-wash: 0.16;
+  --block-wash-top: 0.3;
+  --block-edge: 0.7;
+  --block-glow: 0.30;
+  --done-glow: rgb(20 150 110 / 0.3);
+  color-scheme: light;
+}
+
+.skin-nothing.mode-dark {
+  --ink-900: #000000;
+  --ink-800: #111111;
+  --ink-700: #1b1b1b;
+  --ink-600: #2c2c2c;
+  --ink-500: #444444;
+  --text-hi: #ffffff;
+  --text-mid: #b5b5b5;
+  --text-low: #8f8f8f;
+  --text-mid-rgb: 181 181 181;
+  --text-low-rgb: 143 143 143;
+  --accent: #ffffff;
+  --accent-lit: #ffffff;
+  --accent-deep: #e0e0e0;
+  --on-accent: #000000;
+  --accent-2: #2c2c2c;
+  --accent-2-mid: #3a3a3a;
+  --accent-2-deep: #1f1f1f;
+  --accent-2-lit: #d4d4d4;
+  --on-accent-2: #ffffff;
+  --glass-fill: rgb(255 255 255 / 0.07);
+  --glass-edge: rgb(255 255 255 / 0.14);
+  --glass-fill-hover: rgb(255 255 255 / 0.12);
+  --glass-edge-hover: rgb(255 255 255 / 0.28);
+  --surface-glass: rgb(17 17 17 / 0.72);
+  --tag-surface: rgb(255 255 255 / 0.06);
+  --selection: rgb(255 255 255 / 0.22);
+  --shadow-color: 0 0 0;
+  --shadow-ember: 0 0 0 0 rgb(0 0 0 / 0);
+  --now-glow: rgb(227 37 46 / 0.5);
+  --specular: rgb(255 255 255 / 0.08);
+  --aura-phthalo: rgb(0 0 0 / 0);
+  --scrim: rgb(0 0 0 / 0.7);
+  --atmo-ember: rgb(0 0 0 / 0);
+  --atmo-phthalo: rgb(0 0 0 / 0);
+  --grain-strength: 0;
+  --focus-ring: #8fa8d8;
+  --signal: #e3252e;
+  --dot-grid: rgb(255 255 255 / 0.11);
+  --dot-off: rgb(255 255 255 / 0.11);
+  --t-distant: #8a90a8;
+  --t-approaching: #b6778c;
+  --t-urgent: #cb6c85;
+  --t-critical: #e45a76;
+  --t-overdue: #ff3b5c;
+  --t-done: #2ed4a0;
+  --t-done-partial: rgb(46 212 160 / 0.4);
+  --c-1: #8a9bb8;
+  --c-2: #9bb89a;
+  --c-3: #b8a08a;
+  --c-4: #a88ab8;
+  --c-5: #8ab8b4;
+  --c-6: #b89a9a;
+  --c-7: #a0a88a;
+  --c-8: #8a94b8;
+  --c-0-rgb: var(--text-mid-rgb);
+  --c-1-rgb: 138 155 184;
+  --c-2-rgb: 155 184 154;
+  --c-3-rgb: 184 160 138;
+  --c-4-rgb: 168 138 184;
+  --c-5-rgb: 138 184 180;
+  --c-6-rgb: 184 154 154;
+  --c-7-rgb: 160 168 138;
+  --c-8-rgb: 138 148 184;
+  --block-wash: 0.11;
+  --block-wash-top: 0.23;
+  --block-edge: 0.58;
+  --block-glow: 0.42;
+  --done-glow: rgb(46 212 160 / 0.45);
+  color-scheme: dark;
+}
+.skin-nothing.mode-light {
+  --ink-900: #f0f0f0;
+  --ink-800: #ffffff;
+  --ink-700: #e6e6e6;
+  --ink-600: #d4d4d4;
+  --ink-500: #b8b8b8;
+  --text-hi: #000000;
+  --text-mid: #3a3a3a;
+  --text-low: #5c5c5c;
+  --text-mid-rgb: 58 58 58;
+  --text-low-rgb: 92 92 92;
+  --accent: #000000;
+  --accent-lit: #1f1f1f;
+  --accent-deep: #000000;
+  --on-accent: #ffffff;
+  --accent-2: #2c2c2c;
+  --accent-2-mid: #3a3a3a;
+  --accent-2-deep: #1f1f1f;
+  --accent-2-lit: #3a3a3a;
+  --on-accent-2: #ffffff;
+  --glass-fill: rgb(0 0 0 / 0.05);
+  --glass-edge: rgb(0 0 0 / 0.12);
+  --glass-fill-hover: rgb(0 0 0 / 0.08);
+  --glass-edge-hover: rgb(0 0 0 / 0.22);
+  --surface-glass: rgb(255 255 255 / 0.8);
+  --tag-surface: rgb(0 0 0 / 0.05);
+  --selection: rgb(0 0 0 / 0.16);
+  --shadow-color: 40 40 40;
+  --shadow-ember: 0 0 0 0 rgb(0 0 0 / 0);
+  --now-glow: rgb(215 25 33 / 0.45);
+  --specular: rgb(255 255 255 / 0.7);
+  --aura-phthalo: rgb(0 0 0 / 0);
+  --scrim: rgb(0 0 0 / 0.35);
+  --atmo-ember: rgb(0 0 0 / 0);
+  --atmo-phthalo: rgb(0 0 0 / 0);
+  --grain-strength: 0;
+  --focus-ring: #0038b8;
+  --signal: #d71921;
+  --dot-grid: rgb(0 0 0 / 0.13);
+  --dot-off: rgb(0 0 0 / 0.09);
   --t-distant: #5c6178;
   --t-approaching: #9e5972;
   --t-urgent: #b44a6a;

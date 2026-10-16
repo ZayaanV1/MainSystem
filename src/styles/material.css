@@ -3930,6 +3930,282 @@ label.cell:active {
   outline-width: 3px;
 }
 
+/* Nothing (shown as Dot matrix): after Nothing's own interfaces, measured on
+   nothing.tech, 15 Oct 2026. Flat surfaces separated by a hairline rather than
+   by light; the action is the inverted surface; labels and buttons in mono
+   capitals; display type and numbers on a dot matrix; a dot grid behind it
+   all. Colour, and its one red dot, live in tokens.css. */
+:is(:root[data-skin='nothing'], .skin-nothing) .mat:not(.theme-mini:not(.skin-nothing) *) {
+  background:
+    linear-gradient(var(--mat-wash), var(--mat-wash)),
+    var(--ink-800);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .mat[data-block]:not(.theme-mini:not(.skin-nothing) *) {
+  box-shadow: inset 0 0 0 1px var(--mat-rim);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .mat:not(.theme-mini:not(.skin-nothing) *)::before {
+  display: none;
+}
+/* The hero surface keeps a corner of the dot grid, fading in from top right,
+   the way a Nothing widget carries its matrix. */
+:is(:root[data-skin='nothing'], .skin-nothing) .mat-hero:not(.theme-mini:not(.skin-nothing) *)::after {
+  opacity: 1;
+  background: radial-gradient(circle, var(--dot-grid) 0 1px, transparent 1.5px) 0 0 / 10px 10px;
+  -webkit-mask-image: radial-gradient(70% 90% at 100% 0%, var(--text-hi), transparent 70%);
+  mask-image: radial-gradient(70% 90% at 100% 0%, var(--text-hi), transparent 70%);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.mat-raised, .mat-hero):not(.theme-mini:not(.skin-nothing) *) {
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .mat-row + .mat-row:not(.theme-mini:not(.skin-nothing) *) {
+  box-shadow: inset 0 1px 0 var(--glass-edge);
+}
+
+/* Buttons: a flat inverted slab with mono capitals, Nothing's "Discover". */
+:is(:root[data-skin='nothing'], .skin-nothing) .btn:not(.theme-mini:not(.skin-nothing) *) {
+  border-radius: var(--r-tight);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .btn-primary:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--accent);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .btn-secondary:not(.theme-mini:not(.skin-nothing) *) {
+  color: var(--text-hi);
+  background: var(--ink-700);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .btn-quiet:not(.theme-mini:not(.skin-nothing) *) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .btn-icon:not(.theme-mini:not(.skin-nothing) *) {
+  border-radius: var(--r-pill);
+}
+
+/* Pills: hairline outlines, no light. Selected is inverted. */
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.chip, .tick-pill, .nav-capsule, .style-seg):not(.theme-mini:not(.skin-nothing) *) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .chip[aria-pressed='true']:not(.theme-mini:not(.skin-nothing) *) {
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .chip[data-block][aria-pressed='true']:not(.theme-mini:not(.skin-nothing) *) {
+  color: var(--text-hi);
+  background: linear-gradient(var(--blk-wash-top), var(--blk-wash-top));
+  box-shadow: inset 0 0 0 1px var(--blk-edge);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .chip-dot:not(.theme-mini:not(.skin-nothing) *) {
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .style-opt:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .style-opt-lit:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--accent);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .nav-capsule > button:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+/* Fields: a flat well with a hairline, lit white (or black) when in use. */
+:is(:root[data-skin='nothing'], .skin-nothing) .well:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--ink-900);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.well:focus, .well:focus-within):not(.theme-mini:not(.skin-nothing) *) {
+  border-color: var(--text-hi);
+  box-shadow: none;
+}
+
+/* Ticks: a hairline ring, filled flat when done. */
+:is(:root[data-skin='nothing'], .skin-nothing) .tick:not(.theme-mini:not(.skin-nothing) *) {
+  border-width: 1.5px;
+  border-color: var(--text-low);
+  background: transparent;
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .tick[data-done]:not(.theme-mini:not(.skin-nothing) *) {
+  border-color: var(--t-done);
+  background: var(--t-done);
+  box-shadow: none;
+}
+
+/* The switch, as Nothing OS draws it: inverted track when on, a knob that
+   is a dot. */
+:is(:root[data-skin='nothing'], .skin-nothing) .settings-switch:not(.theme-mini:not(.skin-nothing) *) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--text-low);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .settings-switch:not(.theme-mini:not(.skin-nothing) *)::after {
+  background: var(--text-low);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .settings-switch:checked:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--accent);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .settings-switch:checked:not(.theme-mini:not(.skin-nothing) *)::after {
+  background: var(--on-accent);
+}
+
+/* Labels: mono capitals. Small type a reader scans, never prose. */
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.kicker, .today-date, .tick-pill-meta, .section-count, .tab-label, .now-pill, .month-year):not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .section-count:not(.theme-mini:not(.skin-nothing) *) {
+  font-size: 0.8125rem;
+  line-height: 1;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .bar-btn:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+:root[data-skin='nothing'] .type-caption:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+/* Display and numbers on the dot matrix. Doto's dots grow with weight; 800
+   is where a 40 px weekday reads at arm's length on a phone. */
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.type-masthead, .page-title, .month-title, .signin-word, .firstrun-h1):not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-dot);
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.numeral, .stub-n, .ws-n, .day-num, .ledger-head-num, .blk-num, .rb-time b, .ev-time b, .course-when b):not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-dot);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.section-title, .slip-title, .work-group-title):not(.theme-mini:not(.skin-nothing) *) {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Rules are dotted: a row of matrix dots instead of a line. */
+:is(:root[data-skin='nothing'], .skin-nothing) .section-rule:not(.theme-mini:not(.skin-nothing) *) {
+  height: 3px;
+  background: radial-gradient(circle, var(--ink-500) 0 1px, transparent 1.3px) 0 50% / 6px 3px repeat-x;
+}
+
+/* Navigation: the frosted bar, quiet; where you are is a flat grey slab. */
+:is(:root[data-skin='nothing'], .skin-nothing) .tab-bar:not(.theme-mini:not(.skin-nothing) *) {
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .nav-lit:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--glass-fill-hover);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .tab-label:not(.theme-mini:not(.skin-nothing) *) {
+  font-size: 0.625rem;
+}
+
+/* Now: the recording dot. A white (or black) pill with the one red dot. */
+:is(:root[data-skin='nothing'], .skin-nothing) .now-pill:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--accent);
+  box-shadow: none;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .now-pill:not(.theme-mini:not(.skin-nothing) *)::before {
+  background: var(--signal);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .bubble-progress:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+/* Conversation: your messages are a flat grey slab, as Nothing's are. */
+:is(:root[data-skin='nothing'], .skin-nothing) .chat-mine:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--accent-2-mid);
+  box-shadow: none;
+}
+
+/* ---- the dot-matrix clock (DotClock) ------------------------------------------
+   Every dot of the panel is drawn; unlit ones in --dot-off, so it reads as a
+   panel and not as type. A dot changing state fades rather than snapping,
+   which is what makes a minute turning over look like a display refreshing.
+   The colon is the one red, blinking with the seconds. */
+.dot-clock {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: flex-end;
+  gap: 0.375rem;
+  color: var(--text-hi);
+}
+
+.dot-clock-panel {
+  display: block;
+  height: var(--clock-h, 2.25rem);
+  width: auto;
+  overflow: visible;
+}
+
+.dot-clock-panel circle {
+  transition: fill 260ms var(--ease-out);
+}
+
+.dot-clock-on {
+  fill: currentColor;
+}
+
+.dot-clock-off {
+  fill: var(--dot-off);
+}
+
+.dot-clock-colon {
+  fill: var(--signal);
+  animation: dot-colon 1s steps(1, end) infinite;
+}
+
+@keyframes dot-colon {
+  50% {
+    fill: var(--dot-off);
+  }
+}
+
+.dot-clock-period {
+  margin-bottom: -0.125rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: var(--text-low);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot-clock-colon {
+    animation: none;
+  }
+}
+
+/* The ground: Nothing's dot grid, fixed, under everything. */
+:root[data-skin='nothing'] .atmosphere:not(.theme-mini:not(.skin-nothing) *)::before {
+  background: radial-gradient(circle, var(--dot-grid) 0 1px, transparent 1.5px) 0 0 / 22px 22px;
+}
+
 /* ---- the theme picker: real miniatures of Today ----------------------------- */
 
 .theme-cards {
@@ -4058,4 +4334,133 @@ label.cell:active {
   box-shadow:
     inset 0 1px 0 var(--specular),
     var(--shadow-lg);
+}
+
+/* The Dot matrix masthead (Today.tsx): the weekday and the clock share one
+   size, so the clock's panel stands exactly as tall as the weekday's capitals. */
+.masthead-matrix {
+  --mast: clamp(2rem, 1.55rem + 2vw, 3.25rem);
+}
+
+.masthead-matrix .type-masthead {
+  font-size: var(--mast);
+  line-height: 0.9;
+  overflow-wrap: anywhere;
+}
+
+.masthead-matrix .dot-clock {
+  /* Doto's capitals stand 0.74em; the panel matches them, measured. */
+  --clock-h: calc(var(--mast) * 0.74);
+  margin-bottom: 0.12em;
+}
+
+/* Month's name on the matrix. Doto in capitals runs 0.6em a letter with no
+   tracking to borrow back, and the capsule's mono capitals are wider than the
+   sans they replace, so the fit (see .month-title) reserves more and divides
+   by more. Measured on a 375 px phone: 100cqi is 311 px, the capsule, year and gaps take 193 of it, and Doto runs 0.601em a letter, so OCTOBER sets at the clamp (27 px) and SEPTEMBER at 21 px without truncating. */
+:is(:root[data-skin='nothing'], .skin-nothing) .month-title:not(.theme-mini:not(.skin-nothing) *) {
+  font-size: min(
+    clamp(1.5rem, 1.2rem + 2vw, 2.75rem),
+    calc((100cqi - 12.25rem) / (var(--len, 9) * 0.61))
+  );
+}
+
+@container (max-width: 18rem) {
+  :is(:root[data-skin='nothing'], .skin-nothing) .month-title:not(.theme-mini:not(.skin-nothing) *) {
+    font-size: max(1.125rem, min(1.5rem, calc((100cqi - 10rem) / (var(--len, 9) * 0.62))));
+  }
+}
+
+
+/* ---- Dot matrix, the rest of the system ----------------------------------------
+   Nothing OS reads as a set of widgets: a small mono label in the corner says
+   what a thing is, a number on the matrix says how much, and the content sits
+   flat on a hairline card. The rules below carry that past the colours. */
+
+/* Group and section heads become widget labels: mono capitals, quiet, with
+   the count on the matrix beside them. The work itself is what is large. */
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.work-group-title, .section-title):not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.work-group-toggle .section-count, .section-head .section-count):not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-dot);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--text-hi);
+}
+
+/* Specs, not prose: a row's course, length and weight in mono, and its "when"
+   in mono too, so every figure on a row lines up the way a spec sheet does. */
+:is(:root[data-skin='nothing'], .skin-nothing) :is(.lrow-meta, .tk-meta):not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .lrow-when:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* The week strip: each day's minutes as a column of matrix dots. The track is
+   the unlit column and the bar lights it from the bottom. */
+:is(:root[data-skin='nothing'], .skin-nothing) .ws-track:not(.theme-mini:not(.skin-nothing) *) {
+  width: 0.375rem;
+  border-radius: 0;
+  background: var(--dot-off);
+  -webkit-mask: radial-gradient(circle, var(--text-hi) 0 2.2px, transparent 2.6px) 50% 100% / 6px 6px repeat-y;
+  mask: radial-gradient(circle, var(--text-hi) 0 2.2px, transparent 2.6px) 50% 100% / 6px 6px repeat-y;
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .ws-bar:not(.theme-mini:not(.skin-nothing) *) {
+  border-radius: 0;
+  background: var(--text-low);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .ws-day[aria-current] .ws-bar:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--text-hi);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .ws-day[aria-current] .ws-n:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--accent);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .ws-h:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+/* Settings: monochrome glyphs in a hairline ring, as Nothing OS draws its
+   settings, rather than coloured tiles. */
+:is(:root[data-skin='nothing'], .skin-nothing) .settings-ico:not(.theme-mini:not(.skin-nothing) *) {
+  color: var(--text-hi);
+  background: transparent;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+}
+:is(:root[data-skin='nothing'], .skin-nothing) .settings-avatar:not(.theme-mini:not(.skin-nothing) *) {
+  font-family: var(--font-dot);
+  font-weight: 800;
+  color: var(--text-hi);
+  background: var(--ink-700);
+  box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+}
+
+/* Sheets: one flat surface with a hairline top edge, no light. */
+:is(:root[data-skin='nothing'], .skin-nothing) .sheet-panel:not(.theme-mini:not(.skin-nothing) *) {
+  background: var(--ink-800);
+  box-shadow: inset 0 1px 0 var(--glass-edge-hover);
+}
+
+/* An empty slot is a dotted outline: a place on the matrix nothing is lit in. */
+:is(:root[data-skin='nothing'], .skin-nothing) .empty-slot:not(.theme-mini:not(.skin-nothing) *) {
+  border: 2px dotted var(--ink-500);
+  background: transparent;
+}
+
+/* Loading is a field of unlit dots, pulsing. */
+:root[data-skin='nothing'] .skeleton:not(.theme-mini:not(.skin-nothing) *) {
+  background: radial-gradient(circle, var(--ink-500) 0 1.5px, transparent 2px) 0 0 / 6px 6px;
 }

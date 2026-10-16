@@ -18,6 +18,7 @@ import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { EmptyState } from '../components/EmptyState';
 import { NowNext } from '../components/NowNext';
+import { DotClock } from '../components/DotClock';
 import { TickPills } from '../components/TickPills';
 import { SectionHead } from '../components/SectionHead';
 
@@ -675,22 +676,51 @@ export function Today({
       */}
       <header className="mb-3 px-4">
         <h1 className="sr-only">Today</h1>
-        <div ref={titleRow} className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="today-date">
-              {monthDay(today)}
-              {activeTimezone() !== detectedTimezone() && ` · ${zoneAbbrev()}`}
-            </p>
-            <p aria-hidden className="type-masthead text-text-hi">
-              {weekdayName(today)}
-            </p>
+        {prefs.skin === 'nothing' ? (
+          /*
+            The Dot matrix theme's masthead, after a Nothing OS clock widget:
+            the date and What now on a line of mono capitals, the weekday and
+            the time on the matrix below. What now moves up rather than
+            sharing a line with the clock, which at phone width has room for
+            the weekday and the time and nothing else.
+          */
+          <div ref={titleRow} className="masthead-matrix">
+            <div className="flex min-h-[var(--tap)] items-center justify-between gap-3">
+              <p className="today-date">
+                {monthDay(today)}
+                {activeTimezone() !== detectedTimezone() && ` · ${zoneAbbrev()}`}
+              </p>
+              {askable && (
+                <button type="button" className="bar-btn -mr-2 md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
+                  What now
+                </button>
+              )}
+            </div>
+            <div className="flex items-end justify-between gap-3">
+              <p aria-hidden className="type-masthead min-w-0 text-text-hi">
+                {weekdayName(today)}
+              </p>
+              <DotClock />
+            </div>
           </div>
-          {askable && (
-            <button type="button" className="bar-btn -mr-2 md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
-              What now
-            </button>
-          )}
-        </div>
+        ) : (
+          <div ref={titleRow} className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="today-date">
+                {monthDay(today)}
+                {activeTimezone() !== detectedTimezone() && ` · ${zoneAbbrev()}`}
+              </p>
+              <p aria-hidden className="type-masthead text-text-hi">
+                {weekdayName(today)}
+              </p>
+            </div>
+            {askable && (
+              <button type="button" className="bar-btn -mr-2 md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
+                What now
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       {/*

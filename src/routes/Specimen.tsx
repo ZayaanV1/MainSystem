@@ -10,6 +10,7 @@ import { Pressable } from '../components/Pressable';
 import { SkeletonList } from '../components/Skeleton';
 import { UndoBar } from '../components/UndoBar';
 import { WeekStrip } from '../components/WeekStrip';
+import { DotClock } from '../components/DotClock';
 import { groupWeek } from '../lib/week';
 import { todayKey } from '../lib/time';
 import type { PlannerEvent } from '../lib/planner';
@@ -204,6 +205,13 @@ export function Specimen() {
           {sampleClasses().map((e) => (
             <EventRow key={e.id} event={e} />
           ))}
+        </div>
+      </Section>
+
+      <Section title="DotClock — the account's time on a dot matrix (Today, in the Dot matrix theme)">
+        <div className="masthead-matrix flex items-end justify-between gap-3 px-4">
+          <p aria-hidden className="type-masthead text-text-hi">Thursday</p>
+          <DotClock />
         </div>
       </Section>
 

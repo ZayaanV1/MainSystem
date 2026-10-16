@@ -114,6 +114,32 @@
   src: url('/fonts/AtkinsonHyperlegible-700.woff2') format('woff2');
 }
 
+/* Nothing's three voices, in open faces (its own are proprietary): Doto, a
+   dot-matrix display face with a weight axis, for display and numerals; Geist
+   Mono for labels and buttons; Geist for reading. Geist is also the face
+   Nothing OS 4 itself moved to. Each is one variable file. All OFL. */
+@font-face {
+  font-family: 'Doto';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('/fonts/Doto-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 300 600;
+  font-display: swap;
+  src: url('/fonts/Geist-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('/fonts/GeistMono-var.woff2') format('woff2');
+}
+
 /* ============================================================================
    Token -> utility mapping.
 
