@@ -4601,3 +4601,11 @@ label.cell:active {
 :is(:root[data-skin='nothing'], .skin-nothing) .mat[data-block]:not([style*='--b:']):not(.theme-mini:not(.skin-nothing) *) {
   --mat-wash: transparent;
 }
+
+/* From lg the tiles are tall cells holding the day's titles (Month.tsx), and
+   a pill radius on a tall cell is a lozenge. They take the card's corner. */
+@media (width >= 64rem) {
+  :is(:root[data-skin='nothing'], .skin-nothing) .day-tile:not(.theme-mini:not(.skin-nothing) *) {
+    border-radius: var(--r-card);
+  }
+}
