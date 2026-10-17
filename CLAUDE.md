@@ -1436,6 +1436,22 @@ sync marking timetable lectures as `class`.
 **Not verified** on a phone or an iPad, including the native date and time
 pickers in iOS Safari: Chromium at 390 px in both modes only.
 
+### Switching screens, quick by default — 17 Oct 2026
+
+Reported from the sideloaded iPhone app: a delay when tapping through the tab
+bar quickly. Every screen change ran a view transition, which snapshots the
+whole page (glass included), plays about 600 ms of exit and entrance, and puts
+the snapshot over the page while it runs, so taps made in that time went to the
+snapshot. Switching screens now defaults to **Quick**: a plain state change
+with the screen's own entrance (Today, being kept mounted, fades in on return).
+**Slide**, the direction-aware view transition, stays a choice under
+Settings > Appearance (rule 13), and `withTransition` finishes a running
+transition instead of stacking another on it. Theme sweeps still use it.
+`e2e/tabs.spec.ts` taps four tabs without waiting and counts transitions.
+UNMEASURED on a phone: the cause is read from the code, not traced on hardware.
+Leaving a screen is still a cut in Quick, as it was before this; keeping recent
+screens mounted is the proposed next step.
+
 ### Bugs found by verifying rather than assuming
 
 Each of these was invisible in the UI and only surfaced by reading what

@@ -23,6 +23,15 @@ export type SlipStyle = 'list' | 'ticket' | 'glass';
 export type GlassLevel = 'off' | 'bars' | 'surfaces';
 /** Full motion, or the same moments without the flourishes. */
 export type MotionLevel = 'full' | 'calm';
+/**
+ * How a change of screen is drawn. Quick plays the screen's own entrance and
+ * never covers the page, so the next tap lands at once. Slide is the view
+ * transition that carries the old screen away in the direction you moved; it
+ * snapshots the whole page and takes touches for about 600 ms while it runs,
+ * which showed as a delay when switching tabs quickly (Oct 2026). Kept as a
+ * choice under rule 13.
+ */
+export type TabTransition = 'quick' | 'slide';
 
 export interface Appearance {
   slip: SlipStyle;
@@ -30,6 +39,7 @@ export interface Appearance {
   /** Glass that eases its blur in and out as surfaces appear. The most expensive option. */
   animatedBlur: boolean;
   motion: MotionLevel;
+  tabs: TabTransition;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -37,6 +47,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   glass: 'bars',
   animatedBlur: false,
   motion: 'full',
+  tabs: 'quick',
 };
 
 const KEY = 'planner.appearance';
@@ -46,6 +57,7 @@ const OPTIONS: { [K in keyof Appearance]: readonly Appearance[K][] } = {
   glass: ['off', 'bars', 'surfaces'],
   animatedBlur: [true, false],
   motion: ['full', 'calm'],
+  tabs: ['quick', 'slide'],
 };
 
 /**

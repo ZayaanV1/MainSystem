@@ -5,6 +5,7 @@ import { keepFeedsLive } from './lib/feeds';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SheetPresence } from './components/Sheet';
 import { withTransition, directionBetween } from './lib/transition';
+import { getAppearance } from './lib/appearance';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { setOutboxOwner, startOutbox } from './lib/outbox';
@@ -108,6 +109,20 @@ function NotConfigured() {
   );
 }
 
+/**
+ * Swap the screen. Quick (the default) is a plain state change: the new
+ * screen plays its own entrance and the page is never covered, so the next
+ * tap lands at once. Slide keeps the view transition as a choice.
+ */
+function changeScreen(
+  set: (s: Screen) => void,
+  next: Screen,
+  direction: Parameters<typeof withTransition>[1],
+): void {
+  if (getAppearance().tabs === 'slide') withTransition(() => set(next), direction);
+  else set(next);
+}
+
 function Shell() {
   const { session, loading, recovering } = useAuth();
   const [screen, setScreen] = useState<Screen>(() => currentRoute().screen);
@@ -135,7 +150,7 @@ function Shell() {
       setMonthDay(next === 'month' ? (extra.day ?? null) : null);
       window.history.pushState(null, '', formatRoute({ screen: next, ...extra }));
       const order = NAV.map((item) => item.id);
-      withTransition(() => setScreen(next), directionBetween(order, screen, next));
+      changeScreen(setScreen, next, directionBetween(order, screen, next));
     },
     [screen],
   );
@@ -183,7 +198,7 @@ function Shell() {
       setMonthDay(r.day ?? null);
       if (r.screen === screenRef.current) return;
       const order = NAV.map((item) => item.id);
-      withTransition(() => setScreen(r.screen), directionBetween(order, screenRef.current, r.screen));
+      changeScreen(setScreen, r.screen, directionBetween(order, screenRef.current, r.screen));
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -242,6 +257,21 @@ function Shell() {
     title: string;
     minutes: number;
   } | null>(null);
+  /*
+   * Today stays mounted and is only hidden, so unlike every other screen it
+   * has no entrance of its own. Coming back to it plays one (rule 12: no cut).
+   */
+  const todayRef = useRef<HTMLDivElement>(null);
+  const seenScreen = useRef(screen);
+  useEffect(() => {
+    const was = seenScreen.current;
+    seenScreen.current = screen;
+    if (screen !== 'today' || was === 'today' || getAppearance().tabs === 'slide') return;
+    todayRef.current?.animate?.(
+      [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 170, easing: 'cubic-bezier(0.2, 0, 0, 1)' },
+    );
+  }, [screen]);
   // Bumped to make Today refetch after Plan writes something.
   const [revision, setRevision] = useState(0);
 
@@ -517,7 +547,7 @@ function Shell() {
 
       {/* Today stays mounted so returning to it is instant and the capture box
           never loses what is half-typed in it. */}
-      <div hidden={screen !== 'today'}>
+      <div ref={todayRef} hidden={screen !== 'today'}>
         {/* Re-read in place when another screen writes, never remounted: a
             remount threw away anything half-typed in the capture box. */}
         <ErrorBoundary>

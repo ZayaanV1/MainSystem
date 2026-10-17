@@ -29,7 +29,7 @@ import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
 import { hasOwnGroqKey, loadDigestSettings, setOwnGroqKey, type DigestSettings as DigestSettingsRow } from '../lib/planner';
 import { applyTheme, readTheme, writeTheme, type ThemeChoice } from '../lib/theme';
-import { setAppearance, useAppearance, type GlassLevel, type MotionLevel, type SlipStyle } from '../lib/appearance';
+import { setAppearance, useAppearance, type GlassLevel, type MotionLevel, type SlipStyle, type TabTransition } from '../lib/appearance';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../lib/auth';
 import { exportCsv, exportJson } from '../lib/export';
@@ -815,6 +815,11 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
     { value: 'calm', label: 'Calm', hint: 'Everything still animates, without the flourishes.' },
   ];
 
+  const tabOptions: { value: TabTransition; label: string; hint: string }[] = [
+    { value: 'quick', label: 'Quick', hint: 'The new screen fades in at once and the next tap always lands.' },
+    { value: 'slide', label: 'Slide', hint: 'The old screen slides away in the direction you moved. Taps wait until it finishes.' },
+  ];
+
   const options: { value: ThemeChoice; label: string; hint: string }[] = [
     { value: 'system', label: 'System', hint: 'Follows your device' },
     { value: 'light', label: 'Light', hint: 'Always light' },
@@ -916,6 +921,22 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
           ))}
         </div>
         <p className="type-note mt-3 text-text-low">{motionOptions.find((o) => o.value === look.motion)?.hint}</p>
+
+        <p className="kicker mt-6 mb-2">Switching screens</p>
+        <div role="radiogroup" aria-label="Switching screens" className="flex flex-wrap gap-2">
+          {tabOptions.map((o) => (
+            <Chip
+              key={o.value}
+              role="radio"
+              aria-checked={look.tabs === o.value}
+              selected={look.tabs === o.value}
+              onClick={() => setAppearance({ tabs: o.value })}
+            >
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+        <p className="type-note mt-3 text-text-low">{tabOptions.find((o) => o.value === look.tabs)?.hint}</p>
         <p className="type-note mt-2 text-text-low">These are remembered on this device only.</p>
       </Card>
     </section>
