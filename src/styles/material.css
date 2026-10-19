@@ -4609,3 +4609,50 @@ label.cell:active {
     border-radius: var(--r-card);
   }
 }
+
+/* ============================================================================
+   Four themes added 19 Oct 2026: what each takes from its source beyond
+   colour. Arc needs nothing here (its gradient is the atmosphere tokens) and
+   Cupertino only its heading weight. Each rule stops at another theme's
+   miniature, as the Nothing rules do, so the picker draws every theme as
+   itself.
+   ========================================================================= */
+
+/* Kraft: a section's name is a Muji label, a solid block with the lettering
+   knocked out of it. The block is the accent, so it is burgundy in light mode
+   and oat with burgundy lettering in dark (tokens.css, Kraft). */
+:is(:root[data-skin='kraft'], .skin-kraft) .section-title:not(.theme-mini:not(.skin-kraft) *) {
+  padding: 0.25em 0.6em 0.2em;
+  border-radius: var(--r-tight);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Field kit: labels in mono capitals, each led by an orange indicator light,
+   the way the OP-1 prints its controls. */
+:is(:root[data-skin='field'], .skin-field) .section-title:not(.theme-mini:not(.skin-field) *) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+:is(:root[data-skin='field'], .skin-field) .section-title:not(.theme-mini:not(.skin-field) *)::before {
+  content: '';
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Cupertino: section headings in the heavier weight iOS uses for its own. */
+:is(:root[data-skin='cupertino'], .skin-cupertino) .section-title:not(.theme-mini:not(.skin-cupertino) *) {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}

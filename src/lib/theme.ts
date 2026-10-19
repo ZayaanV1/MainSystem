@@ -107,14 +107,24 @@ export function watchSystemTheme(onChange: () => void): () => void {
 /* ============================================================================
    Themes: a whole look, chosen per account.
 
-   Six complete themes, each a designed dark and light pair (tokens.css,
+   Ten complete themes, each a designed dark and light pair (tokens.css,
    THEMES). The theme follows the account so the phone and the laptop match;
    light or dark (above) stays per device. The account's choice is cached here
    so index.html can apply it before the first paint: a cached theme never
    flashes, and a new device shows the default for one load at most.
    ========================================================================= */
 
-export type Skin = 'cloisonne' | 'letterpress' | 'instrument' | 'fjord' | 'contrast' | 'nothing';
+export type Skin =
+  | 'cloisonne'
+  | 'letterpress'
+  | 'instrument'
+  | 'fjord'
+  | 'contrast'
+  | 'nothing'
+  | 'arc'
+  | 'cupertino'
+  | 'field'
+  | 'kraft';
 
 export const SKINS: { id: Skin; name: string; line: string; reference: string }[] = [
   { id: 'cloisonne', name: 'Cloisonné', line: 'Burnt orange and phthalo, enamel lit from inside', reference: 'Cloisonné enamel' },
@@ -123,6 +133,10 @@ export const SKINS: { id: Skin; name: string; line: string; reference: string }[
   { id: 'fjord', name: 'Fjord', line: 'Fog, birch and fjord blue, soft and unhurried', reference: 'A Nordic morning' },
   { id: 'contrast', name: 'High contrast', line: 'Black, white and one bright colour, for any light', reference: 'Signage, and a face drawn for legibility' },
   { id: 'nothing', name: 'Dot matrix', line: 'Black, white and one red dot, with a clock on Today', reference: 'After Nothing OS' },
+  { id: 'arc', name: 'Arc', line: 'Violet over a soft gradient space, in a lively grotesque', reference: 'After the Arc browser' },
+  { id: 'cupertino', name: 'Cupertino', line: 'Grouped grey, white cards and system blue, in the system font', reference: 'After iOS' },
+  { id: 'field', name: 'Field kit', line: 'Aluminium grey and international orange, with mono labels', reference: 'After Teenage Engineering' },
+  { id: 'kraft', name: 'Kraft', line: 'Unbleached kraft and burgundy labels, quiet and square', reference: 'After Muji' },
 ];
 
 const SKIN_KEY = 'planner.skin';

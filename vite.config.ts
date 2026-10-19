@@ -95,7 +95,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,woff2,png,svg}'],
         // The themes' own faces are fetched, and then cached, only when their
         // theme is chosen; everyone else never downloads them.
-        globIgnores: ['**/fonts/{Fraunces,IBMPlexMono,AtkinsonHyperlegible,Doto,Geist,GeistMono}-*.woff2'],
+        globIgnores: [
+          '**/fonts/{Fraunces,IBMPlexMono,AtkinsonHyperlegible,Doto,Geist,GeistMono}-*.woff2',
+          '**/fonts/{BricolageGrotesque,Archivo,JetBrainsMono,ZenKakuGothicNew}-*.woff2',
+        ],
       },
 
       // Registering the worker in dev would serve a stale bundle after every

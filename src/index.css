@@ -140,6 +140,55 @@
   src: url('/fonts/GeistMono-var.woff2') format('woff2');
 }
 
+/* The faces of the four themes added 19 Oct 2026, each standing in for an
+   app's own type: Bricolage Grotesque for Arc, Archivo with JetBrains Mono
+   labels for Field kit, and Zen Kaku Gothic New for Kraft, the plain Japanese
+   gothic Muji's signage is closest to. Cupertino needs no file: it asks for
+   the system face, which is San Francisco on Apple devices. Latin subsets
+   from Google Fonts, all OFL. */
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/BricolageGrotesque-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/Archivo-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/JetBrainsMono-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Zen Kaku Gothic New';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ZenKakuGothicNew-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Zen Kaku Gothic New';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ZenKakuGothicNew-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Zen Kaku Gothic New';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/ZenKakuGothicNew-700.woff2') format('woff2');
+}
+
 /* ============================================================================
    Token -> utility mapping.
 

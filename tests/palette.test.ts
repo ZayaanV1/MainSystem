@@ -303,7 +303,7 @@ describe('text on a calendar block can be read', () => {
 });
 
 /* ============================================================================
-   Themes. Six themes, each a dark and light pair: twelve palettes, which is too
+   Themes. Ten themes, each a dark and light pair: twenty palettes, which is too
    many to check by eye. Each is read from its scoped block in tokens.css
    (.skin-<name>.mode-<mode>, the complete set the picker draws with), and
    every text and urgency pairing is held to its floor. The root blocks that
@@ -311,7 +311,10 @@ describe('text on a calendar block can be read', () => {
    theme cannot drift apart.
    ========================================================================= */
 
-const SKINS = ['cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast', 'nothing'] as const;
+const SKINS = [
+  'cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast', 'nothing',
+  'arc', 'cupertino', 'field', 'kraft',
+] as const;
 const MODES = ['dark', 'light'] as const;
 
 /** A block's declarations, by the exact selector text that opens it. */
