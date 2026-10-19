@@ -14,7 +14,7 @@ import { cacheSkin, isSkin, readSkin, type Skin } from './theme';
  */
 
 /** Today's sections, in their default order. */
-export const TODAY_SECTIONS = ['capture', 'checklist', 'ribbon', 'briefing', 'work', 'ahead', 'inbox'] as const;
+export const TODAY_SECTIONS = ['board', 'capture', 'checklist', 'ribbon', 'briefing', 'work', 'ahead', 'inbox'] as const;
 export type TodaySection = (typeof TODAY_SECTIONS)[number];
 
 /**

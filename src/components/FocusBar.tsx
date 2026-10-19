@@ -86,8 +86,23 @@ export function FocusBar({ onFinish }: FocusBarProps) {
     return () => clearInterval(id);
   }, []);
 
-  if (!session) return null;
+  /*
+   * The Focus widget on Today's board shows this same timer and stops it
+   * here, so stopping from either place offers the minutes the same way.
+   */
+  const stopRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const onStop = () => stopRef.current();
+    window.addEventListener('planner:focus-stop', onStop);
+    return () => window.removeEventListener('planner:focus-stop', onStop);
+  }, []);
 
+  if (!session) {
+    stopRef.current = () => {};
+    return null;
+  }
+
+  stopRef.current = stop;
   function stop() {
     if (!session) return;
     const minutes = elapsedMinutes(session);

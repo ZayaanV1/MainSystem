@@ -43,7 +43,7 @@ const db: Record<string, any[]> = {
     user_id: USER, timezone: TZ, low_battery: false, digest_hour: 7, digest_minute: 0, digest_enabled: true,
     assignment_window_days: 7, event_window_days: 14, weekly_review_enabled: true, weekly_review_weekday: 7,
     onboarded_at: params.has('firstrun') ? null : at(-20, 9), abood_checkins: true, abood_checkin_every_hours: null,
-    abood_checkin_from: 10, abood_checkin_until: 21, theme: params.get('skin'), today_order: null, today_hidden: null, modules_off: null,
+    abood_checkin_from: 10, abood_checkin_until: 21, theme: params.get('skin'), today_order: null, today_hidden: null, modules_off: null, board: null,
   }],
   courses: [
     { id: C.coen231, user_id: USER, name: 'Computer Organization', code: 'COEN 231', colour_index: 3, archived: false },
@@ -96,7 +96,12 @@ const db: Record<string, any[]> = {
   ],
   deferrals: Array.from({ length: 7 }, (_, n) => ({ id: id('d', n + 1), user_id: USER, assignment_id: id('a', 8), created_at: at(-n - 1, 10) })),
   assignment_series: [],
-  class_series: [],
+  class_series: [
+    { id: id('s', 9), user_id: USER, course_id: C.coen231, title: 'COEN 231 Lecture', weekdays: [2, 4], start_time: '10:15', end_time: '11:30', location: 'H 937', first_day: localDay(-44), last_day: localDay(47), skip_days: [], created_at: at(-50, 9) },
+  ],
+  goals: [
+    { id: id('g', 1), user_id: USER, title: 'Read Leviathan', unit: 'chapters', have: 9, target: 15, by_day: localDay(19), created_at: at(-10, 9) },
+  ],
   chat_messages: [
     { id: id('m', 1), user_id: USER, role: 'user', content: 'what do i have tomorrow?', proposed_action: null, action_taken: false, referenced_ids: null, failed: false, via: 'app', created_at: at(-1, 21, 3) },
     { id: id('m', 2), user_id: USER, role: 'assistant', content: 'Tomorrow is lighter than today.\n\nThe chapter 6 reading for COEN 231 is due at 11:59 p.m., and that is the only deadline.', proposed_action: null, action_taken: false, referenced_ids: null, failed: false, via: 'app', created_at: at(-1, 21, 3) },

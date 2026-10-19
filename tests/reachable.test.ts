@@ -195,7 +195,12 @@ describe('every primitive is on the specimen page', () => {
   };
 
   const specimen = readFileSync('src/routes/Specimen.tsx', 'utf8');
-  const components = SOURCE.filter((f) => f.startsWith('src/components/') && f.endsWith('.tsx') && !f.includes('/calendar/'));
+  // calendar/ and board/ are features, not primitives: the widget board is
+  // its own page of everything it draws (the gallery previews every widget
+  // at every size), the way the calendar screens are theirs.
+  const components = SOURCE.filter(
+    (f) => f.startsWith('src/components/') && f.endsWith('.tsx') && !f.includes('/calendar/') && !f.includes('/board/'),
+  );
 
   function missing(page: string): string[] {
     const out: string[] = [];

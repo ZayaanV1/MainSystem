@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { addDays, todayKey } from './time';
+import { addDays, todayKey, type DayKey } from './time';
 import { clockMinutes, type ClassInstance, type ClassPattern, type ClassPlan } from '../../supabase/functions/_shared/classes';
 import type { Course } from './planner';
 
@@ -154,4 +154,28 @@ export function sessionCounts(sessions: ClassInstance[], now: Date): { happened:
   const t = now.getTime();
   const toCome = sessions.filter((s) => Date.parse(s.starts_at) >= t).length;
   return { happened: sessions.length - toCome, toCome };
+}
+
+/**
+ * The span of the current term, read from the classes typed by hand: the
+ * earliest first day and the latest last day of every class still running
+ * or ending within the last week. Null when there are none, so the term is
+ * never invented from a guessed start date.
+ */
+export async function termSpan(today: DayKey): Promise<{ span: { first: DayKey; last: DayKey } | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('class_series')
+    .select('first_day, last_day')
+    .gte('last_day', addDays(today, -7))
+    .limit(100);
+  if (error) return { span: null, error: error.message };
+  const rows = (data ?? []) as { first_day: DayKey; last_day: DayKey }[];
+  if (!rows.length) return { span: null, error: null };
+  return {
+    span: {
+      first: rows.reduce((m, r) => (r.first_day < m ? r.first_day : m), rows[0].first_day),
+      last: rows.reduce((m, r) => (r.last_day > m ? r.last_day : m), rows[0].last_day),
+    },
+    error: null,
+  };
 }

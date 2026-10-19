@@ -1567,6 +1567,13 @@ export async function deleteSeries(
 export async function deleteAccount(): Promise<{ error: string | null }> {
   await clearCache();
 
+  // Photos on the board are files, not rows: the cascade cannot reach them.
+  const { data: who } = await supabase.auth.getUser();
+  if (who.user) {
+    const { removeAllPhotos } = await import('./boardPhotos');
+    await removeAllPhotos(who.user.id);
+  }
+
   const { error } = await supabase.rpc('delete_own_account');
   if (error) return { error: error.message };
 

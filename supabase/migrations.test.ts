@@ -248,6 +248,7 @@ describe('migrations apply', () => {
       'deferrals',
       'delivery_log',
       'events',
+      'goals',
       'imessage_bridges',
       'imessage_links',
       'imessage_outbox',

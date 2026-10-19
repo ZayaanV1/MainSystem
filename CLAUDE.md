@@ -1436,6 +1436,81 @@ sync marking timetable lectures as `class`.
 **Not verified** on a phone or an iPad, including the native date and time
 pickers in iOS Safari: Chromium at 390 px in both modes only.
 
+### The widget board — 18 Oct 2026
+
+Proposed as the "Today Pegboard" prototype (artifact M1xcwSd3URJi9VrFchoVt6)
+and approved whole: "Build all the new widgets into the planner". The owner
+singled out the Goal widget, the "Read Leviathan, 9 of 15 chapters" tracker,
+to keep exactly as drawn. Migration 0040.
+
+- **A new first section on Today, `board`.** Movable and hideable in Arrange
+  Today like the others; every existing section stays. A saved section order
+  without it gains it at the top. The board is its own chunk
+  (`components/board`, about 16 KB gzip) loaded behind a skeleton, so the
+  first screen grew by about 0.6 KB.
+- **Order is the whole layout.** A grid four cells wide with
+  `grid-auto-flow: dense`; sizes Peg 1×1, Strip 4×1, Small 2×2, Tall 2×4,
+  Medium 4×2, Large 4×4. The board is an ordered list in
+  `app_settings.board` (jsonb, null = the default board), cached on the
+  device; `lib/board.ts` normalises it, so a widget type removed later just
+  drops off.
+- **Moving.** Hold a widget still (420 ms) and it lifts into edit mode and
+  follows the finger; neighbours make room only after the finger rests for
+  170 ms, gliding from where they were (a FLIP through the Web Animations
+  API). `insertionIndex` is a pure, tested function: the nearest widget
+  decides, same-row neighbours first, a full-width widget splits top and
+  bottom. The page cannot scroll under a carried widget (a non-passive
+  touchmove guard), so the board scrolls itself near the screen's edges.
+- **The gallery** is a Sheet with search, suggestions and six categories.
+  Tap a widget for every size it comes in (swipe), or hold any widget in the
+  gallery for 320 ms: the sheet slides away under the finger, a space opens
+  wherever it hovers, and letting go flies it into place. Previews are the
+  real widgets drawn from the account's data.
+- **Widgets follow the theme.** Every surface is `.mat`, so each theme's own
+  material draws them (Nothing OS slabs and Doto numerals in Dot matrix). No
+  colour in `board.css`; course colour is a dot or a 3 px edge only.
+- **Twenty widgets, all reusing what exists:** Next due, Assignments (tick
+  goes through Today's `finish`, so the undo and animation are the same),
+  What now (`intelligence.whatNow`), Checklist, Next class, Week, Month
+  (`lib/month.ts`, reading its own range past the 60-day window), Day
+  planner, Exams, Clock (analog, digital, flip, dot), Clock and day,
+  Countdown, Focus, Term, Goal, Marks so far (`courseGrades`, the running
+  mark on marked work only, with `gradeSummary`'s arithmetic beside it),
+  Quick capture (`planner.capture`, the inbox), Photo, Spotify, Link.
+- **Four decisions taken without the owner's answer, using the recommended
+  option each time:** Focus fronts the existing count-up timer and never a
+  25/50 countdown (lib/focus.ts says why), and Stop goes through the
+  FocusBar so the minutes are offered the same way (`planner:focus-stop`);
+  the board is a section, not a replacement for Today; widgets follow the
+  theme, with no separate board style; Photo and Spotify are included.
+- **Term needs no setting.** Its weeks come from the classes typed by hand
+  (`termSpan`: the earliest first day and latest last day of classes still
+  running); with no classes it says so rather than guessing a start.
+- **Goals** (table `goals`) are a count toward a target by a date: no per-day
+  anything, nothing resets, so never a streak.
+- **Photos** are in a private bucket, `board-photos`, one folder per account,
+  shrunk to 1200 px on the phone and capped at 2 MB and 6 per board. Spoken
+  to over Storage's REST API (`lib/boardPhotos.ts`) because storage-js stays
+  stubbed out of the bundle. Account deletion empties the folder first,
+  since storage objects are not rows the cascade can reach.
+- **Spotify** is Spotify's own embed, 152 px tall, played inside the widget;
+  it never takes a tap while the board is being edited.
+
+Guards changed, each with its reason in the test: the specimen page skips
+`components/board` as it skips `components/calendar` (a feature, not a
+primitive; the gallery is its specimen); the migration test knows `goals`.
+The floater moves with the `translate` property, not a transform string.
+
+Found on the way: the 44 px tap floor stretched every round tick and month
+cell inside a widget into a pill; a flex column squeezed the goal's bar to a
+pixel; a background tab never finishes an animation, so landing and removal
+also complete on a timer.
+
+**Not verified on a phone.** Long-press lift, the drag out of the gallery and
+edge autoscroll were exercised with synthetic touch events in Chromium at
+375 px, not with a finger on iOS Safari; the photo upload and Spotify's
+embed on iOS are unchecked; nothing is measured at 120 Hz.
+
 ### Bugs found by verifying rather than assuming
 
 Each of these was invisible in the UI and only surfaced by reading what

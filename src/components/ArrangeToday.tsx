@@ -22,6 +22,7 @@ import { Button } from './Button';
  */
 
 const SECTION_COPY: Record<TodaySection, { label: string; note: string }> = {
+  board: { label: 'Widgets', note: 'Your board: clocks, deadlines, goals, the month' },
   capture: { label: 'Capture', note: 'Catch a thought, sort it later' },
   checklist: { label: 'Checklist', note: 'The day’s ticks, as pills' },
   ribbon: { label: 'Next class', note: 'Where to be, now or next' },

@@ -40,6 +40,13 @@ const ChecklistEditor = lazyRetry(loadChecklistEditor, (m) => m.ChecklistEditor)
 const Triage = lazyRetry(loadTriage, (m) => m.Triage);
 const History = lazyRetry(loadHistory, (m) => m.History);
 const ChecklistSheet = lazyRetry(loadChecklistSheet, (m) => m.ChecklistSheet);
+/*
+ * The widget board is its own chunk: the first screen's JavaScript budget
+ * cannot carry twenty widgets, and the rest of Today paints without waiting
+ * for it.
+ */
+const loadBoard = () => import('../components/board/Board');
+const Board = lazyRetry(loadBoard, (m) => m.Board);
 import { LowBattery } from './LowBattery';
 import type { ChecklistItem } from '../lib/checklist';
 import { FOLDED_BY_DEFAULT, GROUP_ORDER, groupWork, type GroupId } from '../lib/todayGroups';
@@ -439,6 +446,23 @@ export function Today({
   // What now chooses from open work, so it is offered only when there is some.
   const askable = assistOn && Boolean(data?.assignments.some((a) => a.status !== 'done'));
   const sections: Record<TodaySection, ReactNode> = {
+    board: (
+      <Suspense fallback={<div aria-hidden className="mx-4 h-48 rounded-hero skeleton-wait" />}>
+        <Board
+          userId={userId}
+          data={data}
+          today={today}
+          now={now}
+          checklist={data ? pills : null}
+          isDone={(id) => isDone(id, today)}
+          onToggleItem={(id) => void toggle(id, today)}
+          onFinish={finish}
+          onOpen={setOpenAssignment}
+          sized={sized}
+          onUndoable={setUndoable}
+        />
+      </Suspense>
+    ),
     capture: (
       <CaptureBox
         className=""
