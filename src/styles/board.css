@@ -766,3 +766,32 @@ body > div:has(.bw-gallery) { transition: visibility 0s; }
 /* Spotify's player is 152 px tall whatever it is given; a taller frame shows
    its white page under it. Centred at its own height instead. */
 .bw-embed { inset: auto 0; top: 50%; height: 152px; translate: 0 -50%; border-radius: 12px; }
+
+/* Fitting every widget at every size, measured in each one at 393 px
+   (Oct 2026). A list shows only whole rows (WidgetFrame hides the rest), so
+   these rules are about what each row and column has room to say. */
+.bw-col > * { flex-shrink: 0; }
+.bw-col > :is(.bw-grow, .bw-rows) { flex-shrink: 1; min-height: 0; }
+.bw-in > :is(.bw-rows, .bw-dlist, .bw-wklist) { overflow: hidden; }
+.bw-stack { gap: 7px; }
+.bw-stack li { display: grid; gap: 1px; min-width: 0; }
+.bw-stack .bw-timecol { width: auto; }
+.bw-due-tag { color: var(--t-critical); }
+/* A day's list beside or under a narrow month: the title needs the room more
+   than the time does, which the day cell already implies. */
+:is(.bw-tall, .bw-split-month) .bw-dlist em { display: none; }
+.bw-tall .bw-tl-due { left: 5px; text-align: left; }
+.bw-tall .bw-tl-foot > span:last-child { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* Beside a clock face the column runs from the top, so a list taller than
+   the face is cut at the bottom (by row) rather than centred off both ends. */
+.bw-split-face > .bw-col { align-self: stretch; }
+.bw-col > .bw-rows { overflow: hidden; }
+/* The half-height face keeps its size. It sat in the "gives way" list above,
+   so a long list squeezed the face, and once the extra rows were hidden the
+   face grew back and pushed a half row out of the bottom. */
+.bw-in > .bw-clock-half { flex: none; }
+/* Medium assignments: one line a row, title then urgency, so four fit where
+   two-line rows fitted two. */
+.bw-m[data-type='work'] .bw-row { align-items: center; }
+.bw-m[data-type='work'] .bw-row-main { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bw-m[data-type='work'] .bw-row-main .bw-meta { flex: none; }

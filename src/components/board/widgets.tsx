@@ -6,7 +6,7 @@ import type { ChecklistItem } from '../../lib/checklist';
 import { urgencyFor } from '../../lib/urgency';
 import { whatNow, type Task } from '../../lib/intelligence';
 import { buildMonth, monthLabel, shiftMonth, startOfMonth } from '../../lib/month';
-import { courseGrades, gradeSummary } from '../../lib/grades';
+import { courseGrades } from '../../lib/grades';
 import { elapsedLabel, readSession, startSession, type FocusSession } from '../../lib/focus';
 import { goalProgress, type Goal } from '../../lib/goals';
 import { photoUrl } from '../../lib/boardPhotos';
@@ -137,6 +137,19 @@ function whenText(a: Assignment, ctx: WidgetContext): string {
   return a.due_has_time ? `${word} ${formatTime(due)}` : n === 0 ? 'Today, end of day' : word;
 }
 
+/**
+ * What to print after the urgency label without saying the day twice:
+ * "Due today" is followed by "3:00 p.m.", not "Today 3:00 p.m.".
+ */
+function afterLabel(a: Assignment, ctx: WidgetContext): string {
+  if (!a.due_at) return '';
+  const due = new Date(a.due_at);
+  const n = daysBetween(ctx.today, localDayKey(due));
+  if (n === 0) return a.due_has_time ? formatTime(due) : 'End of day';
+  if (n === 1) return a.due_has_time ? formatTime(due) : '';
+  return whenText(a, ctx);
+}
+
 /* ------------------------------------------------------------ next due --- */
 
 function Due({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
@@ -181,8 +194,7 @@ function Due({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         <span className="bw-n-l">{big}</span>
         <div className="bw-grow" />
         <button type="button" className="bw-link bw-t2" onClick={() => ctx.onOpen(a)}>{a.title}</button>
-        <span className="bw-meta"><Dot course={course} /><span className="bw-urg" style={tone}>{u.label}</span></span>
-        <span className="bw-meta"><span>{whenText(a, ctx)}</span></span>
+        <span className="bw-meta"><Dot course={course} /><span className="bw-urg" style={tone}>{u.label}</span><span>{afterLabel(a, ctx)}</span></span>
       </>
     );
   const then = open(ctx).filter((x) => x.due_at && x.id !== a.id && new Date(x.due_at).getTime() > due.getTime())[0];
@@ -199,7 +211,7 @@ function Due({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
       <div className="bw-col bw-end">
         <button type="button" className="bw-link bw-t2" onClick={() => ctx.onOpen(a)}>{a.title}</button>
         <span className="bw-meta"><Dot course={course} /><span>{course?.code ?? course?.name ?? 'No course'}</span></span>
-        <span className="bw-meta"><span className="bw-urg" style={tone}>{u.label}</span><span>{whenText(a, ctx)}</span></span>
+        <span className="bw-meta"><span className="bw-urg" style={tone}>{u.label}</span><span>{afterLabel(a, ctx)}</span></span>
         {then && <span className="bw-meta bw-rule"><span>Then: {then.title}</span></span>}
       </div>
     </div>
@@ -224,10 +236,13 @@ function Work({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         </ul>
       </>
     );
-  const n = w.size === 'm' ? 3 : w.size === 'tall' ? 6 : 8;
+  // Enough to fill the largest size; rows that do not fit whole are hidden by
+  // WidgetFrame, so a theme with a taller font shows fewer rather than half.
+  const n = 10;
+  const wide = w.size === 'm' || w.size === 'l';
   return (
     <>
-      <Head right={<span className="bw-unit">{list.length} open</span>}>Assignments</Head>
+      <Head right={<span className="bw-unit">{wide ? `${list.length} open` : list.length}</span>}>Assignments</Head>
       {list.length === 0 ? (
         <p className="bw-t2 bw-done">That’s all the open work, done.</p>
       ) : (
@@ -242,7 +257,7 @@ function Work({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
                   <span className="bw-meta">
                     <Dot course={courseOf(ctx, a.course_id)} />
                     <span className="bw-urg" style={{ color: `var(${u.colourVar})` }}>{u.label}</span>
-                    <span>{whenText(a, ctx)}</span>
+                    {w.size === 'l' && <span>{afterLabel(a, ctx)}</span>}
                   </span>
                 </button>
               </li>
@@ -311,7 +326,7 @@ function Now({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
 function List({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
   if (ctx.checklist === null) return <><Head>Daily</Head><Waiting /></>;
   if (ctx.checklist.length === 0) return <><Head>Daily</Head><Invite>Your daily checklist shows here once it has items.</Invite></>;
-  const items = ctx.checklist.slice(0, w.size === 's' ? 3 : 6);
+  const items = ctx.checklist.slice(0, 12);
   const done = ctx.checklist.filter((i) => ctx.isDone(i.id)).length;
   return (
     <>
@@ -373,7 +388,7 @@ function ClassW({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
     );
   const block = (
     <>
-      <span className={`bw-num ${w.size === 's' ? 'bw-n-l' : 'bw-n-xl'}`}>{rel}</span>
+      <span className="bw-num bw-n-l">{rel}</span>
       <span className="bw-unit">{until}</span>
     </>
   );
@@ -477,7 +492,7 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
     </div>
   );
   if (w.size === 'm') return <>{head}<div className="bw-grow" />{strip}</>;
-  const list = days.flatMap((d) => (byDay.get(d) ?? []).map((t) => ({ d, t }))).slice(0, 7);
+  const list = days.flatMap((d) => (byDay.get(d) ?? []).map((t) => ({ d, t }))).slice(0, 12);
   return (
     <>
       {head}
@@ -602,7 +617,7 @@ function Exams({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         <span className="bw-baseline"><span className="bw-num bw-n-xl tabular-nums">{days}</span><span className="bw-unit">{days === 1 ? 'day' : 'days'}</span></span>
         <div className="bw-grow" />
         <span className="bw-t2">{e.title}</span>
-        <span className="bw-meta"><Dot course={courseOf(ctx, e.course_id)} /><span>{formatDay(localDayKey(new Date(e.starts_at)))}, {formatTime(new Date(e.starts_at))}</span></span>
+        <span className="bw-meta"><Dot course={courseOf(ctx, e.course_id)} /><span>{days < 7 ? `${weekday(localDayKey(new Date(e.starts_at)), 'short')} ${formatTime(new Date(e.starts_at))}` : formatDay(localDayKey(new Date(e.starts_at)))}</span></span>
       </>
     );
   return (
@@ -653,9 +668,26 @@ function restOfDay(ctx: WidgetContext, n: number) {
   return rows.slice(0, n);
 }
 
-function DayRows({ ctx, n }: { ctx: WidgetContext; n: number }) {
+function DayRows({ ctx, n, stack = false }: { ctx: WidgetContext; n: number; stack?: boolean }) {
   const rows = restOfDay(ctx, n);
   if (!rows.length) return <p className="bw-unit">Nothing else today.</p>;
+  // Beside a clock face the column is too narrow for time and title on one
+  // line, so the time goes above and the title gets the whole width.
+  if (stack)
+    return (
+      <ul className="bw-rows bw-compact bw-stack">
+        {rows.map((r) => (
+          <li key={r.key}>
+            <span className="bw-meta">
+              <Dot course={r.course} />
+              <span className="bw-timecol" data-live={r.live || undefined}>{r.tomorrow ? 'Tomorrow' : formatTime(r.at)}</span>
+              {r.due && <span className="bw-urg bw-due-tag">Due</span>}
+            </span>
+            <span className="bw-row-t">{r.title.replace(/^Due: /u, '')}</span>
+          </li>
+        ))}
+      </ul>
+    );
   return (
     <ul className="bw-rows bw-compact">
       {rows.map((r) => (
@@ -837,7 +869,7 @@ function ClockDay({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
     return (
       <div className="bw-split bw-split-face">
         <div className="bw-clockbox"><Face numbers={false} /></div>
-        <div className="bw-col"><Head>Rest of today</Head><DayRows ctx={ctx} n={3} /></div>
+        <div className="bw-col"><Head>Rest of today</Head><DayRows ctx={ctx} n={6} stack /></div>
       </div>
     );
   if (w.size === 'tall')
@@ -847,7 +879,7 @@ function ClockDay({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         <TimeText face="digital" className="bw-n-m bw-centered" />
         <span className="bw-meta bw-centered"><span>{formatDay(ctx.today)}</span></span>
         <div className="bw-grow" />
-        <DayRows ctx={ctx} n={5} />
+        <DayRows ctx={ctx} n={8} stack />
       </>
     );
   return (
@@ -866,6 +898,7 @@ function ClockDay({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
 function Count({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
   const title = w.opts.title?.trim() ?? '';
   const day = /^\d{4}-\d{2}-\d{2}$/u.test(w.opts.day ?? '') ? (w.opts.day as DayKey) : null;
+  if (!day && w.size === 'peg') return <><span className="bw-peglbl">Countdown</span><span className="bw-peglbl bw-quiet">Set a date</span></>;
   if (!day) return <><Head>Countdown</Head><Invite>Name a date in Edit, like a reading week.</Invite></>;
   const days = Math.max(0, daysBetween(ctx.today, day));
   const name = title || 'Countdown';
@@ -980,6 +1013,7 @@ function Focus({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
 
 function TermW({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
   if (ctx.term === undefined) return <><Head>Term</Head><Waiting /></>;
+  if (ctx.term === null && w.size === 'peg') return <><span className="bw-peglbl">Term</span><span className="bw-peglbl bw-quiet">Add classes</span></>;
   if (ctx.term === null) return <><Head>Term</Head><Invite>Add your classes in Plan and the term’s weeks appear here.</Invite></>;
   const { first, last } = ctx.term;
   const weeks = Math.max(1, Math.ceil((daysBetween(first, last) + 1) / 7));
@@ -1020,6 +1054,7 @@ function GoalW({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
   if (ctx.goals === null) return <><Head>Goal</Head><Waiting /></>;
   if (ctx.goalsFailed) return <><Head>Goal</Head><Failed what="your goals" /></>;
   const goal = ctx.goals.find((g) => g.id === w.opts.goal);
+  if (!goal && w.size === 'peg') return <><span className="bw-peglbl">Goal</span><span className="bw-peglbl bw-quiet">Set a goal</span></>;
   if (!goal) return <><Head>Goal</Head><Invite>Set a goal in Edit: a number to reach by a date.</Invite></>;
   const p = goalProgress(goal, ctx.today);
   const bar = p.segments ? (
@@ -1113,7 +1148,7 @@ function Grades({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         {per.slice(0, 5).map(({ c, g }) => (
           <li key={c.id}>
             <span className="bw-meta bw-strong"><Dot course={c} /><span>{c.code ?? c.name}</span></span>
-            <span className="bw-unit bw-trunc">{gradeSummary(g) ?? `${g.weightMarked}% marked`}</span>
+            <span className="bw-unit bw-trunc">{`${g.weightMarked}% marked`}</span>
             <span className="bw-num bw-mark tabular-nums">{running(g)}<small>%</small></span>
           </li>
         ))}

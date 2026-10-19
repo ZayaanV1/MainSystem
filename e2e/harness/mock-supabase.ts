@@ -34,6 +34,17 @@ function at(offset: number, h: number, m = 0): string {
 }
 const id = (p: string, n: number) => `a000000${p === 'a' ? 0 : p === 'c' ? 1 : p === 'e' ? 2 : p === 'i' ? 3 : p === 's' ? 4 : p === 'm' ? 5 : 6}-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
+// ?board=due:s,clock:peg,... puts exactly those widgets on the board, for
+// checking every widget at every size without dragging each one in.
+function boardParam() {
+  const raw = params.get('board');
+  if (!raw) return null;
+  return raw.split(',').filter(Boolean).map((pair, i) => {
+    const [type, size] = pair.split(':');
+    return { id: `h${i}`, type, size, opts: {} };
+  });
+}
+
 const C = {
   coen231: id('c', 1), coen212: id('c', 2), engr201: id('c', 3), math205: id('c', 4), phys205: id('c', 5),
 };
@@ -43,7 +54,7 @@ const db: Record<string, any[]> = {
     user_id: USER, timezone: TZ, low_battery: false, digest_hour: 7, digest_minute: 0, digest_enabled: true,
     assignment_window_days: 7, event_window_days: 14, weekly_review_enabled: true, weekly_review_weekday: 7,
     onboarded_at: params.has('firstrun') ? null : at(-20, 9), abood_checkins: true, abood_checkin_every_hours: null,
-    abood_checkin_from: 10, abood_checkin_until: 21, theme: params.get('skin'), today_order: null, today_hidden: null, modules_off: null, board: null,
+    abood_checkin_from: 10, abood_checkin_until: 21, theme: params.get('skin'), today_order: null, today_hidden: null, modules_off: null, board: boardParam(),
   }],
   courses: [
     { id: C.coen231, user_id: USER, name: 'Computer Organization', code: 'COEN 231', colour_index: 3, archived: false },
