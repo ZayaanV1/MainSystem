@@ -56,8 +56,23 @@ const reduced = () =>
  * way the screens travel; it is cleared when the transition finishes so a
  * later transition never inherits the last one's direction.
  */
+let running: { skipTransition?: () => void } | null = null;
+
 export function withTransition(apply: () => void, direction: Direction = 'none'): void {
   const doc = document as unknown as Document & MaybeViewTransitions;
+
+  /*
+   * A change asked for while another is still playing finishes the first and
+   * happens at once. Starting a second transition on top of a running one
+   * left the page covered by snapshots, and the taps that followed went to
+   * the snapshot instead of the button.
+   */
+  if (running) {
+    running.skipTransition?.();
+    running = null;
+    apply();
+    return;
+  }
 
   // Reduced motion still gets a transition — the CSS collapses it to a plain
   // cross-fade rather than removing it. Cutting instantly between two full
@@ -71,6 +86,7 @@ export function withTransition(apply: () => void, direction: Direction = 'none')
   doc.documentElement.dataset.transition = reduced() ? 'fade' : direction;
 
   const transition = doc.startViewTransition(apply);
+  running = transition as unknown as { skipTransition?: () => void };
   /*
    * An aborted transition — the tab hidden mid-flight, a second one started
    * before the first finished — rejects `ready` and `updateCallbackDone`,
@@ -83,6 +99,7 @@ export function withTransition(apply: () => void, direction: Direction = 'none')
   void transition.finished
     .catch(() => {})
     .finally(() => {
+      if (running === (transition as unknown)) running = null;
       delete doc.documentElement.dataset.transition;
     });
 }
