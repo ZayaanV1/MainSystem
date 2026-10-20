@@ -33,6 +33,8 @@ export interface NavItem<T extends string> {
   short?: string;
   /** Drawn rather than imported: seven glyphs is not worth an icon dependency. */
   icon: ReactNode;
+  /** A count to sort, drawn on the icon: Schedule's inbox. Absent when zero. */
+  badge?: number;
 }
 
 export function AppShell<T extends string>({
@@ -216,8 +218,12 @@ function TabBar<T extends string>({
                 active ? 'text-text-hi' : 'text-text-low',
               ].join(' ')}
             >
-              <span aria-hidden>{item.icon}</span>
+              <span aria-hidden className="relative">
+                {item.icon}
+                {item.badge ? <span className="tab-badge">{item.badge}</span> : null}
+              </span>
               <span className="tab-label">{item.short ?? item.label}</span>
+              {item.badge ? <span className="sr-only">, {item.badge} in the inbox</span> : null}
             </button>
           );
         })}
@@ -315,6 +321,12 @@ function Rail<T extends string>({
                 {item.icon}
               </span>
               <span className="type-label">{item.label}</span>
+              {item.badge ? (
+                <span className="tab-badge tab-badge-inline">
+                  {item.badge}
+                  <span className="sr-only"> in the inbox</span>
+                </span>
+              ) : null}
             </button>
           );
         })}

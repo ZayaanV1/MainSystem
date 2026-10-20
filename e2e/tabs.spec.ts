@@ -18,9 +18,9 @@ test.describe('Switching screens', () => {
     const bar = page.getByRole('navigation', { name: 'Main' });
 
     // No waiting between taps: the next one is sent before the last settles.
-    await bar.getByRole('button', { name: 'Week' }).click({ noWaitAfter: true });
+    await bar.getByRole('button', { name: /^Schedule/ }).click({ noWaitAfter: true });
     await bar.getByRole('button', { name: 'Month' }).click({ noWaitAfter: true });
-    await bar.getByRole('button', { name: 'Week' }).click({ noWaitAfter: true });
+    await bar.getByRole('button', { name: /^Schedule/ }).click({ noWaitAfter: true });
     await bar.getByRole('button', { name: 'Today' }).click({ noWaitAfter: true });
 
     await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
@@ -42,8 +42,8 @@ test.describe('Switching screens', () => {
       }
     });
     await openToday(page);
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Week' }).click();
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Week' })).toHaveAttribute('aria-current', 'page');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Schedule/ }).click();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Schedule/ })).toHaveAttribute('aria-current', 'page');
     expect(await page.evaluate(() => (window as unknown as { __vt: number }).__vt)).toBeGreaterThan(0);
   });
 });

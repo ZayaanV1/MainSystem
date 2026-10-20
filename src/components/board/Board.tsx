@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import '../../styles/board.css';
 import {
   adoptBoard,
+  BOARD_EVENT,
   insertionIndex,
   moveWidget,
   newWidgetId,
@@ -128,6 +129,19 @@ export function Board(props: BoardProps) {
   const swallowClick = useRef(false);
   const raf = useRef(0);
   const handlers = useRef<{ onMove: (e: PointerEvent) => void; onUp: () => void }>({ onMove: () => {}, onUp: () => {} });
+
+  // Today's ⋯ menu opens the gallery or editing (BOARD_EVENT). The board has
+  // no toolbar of its own at rest: two buttons above the widgets were the
+  // first thing on the screen and the least often used.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const what = (e as CustomEvent<'edit' | 'add'>).detail;
+      if (what === 'add') setGallery(true);
+      else setEditing(true);
+    };
+    window.addEventListener(BOARD_EVENT, on);
+    return () => window.removeEventListener(BOARD_EVENT, on);
+  }, []);
 
   useEffect(() => {
     void adoptBoard();
@@ -561,18 +575,22 @@ export function Board(props: BoardProps) {
 
   return (
     <section aria-label="Widgets" className="bw-section">
-      <div className="bw-bar">
-        <span className="kicker">Widgets</span>
-        <span className="bw-bar-actions">
-          <button type="button" className="btn btn-quiet btn-icon bw-add" aria-label="Add a widget" onClick={() => setGallery(true)}>
-            <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-          </button>
-          <Button variant={editing ? 'primary' : 'secondary'} size="sm" aria-pressed={editing} onClick={() => setEditing((v) => !v)}>
-            {editing ? 'Done' : 'Edit'}
-          </Button>
-        </span>
-      </div>
-      {editing && <p className="type-note bw-hint">Drag to move. Tap a widget to change it.</p>}
+      {editing && (
+        <>
+          <div className="bw-bar enter-fade">
+            <span className="kicker">Editing widgets</span>
+            <span className="bw-bar-actions">
+              <button type="button" className="btn btn-quiet btn-icon bw-add" aria-label="Add a widget" onClick={() => setGallery(true)}>
+                <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+              </button>
+              <Button variant="primary" size="sm" onClick={() => setEditing(false)}>
+                Done
+              </Button>
+            </span>
+          </div>
+          <p className="type-note bw-hint">Drag to move. Tap a widget to change it.</p>
+        </>
+      )}
       {saveError && <p role="alert" className="type-note bw-hint bw-error">{saveError}</p>}
 
       <div

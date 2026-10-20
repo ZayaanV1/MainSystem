@@ -491,7 +491,8 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
       ))}
     </div>
   );
-  if (w.size === 'm') return <>{head}<div className="bw-grow" />{strip}</>;
+  // Medium and large: the strip, then what is due in order, as many rows as
+  // fit (WidgetFrame). Medium used to put empty space above the strip.
   const list = days.flatMap((d) => (byDay.get(d) ?? []).map((t) => ({ d, t }))).slice(0, 12);
   return (
     <>

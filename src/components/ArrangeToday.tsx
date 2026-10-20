@@ -16,7 +16,7 @@ import { Button } from './Button';
  * Today, arranged by its owner, and whole features switched off.
  *
  * Hiding never deletes anything: a section or module turned back on returns
- * with everything in it. Capture and the work cannot be hidden, because a
+ * with everything in it. The board and capture cannot be hidden, because a
  * Today without them stops answering "what do I do now". Order changes with
  * the arrows (one thumb, and a screen reader) or by dragging the handle.
  */
@@ -25,20 +25,15 @@ const SECTION_COPY: Record<TodaySection, { label: string; note: string }> = {
   board: { label: 'Widgets', note: 'Your board: clocks, deadlines, goals, the month' },
   capture: { label: 'Capture', note: 'Catch a thought, sort it later' },
   checklist: { label: 'Checklist', note: 'The day’s ticks, as pills' },
-  ribbon: { label: 'Next class', note: 'Where to be, now or next' },
-  briefing: { label: 'Briefing', note: 'One sentence on what to touch first' },
-  work: { label: 'Work', note: 'What is due, grouped by when' },
-  ahead: { label: 'What’s ahead', note: 'The week’s load, and how long things take' },
-  inbox: { label: 'Inbox', note: 'Thoughts still to sort' },
 };
 
 const MODULE_COPY: Record<Module, { label: string; note: string }> = {
   abood: { label: 'Abood', note: 'The chatbot in the app, on Telegram and on iMessage, and its check-ins' },
-  assist: { label: 'Briefing and What now', note: 'The model’s help on Today, and breaking work into first moves' },
+  assist: { label: 'Briefing and What now', note: 'The model’s help on Today and Schedule, and breaking work into first moves' },
   grades: { label: 'Grades', note: 'What work is worth, your marks, and where you stand' },
   series: { label: 'Repeating work', note: 'Weekly labs and readings as one series' },
   feeds: { label: 'Calendar feeds', note: 'Subscribed calendars, and your deadlines in other calendars' },
-  lowbattery: { label: 'Low-battery mode', note: 'The button on Today that shrinks the day to the essentials' },
+  lowbattery: { label: 'Low-battery mode', note: 'In Today’s ⋯ menu: shrinks the day to the essentials' },
 };
 
 export function ArrangeToday({ userId }: { userId: string }) {

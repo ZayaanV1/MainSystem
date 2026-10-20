@@ -81,7 +81,9 @@ describe('grouping a week', () => {
       FROM,
       7,
     );
-    expect(g.laterCount).toBe(2);
+    expect(g.later).toHaveLength(2);
+    // Soonest first.
+    expect(g.later.map((a) => a.due_at)).toEqual([...g.later.map((a) => a.due_at)].sort());
   });
 
   it('leaves finished work out entirely', () => {

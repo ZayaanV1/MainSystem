@@ -1,7 +1,7 @@
 import { test, expect, row } from './fixtures';
 
 // F12: the week at a glance, filterable, editable in bulk.
-test.describe('Week', () => {
+test.describe('Schedule', () => {
   test('shows seven days with the hours of work on each', async ({ page }) => {
     await page.goto('/week');
     await expect(page.getByText('Oct 14–20 · 12.3 h of work')).toBeVisible();
@@ -9,12 +9,12 @@ test.describe('Week', () => {
     await expect(strip.getByRole('button')).toHaveCount(7);
     await expect(strip.getByRole('button', { name: 'Saturday 17, 4h of work' })).toBeVisible();
     // Exams sit on their day.
-    await expect(page.getByText('PHYS 205 Midterm')).toBeVisible();
+    await expect(page.getByText('PHYS 205 Midterm', { exact: true })).toBeVisible();
   });
 
   test('one course at a time', async ({ page }) => {
     await page.goto('/week');
-    await page.getByRole('button', { name: 'Week options' }).first().click();
+    await page.getByRole('button', { name: 'Schedule options' }).first().click();
     await page.getByRole('menuitemradio', { name: 'PHYS 205' }).click();
     await expect(row(page, 'Problem set 4: interference')).toBeVisible();
     await expect(row(page, 'WeBWorK set 5')).toHaveCount(0);
@@ -22,7 +22,7 @@ test.describe('Week', () => {
 
   test('selecting several and moving them together', async ({ page }) => {
     await page.goto('/week');
-    await page.getByRole('button', { name: 'Week options' }).first().click();
+    await page.getByRole('button', { name: 'Schedule options' }).first().click();
     await page.getByRole('menuitem', { name: 'Select', exact: true }).click();
     await row(page, 'WeBWorK set 5').click();
     await row(page, 'Problem set 4: interference').click();

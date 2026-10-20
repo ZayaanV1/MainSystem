@@ -60,7 +60,7 @@ app for the first time is the most important screen in the build.
 
 ## Non-negotiable rules
 
-1. **Default view is Today.** Opening the app answers "what do I do right now" in under two seconds with no navigation.
+1. **Default view is Today.** Opening the app answers "what do I do right now" in under two seconds with no navigation. Since 19 Oct 2026 the widget board gives that answer, and work can be finished from it.
 2. **Minimum required fields at capture.** Every mandatory field is a chance for the thought to evaporate before it's recorded. If a field can be optional, it is.
 3. **Streaks are an optional module, off until the user turns it on.** Nobody who has not switched it on ever sees a streak, a count, or any copy about one. When on: computed from completion rows, never stored as a counter; missed days still appear neutrally and back-filling still counts; no broken-streak guilt copy, ever. Points, levels and badges stay out of scope. Formerly a blanket ban ("No streak-shaming"); changed by the owner's Oct 2026 brief. The ban's reasoning still governs everyone who has not opted in, and history views are still where this rule gets broken — check yourself there.
 4. **No pure red in the UI.** Overdue is `--t-overdue`. See the colour law below.
@@ -1510,6 +1510,36 @@ also complete on a timer.
 edge autoscroll were exercised with synthetic touch events in Chromium at
 375 px, not with a finger on iOS Safari; the photo upload and Spotify's
 embed on iOS are unchecked; nothing is measured at 120 Hz.
+
+### Today is the widgets, Schedule is the work — 19 Oct 2026
+
+Today had become eight stacked sections and the work list started below the
+first screen. The owner's direction: widgets first on Today, and a separate
+place for every date and deadline. Prototyped first
+(https://claude.ai/artifact/NZE3uVYU4JyrygnUERcWy8), approved, then built.
+
+- **Today** is the board, capture and the checklist (`TODAY_SECTIONS`). The
+  board and capture cannot be hidden: the board is now what answers rule 1.
+  Widget editing, adding a widget, the checklist sheet, Low battery and the
+  last-notification line live in a ⋯ menu (`PopMenu`, shared with Schedule).
+  A notification *problem* still shows on the page; only the routine line
+  moved.
+- **Finishing work never needs Schedule.** The default board is Next due, Up
+  next, Assignments (medium, a tick per row) and Next 7 days. Migration 0042
+  added an Assignments widget to any saved board without one, because a saved
+  board without it would have lost ticking from Today.
+- **Schedule** is the old Week screen, renamed (the screen id and `/week`
+  address are unchanged so links keep working): briefing, the week strip,
+  overdue, each day, **Later as a list** (it was a count), no date, what is
+  ahead and stuck work (`routes/ScheduleExtras.tsx`), and the inbox. Its tab
+  carries the inbox count as a badge, written out for screen readers.
+- Not added: a sixth tab. A Week tab beside Schedule would show the same
+  things twice, and five is the phone tab bar's ceiling.
+
+Widget fitting (the same day): a list shows only rows that fit whole and a
+title gives back its second line before anything is pushed out
+(`WidgetFrame`), measured live because ten themes have ten type sizes.
+`e2e/board.spec.ts` checks every widget at every size in every theme.
 
 ### Switching screens, quick by default — 17 Oct 2026
 

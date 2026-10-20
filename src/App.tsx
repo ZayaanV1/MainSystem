@@ -88,7 +88,9 @@ const icon = (d: string) => (
 
 const NAV: NavItem<Screen>[] = [
   { id: 'today', label: 'Today', icon: icon('M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0') },
-  { id: 'week', label: 'Week', icon: icon('M3 9h18M8 3v4M16 3v4M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2') },
+  // Everything dated (19 Oct 2026; it was Week). The id and address stay
+  // 'week' so links, saved routes and notifications keep working.
+  { id: 'week', label: 'Schedule', icon: icon('M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01') },
   { id: 'month', label: 'Month', icon: icon('M3 10h18M7 3v4M17 3v4M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2M8 14h.01M12 14h.01M16 14h.01') },
   { id: 'search', label: 'Search', icon: icon('M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35') },
   { id: 'ask', label: 'Abood', icon: icon('M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z') },
@@ -338,7 +340,17 @@ function Shell() {
 
   // A switched-off module leaves the tab bar; its screen stays reachable by
   // address and says how to bring it back rather than going blank.
-  const nav = useMemo(() => NAV.filter((item) => item.id !== 'ask' || moduleOn('abood', prefs)), [prefs]);
+  // The inbox lives on Schedule, so its count rides on Schedule's tab: a
+  // captured thought still to sort is visible from anywhere, without being
+  // a list on Today.
+  const inboxCount = data?.inbox.length ?? 0;
+  const nav = useMemo(
+    () =>
+      NAV.filter((item) => item.id !== 'ask' || moduleOn('abood', prefs)).map((item) =>
+        item.id === 'week' && inboxCount > 0 ? { ...item, badge: inboxCount } : item,
+      ),
+    [prefs, inboxCount],
+  );
 
   // The command palette's entries, built only while it is open. Each runs the
   // same function a tap would (components/CommandPalette.tsx).
@@ -450,6 +462,7 @@ function Shell() {
           <Week
             data={data}
             onOpenAssignment={setOpenAssignment}
+            onOpenInbox={setOpenInbox}
             onPlan={() => navigate('plan')}
             onChanged={bumped}
           />
@@ -584,7 +597,10 @@ function Shell() {
             courses={data?.courses ?? []}
             userId={session.user.id}
             onClose={() => setOpenInbox(null)}
-            onDone={() => setOpenInbox(null)}
+            onDone={() => {
+              setOpenInbox(null);
+              setRevision((r) => r + 1);
+            }}
           />
         </Suspense>
       )}

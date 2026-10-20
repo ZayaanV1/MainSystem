@@ -145,9 +145,11 @@ describe('presence keeps a leaving item where it was', () => {
   });
 });
 
-describe('Today and low-battery work leave through presence', () => {
-  it('renders both work lists from usePresence', () => {
-    for (const f of ['src/routes/Today.tsx', 'src/routes/LowBattery.tsx']) {
+describe('low-battery work leaves through presence', () => {
+  // Today's own work list moved to Schedule on 19 Oct 2026; finishing from
+  // Today is the Assignments widget, which leaves by re-rendering the board.
+  it('renders the low-battery work list from usePresence', () => {
+    for (const f of ['src/routes/LowBattery.tsx']) {
       const s = readFileSync(f, 'utf8');
       expect(s, f).toMatch(/usePresence\(/);
       expect(s, f).not.toMatch(/data\.assignments\.map\(/);

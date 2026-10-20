@@ -7,14 +7,14 @@ test('the command palette opens with a shortcut and goes where it is told', asyn
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
   const palette = page.getByRole('dialog');
   await expect(palette).toBeVisible();
-  await page.keyboard.type('week');
+  await page.keyboard.type('schedule');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Week', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Schedule', level: 1 })).toBeVisible();
 });
 
 test('dragging work to another day moves it, and it can be undone', async ({ page }) => {
   await page.goto('/week');
-  await expect(page.getByRole('heading', { name: 'Week', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Schedule', level: 1 })).toBeVisible();
   const card = row(page, 'Read chapter 6 and annotate');
   await card.scrollIntoViewIfNeeded();
   // The day's own drop area in the list, not the strip of days above it.

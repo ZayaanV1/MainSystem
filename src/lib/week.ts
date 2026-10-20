@@ -30,8 +30,12 @@ export interface WeekGrouping {
    * app is not the whole picture.
    */
   undated: Assignment[];
-  /** Work due after the visible window, so the count is never a surprise. */
-  laterCount: number;
+  /**
+   * Work due after the visible window, soonest first. Listed, not counted,
+   * since Schedule took over from Today's work list (19 Oct 2026): it is now
+   * the one place the whole of the work is seen.
+   */
+  later: Assignment[];
 }
 
 export function groupWeek(
@@ -50,7 +54,7 @@ export function groupWeek(
 
   const overdue: Assignment[] = [];
   const undated: Assignment[] = [];
-  let laterCount = 0;
+  const later: Assignment[] = [];
 
   for (const a of assignments) {
     if (a.status === 'done') continue;
@@ -63,7 +67,7 @@ export function groupWeek(
     const day = localDayKey(new Date(a.due_at), timezone);
 
     if (day < from) overdue.push(a);
-    else if (day > last) laterCount += 1;
+    else if (day > last) later.push(a);
     else groups.get(day)!.assignments.push(a);
   }
 
@@ -83,7 +87,7 @@ export function groupWeek(
     days: window.map((d) => groups.get(d)!),
     overdue: overdue.sort((x, y) => (x.due_at ?? '').localeCompare(y.due_at ?? '')),
     undated,
-    laterCount,
+    later: later.sort((x, y) => (x.due_at ?? '').localeCompare(y.due_at ?? '')),
   };
 }
 

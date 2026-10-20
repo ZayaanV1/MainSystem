@@ -56,6 +56,21 @@ export async function openToday(page: Page, query = '') {
   await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
 }
 
+/** Schedule (the screen at /week), loaded, with the sample in place. */
+export async function openSchedule(page: Page, query = '') {
+  await page.goto(`/week${query}`);
+  await expect(page.getByRole('heading', { name: 'Schedule', level: 1 })).toBeVisible();
+}
+
+/**
+ * Schedule by its tab, keeping the page: the sample account is in memory, so
+ * a reload would forget anything the test has just written.
+ */
+export async function toSchedule(page: Page) {
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: /^Schedule/ }).first().click();
+  await expect(page.getByRole('heading', { name: 'Schedule', level: 1 })).toBeVisible();
+}
+
 /** A row's own button, by the start of its accessible name. */
 export const row = (page: Page, title: string) =>
   page.getByRole('button', { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} `) });

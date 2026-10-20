@@ -1,4 +1,9 @@
-import { test, expect, openToday, row } from './fixtures';
+import { test, expect, openToday } from './fixtures';
+import type { Page } from '@playwright/test';
+
+/** Next due on Today's board: its title opens the work. */
+const nextDue = (page: Page) =>
+  page.locator('.bw-w[data-type="due"]').getByRole('button', { name: 'WeBWorK set 5', exact: true });
 
 /**
  * A screen's code that fails to download must cost that screen, once — not
@@ -19,7 +24,7 @@ test.describe('Code that will not download', () => {
     let block = true;
     await page.route(/\/src\/routes\/AssignmentEditor\.tsx/, (r) => (block ? r.abort('internetdisconnected') : r.continue()));
     await openToday(page);
-    await row(page, 'Read chapter 6 and annotate').click();
+    await nextDue(page).click();
 
     const alert = page.getByRole('alert').filter({ hasText: 'Couldn’t load this' });
     await expect(alert).toBeVisible();
@@ -28,19 +33,19 @@ test.describe('Code that will not download', () => {
 
     block = false;
     await alert.getByRole('button', { name: 'Try again' }).click();
-    await expect(page.getByRole('dialog', { name: 'Read chapter 6 and annotate' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'WeBWorK set 5' })).toBeVisible();
     await expect(alert).toBeHidden();
   });
 
   test('Close puts the bar away and Today carries on', async ({ page }) => {
     await page.route(/\/src\/routes\/AssignmentEditor\.tsx/, (r) => r.abort('internetdisconnected'));
     await openToday(page);
-    await row(page, 'Read chapter 6 and annotate').click();
+    await nextDue(page).click();
     const alert = page.getByRole('alert').filter({ hasText: 'Couldn’t load this' });
     await alert.getByRole('button', { name: 'Close' }).click();
     await expect(alert).toBeHidden();
-    await page.getByRole('button', { name: 'Mark WeBWorK set 5 done, due today' }).click();
-    await expect(row(page, 'WeBWorK set 5')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Finish WeBWorK set 5' }).click();
+    await expect(page.getByRole('button', { name: 'Finish WeBWorK set 5' })).toHaveCount(0);
   });
 
   test('a whole screen recovers the same way', async ({ page }) => {
@@ -48,7 +53,7 @@ test.describe('Code that will not download', () => {
     await page.route(/\/src\/routes\/Week\.tsx/, (r) => (block ? r.abort('internetdisconnected') : r.continue()));
     await openToday(page);
     const tabs = page.getByRole('navigation', { name: 'Main' });
-    await tabs.getByRole('button', { name: 'Week' }).click();
+    await tabs.getByRole('button', { name: /^Schedule/ }).first().click();
     const alert = page.getByRole('alert').filter({ hasText: 'Couldn’t load this' });
     await expect(alert).toBeVisible();
     // A screen has nothing to close; the tab bar is the way out.
@@ -56,6 +61,6 @@ test.describe('Code that will not download', () => {
     await expect(tabs).toBeVisible();
     block = false;
     await alert.getByRole('button', { name: 'Try again' }).click();
-    await expect(page.getByRole('heading', { name: 'Week', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Schedule', level: 1 })).toBeVisible();
   });
 });

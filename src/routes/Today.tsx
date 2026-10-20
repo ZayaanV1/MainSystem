@@ -2,25 +2,17 @@ import {
   Suspense,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { lazyRetry } from '../lib/lazyRetry';
-import { Pressable } from '../components/Pressable';
-import { AssignmentRow } from '../components/AssignmentRow';
 import { Button } from '../components/Button';
-import { SkeletonList } from '../components/Skeleton';
 import { CachedNotice, LoadFailure } from '../components/LoadFailure';
-import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
-import { EmptyState } from '../components/EmptyState';
-import { NowNext } from '../components/NowNext';
 import { DotClock } from '../components/DotClock';
 import { TickPills } from '../components/TickPills';
-import { SectionHead } from '../components/SectionHead';
 
 /*
  * The sheets load on demand, and are fetched while the browser is idle once
@@ -30,14 +22,12 @@ import { SectionHead } from '../components/SectionHead';
  */
 const loadEditor = () => import('./AssignmentEditor');
 const loadChecklistEditor = () => import('./ChecklistEditor');
-const loadTriage = () => import('./Triage');
 const loadHistory = () => import('./History');
 const loadChecklistSheet = () => import('./ChecklistSheet');
 const loadWhatNow = () => import('./WhatNow');
 const WhatNow = lazyRetry(loadWhatNow, (m) => m.WhatNow);
 const AssignmentEditor = lazyRetry(loadEditor, (m) => m.AssignmentEditor);
 const ChecklistEditor = lazyRetry(loadChecklistEditor, (m) => m.ChecklistEditor);
-const Triage = lazyRetry(loadTriage, (m) => m.Triage);
 const History = lazyRetry(loadHistory, (m) => m.History);
 const ChecklistSheet = lazyRetry(loadChecklistSheet, (m) => m.ChecklistSheet);
 /*
@@ -49,46 +39,40 @@ const loadBoard = () => import('../components/board/Board');
 const Board = lazyRetry(loadBoard, (m) => m.Board);
 import { LowBattery } from './LowBattery';
 import type { ChecklistItem } from '../lib/checklist';
-import { FOLDED_BY_DEFAULT, GROUP_ORDER, groupWork, type GroupId } from '../lib/todayGroups';
 import { useAuth } from '../lib/auth';
 import { dueOn } from '../lib/checklist';
 import { describeHealth, fetchHealth, type NotificationHealth } from '../lib/health';
 import { subscribeOutbox } from '../lib/outbox';
-import { adjustedEstimate, calibration, forecast, stuckTasks } from '../lib/intelligence';
-import { dailySummary } from '../lib/assist';
+import { adjustedEstimate, calibration } from '../lib/intelligence';
 import {
   addAssignment,
   addEvent,
   assignmentDueAt,
   capture,
   completionKey,
-  moveAssignment,
   loadCalibrationPairs,
   setActualMinutes,
   completionSet,
   loadToday,
   setAssignmentStatus,
-  subtaskProgress,
   setCompletion,
   setLowBattery,
   type Assignment,
-  type InboxItem,
   type TodayData,
 } from '../lib/planner';
-import { activeTimezone, addDays, detectedTimezone, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
+import { activeTimezone, detectedTimezone, todayKey, zoneAbbrev, type DayKey } from '../lib/time';
 import { applyPending } from '../lib/optimistic';
 import { formatRoute } from '../lib/route';
 import { moduleOn, usePreferences, type TodaySection } from '../lib/preferences';
 import { useOutbox } from '../lib/useOutbox';
 import { useNow } from '../lib/useNow';
 import { announce } from '../lib/announce';
-import { closeUp, measureBelow, revealList } from '../lib/motion';
 import { CaptureBox } from '../components/CaptureBox';
 import { UndoBar } from '../components/UndoBar';
-import { usePresence } from '../lib/usePresence';
 import { Sheet, SheetPresence } from '../components/Sheet';
 import { CompactBar } from '../components/CompactBar';
-import { useAppearance } from '../lib/appearance';
+import { PopMenu } from '../components/PopMenu';
+import { askBoard } from '../lib/board';
 import { dismissInstallHint, shouldHintInstall } from '../lib/install';
 import { onFeedsChanged } from '../lib/feeds';
 import { usePullToRefresh } from '../lib/usePullToRefresh';
@@ -96,10 +80,12 @@ import { usePullToRefresh } from '../lib/usePullToRefresh';
 /**
  * Today — the default view.
  *
- * Opening the app answers "what do I do right now" without navigation, so the
- * order on this screen is the order of the answer: capture first, because a
- * thought you are holding is the most perishable thing here; then the
- * checklist; then everything else.
+ * Opening the app answers "what do I do right now" without navigation. Since
+ * 19 Oct 2026 the widget board gives that answer (what is due next, where to
+ * be, the open work with a tick on each row), followed by the two things done
+ * here many times a day: capture and the checklist. The full list of
+ * everything dated is on Schedule, one tab away and never needed to finish
+ * something.
  *
  * The capture box is always visible and always focusable, and it never asks a
  * second question.
@@ -125,18 +111,15 @@ export function Today({
   const [loaded, setLoaded] = useState<TodayData | null>(null);
   const [health, setHealth] = useState<NotificationHealth | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
-  const [triaging, setTriaging] = useState<InboxItem | null>(null);
+  // The ⋯ menu, open at the button it was opened from (the title row's, or
+  // the compact bar's once the title has scrolled away).
+  const [menuAt, setMenuAt] = useState<HTMLElement | null>(null);
   const [editorFor, setEditorFor] = useState<{ item: ChecklistItem | null } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
   // What now, opened from the title row (phones).
   const [askOpen, setAskOpen] = useState(false);
   const titleRow = useRef<HTMLDivElement>(null);
-  // List rows sit in one surface per group; the ticket and glass slips are
-  // separate objects with a gap between them.
-  const listRows = useAppearance().slip === 'list';
-  // Which groups are folded: the reader's choice, kept on this device.
-  const [folded, setFolded] = useState<Set<GroupId>>(readFolded);
   const [retrying, setRetrying] = useState(false);
 
   /*
@@ -203,7 +186,7 @@ export function Today({
     const fetchAll = () => {
       // A warm-up that fails is not an error: the sheet downloads again when it
       // is opened, and says so if it still cannot (lib/lazyRetry.tsx).
-      for (const load of [loadWhatNow, loadEditor, loadChecklistSheet, loadChecklistEditor, loadTriage, loadHistory]) load().catch(() => {});
+      for (const load of [loadWhatNow, loadEditor, loadChecklistSheet, loadChecklistEditor, loadHistory]) load().catch(() => {});
     };
     if ('requestIdleCallback' in window) window.requestIdleCallback(fetchAll, { timeout: 2000 });
     else setTimeout(fetchAll, 600);
@@ -228,105 +211,6 @@ export function Today({
   // revision key, which remounts this screen and would erase anything
   // half-typed in the capture box every time a meeting moved in Google.
   useEffect(() => onFeedsChanged(() => void reload()), [reload]);
-
-  /*
-   * The work list's entrance.
-   *
-   * `revealList` has existed in motion.ts since the animation vocabulary was
-   * written and nothing had ever called it — the app's one authored list
-   * animation, shipped and unreachable, which is the same shape as the model
-   * list and the series table before them.
-   *
-   * This is the right place for it and close to the only one. The craft rule
-   * is one authored moment per screen rather than an entrance on every
-   * section, and on Today the moment that carries meaning is the work
-   * arriving: the list is the answer to the question the screen exists to
-   * ask. The checklist above it and the inbox below it stay still, so the eye
-   * is led to the answer rather than to the page assembling itself.
-   *
-   * Keyed on the ids, not on `data`, so a reload that changes nothing does
-   * not replay it — an entrance that fires again every time something is
-   * ticked off would be an animation happening AT you.
-   */
-  const workList = useRef<HTMLDivElement>(null);
-  const workIds = (data?.assignments ?? []).map((a) => a.id).join(',');
-  // Rule 12: finished, deferred or removed work leaves on screen. The data
-  // drops it at once; its picture stays until it has animated out.
-  const work = usePresence(data?.assignments ?? null, (a) => a.id);
-  const inbox = usePresence(data?.inbox ?? null, (e) => e.id, { enter: true });
-
-  /*
-   * The work, grouped by when it is due (Late, Today, Tomorrow, This week,
-   * Later, No date). Built from the presence list, so a row on its way out
-   * stays in its group until it has gone; the groups have presence of their
-   * own, so a heading whose last row has left leaves on screen too.
-   */
-  const grouped = data
-    ? groupWork(work.list.map((p) => ({ p, due_at: p.item.due_at })), now, today)
-    : null;
-  const groupsShown = usePresence(grouped, (g) => g.id, { enter: true });
-
-  const setWorkList = (el: HTMLDivElement | null) => {
-    workList.current = el;
-    work.containerRef(el);
-    groupsShown.containerRef(el);
-  };
-
-  /*
-   * Folding a group: everything below it closes up or makes room as a
-   * cascade rather than jumping, and the rows of a group being opened come
-   * in in order (rule 12).
-   */
-  const foldFlip = useRef<Map<HTMLElement, number> | null>(null);
-  const opened = useRef<GroupId | null>(null);
-  function toggleFold(id: GroupId, from: HTMLElement) {
-    const group = from.closest<HTMLElement>('.work-group');
-    if (group) foldFlip.current = measureBelow(group);
-    if (folded.has(id)) opened.current = id;
-    setFolded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      writeFolded(next);
-      return next;
-    });
-  }
-  useLayoutEffect(() => {
-    if (foldFlip.current) {
-      closeUp(foldFlip.current);
-      foldFlip.current = null;
-    }
-    const id = opened.current;
-    opened.current = null;
-    if (!id) return;
-    const rows = document.querySelectorAll<HTMLElement>(`#work-${id} > [data-presence]`);
-    if (rows.length > 0) revealList(Array.from(rows));
-  }, [folded]);
-  /*
-   * Only what is NEW comes in.
-   *
-   * This animated every row whenever the set of ids changed — and ticking
-   * one thing off, pushing one to tomorrow or capturing something all change
-   * it. So each of those taps sent the entire list back to opacity zero and
-   * slid it in again: on a phone, the whole column shook every time anything
-   * in it was touched. The first load still arrives in order; after that a
-   * row that was already on screen never moves, and only an arrival animates.
-   */
-  const seenWork = useRef<Set<string> | null>(null);
-  // Layout effect, not effect: the animation's own from-value is opacity 0,
-  // and applying that after paint means the row renders visible for one frame
-  // and is then hidden to be faded back in. A flash on the screen whose whole
-  // job is to be readable in two seconds.
-  useLayoutEffect(() => {
-    const root = workList.current;
-    if (!root || !workIds) return;
-    // The rows, inside their groups.
-    const rows = Array.from(root.querySelectorAll<HTMLElement>('.work-group > [id^="work-"] > [data-presence]'));
-    const before = seenWork.current;
-    seenWork.current = new Set(workIds.split(','));
-    const arriving = before ? rows.filter((r) => !before.has(r.dataset.presence ?? '')) : rows;
-    if (arriving.length > 0) revealList(arriving);
-  }, [workIds]);
 
   // The dose counter is maintained by a database trigger, so once queued
   // writes have drained the real numbers have to be re-read rather than
@@ -354,18 +238,6 @@ export function Today({
   const pills = dueOn(data?.items ?? [], today);
   const pillsDone = pills.length > 0 && pills.every((i) => isDone(i.id, today));
 
-  // Work is only "cleared" if something was actually finished today. Without
-  // that check an untouched day and a conquered one would read identically,
-  // and the praise would be worthless on both.
-  const workCleared =
-    (data?.assignments.length ?? 0) === 0 && (data?.completedToday.length ?? 0) > 0;
-
-  // Same distinction for the inbox: an inbox you emptied is not an inbox you
-  // never used. Tracked across this session rather than guessed from a count.
-  const hadInbox = useRef(false);
-  if ((data?.inbox.length ?? 0) > 0) hadInbox.current = true;
-  const inboxCleared = hadInbox.current && (data?.inbox.length ?? 0) === 0;
-
   async function toggle(itemId: string, day: DayKey) {
     const next = !isDone(itemId, day);
     const label = data?.items.find((i) => i.id === itemId)?.title ?? 'Item';
@@ -375,7 +247,6 @@ export function Today({
 
   function finish(a: Assignment) {
     const finishing = a.status !== 'done';
-    if (finishing) work.hint(a.id, 'done');
     void setAssignmentStatus(a.id, finishing ? 'done' : 'todo');
     // Optimistic writes are conveyed entirely by pixels moving, which is
     // silent. The title is included because after a swipe the row may
@@ -461,6 +332,13 @@ export function Today({
           sized={sized}
           onUndoable={setUndoable}
         />
+        {/* Offered after finishing something that carried an estimate,
+            from a widget now that the work list lives on Schedule. */}
+        {askingTime && (
+          <div className="mt-4">
+            <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />
+          </div>
+        )}
       </Suspense>
     ),
     capture: (
@@ -505,160 +383,25 @@ export function Today({
         </div>
 
     ),
-    ribbon: (
-      <>
-        {data && (
-          <NowNext
-            events={data.events}
-            today={today}
-            courseFor={(id) => data.courses.find((c) => c.id === id)}
-          />
-        )}
-
-      </>
-    ),
-    briefing: assistOn ? <Briefing dep={loaded} today={today} /> : null,
-    work: (
-      <>
-          <section aria-labelledby="work-heading">
-            <h2 id="work-heading" className="sr-only">
-              Work
-            </h2>
-            {/*
-              `data === null` is checked FIRST and separately, because
-              `!data?.assignments.length` is also true while the fetch is still
-              in flight — so this branch rendered "Nothing due." on every app
-              open, for the whole duration of the load. Loading and empty are
-              different facts and this screen is where the difference matters.
-            */}
-            {data === null ? (
-              <SkeletonList rows={3} kind="work" />
-            ) : !work.list.length ? (
-              workCleared ? (
-                <p className="enter-fade px-4 py-8 type-body text-t-done">
-                  That's all the work due today, done.
-                </p>
-              ) : (
-                <EmptyState>Nothing due.</EmptyState>
-              )
-            ) : (
-              <div ref={setWorkList} className="flex flex-col gap-4">
-                {groupsShown.list.map(({ item: g, key, leaving }) => {
-                  const isFolded = folded.has(g.id);
-                  const live = g.items.filter((x) => !x.p.leaving).length;
-                  return (
-                    <div key={key} data-presence={key} className="work-group" data-rows={listRows || undefined} inert={leaving || undefined}>
-                      <div className="work-group-head">
-                        <button
-                          type="button"
-                          className="work-group-toggle"
-                          aria-expanded={!isFolded}
-                          aria-controls={`work-${g.id}`}
-                          onClick={(e) => toggleFold(g.id, e.currentTarget)}
-                        >
-                          <span className="work-group-title">{g.label}</span>
-                          <span key={live} className="section-count" aria-label={`${live} ${live === 1 ? 'item' : 'items'}`}>
-                            {live}
-                          </span>
-                          <svg aria-hidden className="work-group-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                            <path d="m6 9 6 6 6-6" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      {/* A heading on its way out has already lost its
-                          last row; drawing the old rows again would bring
-                          one back for the length of the exit. */}
-                      {!isFolded && !leaving && (
-                        <div id={`work-${g.id}`} className={listRows ? 'lgroup' : 'flex flex-col gap-2'}>
-                          {g.items.map(({ p: { item: a, key: rowKey, leaving: rowLeaving } }) => (
-                            <div key={rowKey} data-presence={rowKey} inert={rowLeaving || undefined}>
-                              <AssignmentRow
-                                // A row leaving because it was finished shows
-                                // itself finished on the way out.
-                                assignment={rowLeaving && work.hintOf(rowKey) === 'done' ? { ...a, status: 'done' } : a}
-                                progress={subtaskProgress(data.subtasks, a.id)}
-                                course={data.courses.find((c) => c.id === a.course_id)}
-                                now={now}
-                                // Under "Tomorrow" a row says only its time.
-                                dayShown={g.id === 'tomorrow'}
-                                onToggleDone={() => finish(a)}
-                                onDefer={() => {
-                                  work.hint(a.id, 'defer');
-                                  announce(`${a.title} moved to tomorrow`);
-                                  void moveAssignment(userId, a, addDays(todayKey(), 1)).then((back) =>
-                                    setUndoable({
-                                      message: `“${a.title}” moved to tomorrow`,
-                                      undo: () => {
-                                        void back();
-                                        announce(`${a.title} moved back`);
-                                      },
-                                    }),
-                                  );
-                                }}
-                                onOpen={() => setOpenAssignment(a)}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          {askingTime && <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />}
-      </>
-    ),
-    ahead: (
-          <Ahead
-            assignments={data?.assignments ?? []}
-            deferrals={data?.deferrals ?? {}}
-            cal={cal}
-            sized={sized}
-          />
-
-    ),
-    inbox: (
-          <section>
-            <SectionHead title="Inbox" count={data?.inbox.length || null} />
-            {Boolean(data?.inbox.length) && (
-              <p className="type-note -mt-2 mb-3 px-4 text-text-low">Tap one to sort it out.</p>
-            )}
-            {data === null ? null : !inbox.list.length ? (
-              inboxCleared ? (
-                <p className="enter-fade px-4 py-8 type-body text-t-done">Inbox clear.</p>
-              ) : (
-                <EmptyState>Capture anything here. Sort it later.</EmptyState>
-              )
-            ) : (
-              <div ref={inbox.containerRef}>
-                <Card>
-                  {inbox.list.map(({ item: entry, key, leaving }) => (
-                    <Pressable
-                      className="mat-row gap-3 px-4 py-3"
-                      key={key}
-                      data-presence={key}
-                      inert={leaving || undefined}
-                      onClick={() => setTriaging(entry)}
-                    >
-                      <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 self-start rounded-pill bg-text-low" />
-                      <span className="type-quote text-text-hi">{entry.body}</span>
-                    </Pressable>
-                  ))}
-                </Card>
-              </div>
-            )}
-          </section>
-
-    ),
   };
   const shown = prefs.order.filter((id) => !prefs.hidden.includes(id) && sections[id] !== null);
-  const SIDE: ReadonlySet<TodaySection> = new Set(['ahead', 'inbox']);
-  const mainSections = shown.filter((id) => !SIDE.has(id));
-  const sideSections = shown.filter((id) => SIDE.has(id));
+
+  const menuButton = (
+    <button
+      type="button"
+      className="bar-round"
+      aria-label="Today options"
+      aria-haspopup="menu"
+      aria-expanded={menuAt !== null}
+      onClick={(e) => setMenuAt(menuAt ? null : e.currentTarget)}
+    >
+      <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="5" cy="12" r="1.9" />
+        <circle cx="12" cy="12" r="1.9" />
+        <circle cx="19" cy="12" r="1.9" />
+      </svg>
+    </button>
+  );
 
   return (
     <>
@@ -714,11 +457,14 @@ export function Today({
                 {monthDay(today)}
                 {activeTimezone() !== detectedTimezone() && ` · ${zoneAbbrev()}`}
               </p>
-              {askable && (
-                <button type="button" className="bar-btn -mr-2 md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
-                  What now
-                </button>
-              )}
+              <div className="flex items-center gap-1">
+                {askable && (
+                  <button type="button" className="bar-btn md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
+                    What now
+                  </button>
+                )}
+                {menuButton}
+              </div>
             </div>
             <div className="flex items-end justify-between gap-3">
               <p aria-hidden className="type-masthead min-w-0 text-text-hi">
@@ -738,11 +484,14 @@ export function Today({
                 {weekdayName(today)}
               </p>
             </div>
-            {askable && (
-              <button type="button" className="bar-btn -mr-2 md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
-                What now
-              </button>
-            )}
+            <div className="flex shrink-0 items-center gap-1">
+              {askable && (
+                <button type="button" className="bar-btn md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
+                  What now
+                </button>
+              )}
+              {menuButton}
+            </div>
           </div>
         )}
       </header>
@@ -759,72 +508,48 @@ export function Today({
 
       {/*
         Today's sections, in the order the account chose (Settings, Today and
-        modules), skipping any it hid; capture and the work are always shown.
-        The default is the order a morning is lived: catch the thought, tick
-        the daily things, see where to be, read the one sentence the app has
-        for you, then the work. On a phone everything is one column sorted by
-        that order; on a tablet or a desk the work keeps the wide column and
-        what helps with it (What now, what is ahead, the inbox) sits beside
-        it, in the same relative order.
+        modules), skipping any it hid; the board and capture are always
+        shown. Since 19 Oct 2026 that is the whole screen: the widgets answer
+        "what now" and let work be ticked off, capture catches the thought,
+        the checklist holds the day's ticks. Everything dated is on Schedule.
+        On a tablet or a desk What now sits beside them, already answered.
       */}
       <div className="today-layout">
         <div className="today-main">
-          {mainSections.map((id) => (
+          {shown.map((id) => (
             <div key={id} data-section={id} style={{ order: shown.indexOf(id) }}>
               {sections[id]}
             </div>
           ))}
+          {/* A delivery problem stays on the screen; the routine "last sent"
+              line moved to the ⋯ menu, where it is looked up rather than
+              read on every open. */}
+          {status?.warn && (
+            <p className="px-4 type-note text-t-critical" style={{ order: 99 }}>
+              {status.text}
+            </p>
+          )}
         </div>
 
         <div className="today-side">
           {/* On a tablet or a desk there is room to answer What now without
               being asked: making a stuck person first decide to ask is the
-              decision they were stuck on. On a phone it is the pill on the
-              first group. */}
+              decision they were stuck on. On a phone it is the title row's
+              button. */}
           {assistOn && (
-          <div className="hidden md:block" style={{ order: -1 }}>
-            <Suspense fallback={null}>
-            <WhatNow
-              alwaysOpen
-              assignments={data?.assignments ?? []}
-              courses={data?.courses ?? []}
-              deferrals={data?.deferrals ?? {}}
-              sized={sized}
-              onOpen={setOpenAssignment}
-            />
-            </Suspense>
-          </div>
-
-          )}
-          {sideSections.map((id) => (
-            <div key={id} data-section={id} style={{ order: shown.indexOf(id) }}>
-              {sections[id]}
-            </div>
-          ))}
-
-          {moduleOn('lowbattery', prefs) && (
-            <div data-section="lowbattery" style={{ order: 98 }}>
-          <div className="px-4">
-            <Button
-              variant="quiet"
-              onClick={() => void setLowBattery(userId, true).then(reload)}
-            >
-              Low battery
-            </Button>
-          </div>
-
+            <div className="hidden md:block">
+              <Suspense fallback={null}>
+                <WhatNow
+                  alwaysOpen
+                  assignments={data?.assignments ?? []}
+                  courses={data?.courses ?? []}
+                  deferrals={data?.deferrals ?? {}}
+                  sized={sized}
+                  onOpen={setOpenAssignment}
+                />
+              </Suspense>
             </div>
           )}
-
-          <div style={{ order: 99 }}>
-          {status && (
-            <footer className="border-t border-ink-600 px-4 py-4">
-              <p className={`type-caption ${status.warn ? 'text-t-critical' : 'text-text-low'}`}>
-                {status.text}
-              </p>
-            </footer>
-          )}
-          </div>
         </div>
       </div>
 
@@ -862,21 +587,6 @@ export function Today({
               completions={data?.completions ?? []}
               userId={userId}
               onClose={() => setHistoryOpen(false)}
-            />
-          </Suspense>
-        )}
-      </SheetPresence>
-
-      <SheetPresence>
-        {triaging && (
-          <Suspense fallback={null}>
-            <Triage
-              url={formatRoute({ screen: 'today', open: { kind: 'inbox', id: triaging.id } })}
-              item={triaging}
-              courses={data?.courses ?? []}
-              userId={userId}
-              onClose={() => setTriaging(null)}
-              onDone={reload}
             />
           </Suspense>
         )}
@@ -922,7 +632,47 @@ export function Today({
           What now
         </button>
       )}
+      {menuButton}
     </CompactBar>
+
+    {menuAt && (
+      <PopMenu label="Today options" anchor={menuAt} onClose={() => setMenuAt(null)}>
+        {(choose) => (
+          <>
+            <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => askBoard('edit'))}>
+              Edit widgets
+            </button>
+            <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => askBoard('add'))}>
+              Add a widget
+            </button>
+            <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => setChecklistOpen(true))}>
+              Checklist and past days
+            </button>
+            {moduleOn('lowbattery', prefs) && (
+              <>
+                <div role="separator" className="pop-sep" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="pop-item"
+                  onClick={() => choose(() => void setLowBattery(userId, true).then(reload))}
+                >
+                  Low battery
+                </button>
+              </>
+            )}
+            {status && (
+              <>
+                <div role="separator" className="pop-sep" />
+                <p className={`pop-label ${status.warn ? 'text-t-critical' : ''}`} role="presentation">
+                  {status.text}
+                </p>
+              </>
+            )}
+          </>
+        )}
+      </PopMenu>
+    )}
     {/* What now, asked from the title row: a short sheet with the one
         question it asks (how long you have) and its one answer. On a
         tablet or a desk it is already answered beside the work. */}
@@ -1015,162 +765,6 @@ function monthDay(day: DayKey): string {
   );
 }
 
-const FOLD_KEY = 'planner.today.folded';
-
-/** Folded groups, as last left on this device; Later and No date at first. */
-function readFolded(): Set<GroupId> {
-  try {
-    const raw = localStorage.getItem(FOLD_KEY);
-    if (raw) {
-      const ids = JSON.parse(raw) as unknown;
-      if (Array.isArray(ids)) return new Set(GROUP_ORDER.filter((g) => ids.includes(g)));
-    }
-  } catch {
-    // Storage refused or a bad value: the defaults are a fine place to be.
-  }
-  return new Set(FOLDED_BY_DEFAULT);
-}
-
-function writeFolded(ids: Set<GroupId>) {
-  try {
-    localStorage.setItem(FOLD_KEY, JSON.stringify([...ids]));
-  } catch {
-    // Not fatal: the fold holds for this session.
-  }
-}
-
-function Briefing({ dep, today }: { dep: TodayData | null; today: DayKey }) {
-  const cacheKey = `planner.briefing:${today}`;
-  /*
-   * Today's briefing as last seen on this device, shown from the first frame.
-   *
-   * It used to render nothing until the model answered and then open with a
-   * grid-template-rows animation — 420ms of re-laying-out the whole page,
-   * every frame, at the exact moment the screen was being read. With the
-   * day's text cached, every open after the first shows it at once and the
-   * late answer only replaces it if something changed.
-   */
-  const [text, setText] = useState(() => readBriefing(cacheKey));
-  const [open, setOpen] = useState(false);
-  const section = useRef<HTMLElement>(null);
-  const shownAtOpen = useRef(Boolean(text));
-  // Opening or closing it moves what is below as a cascade, never a jump.
-  const followers = useRef<Map<HTMLElement, number> | null>(null);
-  useLayoutEffect(() => {
-    if (!followers.current) return;
-    closeUp(followers.current);
-    followers.current = null;
-  }, [open]);
-
-  useEffect(() => {
-    setText(readBriefing(cacheKey));
-  }, [cacheKey]);
-
-  /*
-   * Re-asked whenever the day's data reloads — ticking something off should
-   * change the briefing. That is cheap on purpose: the server keys its cache
-   * on a fingerprint of the work itself, so a repeat ask costs a query and no
-   * model call unless something actually moved.
-   *
-   * `live` guards the late reply. Two reloads in quick succession would
-   * otherwise race, and the slower one wins by arriving last.
-   */
-  useEffect(() => {
-    if (!dep) return;
-
-    let live = true;
-    void dailySummary(activeTimezone()).then((r) => {
-      if (!live || !r.ok) return;
-      setText(r.summary);
-      try {
-        if (r.summary) localStorage.setItem(cacheKey, r.summary);
-        else localStorage.removeItem(cacheKey);
-      } catch {
-        // Storage refused: the briefing still shows, it just arrives late
-        // next time too.
-      }
-    });
-    return () => {
-      live = false;
-    };
-  }, [dep, cacheKey]);
-
-  /*
-   * The first arrival of the day, staged on the compositor. The page lays out
-   * once with the card in place; the card fades down into it and everything
-   * below starts where it was and slides to where it now belongs — transform
-   * only, so no frame of the move re-runs layout. Reduced motion: it simply
-   * appears.
-   */
-  useLayoutEffect(() => {
-    const el = section.current;
-    if (!text || !el || shownAtOpen.current) return;
-    shownAtOpen.current = true;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-
-    const ease = 'cubic-bezier(0.2, 0, 0, 1)';
-    const shift = el.getBoundingClientRect().height + parseFloat(getComputedStyle(el).marginBottom || '0');
-    el.animate(
-      [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
-      { duration: 280, easing: ease },
-    );
-    // Everything after it on the page, not only its siblings: it is the last
-    // thing in the top stack, and the work below is what has to make room.
-    for (const next of measureBelow(el).keys()) {
-      next.animate([{ transform: `translateY(${-shift}px)` }, { transform: 'none' }], {
-        duration: 360,
-        easing: ease,
-      });
-    }
-  }, [text]);
-
-  // Whether two lines hold it all; More is offered only when they do not.
-  const textRef = useRef<HTMLParagraphElement>(null);
-  const [clipped, setClipped] = useState(false);
-  useLayoutEffect(() => {
-    const el = textRef.current;
-    if (!el || open) return;
-    const measure = () => setClipped(el.scrollHeight > el.clientHeight + 1);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [text, open]);
-
-  if (!text) return null;
-
-  /*
-   * A sentence, not a card (the iPhone review, 12 Oct 2026). Two lines, and
-   * More opens the rest in place only when there is a rest: the briefing is
-   * written so its first clause is the suggestion, so two lines carry the
-   * point. As a card with a rim and an uppercase MORE it was the loudest
-   * thing above the work it was summarising.
-   */
-  return (
-    <section ref={section} aria-label="Briefing">
-      <div className="brief" data-open={open || undefined}>
-        <p ref={textRef} className="brief-text">
-          {text}
-        </p>
-        {(clipped || open) && (
-          <button
-            type="button"
-            className="brief-more"
-            aria-expanded={open}
-            onClick={(e) => {
-              const card = e.currentTarget.closest('section');
-              if (card) followers.current = measureBelow(card);
-              setOpen(!open);
-            }}
-          >
-            {open ? 'Less' : 'More'}
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
-
 /**
  * Add to Home Screen, said once, in Safari on an iPhone (lib/install.ts).
  * Reminders cannot reach a browser tab on iOS, so this is the one place the
@@ -1197,60 +791,6 @@ function InstallHint() {
       >
         Hide
       </button>
-    </section>
-  );
-}
-
-function readBriefing(key: string): string {
-  try {
-    return localStorage.getItem(key) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-function Ahead({
-  assignments,
-  deferrals,
-  cal,
-  sized,
-}: {
-  assignments: Assignment[];
-  deferrals: Record<string, number>;
-  cal: ReturnType<typeof calibration>;
-  sized: (minutes: number | null) => number | null;
-}) {
-  const tasks = assignments.map((a) => ({
-    id: a.id,
-    title: a.title,
-    due_at: a.due_at,
-    effort_minutes: sized(a.effort_minutes),
-    status: a.status,
-    deferrals: deferrals[a.id] ?? 0,
-    weight_percent: a.weight_percent,
-  }));
-
-  const ahead = forecast(tasks);
-  const stuck = stuckTasks(tasks);
-
-  if (!ahead.warning && stuck.length === 0 && !cal.summary) return null;
-
-  return (
-    <section className="flex flex-col gap-3 px-4">
-      {ahead.warning && <p className="type-body text-t-approaching">{ahead.warning}</p>}
-
-      {/* Stated as a fact about the estimates, not about the person. It is
-          shown here because it is the number that makes the forecast above
-          readable: 19 hours of estimates is a different week if they usually
-          run to double. */}
-      {cal.summary && <p className="type-note text-text-low">{cal.summary}</p>}
-
-      {stuck.map(({ task, note }) => (
-        <div key={task.id} className="flex flex-col gap-1">
-          <span className="type-body text-text-hi">{task.title}</span>
-          <span className="type-note text-text-low">{note}</span>
-        </div>
-      ))}
     </section>
   );
 }

@@ -90,18 +90,31 @@ export function defaultSize(type: WidgetType): WidgetSize {
 /** A board holds at most this many widgets; the column's check says 60. */
 export const MAX_WIDGETS = 40;
 
+/**
+ * Asks the board on Today to open its gallery ('add') or start editing
+ * ('edit'), from Today's ⋯ menu. A window event, like planner:focus-stop,
+ * because the menu and the board are siblings with no state between them.
+ */
+export const BOARD_EVENT = 'planner:board';
+export function askBoard(what: 'edit' | 'add'): void {
+  window.dispatchEvent(new CustomEvent(BOARD_EVENT, { detail: what }));
+}
+
 /** Photos are stored, and the free tier's storage is one shared pool. */
 export const MAX_PHOTOS = 6;
 
 /**
- * The board a new account starts with: what is due next and the week ahead,
- * which answer "what now" before anything is set up (rule 1), and a clock.
- * Every one of them reads the account's own data and says so honestly when
- * there is none.
+ * The board a new account starts with, and the one every account without a
+ * saved board sees. Since 19 Oct 2026 the board is the whole of Today's
+ * answer to "what now" (rule 1), so it starts with what is due next and where
+ * to be, the open work with a tick on each row (finishing work must never
+ * need a trip to Schedule), and the shape of the week. Every one reads the
+ * account's own data and says so honestly when there is none.
  */
 export const DEFAULT_BOARD: readonly Widget[] = [
   { id: 'd-due', type: 'due', size: 's', opts: {} },
-  { id: 'd-clock', type: 'clock', size: 's', opts: { face: 'analog' } },
+  { id: 'd-class', type: 'class', size: 's', opts: {} },
+  { id: 'd-work', type: 'work', size: 'm', opts: {} },
   { id: 'd-week', type: 'week', size: 'm', opts: {} },
 ];
 

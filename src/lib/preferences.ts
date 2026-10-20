@@ -13,15 +13,23 @@ import { cacheSkin, isSkin, readSkin, type Skin } from './theme';
  * lists of what not to show, and clearing them brings everything back.
  */
 
-/** Today's sections, in their default order. */
-export const TODAY_SECTIONS = ['board', 'capture', 'checklist', 'ribbon', 'briefing', 'work', 'ahead', 'inbox'] as const;
+/**
+ * Today's sections, in their default order.
+ *
+ * Since 19 Oct 2026 Today is the widget board and the two things done from it
+ * many times a day: catching a thought and ticking the checklist. Everything
+ * dated (the work list, what is ahead, the briefing about it, the inbox to
+ * sort into it) lives on Schedule. A saved order naming those sections simply
+ * drops them (normalise keeps known names only).
+ */
+export const TODAY_SECTIONS = ['board', 'capture', 'checklist'] as const;
 export type TodaySection = (typeof TODAY_SECTIONS)[number];
 
 /**
- * Sections that cannot be hidden: a Today without a way to catch a thought or
- * without the work stops answering "what do I do now", which is rule 1.
+ * Sections that cannot be hidden: the board is what answers "what do I do
+ * now" (rule 1), and a Today without a way to catch a thought loses it.
  */
-export const ALWAYS_SHOWN: ReadonlySet<TodaySection> = new Set(['capture', 'work']);
+export const ALWAYS_SHOWN: ReadonlySet<TodaySection> = new Set(['board', 'capture']);
 
 /** Whole features that can be switched off. Off hides; the data stays. */
 export const MODULES = ['abood', 'assist', 'grades', 'series', 'feeds', 'lowbattery'] as const;

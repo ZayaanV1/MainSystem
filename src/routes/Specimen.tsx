@@ -32,6 +32,7 @@ import { ThemePicker } from '../components/ThemePicker';
 import { ArrangeToday } from '../components/ArrangeToday';
 import { Segmented } from '../components/Segmented';
 import { CommandPalette } from '../components/CommandPalette';
+import { Check, PopMenu } from '../components/PopMenu';
 
 /**
  * The design system specimen. Development only — reached at /?specimen.
@@ -146,6 +147,10 @@ export function Specimen() {
 
       <Section title="CommandPalette — cmd/ctrl+K on a laptop">
         <PaletteDemo />
+      </Section>
+
+      <Section title="PopMenu — Today's and Schedule's ⋯ pull-down">
+        <PopMenuDemo />
       </Section>
 
       <Section title="Segmented — one capsule sliding between two to four options">
@@ -468,5 +473,40 @@ function PaletteDemo() {
         />
       )}
     </>
+  );
+}
+
+function PopMenuDemo() {
+  const [at, setAt] = useState<HTMLElement | null>(null);
+  const [picked, setPicked] = useState('List');
+  return (
+    <div className="px-4">
+      <button type="button" className="bar-round" aria-label="Options" aria-haspopup="menu" aria-expanded={at !== null} onClick={(e) => setAt(at ? null : e.currentTarget)}>
+        <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="5" cy="12" r="1.9" />
+          <circle cx="12" cy="12" r="1.9" />
+          <circle cx="19" cy="12" r="1.9" />
+        </svg>
+      </button>
+      {at && (
+        <PopMenu label="Options" anchor={at} onClose={() => setAt(null)}>
+          {(choose) => (
+            <>
+              <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => {})}>
+                Edit widgets
+              </button>
+              <div role="separator" className="pop-sep" />
+              <p className="pop-label" role="presentation">Style</p>
+              {['List', 'Rail'].map((v) => (
+                <button key={v} type="button" role="menuitemradio" aria-checked={picked === v} className="pop-item" onClick={() => choose(() => setPicked(v))}>
+                  <span className="pop-text">{v}</span>
+                  <Check on={picked === v} />
+                </button>
+              ))}
+            </>
+          )}
+        </PopMenu>
+      )}
+    </div>
   );
 }

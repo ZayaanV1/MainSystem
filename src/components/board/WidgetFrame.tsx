@@ -13,6 +13,7 @@ import { INFO } from './catalogue';
  * after it, so a list never skips one.
  */
 function fitRows(inner: HTMLElement) {
+  fitTitles(inner);
   const lists = inner.querySelectorAll<HTMLElement>('ul');
   if (!lists.length) return;
   const rows: HTMLElement[] = [];
@@ -30,6 +31,28 @@ function fitRows(inner: HTMLElement) {
       if (cut) li.style.display = 'none';
     });
   });
+}
+
+/**
+ * A title is allowed two lines, and gives one back when the widget would
+ * otherwise push its last line out of the bottom: "Problem set 4:
+ * interference" on two lines left no room for when it is due. Measured, for
+ * the same reason as the rows: what fits depends on the title and the theme.
+ */
+function fitTitles(inner: HTMLElement) {
+  const titles = inner.querySelectorAll<HTMLElement>('.bw-t2');
+  if (!titles.length) return;
+  titles.forEach((t) => t.style.removeProperty('-webkit-line-clamp'));
+  // Anything spilling past the widget's padding, at any depth (a title in
+  // the column of a split widget too). Lists clip themselves and are fitted
+  // by row, so they do not count here.
+  const pad = parseFloat(getComputedStyle(inner).paddingBottom || '0');
+  const floor = inner.getBoundingClientRect().bottom - pad + 0.5;
+  const over = Array.from(inner.querySelectorAll<HTMLElement>('.bw-t2, .bw-meta, .bw-unit')).some(
+    (el) => !el.closest('ul') && el.getBoundingClientRect().bottom > floor,
+  );
+  if (!over) return;
+  titles.forEach((t) => t.style.setProperty('-webkit-line-clamp', '1'));
 }
 
 /**

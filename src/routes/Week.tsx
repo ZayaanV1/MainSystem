@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { lazyRetry } from '../lib/lazyRetry';
 import { flushSync } from 'react-dom';
 import { Button } from '../components/Button';
@@ -7,6 +7,7 @@ import { EventRow, EventSlip } from '../components/EventSlip';
 import { SectionHead } from '../components/SectionHead';
 import { EmptyState } from '../components/EmptyState';
 import { CompactBar } from '../components/CompactBar';
+import { Check, PopMenu } from '../components/PopMenu';
 import {
   courseVar,
   moveAssignment,
@@ -14,8 +15,13 @@ import {
   subtaskProgress,
   type Assignment,
   type Course,
+  type InboxItem,
   type TodayData,
+  loadCalibrationPairs,
 } from '../lib/planner';
+import { adjustedEstimate, calibration } from '../lib/intelligence';
+import { moduleOn, usePreferences } from '../lib/preferences';
+import { Ahead, Briefing, InboxSection } from './ScheduleExtras';
 import { addDays, formatDay, localDayKey, todayKey, type DayKey } from '../lib/time';
 import { effortMinutes, groupWeek, type DayGroup } from '../lib/week';
 import { WeekStrip, weekTotal } from '../components/WeekStrip';
@@ -28,18 +34,19 @@ import { SheetPresence } from '../components/Sheet';
 import { UndoBar } from '../components/UndoBar';
 import { useDragToDay } from '../lib/useDragToDay';
 import { useAuth } from '../lib/auth';
-import { popClose, popOpen } from '../lib/motion';
 import { monthDay, weekdayShort } from '../lib/rowWhen';
 
 // Loaded on the tap: the block arithmetic is not needed to draw the week.
 const PlanBlocks = lazyRetry(() => import('./PlanBlocks'), (m) => m.PlanBlocks);
 
 /**
- * Week — seven days at a glance.
+ * Schedule — everything dated, and the week at a glance.
  *
- * Today remains the default view; this is for the question "how bad is the
- * next stretch", which is a different question and deserves a different
- * screen rather than a longer Today.
+ * Today remains the default view; it is the widget board. This is the whole
+ * of the work: overdue, each of the next seven days with its classes and
+ * deadlines, later, undated, and the inbox still to sort into it. It was
+ * "Week" until 19 Oct 2026, when Today's work list moved here; the screen's
+ * id and address stay `week`.
  *
  * Three things are deliberately not just "the next seven days": overdue work
  * is lifted to the top instead of sitting on the day it was due, undated work
@@ -59,11 +66,14 @@ const WEEK_DAYS = 7;
 export function Week({
   data,
   onOpenAssignment,
+  onOpenInbox,
   onPlan,
   onChanged,
 }: {
   data: TodayData | null;
   onOpenAssignment: (a: Assignment) => void;
+  /** Opens triage for a captured thought, at the shell. */
+  onOpenInbox: (item: InboxItem) => void;
   /** Takes you where work is added. Used only by the empty state. */
   onPlan: () => void;
   /** Something was added here (suggested blocks) that the day should re-read. */
@@ -162,6 +172,17 @@ export function Week({
   });
   const [style, setStyle] = useState<CalendarStyle>(readCalendarStyle);
   const now = useNow();
+  const prefs = usePreferences();
+  const assistOn = moduleOn('assist', prefs);
+
+  // How long things actually take, for what is ahead: the same calibration
+  // Today applies to What now, read once per data load.
+  const [pairs, setPairs] = useState<{ estimated: number; actual: number }[]>([]);
+  useEffect(() => {
+    void loadCalibrationPairs().then(setPairs);
+  }, [data]);
+  const cal = useMemo(() => calibration(pairs), [pairs]);
+  const sized = (minutes: number | null) => adjustedEstimate(minutes, cal) ?? minutes;
 
   // A cross-fade between two drawings of the same week, where the browser
   // can. flushSync so the new style is on the page before the "after"
@@ -234,6 +255,7 @@ export function Week({
   const nothingAtAll =
     grouping.overdue.length === 0 &&
     grouping.undated.length === 0 &&
+    grouping.later.length === 0 &&
     grouping.days.every((d) => d.assignments.length === 0 && d.events.length === 0);
 
   const canSelect = Boolean(data?.assignments.some((a) => a.status !== 'done'));
@@ -244,7 +266,7 @@ export function Week({
     <button
       type="button"
       className="bar-round"
-      aria-label="Week options"
+      aria-label="Schedule options"
       aria-haspopup="menu"
       aria-expanded={menuAt !== null}
       onClick={(e) => setMenuAt(menuAt ? null : e.currentTarget)}
@@ -310,7 +332,7 @@ export function Week({
     >
       <header className="mb-1 px-4">
         <div ref={titleRow} className="flex items-end justify-between gap-3">
-          <h1 className="page-title">Week</h1>
+          <h1 className="page-title">Schedule</h1>
           {menuButton}
         </div>
         <p className="week-range">
@@ -319,6 +341,13 @@ export function Week({
           {filtered && ` · ${filtered.code ?? filtered.name} only`}
         </p>
       </header>
+
+      {/* One or two sentences on what to touch first, about the work below. */}
+      {assistOn && !courseFilter && (
+        <div className="mb-3">
+          <Briefing dep={data} today={today} />
+        </div>
+      )}
 
       {/* The shape of the week, and the way to move through it. */}
       <div className="mb-4">
@@ -427,22 +456,28 @@ export function Week({
         </div>
       )}
 
+      {grouping.later.length > 0 && workList('Later', grouping.later)}
+
       {grouping.undated.length > 0 &&
         workList('No date', grouping.undated, 'Kept here so it is not lost. Give it a date when you know one.')}
 
-      {grouping.laterCount > 0 && (
-        <p className="mb-12 px-4 type-note text-text-low">
-          {grouping.laterCount} more after this week.
-        </p>
+      {/* The week's load, how long things usually take, and work that keeps
+          being moved, below the work it is about. */}
+      {data && !courseFilter && (
+        <div className="mb-8">
+          <Ahead assignments={data.assignments} deferrals={data.deferrals} cal={cal} sized={sized} />
+        </div>
       )}
+
+      {!courseFilter && <InboxSection items={data?.inbox ?? null} onOpen={onOpenInbox} />}
     </main>
 
-    <CompactBar title="Week" watch={titleRow}>
+    <CompactBar title="Schedule" watch={titleRow}>
       {menuButton}
     </CompactBar>
 
     {menuAt && (
-      <WeekMenu anchor={menuAt} onClose={() => setMenuAt(null)}>
+      <PopMenu label="Schedule options" anchor={menuAt} onClose={() => setMenuAt(null)}>
         {(choose) => (
           <>
             {canSelect && (
@@ -517,104 +552,8 @@ export function Week({
             )}
           </>
         )}
-      </WeekMenu>
+      </PopMenu>
     )}
-    </>
-  );
-}
-
-function Check({ on }: { on: boolean }) {
-  return (
-    <span aria-hidden className="pop-check">
-      {on && (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M5 12.5l4.5 4.5L19 7.5" />
-        </svg>
-      )}
-    </span>
-  );
-}
-
-/**
- * Week's ⋯ menu: a pull-down under the button it was opened from, as iOS
- * draws one.
- *
- * Closes on a choice, on a tap anywhere else, and on Escape, handing focus
- * back to the button. The arrow keys move through it, as its role promises.
- * `choose` closes first and then acts, so a style change cross-fades the
- * week without the menu caught in the snapshot.
- */
-function WeekMenu({
-  anchor,
-  onClose,
-  children,
-}: {
-  anchor: HTMLElement;
-  onClose: () => void;
-  children: (choose: (act: () => void) => void) => ReactNode;
-}) {
-  const menu = useRef<HTMLDivElement>(null);
-  const [place] = useState(() => {
-    const r = anchor.getBoundingClientRect();
-    return { top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) };
-  });
-
-  const closing = useRef(false);
-  const close = async (then?: () => void) => {
-    if (closing.current) return;
-    closing.current = true;
-    await popClose(menu.current);
-    onClose();
-    anchor.focus();
-    then?.();
-  };
-
-  useLayoutEffect(() => {
-    popOpen(menu.current, '100% 0%');
-    menu.current?.querySelector<HTMLElement>('[role^="menuitem"]')?.focus();
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // The menu's alone: App's Escape would otherwise also leave for Today.
-      e.preventDefault();
-      void close();
-    };
-    // A scroll moves the button away from the menu hanging under it.
-    const onScroll = () => void close();
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onScroll);
-    };
-    // Once, while open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const onKeyDown = (e: KeyboardEvent) => {
-    const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
-    if (!step) return;
-    e.preventDefault();
-    const items = Array.from(menu.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? []);
-    const at = items.indexOf(document.activeElement as HTMLElement);
-    items[(at + step + items.length) % items.length]?.focus();
-  };
-
-  return (
-    <>
-      <div aria-hidden className="pop-catcher" onClick={() => void close()} />
-      <div
-        ref={menu}
-        role="menu"
-        aria-label="Week options"
-        className="pop-menu"
-        style={{ top: place.top, right: place.right }}
-        onKeyDown={onKeyDown}
-      >
-        {children((act) => void close(act))}
-      </div>
     </>
   );
 }

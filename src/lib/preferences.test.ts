@@ -10,20 +10,22 @@ describe('normalise', () => {
   });
 
   it('keeps a saved order and drops names it does not know', () => {
-    const order = ['work', 'capture', 'inbox', 'checklist', 'ribbon', 'briefing', 'ahead', 'gremlins'];
-    // The board arrived after this order was saved, so it takes its default
+    const order = ['checklist', 'capture', 'gremlins'];
+    // The board is missing from this saved order, so it takes its default
     // place at the top rather than being dropped.
-    expect(normalise({ order }).order).toEqual(['board', 'work', 'capture', 'inbox', 'checklist', 'ribbon', 'briefing', 'ahead']);
+    expect(normalise({ order }).order).toEqual(['board', 'checklist', 'capture']);
   });
 
-  it('puts a section the saved order lacks back in its default place', () => {
-    // Saved before "ahead" existed: it returns after "work", where it belongs.
-    const order = ['capture', 'checklist', 'ribbon', 'briefing', 'work', 'inbox'];
-    expect(normalise({ order }).order).toEqual([...TODAY_SECTIONS]);
+  it('drops the sections that moved to Schedule from an order saved before', () => {
+    // Saved before 19 Oct 2026, when the work, what is ahead, the briefing,
+    // the next class and the inbox were all on Today.
+    const order = ['capture', 'checklist', 'ribbon', 'briefing', 'work', 'ahead', 'inbox', 'board'];
+    expect(normalise({ order }).order).toEqual(['capture', 'checklist', 'board']);
+    expect(normalise({ hidden: ['inbox', 'checklist'] }).hidden).toEqual(['checklist']);
   });
 
-  it('never hides capture or the work', () => {
-    expect(normalise({ hidden: ['capture', 'work', 'inbox'] }).hidden).toEqual(['inbox']);
+  it('never hides the board or capture', () => {
+    expect(normalise({ hidden: ['capture', 'board', 'checklist'] }).hidden).toEqual(['checklist']);
   });
 
   it('keeps only known modules, once each', () => {

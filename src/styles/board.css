@@ -795,3 +795,10 @@ body > div:has(.bw-gallery) { transition: visibility 0s; }
 .bw-m[data-type='work'] .bw-row { align-items: center; }
 .bw-m[data-type='work'] .bw-row-main { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .bw-m[data-type='work'] .bw-row-main .bw-meta { flex: none; }
+/* A title that is also a button keeps the two-line clamp: .bw-link's
+   display: block came later and switched the clamp off, so a long title on
+   Next due wrapped freely and pushed when it is due out of the bottom. */
+.bw-link.bw-t2 { display: -webkit-box; }
+/* The urgency label is the signal and never truncates; the time beside it
+   gives way first ("Due today · End of d…", never "Due tod… End of day"). */
+.bw-meta > .bw-urg { flex-shrink: 0; overflow: visible; }

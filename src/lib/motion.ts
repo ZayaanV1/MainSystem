@@ -36,30 +36,6 @@ export const EASE = {
 } as const;
 
 /**
- * Brings a list in, one item after another.
- *
- * Kept short and shallow. A long stagger on a list of work turns "what is due"
- * into a thing you wait for, and this screen exists to answer that instantly.
- */
-export function revealList(items: HTMLElement[], options: { each?: number } = {}) {
-  if (items.length === 0) return;
-  const each = options.each ?? 28;
-  items.slice(0, 10).forEach((el, i) => {
-    if (reduced()) {
-      fade(el, 0, 1);
-      return;
-    }
-    run(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 280, delay: i * each, easing: EASE.out, fill: 'backwards' });
-    run(el, [{ transform: 'translateY(12px) scale(0.99)' }, { transform: 'none' }], {
-      duration: 520,
-      delay: i * each,
-      easing: EASE.drift,
-      fill: 'backwards',
-    });
-  });
-}
-
-/**
  * A short pulse on a value that just changed: the receipt that the tap
  * landed. Scale only — no colour, because colour here is carrying meaning.
  */

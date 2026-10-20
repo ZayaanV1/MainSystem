@@ -6,8 +6,10 @@ import { test, expect } from './fixtures';
 // the end of daylight saving on Sunday 1 Nov. Navigation inside each test is
 // by the tab bar: the sample lives in memory and a reload would reset it.
 
+// Schedule's name carries the inbox count ("Schedule, 2 in the inbox"), so a
+// name is matched from its start.
 const tab = (page: Page, name: string) =>
-  page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true });
+  page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: new RegExp(`^${name}\\b`) }).first();
 
 /** MATH 205 Lecture, Mon and Wed 10:30 to 11:45 in H-535, 5 Oct to 11 Nov. */
 async function fillLecture(page: Page): Promise<Locator> {
@@ -67,8 +69,8 @@ test('every session is shown before anything is written', async ({ page }) => {
   // Rule 6: cancelled, so nothing reached the week.
   await sheet.getByRole('button', { name: 'Cancel' }).click();
   await expect(sheet).toBeHidden();
-  await tab(page, 'Week').click();
-  await expect(page.getByRole('heading', { name: 'Week', level: 1 })).toBeVisible();
+  await tab(page, 'Schedule').click();
+  await expect(page.getByRole('heading', { name: 'Schedule', level: 1 })).toBeVisible();
   await expect(page.getByText('MATH 205 Lecture')).toHaveCount(0);
 });
 
@@ -85,19 +87,19 @@ test('a class needs a day and an end after its start', async ({ page }) => {
   await expect(sheet.getByRole('button', { name: /^Add/ })).toBeDisabled();
 });
 
-test('an added class is on Today, Week and Month, at its time on both sides of the change', async ({ page }) => {
+test('an added class is on Today, Schedule and Month, at its time on both sides of the change', async ({ page }) => {
   await addLecture(page);
 
   // Listed under Your classes.
   const listed = page.getByRole('button', { name: /^MATH 205 Lecture Mon, Wed · 10:30 – 11:45 a\.m\. · H-535/ });
   await expect(listed).toBeVisible();
 
-  // Today, Wednesday at 10: the 10:30 lecture is up next.
+  // Today, Wednesday at 10: the 10:30 lecture is the next class, on the board.
   await tab(page, 'Today').click();
-  await expect(page.getByRole('region', { name: 'Up next' })).toContainText('MATH 205 Lecture');
+  await expect(page.locator('.bw-w[data-type="class"]')).toContainText('MATH 205 Lecture');
 
-  // Week shows today's session.
-  await tab(page, 'Week').click();
+  // Schedule shows today's session.
+  await tab(page, 'Schedule').click();
   await expect(page.getByText('MATH 205 Lecture').first()).toBeVisible();
 
   // Monday 2 November, after the clocks went back: still 10:30.

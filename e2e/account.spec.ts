@@ -1,4 +1,4 @@
-import { test, expect, openToday } from './fixtures';
+import { test, expect, openToday, toSchedule } from './fixtures';
 
 // F08: signed out, the first screen is sign-in with a way back from a lost password.
 test.describe('Signed out', () => {
@@ -53,11 +53,15 @@ test('export downloads every table as JSON', async ({ page }) => {
 // happens when they are not is BUG-002 in e2e/BUGS.md.
 test('a capture made offline shows at once and is still there online', async ({ page, context }) => {
   await openToday(page);
+  // Schedule's code is fetched while online, as the built app's worker has it.
+  await toSchedule(page);
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Today', exact: true }).click();
   await page.waitForLoadState('networkidle');
   await context.setOffline(true);
   const box = page.getByRole('textbox', { name: 'Capture a thought' });
   await box.fill('read the lab handout fri');
   await box.press('Enter');
+  await toSchedule(page);
   await expect(page.getByRole('button', { name: /^Read the lab handout / })).toBeVisible();
   await context.setOffline(false);
   await expect(page.getByRole('button', { name: /^Read the lab handout / })).toBeVisible();

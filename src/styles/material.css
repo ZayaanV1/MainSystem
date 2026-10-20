@@ -2950,6 +2950,27 @@ label.arrange-row {
   letter-spacing: 0.01em;
 }
 
+/* The inbox count on Schedule's tab: things captured and still to sort. The
+   accent fill is the brand's one "press this" colour, not an urgency state,
+   and the number is written, so colour is never the only signal. */
+.tab-badge {
+  position: absolute;
+  top: -5px;
+  left: calc(100% - 6px);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.tab-badge-inline { position: static; margin-left: auto; }
+
 
 /* The lit capsule behind the current place, in the rail and the tab bar. */
 .nav-lit {

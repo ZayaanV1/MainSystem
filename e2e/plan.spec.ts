@@ -1,4 +1,4 @@
-import { test, expect, row } from './fixtures';
+import { test, expect, row, toSchedule } from './fixtures';
 
 // F05: a syllabus in, every deadline checked before anything is written (rule 6).
 test.describe('Syllabus import', () => {
@@ -17,15 +17,14 @@ test.describe('Syllabus import', () => {
     await expect(check.getByText('Midterm')).toBeVisible();
     await expect(check.getByText('Term project')).toBeVisible();
 
-    // Rule 6: still nothing on Week. Through the tab bar, not page.goto: a
-    // reload would reset the in-memory sample and prove nothing.
+    // Rule 6: still nothing on Schedule. Through the tab bar, not page.goto:
+    // a reload would reset the in-memory sample and prove nothing.
     await check.getByRole('button', { name: 'Close' }).click();
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Week' }).click();
-    await expect(page.getByRole('heading', { name: 'Week', level: 1 })).toBeVisible();
+    await toSchedule(page);
     await expect(row(page, 'Problem set 1')).toHaveCount(0);
   });
 
-  test('confirming adds the work to the week', async ({ page }) => {
+  test('confirming adds the work to Schedule', async ({ page }) => {
     await page.goto('/plan');
     await page.getByRole('button', { name: 'Import a syllabus' }).click();
     const sheet = page.getByRole('dialog', { name: 'Import a syllabus' });
@@ -35,7 +34,7 @@ test.describe('Syllabus import', () => {
     await expect(check.getByText('Problem set 1')).toBeVisible();
     await check.getByRole('button', { name: /^(Import|Add)/ }).last().click();
     await expect(check).toBeHidden();
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Week' }).click();
+    await toSchedule(page);
     await expect(row(page, 'Problem set 1')).toBeVisible();
   });
 });

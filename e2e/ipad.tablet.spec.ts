@@ -43,7 +43,7 @@ test.describe('upright', () => {
   test('the tab bar holds every destination, centred, with no More', async ({ page }) => {
     await openToday(page);
     const bar = page.locator('nav[aria-label="Main"]:visible');
-    await expect(bar.getByRole('button')).toHaveText(['Today', 'Week', 'Month', 'Search', 'Abood', 'Courses', 'Settings']);
+    await expect(bar.getByRole('button')).toHaveText(['Today', /Schedule/, 'Month', 'Search', 'Abood', 'Courses', 'Settings']);
     const box = (await bar.boundingBox())!;
     const width = page.viewportSize()!.width;
     expect(box.width).toBeLessThanOrEqual(640);
@@ -53,27 +53,24 @@ test.describe('upright', () => {
     await expect(page.getByRole('heading', { name: 'Courses and syllabus', level: 1 })).toBeVisible();
   });
 
-  test('Today answers What now beside the work, without being asked', async ({ page }) => {
+  test('Today answers What now beside the widgets, without being asked', async ({ page }) => {
     await openToday(page);
     await expect(page.getByRole('button', { name: 'Start on it' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'What now?' })).toHaveCount(0);
-    // The inbox sits beside the work too: on the first screen, not below it.
-    const inbox = (await page.getByRole('heading', { name: 'Inbox' }).boundingBox())!;
-    expect(inbox.y).toBeLessThan(page.viewportSize()!.height);
   });
 
   test('chip rows wrap instead of cutting a pill at the edge', async ({ page }) => {
     await openToday(page);
     expect(await allOnScreen(page, '[role="group"][aria-label="Checklist"] > *')).toEqual([]);
-    await page.locator('nav[aria-label="Main"]:visible').getByRole('button', { name: 'Week' }).click();
-    // Week's course filter moved into its options menu; the row of seven days is the pills left to check.
+    await page.locator('nav[aria-label="Main"]:visible').getByRole('button', { name: /^Schedule/ }).click();
+    // Schedule's course filter moved into its options menu; the row of seven days is the pills left to check.
     const strip = page.getByRole('group', { name: /Work due each day/ });
     await expect(strip.getByRole('button')).toHaveCount(7);
     expect(await allOnScreen(page, '[role="group"][aria-label^="Work due each day"] button')).toEqual([]);
   });
 
   test('a sheet rises as a centred column, not a slab across the screen', async ({ page }) => {
-    await openToday(page);
+    await page.goto('/week');
     await row(page, 'Lab 3 report: sequential circuits').first().click();
     const sheet = page.getByRole('dialog');
     await expect(sheet).toBeVisible();
@@ -93,11 +90,11 @@ test.describe('upright', () => {
     await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
   });
 
-  test('Today and Week meet WCAG AA', async ({ page }) => {
+  test('Today and Schedule meet WCAG AA', async ({ page }) => {
     await openToday(page);
     expect(await axeViolations(page)).toEqual([]);
-    await page.locator('nav[aria-label="Main"]:visible').getByRole('button', { name: 'Week' }).click();
-    await expect(page.getByRole('heading', { name: 'Week', level: 1 })).toBeVisible();
+    await page.locator('nav[aria-label="Main"]:visible').getByRole('button', { name: /^Schedule/ }).click();
+    await expect(page.getByRole('heading', { name: 'Schedule', level: 1 })).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
   });
 });
@@ -125,7 +122,7 @@ test.describe('on its side', () => {
   });
 
   test('the editor docks as a full-height panel on the right', async ({ page }) => {
-    await openToday(page);
+    await page.goto('/week');
     await row(page, 'Lab 3 report: sequential circuits').first().click();
     const sheet = page.getByRole('dialog');
     await expect(sheet).toBeVisible();
