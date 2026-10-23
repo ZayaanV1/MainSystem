@@ -1679,6 +1679,41 @@ actually reached the database. Worth remembering as a working method.
 
 ---
 
+### Work page, PDF briefs and the guide — 22 Oct 2026
+
+Approved on 22 Oct after a proposal. Names of work and exams in the Schedule
+briefing and in Abood's replies are links (`lib/mentions.ts`): work opens
+`/work/<id>`, an exam opens its day in Month. Matching is by title against rows
+the app already holds, never by asking the model for links, so a link can only
+point at something that exists and a paraphrased title stays plain text.
+
+**This reverses a decision, on purpose.** Migration 0025 chose one link over file
+uploads, citing the shared free-tier storage, access rules and orphaned files.
+0043 accepts those costs because a link cannot open behind a login and cannot be
+read by the guide. They are bounded rather than ignored: PDF only, 10 MB a file,
+three files per work and thirty per account (a trigger, so it holds for every
+writer), a private `work-files` bucket with one folder per account, and `link`
+stays. Storage objects are not removed by SQL, so the client removes the object
+and then the row; deleting work or an account removes its files first, and an
+offline delete can orphan an object that only its owner could ever read.
+
+**The guide shows the route, not the answers.** The instruction forbids final
+answers and `validateGuide` drops any part that reads as a bare result, because a
+prompt alone is not a guarantee. It is a proposal (rule 6): shown with "Keep this
+guide", saved against the file only on that tap. It is a fifth metered path,
+`guide`, 8 a day per account on the shared key (`GUIDE_CALLS_PER_DAY`). The PDF is
+read from storage by the function, scoped to the caller, never sent up from the
+client.
+
+The viewer is pdf.js, loaded only when a PDF opens (about 109 KB gzipped).
+**Find lists the pages a word is on; it does not highlight it, and scanned PDFs
+cannot be searched.** Files are online-only by design, not queued in the outbox.
+
+Not yet verified live: sign-in is not available to the session that built it, so
+a real upload, a real Gemini guide, iOS Share and Print, and the Vercel deploy
+are checked only against the e2e harness (`e2e/work.spec.ts`, with a fake bucket
+and guide in the mock).
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
