@@ -17,6 +17,8 @@
  * during a bad week takes the digest down exactly when it is most needed.
  */
 
+import { sameSecret } from '../_shared/secret.ts';
+import { alertOperator, type Alert } from '../_shared/alerts.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { deliver } from '../_shared/deliver.ts';
@@ -47,6 +49,9 @@ const env = (k: string): string => Deno.env.get(k) ?? '';
 const SUPABASE_URL = env('SUPABASE_URL');
 const SERVICE_ROLE_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
 const CRON_SECRET = env('CRON_SECRET');
+
+/** Failed rows in one local day (one per channel per tick) before a digest is given up on. */
+const GIVE_UP_AFTER_FAILURES = 6;
 const APP_URL = env('APP_URL');
 
 const VAPID: VapidKeys = {
@@ -200,10 +205,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  const alertConfig = { telegramBotToken: env('TELEGRAM_BOT_TOKEN'), chatId: env('ALERT_TELEGRAM_CHAT_ID') };
   const deps = {
     db: admin,
     telegramBotToken: env('TELEGRAM_BOT_TOKEN'),
     vapid: VAPID,
+    onAlert: async (a: Alert) => void (await alertOperator(alertConfig, a)),
   };
 
   const now = new Date();
@@ -212,7 +219,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Compared with a constant-time check so the secret cannot be recovered by
   // timing the endpoint, which is public by construction.
   const presented = req.headers.get('x-cron-secret') ?? '';
-  if (CRON_SECRET && timingSafeEqual(presented, CRON_SECRET)) {
+  if (CRON_SECRET && sameSecret(presented, CRON_SECRET)) {
     const { data, error } = await admin
       .from('app_settings')
       .select('user_id, timezone, digest_hour, digest_minute, digest_enabled, assignment_window_days, event_window_days, weekly_review_enabled, weekly_review_weekday');
@@ -253,6 +260,50 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       if (!decision.send) {
         results.push({ user: settings.user_id, sent: false, reason: decision.reason });
+        continue;
+      }
+
+      /*
+       * Retrying is for a blip, not for a message that will never be accepted.
+       * Each tick that fails writes a row per channel, so after a few rounds the
+       * day is given up on: said once in the log and to the operator, rather
+       * than the same refusal being repeated every fifteen minutes until
+       * midnight. A new day starts clean.
+       */
+      const { count: failedToday } = await admin
+        .from('delivery_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', settings.user_id)
+        .eq('kind', 'digest')
+        .eq('local_day', decision.localDay)
+        .eq('status', 'failed');
+
+      if ((failedToday ?? 0) >= GIVE_UP_AFTER_FAILURES) {
+        const { count: noted } = await admin
+          .from('delivery_log')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', settings.user_id)
+          .eq('kind', 'digest')
+          .eq('local_day', decision.localDay)
+          .eq('status', 'skipped')
+          .like('error', 'gave up%');
+        if (!noted) {
+          await admin.from('delivery_log').insert({
+            user_id: settings.user_id,
+            kind: 'digest',
+            channel: null,
+            local_day: decision.localDay,
+            status: 'skipped',
+            error: `gave up after ${failedToday} failed attempts`,
+            payload: { title: '', body: '' },
+          });
+          await alertOperator(alertConfig, {
+            kind: 'digest-gave-up',
+            userId: settings.user_id,
+            detail: `${failedToday} attempts failed on ${decision.localDay}. See delivery_log for the errors.`,
+          });
+        }
+        results.push({ user: settings.user_id, sent: false, reason: 'gave-up' });
         continue;
       }
 
@@ -348,14 +399,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     outcome.delivered ? 200 : 502,
   );
 });
-
-/** Length-independent comparison, so the endpoint leaks nothing by timing. */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
 
 /**
  * Sends tomorrow's exams and presentations, once each.

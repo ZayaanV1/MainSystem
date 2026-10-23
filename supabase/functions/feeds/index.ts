@@ -16,6 +16,7 @@
  * `fetchFeed` — and about never letting two runs fight over one feed.
  */
 
+import { sameSecret } from '../_shared/secret.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { parseFeed, type FeedParse } from '../_shared/feed.ts';
 import { botChallengeReason, checkFeedUrl, isBotChallenge, isPrivateAddress } from '../_shared/feedurl.ts';
@@ -82,13 +83,6 @@ function corsFor(req: Request): Record<string, string> {
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   };
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
 
 /* ============================================================================
@@ -642,7 +636,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // ---- the scheduler -------------------------------------------------------
   const presented = req.headers.get('x-cron-secret') ?? '';
-  if (CRON_SECRET && presented && timingSafeEqual(presented, CRON_SECRET)) {
+  if (CRON_SECRET && presented && sameSecret(presented, CRON_SECRET)) {
     const started = Date.now();
     const dueBefore = new Date(started - CRON_DUE_MS).toISOString();
 

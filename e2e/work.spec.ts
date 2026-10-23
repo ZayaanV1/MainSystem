@@ -58,9 +58,19 @@ test.describe('Work page', () => {
     // The viewer draws the page; search says which pages hold a word.
     await expect(page.getByRole('img', { name: 'Page 1' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: 'Problem set 5' })).toBeVisible();
-    await page.getByRole('searchbox', { name: 'Find in this PDF' }).fill('limits');
+    // Find opens from the toolbar rather than taking a row of its own.
+    await expect(page.getByRole('searchbox', { name: 'Find in this PDF' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Find', exact: true }).click();
+    await page.getByRole('searchbox', { name: 'Find in this PDF' }).fill('limits');
+    await page.getByRole('search').getByRole('button', { name: 'Find' }).click();
     await expect(page.getByText(/On page 1\./)).toBeVisible();
+
+    // The pages flow with the screen: no box of their own to scroll, which on a
+    // phone trapped a swipe, and the toolbar stays under the top as they go by.
+    const flow = await page.locator('.pdf-scroll').evaluate((el) => getComputedStyle(el).overflowY);
+    expect(flow).toBe('visible');
+    const sticky = await page.getByRole('toolbar', { name: 'PDF tools' }).evaluate((el) => getComputedStyle(el).position);
+    expect(sticky).toBe('sticky');
 
     // The guide is a proposal until kept.
     await page.getByRole('button', { name: 'Make a guide' }).click();

@@ -24,6 +24,7 @@
  */
 
 import type { OutboundMessage, SendResult } from '../types.ts';
+import { PUSH_MAX_BODY_BYTES, PUSH_MAX_LINK_BYTES, PUSH_MAX_TITLE_BYTES, byteLength, clampBytes, clampText } from '../fit.ts';
 
 export interface PushSubscription {
   endpoint: string;
@@ -306,8 +307,16 @@ export async function sendWebPush(
   }
 
   try {
+    // Sized for one encrypted record: a push service refuses anything over
+    // 4,096 bytes (HTTP 413), and the digest that hit that limit was never
+    // delivered. A notification shows a few lines, so the compact form is
+    // used when the message has one. See fit.ts.
     const payload = utf8(
-      JSON.stringify({ title: msg.title, body: msg.body, deepLink: msg.deepLink }),
+      JSON.stringify({
+        title: clampBytes(msg.title, PUSH_MAX_TITLE_BYTES),
+        body: clampText(msg.short ?? msg.body, PUSH_MAX_BODY_BYTES, 'bytes'),
+        deepLink: msg.deepLink && byteLength(msg.deepLink) <= PUSH_MAX_LINK_BYTES ? msg.deepLink : undefined,
+      }),
     );
 
     const body = await encryptPayload(

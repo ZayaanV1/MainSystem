@@ -19,6 +19,7 @@
  *   calls. It is counted against the same daily chat budget.
  */
 
+import { sameSecret } from '../_shared/secret.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { gatherContext, recall } from '../_shared/abood.ts';
@@ -44,13 +45,6 @@ const MAX_UNANSWERED = 2;
 
 // deno-lint-ignore no-explicit-any
 type Admin = any;
-
-function sameSecret(a: string, b: string): boolean {
-  if (!a || !b || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
 
 const CHECKIN_SCHEMA = {
   type: 'object',

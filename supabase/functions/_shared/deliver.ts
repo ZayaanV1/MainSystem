@@ -23,6 +23,7 @@ import { sendTelegram, type TelegramConfig } from './channels/telegram.ts';
 import { sendWebPush, type PushSubscription, type VapidKeys } from './channels/webpush.ts';
 import type { ChannelKind, DeliveryKind, OutboundMessage, SendResult } from './types.ts';
 import type { DayKey } from './time.ts';
+import type { Alert } from './alerts.ts';
 
 /** Minimal structural view of the Supabase client, so this file stays testable. */
 // deno-lint-ignore no-explicit-any
@@ -32,6 +33,11 @@ export interface DeliverDeps {
   db: Db;
   telegramBotToken: string;
   vapid: VapidKeys;
+  /**
+   * Told when a channel is switched off for good. Optional so the delivery
+   * layer stays usable without any alerting configured. Must not throw.
+   */
+  onAlert?: (alert: Alert) => void | Promise<void>;
 }
 
 export interface DeliveryOutcome {
@@ -106,6 +112,11 @@ export async function deliver(
         .from('notification_channels')
         .update({ failed_at: new Date().toISOString(), failure_reason: result.error })
         .eq('id', channel.id);
+      await deps.onAlert?.({
+        kind: 'channel-retired',
+        userId,
+        detail: `${channel.kind}: ${result.error.slice(0, 160)}`,
+      });
     }
   }
 

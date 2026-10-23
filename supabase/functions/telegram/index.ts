@@ -25,6 +25,7 @@
  * words and a link; the database gets nothing until the button is pressed.
  */
 
+import { sameSecret } from '../_shared/secret.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { HELP, converse } from '../_shared/door.ts';
@@ -47,13 +48,6 @@ interface Update {
     text?: string;
     from?: { first_name?: string };
   };
-}
-
-function sameSecret(a: string, b: string): boolean {
-  if (!a || !b || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
 
 async function tg(method: string, body: Record<string, unknown>): Promise<Response | null> {

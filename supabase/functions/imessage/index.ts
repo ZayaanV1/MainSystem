@@ -32,6 +32,7 @@
  * must never be answered by a bot.
  */
 
+import { sameSecret } from '../_shared/secret.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { HELP, converse } from '../_shared/door.ts';
@@ -45,13 +46,6 @@ const LEGACY_SECRET = env('IMESSAGE_BRIDGE_SECRET');
 
 // deno-lint-ignore no-explicit-any
 type Admin = any;
-
-function sameSecret(a: string, b: string): boolean {
-  if (!a || !b || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
 
 async function sha256hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));

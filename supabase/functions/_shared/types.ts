@@ -22,6 +22,12 @@ export interface OutboundMessage {
   /** Plain text. No markup — every channel renders it differently and the
    *  escaping bugs are never worth the formatting. */
   body: string;
+  /**
+   * A compact form for a channel that can only carry a little, such as a push
+   * notification. Same facts in priority order, with the rest counted rather
+   * than listed. A channel with no limit to worry about ignores it.
+   */
+  short?: string;
   /** Where tapping the notification should land. */
   deepLink?: string;
 }

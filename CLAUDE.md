@@ -1714,6 +1714,58 @@ a real upload, a real Gemini guide, iOS Share and Print, and the Vercel deploy
 are checked only against the e2e harness (`e2e/work.spec.ts`, with a fake bucket
 and guide in the mock).
 
+### Audit, 22 Oct 2026 — and what it found
+
+A full read-only audit of the database, the seven edge functions, the git
+history, dependencies, bundles and the iOS build, run against production. Most
+of it was clean: row level security on all 26 tables with every policy scoped
+to the account and carrying a write check, no client able to read the API-key
+columns, both storage buckets private with per-account folders, constant-time
+secret checks, no secrets anywhere in history, `npm audit` at zero.
+
+**The finding that mattered: long digests were refused by both channels.** A
+morning digest of 4,239 characters is over Telegram's 4,096-character limit and,
+encrypted, over a push service's 4,096-byte one. Nothing capped it, because the
+digest builder rightly knows nothing about channels. So for a week 57 deliveries
+failed against 8 that succeeded, the 21 Oct digest reached nobody, and the
+scheduler retried the identical message every fifteen minutes. Silence from a
+notification reads as "nothing is due", the one wrong answer this app must not
+give, and the only record was a table nobody was reading.
+
+What changed, in `_shared/fit.ts` and its callers:
+
+- The digest is held to a size every channel can carry, with a compact form for
+  push, cutting the lowest-priority lists first (events, then upcoming work,
+  then overdue; today's checklist last) and saying what it cut: "and 9 more".
+  A channel clamps again as a net, at a line break and never inside a character.
+- A day is given up on after six failed rows, once, rather than retried until
+  midnight. A new day starts clean.
+- **Alerts** (`_shared/alerts.ts`): a digest given up on, or a channel switched
+  off for good, is written to the function log as one structured line and, if
+  `ALERT_TELEGRAM_CHAT_ID` is set, sent to that chat. An alert names an account
+  by a short id and never a title. It is optional; set it with
+  `supabase secrets set ALERT_TELEGRAM_CHAT_ID=<chat id>`.
+
+Also from the audit, in migration 0044: the `anon` role no longer holds table
+privileges (RLS was the only wall); seven foreign keys gained indexes; and a
+weekly job prunes `delivery_log` (90 days), `ai_usage` and `daily_summaries`
+(60 days). Chat history is never pruned. The five copies of the shared-secret
+comparison are one (`_shared/secret.ts`) that refuses empty against empty, and
+`tests/edge-auth.test.ts` fails the build if an edge function stops
+authenticating its own callers, since all seven deploy with `verify_jwt = false`.
+
+A stray `public/_session.json`, a stored login from August, was being copied
+into `dist` and into the iOS app. It is deleted. **Old sessions were not
+revoked**: that would sign out every account, including the owner's phone, and
+was left as a decision. The PDF reader now flows with the page under a sticky
+toolbar instead of scrolling in a box of its own.
+
+**Still open from the audit:** no error reporting beyond the alerts above (a
+service such as Sentry needs an account and a DSN); the edge functions' own
+entry files are covered by the auth guard and type checks but not by handler
+tests; the Capacitor 8 upgrade is blocked by Node 20; and a PDF orphaned by an
+offline delete is not yet swept.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:

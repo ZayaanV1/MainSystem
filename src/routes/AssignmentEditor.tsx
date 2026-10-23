@@ -252,12 +252,16 @@ export function AssignmentEditor({
             onClick={() => setDueOpen(!dueOpen)}
           >
             Due
-            <span className="cell-v" data-tone={fields.due_day ? undefined : 'low'} aria-live="polite">
-              {fields.due_day
-                ? `${formatDay(fields.due_day)}${fields.due_time ? ` · ${timeLabel(fields.due_time)}` : ''}`
-                : 'No date'}
+            {/* The date never breaks across lines; the urgency label drops
+                below it before the date is made to wrap. */}
+            <span className="cell-v flex-wrap justify-end" data-tone={fields.due_day ? undefined : 'low'} aria-live="polite">
+              <span className="whitespace-nowrap">
+                {fields.due_day
+                  ? `${formatDay(fields.due_day)}${fields.due_time ? ` · ${timeLabel(fields.due_time)}` : ''}`
+                  : 'No date'}
+              </span>
               {fields.due_day && (
-                <span className="font-semibold" style={{ color: `var(${urgency.colourVar})` }}>
+                <span className="font-semibold whitespace-nowrap" style={{ color: `var(${urgency.colourVar})` }}>
                   {urgency.label}
                 </span>
               )}

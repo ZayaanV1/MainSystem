@@ -12,6 +12,7 @@
  */
 
 import type { OutboundMessage, SendResult } from '../types.ts';
+import { TELEGRAM_MAX_CHARS, clampText } from '../fit.ts';
 
 export interface TelegramConfig {
   chat_id: string;
@@ -47,7 +48,12 @@ export async function sendTelegram(
   // titles, and a digest that fails to send because a course name contains an
   // underscore is a worse outcome than unstyled text. Bare URLs are still
   // auto-linked, so the deep link works without markup.
-  const text = [msg.title, '', msg.body, msg.deepLink ? `\n${msg.deepLink}` : '']
+  //
+  // Held under Telegram's 4,096-character limit whatever the caller sent. The
+  // digest is already sized (digest.ts); this is the net under it, because a
+  // message over the limit is not shortened by Telegram, it is refused.
+  const room = TELEGRAM_MAX_CHARS - msg.title.length - (msg.deepLink?.length ?? 0) - 8;
+  const text = [msg.title, '', clampText(msg.body, Math.max(200, room), 'chars'), msg.deepLink ? `\n${msg.deepLink}` : '']
     .join('\n')
     .trim();
 

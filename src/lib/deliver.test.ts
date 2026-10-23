@@ -464,3 +464,82 @@ describe('misconfiguration is reported, not crashed on', () => {
     expect(db.tables.notification_channels[0].failed_at).toBeNull();
   });
 });
+
+/* --------------------------------------------- oversized messages (21 Oct) */
+
+describe('a message too long for the channel is cut to fit, not refused', () => {
+  const huge: OutboundMessage = {
+    title: 'Wed, Oct 21',
+    // 120 lines of ~60 characters: over 4,096 whichever way it is counted.
+    body: Array.from({ length: 120 }, (_, i) => `- Assignment number ${i + 1}, due some day this month`).join('\n'),
+    deepLink: 'https://planner.example/',
+  };
+
+  /** Records the size of what each channel is actually handed. */
+  function captureSizes() {
+    const sizes: { url: string; bytes: number; text?: string }[] = [];
+    vi.stubGlobal('fetch', (input: string | URL, init?: RequestInit) => {
+      const body = init?.body;
+      const bytes = typeof body === 'string' ? new TextEncoder().encode(body).length : (body as Uint8Array).byteLength;
+      sizes.push({ url: String(input), bytes, text: typeof body === 'string' ? (JSON.parse(body) as { text?: string }).text : undefined });
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+    return sizes;
+  }
+
+  it('Telegram gets under its 4,096-character limit and is told what was left out', async () => {
+    const db = makeDb({
+      notification_channels: [{ id: 'c', user_id: 'u1', kind: 'telegram', config: { chat_id: '42' }, priority: 10, enabled: true, failed_at: null }],
+      delivery_log: [],
+    });
+    const sizes = captureSizes();
+
+    const out = await deliver(deps(db), 'u1', 'digest', '2026-10-21', huge);
+
+    expect(out.delivered).toBe(true);
+    expect(sizes[0].text!.length).toBeLessThan(4096);
+    expect(sizes[0].text).toMatch(/and \d+ more in the app/);
+  });
+
+  it('Web Push gets an encrypted record under 4,096 bytes', async () => {
+    const db = makeDb({
+      notification_channels: [{ id: 'c', user_id: 'u1', kind: 'webpush', config: {}, priority: 10, enabled: true, failed_at: null }],
+      push_subscriptions: [{ ...(await makeDevice('https://web.push.apple.com/dev1')), user_id: 'u1' }],
+      delivery_log: [],
+    });
+    const sizes = captureSizes();
+
+    const out = await deliver(deps(db), 'u1', 'digest', '2026-10-21', huge);
+
+    expect(out.delivered).toBe(true);
+    expect(sizes[0].bytes).toBeLessThanOrEqual(4096);
+  });
+
+  it('Web Push prefers the compact form when the digest offers one', async () => {
+    const db = makeDb({
+      notification_channels: [{ id: 'c', user_id: 'u1', kind: 'webpush', config: {}, priority: 10, enabled: true, failed_at: null }],
+      push_subscriptions: [{ ...(await makeDevice('https://web.push.apple.com/dev1')), user_id: 'u1' }],
+      delivery_log: [],
+    });
+    const sizes = captureSizes();
+    const withShort: OutboundMessage = { ...huge, short: 'Overdue\n- Lab 3\n\nToday\n- Take medication' };
+
+    await deliver(deps(db), 'u1', 'digest', '2026-10-21', withShort);
+
+    // Far smaller than the clamped full body would have been.
+    expect(sizes[0].bytes).toBeLessThan(500);
+  });
+
+  it('tells the operator when a channel is switched off for good', async () => {
+    const db = makeDb({
+      notification_channels: [{ id: 'c', user_id: 'u1', kind: 'telegram', config: { chat_id: '42' }, priority: 10, enabled: true, failed_at: null }],
+      delivery_log: [],
+    });
+    stubFetch(() => ({ status: 403, body: JSON.stringify({ description: 'Forbidden: bot was blocked by the user' }) }));
+    const alerts: string[] = [];
+
+    await deliver({ ...deps(db), onAlert: (a) => void alerts.push(a.kind) }, 'u1', 'digest', '2026-10-21', MSG);
+
+    expect(alerts).toEqual(['channel-retired']);
+  });
+});

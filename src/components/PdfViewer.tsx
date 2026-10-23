@@ -44,14 +44,12 @@ function Page({
   doc,
   number,
   width,
-  scroller,
   ratio,
 }: {
   doc: PDFDocumentProxy;
   number: number;
   /** The CSS width of the page, already including zoom. */
   width: number;
-  scroller: React.RefObject<HTMLDivElement | null>;
   /** Height over width of the first page, used until this page's own is known. */
   ratio: number;
 }) {
@@ -63,13 +61,14 @@ function Page({
   useEffect(() => {
     const el = holder.current;
     if (!el || typeof IntersectionObserver === 'undefined') return;
+    // Against the viewport: the pages flow with the screen rather than scrolling
+    // inside a box of their own.
     const io = new IntersectionObserver(([entry]) => setNear(entry.isIntersecting), {
-      root: scroller.current,
       rootMargin: '900px 0px',
     });
     io.observe(el);
     return () => io.disconnect();
-  }, [scroller]);
+  }, []);
 
   useEffect(() => {
     const el = canvas.current;
@@ -128,6 +127,8 @@ export function PdfViewer({ bytes, filename }: { bytes: ArrayBuffer; filename: s
   const [current, setCurrent] = useState(1);
   const [say, setSay] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [finding, setFinding] = useState(false);
   const blob = useMemo(() => new Blob([bytes], { type: 'application/pdf' }), [bytes]);
 
   useEffect(() => {
@@ -180,15 +181,15 @@ export function PdfViewer({ bytes, filename }: { bytes: ArrayBuffer; filename: s
 
   const jump = useCallback((n: number) => {
     const target = scroller.current?.querySelector<HTMLElement>(`[data-page="${n}"]`);
-    if (!target || !scroller.current) return;
-    scroller.current.scrollTo({
-      top: target.offsetTop - scroller.current.offsetTop - 8,
+    if (!target) return;
+    target.scrollIntoView({
+      block: 'start',
       behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
     });
     setCurrent(n);
   }, []);
 
-  // Which page is at the top, as the reader scrolls.
+  // Which page is at the top, as the reader scrolls the screen.
   useEffect(() => {
     const el = scroller.current;
     if (!el || !doc) return;
@@ -196,18 +197,19 @@ export function PdfViewer({ bytes, filename }: { bytes: ArrayBuffer; filename: s
     const onScroll = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const top = el.scrollTop + el.clientHeight * 0.3;
+        // Just under the sticky toolbar.
+        const line = (barRef.current?.getBoundingClientRect().bottom ?? 0) + 24;
         let best = 1;
         for (const p of el.querySelectorAll<HTMLElement>('[data-page]')) {
-          if (p.offsetTop - el.offsetTop <= top) best = Number(p.dataset.page);
+          if (p.getBoundingClientRect().top <= line) best = Number(p.dataset.page);
           else break;
         }
         setCurrent(best);
       });
     };
-    el.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
-      el.removeEventListener('scroll', onScroll);
+      window.removeEventListener('scroll', onScroll);
       cancelAnimationFrame(frame);
     };
   }, [doc]);
@@ -259,22 +261,7 @@ export function PdfViewer({ bytes, filename }: { bytes: ArrayBuffer; filename: s
 
   return (
     <div className="pdf" aria-label={`PDF: ${filename}`}>
-      <div className="pdf-bar" role="toolbar" aria-label="PDF tools">
-        <form className="pdf-find" onSubmit={(e) => void search(e)} role="search">
-          <input
-            type="search"
-            className="pdf-input"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find in this PDF"
-            aria-label="Find in this PDF"
-            disabled={!doc}
-          />
-          <Button type="submit" size="sm" variant="quiet" disabled={!doc || searching || !query.trim()}>
-            {searching ? 'Looking' : 'Find'}
-          </Button>
-        </form>
-
+      <div className="pdf-bar" role="toolbar" aria-label="PDF tools" ref={barRef}>
         <div className="pdf-tools">
           <label className="pdf-page-jump">
             <span className="sr-only">Page</span>
@@ -308,21 +295,42 @@ export function PdfViewer({ bytes, filename }: { bytes: ArrayBuffer; filename: s
           </div>
 
           <div className="pdf-actions">
+            <Button size="sm" variant="quiet" aria-expanded={finding} disabled={!doc} onClick={() => setFinding((f) => !f)}>
+              Find
+            </Button>
             {canShareFiles() && (
-              <Button size="sm" variant="secondary" onClick={() => void shareFile(blob, filename).then((o) => announce(o, 'Shared.'))}>
+              <Button size="sm" variant="quiet" onClick={() => void shareFile(blob, filename).then((o) => announce(o, 'Shared.'))}>
                 Share
               </Button>
             )}
-            <Button size="sm" variant="secondary" onClick={() => announce(downloadFile(blob, filename), 'Saved to your downloads.')}>
+            <Button size="sm" variant="quiet" onClick={() => announce(downloadFile(blob, filename), 'Saved to your downloads.')}>
               Save
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => announce(printPdf(blob), 'Opening the print dialog.')}>
+            <Button size="sm" variant="quiet" onClick={() => announce(printPdf(blob), 'Opening the print dialog.')}>
               Print
             </Button>
           </div>
         </div>
 
-        {found && (
+        {finding && (
+          <form className="pdf-find" onSubmit={(e) => void search(e)} role="search">
+            <input
+              type="search"
+              className="pdf-input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Find in this PDF"
+              aria-label="Find in this PDF"
+              disabled={!doc}
+              autoFocus
+            />
+            <Button type="submit" size="sm" variant="secondary" disabled={!doc || searching || !query.trim()}>
+              {searching ? 'Looking' : 'Find'}
+            </Button>
+          </form>
+        )}
+
+        {found && finding && (
           <p className="pdf-found type-note text-text-mid" role="status">
             {found.pages.length === 0 ? (
               `Not found. Scanned pages can’t be searched.`
@@ -351,7 +359,7 @@ export function PdfViewer({ bytes, filename }: { bytes: ArrayBuffer; filename: s
         )}
       </div>
 
-      <div className="pdf-scroll" ref={scroller} tabIndex={0} aria-label="Pages">
+      <div className="pdf-scroll" ref={scroller} aria-label="Pages">
         {problem && (
           <p className="px-4 py-6 type-body text-text-mid" role="alert">
             {problem}
@@ -361,7 +369,7 @@ export function PdfViewer({ bytes, filename }: { bytes: ArrayBuffer; filename: s
         {doc &&
           width > 0 &&
           Array.from({ length: pages }, (_, i) => (
-            <Page key={i + 1} doc={doc} number={i + 1} width={width} scroller={scroller} ratio={ratio} />
+            <Page key={i + 1} doc={doc} number={i + 1} width={width} ratio={ratio} />
           ))}
       </div>
     </div>

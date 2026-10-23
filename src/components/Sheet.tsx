@@ -260,6 +260,10 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
     return () => {
       live = false;
     };
+    // Not `flightFrom` or `besidePage`: the exit reads them as they are at the
+    // moment of leaving, and re-running it when one changed would restart a
+    // closing animation that is already in flight.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, present, dock, presence]);
 
   if (!present) return null;

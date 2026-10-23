@@ -29,10 +29,13 @@ import {
 } from './time.ts';
 import { dueOn, refillStatus, type ChecklistItem } from './checklist.ts';
 import type { OutboundMessage } from './types.ts';
+import { FULL_DIGEST_MAX_CHARS, PUSH_MAX_BODY_BYTES, fitSections, type SectionKind } from './fit.ts';
 
 export interface DigestSection {
   heading: string;
   items: string[];
+  /** What the list is, so a long digest can shrink the least urgent first. */
+  kind?: SectionKind;
 }
 
 export interface DigestSettings {
@@ -114,6 +117,7 @@ export async function collectSections(
 
   if (overdue.length) {
     sections.push({
+      kind: 'overdue',
       heading: 'Overdue',
       items: overdue.map((a) => `${a.title} — ${relativeDay(a.due_at, localDay, tz)}`),
     });
@@ -121,6 +125,7 @@ export async function collectSections(
 
   if (upcoming.length) {
     sections.push({
+      kind: 'due',
       heading: `Due in the next ${settings.assignment_window_days} days`,
       items: upcoming.map((a) => `${a.title} — ${relativeDay(a.due_at, localDay, tz)}`),
     });
@@ -129,6 +134,7 @@ export async function collectSections(
   const upcomingEvents = (events.data ?? []) as { title: string; starts_at: string }[];
   if (upcomingEvents.length) {
     sections.push({
+      kind: 'events',
       heading: `Coming up in ${settings.event_window_days} days`,
       items: upcomingEvents.map((e) => `${e.title} — ${relativeDay(e.starts_at, localDay, tz)}`),
     });
@@ -143,6 +149,7 @@ export async function collectSections(
 
   if (outstanding.length) {
     sections.push({
+      kind: 'today',
       heading: 'Today',
       items: outstanding.map((i) => {
         const refill = refillStatus(i);
@@ -198,11 +205,15 @@ export function renderDigest(
     };
   }
 
-  const body = sections
-    .map((s) => [s.heading, ...s.items.map((i) => `- ${i}`)].join('\n'))
-    .join('\n\n');
+  // Held to a size every channel can carry, and a shorter form for the one
+  // that cannot (a push notification). Whatever is cut is counted in the text
+  // ("and 9 more"), so a long day never reads as a short one. See fit.ts.
+  const fit = (s: DigestSection) => ({ ...s, kind: s.kind ?? ('due' as SectionKind) });
+  const fitted = sections.map(fit);
+  const body = fitSections(fitted, FULL_DIGEST_MAX_CHARS, 'chars');
+  const short = fitSections(fitted, PUSH_MAX_BODY_BYTES, 'bytes');
 
-  return { title, body, deepLink: appUrl };
+  return { title, body, short: short === body ? undefined : short, deepLink: appUrl };
 }
 
 /** Convenience wrapper: gather, then render. */
