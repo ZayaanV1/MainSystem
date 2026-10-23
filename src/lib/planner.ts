@@ -1146,6 +1146,9 @@ export async function updateAssignment(id: string, fields: AssignmentFields): Pr
  * opening it.
  */
 export async function deleteAssignment(id: string): Promise<void> {
+  // Attached PDFs are objects, not rows: the cascade removes their entries but
+  // cannot reach the files. Best effort, and never in the way of the delete.
+  await import('./workFiles').then((m) => m.removeFilesFor(id)).catch(() => {});
   await enqueue('assignments', 'delete', {}, { id });
 }
 
@@ -1572,6 +1575,8 @@ export async function deleteAccount(): Promise<{ error: string | null }> {
   if (who.user) {
     const { removeAllPhotos } = await import('./boardPhotos');
     await removeAllPhotos(who.user.id);
+    const { removeAllWorkFiles } = await import('./workFiles');
+    await removeAllWorkFiles().catch(() => {});
   }
 
   const { error } = await supabase.rpc('delete_own_account');

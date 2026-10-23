@@ -4,6 +4,8 @@ import { PromptInput } from '../components/kit/PromptInput';
 import { ThinkingText } from '../components/kit/ThinkingText';
 import { EmptyState } from '../components/EmptyState';
 import { Chip } from '../components/Chip';
+import { Mentioned } from '../components/Mentioned';
+import type { Mention } from '../lib/mentions';
 import { useAuth } from '../lib/auth';
 import { askChat } from '../lib/assist';
 import { clearChat, loadChat, markActionTaken, saveMessage, type ChatMessage } from '../lib/chat';
@@ -32,8 +34,10 @@ const STARTERS = [
   'What did I leave without a date?',
 ];
 
-export function Chat({ courses, onBack, onChanged }: {
+export function Chat({ courses, mentions, onBack, onChanged }: {
   courses: Course[];
+  /** Work and events Abood's replies can name, linked where they appear. */
+  mentions: Mention[];
   onBack: () => void;
   onChanged: () => void;
 }) {
@@ -283,7 +287,7 @@ export function Chat({ courses, onBack, onChanged }: {
                 <p
                   className={`type-body whitespace-pre-wrap ${m.role === 'user' ? 'text-on-accent-2' : 'text-text-hi'}`}
                 >
-                  {part}
+                  {m.role === 'assistant' ? <Mentioned text={part} mentions={mentions} /> : part}
                 </p>
                 {m.via !== 'app' && m.role === 'user' && (
                   <span className="mt-1 block text-right type-caption text-on-accent-2 opacity-70">

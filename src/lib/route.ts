@@ -14,11 +14,12 @@ import type { DayKey } from './time';
  *   /month?day=2026-10-07  Month, open on a day
  *   /settings/abood        a Settings page
  *   /plan/<course id>      a course's page
+ *   /work/<id>             a piece of work's page: details, brief and guide
  *   ?work=<id>             a piece of work open in the editor, on any screen
  *   ?inbox=<id>            a captured thought open to sort, on any screen
  */
 
-export type Screen = 'today' | 'week' | 'month' | 'plan' | 'ask' | 'search' | 'settings';
+export type Screen = 'today' | 'week' | 'month' | 'plan' | 'ask' | 'search' | 'settings' | 'work';
 
 export interface Route {
   screen: Screen;
@@ -28,11 +29,13 @@ export interface Route {
   page?: string;
   /** A course's page, under Courses. */
   course?: string;
+  /** The piece of work whose page this is, on the work screen. */
+  item?: string;
   /** Something open over the screen. */
   open?: { kind: 'work' | 'inbox'; id: string };
 }
 
-const SCREENS: Screen[] = ['today', 'week', 'month', 'plan', 'ask', 'search', 'settings'];
+const SCREENS: Screen[] = ['today', 'week', 'month', 'plan', 'ask', 'search', 'settings', 'work'];
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ID = /^[0-9a-f-]{8,64}$/i;
 const PAGE = /^[a-z-]{2,24}$/;
@@ -41,7 +44,9 @@ const PAGE = /^[a-z-]{2,24}$/;
 export function parseRoute(pathname: string, search: string): Route {
   const parts = pathname.split('/').filter(Boolean);
   const first = parts[0] as Screen | undefined;
-  const screen: Screen = first && SCREENS.includes(first) ? first : 'today';
+  let screen: Screen = first && SCREENS.includes(first) ? first : 'today';
+  // A work page without a valid id is no page: a bad link opens Today.
+  if (screen === 'work' && !(parts[1] && ID.test(parts[1]))) screen = 'today';
   const q = new URLSearchParams(search);
   const route: Route = { screen };
 
@@ -49,6 +54,7 @@ export function parseRoute(pathname: string, search: string): Route {
   if (screen === 'month' && day && DAY.test(day)) route.day = day as DayKey;
   if (screen === 'settings' && parts[1] && PAGE.test(parts[1])) route.page = parts[1];
   if (screen === 'plan' && parts[1] && ID.test(parts[1])) route.course = parts[1];
+  if (screen === 'work') route.item = parts[1];
 
   const work = q.get('work');
   const inbox = q.get('inbox');
@@ -62,6 +68,7 @@ export function formatRoute(route: Route): string {
   let path = route.screen === 'today' ? '/' : `/${route.screen}`;
   if (route.screen === 'settings' && route.page) path += `/${route.page}`;
   if (route.screen === 'plan' && route.course) path += `/${route.course}`;
+  if (route.screen === 'work' && route.item) path += `/${route.item}`;
   const q = new URLSearchParams();
   if (route.screen === 'month' && route.day) q.set('day', route.day);
   if (route.open) q.set(route.open.kind, route.open.id);

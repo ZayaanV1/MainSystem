@@ -1,0 +1,264 @@
+/* ---------------------------------------------------------------------------
+   A piece of work's page, and the PDF viewer inside it.
+
+   Its own sheet, loaded with the page that uses it, in the same `components`
+   layer as material.css so a utility on the same element wins. Colours are
+   tokens only. The one place a system colour keyword appears is the print
+   rule, which has to be dark on light whatever theme the screen is in.
+   ------------------------------------------------------------------------ */
+
+@layer components {
+  .work-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .work-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.25rem 1rem;
+  }
+
+  .work-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.75rem 1rem;
+    margin: 0;
+  }
+
+  .work-facts dt {
+    margin-bottom: 0.125rem;
+  }
+
+  .work-facts dd {
+    margin: 0;
+    color: var(--text-hi);
+    overflow-wrap: anywhere;
+  }
+
+  .work-link {
+    color: var(--accent-2-lit);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .work-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .work-steps li {
+    display: flex;
+    gap: 0.625rem;
+    align-items: baseline;
+    color: var(--text-hi);
+  }
+
+  .work-steps li[data-done] {
+    color: var(--text-low);
+    text-decoration: line-through;
+  }
+
+  /* The files of one piece of work, as a row of chips that wraps. */
+  .work-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  /* A mention inside a sentence: a link that reads as part of it. */
+  .mention {
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--accent-2-mid);
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 0.09em;
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+
+  .mention:hover,
+  .mention:focus-visible {
+    text-decoration-color: currentColor;
+  }
+
+  /* ---------------------------------------------------------------- PDF */
+  .pdf {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--r-card);
+    overflow: hidden;
+    background: var(--ink-800);
+    box-shadow: inset 0 0 0 1px var(--glass-edge);
+  }
+
+  .pdf-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--glass-edge);
+  }
+
+  .pdf-find {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .pdf-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pdf-page-jump,
+  .pdf-zoom,
+  .pdf-actions {
+    display: flex;
+    gap: 0.375rem;
+    align-items: center;
+  }
+
+  .pdf-input {
+    flex: 1;
+    min-width: 0;
+    min-height: calc(var(--tap) - 8px);
+    padding: 0 0.75rem;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: var(--ink-700);
+    color: var(--text-hi);
+    font: inherit;
+    outline: none;
+    box-shadow: inset 0 0 0 1px var(--glass-edge);
+  }
+
+  .pdf-input:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+  }
+
+  .pdf-number {
+    flex: none;
+    width: 4rem;
+    text-align: center;
+  }
+
+  .pdf-found {
+    margin: 0;
+  }
+
+  .pdf-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-2-lit);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .pdf-scroll {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    height: min(78svh, 60rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: var(--ink-900);
+  }
+
+  .pdf-scroll:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+
+  /* The sheet of paper keeps its own white; the canvas is the page. */
+  .pdf-page {
+    flex: none;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    background: var(--ink-700);
+    box-shadow: var(--shadow-md);
+  }
+
+  .pdf-page canvas {
+    display: block;
+  }
+
+  /* ----------------------------------------------------------- the guide */
+  .guide {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .guide h3,
+  .guide h4,
+  .guide p,
+  .guide ul {
+    margin: 0;
+  }
+
+  .guide ul {
+    list-style: disc;
+    padding-left: 1.125rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    color: var(--text-hi);
+  }
+
+  .guide-part {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--glass-edge);
+  }
+
+  .guide-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* Printing the guide alone: everything else on the page is hidden, and the
+   guide is set dark on light whatever theme the screen was in. */
+@media print {
+  body[data-print='guide'] * {
+    visibility: hidden;
+  }
+
+  body[data-print='guide'] .guide-print,
+  body[data-print='guide'] .guide-print * {
+    visibility: visible;
+    color: CanvasText !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+
+  body[data-print='guide'] .guide-print {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+
+  body[data-print='guide'] .guide-print .no-print {
+    display: none !important;
+  }
+}

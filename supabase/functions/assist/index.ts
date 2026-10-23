@@ -17,6 +17,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { geminiProvider } from '../_shared/llm/gemini.ts';
 import { BREAKDOWN_INSTRUCTION, BREAKDOWN_SCHEMA, validateBreakdown } from '../_shared/breakdown.ts';
+import { GUIDE_INSTRUCTION, GUIDE_SCHEMA, validateGuide } from '../_shared/guide.ts';
 import { SYLLABUS_INSTRUCTION, SYLLABUS_SCHEMA, validateSyllabus } from '../_shared/syllabus.ts';
 import { askAbood, learn } from '../_shared/abood.ts';
 import {
@@ -263,6 +264,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     termTo?: string;
     message?: string;
     timezone?: string;
+    fileId?: string;
   };
   try {
     body = await req.json();
@@ -443,6 +445,84 @@ Deno.serve(async (req: Request): Promise<Response> => {
         ok: false,
         failure: 'malformed',
         reason: 'No deliverables were found in that. Check it is the right file, or add them by hand.',
+        detail: validated.warnings.join(' '),
+      });
+    }
+
+    return json({ ok: true, provider: result.provider, ...validated });
+  }
+
+  /* ---------------------------------------------------------------- guide */
+  if (body.task === 'guide') {
+    const userId = userData.user.id;
+    const fileId = (body.fileId ?? '').trim();
+    if (!/^[0-9a-f-]{36}$/i.test(fileId)) return json({ error: 'no file named' }, 400);
+
+    // The row is read as the service role but scoped to the caller, so a file
+    // id belonging to someone else finds nothing rather than a stranger's PDF.
+    const { data: file } = await admin
+      .from('assignment_files')
+      .select('id, path, size_bytes, assignment_id')
+      .eq('id', fileId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!file) return json({ ok: false, reason: 'That file is no longer there.' }, 404);
+    if ((file.size_bytes as number) > MAX_PDF_BYTES) {
+      return json({ ok: false, reason: 'That file is too large to read. Try a smaller one.' }, 413);
+    }
+
+    const { data: work } = await admin
+      .from('assignments')
+      .select('title, notes, courses(name, code)')
+      .eq('id', file.assignment_id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const denied = await overBudget(admin, userId, 'guide', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    if (denied) return json(denied);
+
+    const blob = await admin.storage.from('work-files').download(file.path as string);
+    if (blob.error || !blob.data) {
+      return json({ ok: false, reason: 'Could not open that file. Try again in a moment.' }, 502);
+    }
+    const bytes = new Uint8Array(await blob.data.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+
+    // deno-lint-ignore no-explicit-any
+    const course = (work as any)?.courses as { name?: string; code?: string } | null;
+    const context = [
+      `Assignment: ${work?.title ?? 'Untitled'}`,
+      course?.code || course?.name ? `Course: ${course.code ?? course.name}` : '',
+      work?.notes ? `The student's own notes: ${String(work.notes).slice(0, 800)}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const result = await provider.complete<unknown>({
+      instruction: GUIDE_INSTRUCTION,
+      input: context,
+      images: [{ data: btoa(binary), mimeType: 'application/pdf' }],
+      schema: GUIDE_SCHEMA as unknown as Record<string, unknown>,
+      temperature: 0.3,
+      timeoutMs: 110_000,
+    });
+
+    if (!result.ok) return fail(result.failure, result.message);
+
+    // Counted only after the model was actually reached.
+    await recordUse(admin, userId, 'guide', localDayKey(new Date(), accountTz), Boolean(ownKey));
+
+    const validated = validateGuide(result.value);
+    if (validated.guide.parts.length === 0 && validated.guide.requirements.length === 0) {
+      return json({
+        ok: false,
+        failure: 'malformed',
+        reason: validated.guide.overview
+          ? validated.guide.overview
+          : 'No assignment could be read from that file. Check it is the brief, or write the plan by hand.',
         detail: validated.warnings.join(' '),
       });
     }

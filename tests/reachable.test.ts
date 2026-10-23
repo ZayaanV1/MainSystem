@@ -192,6 +192,7 @@ describe('every primitive is on the specimen page', () => {
     SwipeRow: 'rendered by every AssignmentRow on the page',
     SheetPresence: 'wraps the specimen sheet',
     StatusVeil: 'drawn by AppShell behind the status bar on every screen',
+    PdfViewer: 'needs a stored PDF to show; opened from a work page',
   };
 
   const specimen = readFileSync('src/routes/Specimen.tsx', 'utf8');

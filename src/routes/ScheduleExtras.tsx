@@ -1,8 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '../components/Card';
 import { Pressable } from '../components/Pressable';
 import { SectionHead } from '../components/SectionHead';
 import { dailySummary } from '../lib/assist';
+import { Mentioned } from '../components/Mentioned';
+import { mentionsFrom } from '../lib/mentions';
 import { calibration, forecast, stuckTasks } from '../lib/intelligence';
 import { closeUp, measureBelow } from '../lib/motion';
 import { activeTimezone, type DayKey } from '../lib/time';
@@ -30,6 +32,7 @@ export function Briefing({ dep, today }: { dep: TodayData | null; today: DayKey 
    * late answer only replaces it if something changed.
    */
   const [text, setText] = useState(() => readBriefing(cacheKey));
+  const mentions = useMemo(() => mentionsFrom(dep?.assignments ?? [], dep?.events ?? []), [dep]);
   const [open, setOpen] = useState(false);
   const section = useRef<HTMLElement>(null);
   const shownAtOpen = useRef(Boolean(text));
@@ -129,7 +132,7 @@ export function Briefing({ dep, today }: { dep: TodayData | null; today: DayKey 
     <section ref={section} aria-label="Briefing">
       <div className="brief" data-open={open || undefined}>
         <p ref={textRef} className="brief-text">
-          {text}
+          <Mentioned text={text} mentions={mentions} />
         </p>
         {(clipped || open) && (
           <button

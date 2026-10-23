@@ -46,6 +46,7 @@ const Week = lazyRetry(() => import('./routes/Week'), (m) => m.Week);
 const Month = lazyRetry(() => import('./routes/Month'), (m) => m.Month);
 const Chat = lazyRetry(() => import('./routes/Chat'), (m) => m.Chat);
 const Search = lazyRetry(() => import('./routes/Search'), (m) => m.Search);
+const WorkPage = lazyRetry(() => import('./routes/WorkPage'), (m) => m.WorkPage);
 const AssignmentEditor = lazyRetry(() => import('./routes/AssignmentEditor'), (m) => m.AssignmentEditor);
 const Settings = lazyRetry(() => import('./routes/Settings'), (m) => m.Settings);
 const Specimen = lazyRetry(() => import('./routes/Specimen'), (m) => m.Specimen);
@@ -66,6 +67,7 @@ import { FocusResult } from './components/FocusResult';
  * it was. Hand-rolled; the mapping is one small file.
  */
 import { currentRoute, formatRoute, type Route, type Screen } from './lib/route';
+import { GOTO_EVENT, mentionsFrom } from './lib/mentions';
 import { adoptPreferences, moduleOn, usePreferences } from './lib/preferences';
 import { EmptyState } from './components/EmptyState';
 import { applyBadge, badgeCount } from './lib/badge';
@@ -128,6 +130,10 @@ function changeScreen(
 function Shell() {
   const { session, loading, recovering } = useAuth();
   const [screen, setScreen] = useState<Screen>(() => currentRoute().screen);
+  /** The piece of work whose page is open, when the screen is 'work'. */
+  const [workId, setWorkId] = useState<string | null>(() => currentRoute().item ?? null);
+  /** The screen a work page was opened from, so Back returns to it. */
+  const cameFrom = useRef<Screen | null>(null);
 
   /**
    * Screen changes run inside a view transition, travelling in the direction
@@ -143,7 +149,11 @@ function Shell() {
       // Within the same screen (Courses to a course's page, Settings to one
       // of its pages): a new address, announced the way Back announces one,
       // so the screen's own page handling moves.
-      if (next === screen && (extra.course || extra.page)) {
+      if (next === 'work') {
+        cameFrom.current = screen === 'work' ? cameFrom.current : screen;
+        setWorkId(extra.item ?? null);
+      }
+      if (next === screen && (extra.course || extra.page || extra.item)) {
         window.history.pushState(null, '', formatRoute({ screen: next, ...extra }));
         window.dispatchEvent(new PopStateEvent('popstate'));
         return;
@@ -198,6 +208,7 @@ function Shell() {
     const onPop = () => {
       const r = currentRoute();
       setMonthDay(r.day ?? null);
+      setWorkId(r.item ?? null);
       if (r.screen === screenRef.current) return;
       const order = NAV.map((item) => item.id);
       changeScreen(setScreen, r.screen, directionBetween(order, screenRef.current, r.screen));
@@ -219,9 +230,23 @@ function Shell() {
     window.history.pushState(null, '', u.pathname + u.search);
     const r = currentRoute();
     setMonthDay(r.day ?? null);
+    if (r.screen === 'work') {
+      cameFrom.current = screenRef.current === 'work' ? cameFrom.current : screenRef.current;
+      setWorkId(r.item ?? null);
+    }
     setScreen(r.screen);
     setPendingOpen(r.open ?? null);
   }, []);
+
+  // A link inside a sentence (components/Mentioned.tsx) asks to go somewhere.
+  useEffect(() => {
+    const onGoto = (e: Event) => {
+      const to = (e as CustomEvent<unknown>).detail;
+      if (typeof to === 'string') routeTo(to);
+    };
+    window.addEventListener(GOTO_EVENT, onGoto);
+    return () => window.removeEventListener(GOTO_EVENT, onGoto);
+  }, [routeTo]);
   useEffect(() => {
     if (!pendingOpen || !data) return;
     setPendingOpen(null);
@@ -500,7 +525,27 @@ function Shell() {
               </EmptyState>
             </main>
           );
-        return <Chat courses={data?.courses ?? []} onBack={home} onChanged={bumped} />;
+        return <Chat courses={data?.courses ?? []} mentions={mentionsFrom(data?.assignments ?? [], data?.events ?? [])} onBack={home} onChanged={bumped} />;
+      case 'work':
+        if (!workId) return null;
+        return (
+          <WorkPage
+            id={workId}
+            courses={data?.courses ?? []}
+            subtasks={data?.subtasks ?? []}
+            userId={session!.user.id}
+            refresh={revision}
+            onBack={() => {
+              // Back to where it was opened from, by history so the browser's
+              // own Back agrees; straight to Schedule when opened from a link.
+              if (cameFrom.current) {
+                cameFrom.current = null;
+                window.history.back();
+              } else navigate('week');
+            }}
+            onEdit={setOpenAssignment}
+          />
+        );
       case 'plan':
         return <Plan courses={data?.courses ?? []} onBack={home} onChanged={bumped} onOpenWork={openWork} />;
       default:
@@ -509,7 +554,7 @@ function Shell() {
   }
 
   return (
-    <AppShell current={screen} items={nav} onNavigate={navigate}>
+    <AppShell current={screen === 'work' ? 'week' : screen} items={nav} onNavigate={navigate}>
       <SyncBanner />
 
       {palette && (

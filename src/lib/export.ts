@@ -38,6 +38,7 @@ export const EXPORTED: Record<string, string> = {
   course_pages: '*',
   assignments: '*',
   assignment_series: '*',
+  assignment_files: 'id,assignment_id,name,path,size_bytes,guide,guide_at,created_at',
   subtasks: '*',
   deferrals: '*',
   events: '*',

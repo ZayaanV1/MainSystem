@@ -28,6 +28,7 @@ import { Field } from '../components/Field';
 import { Sheet, SheetPresence } from '../components/Sheet';
 import { PromptInput } from '../components/kit/PromptInput';
 import { ThinkingText } from '../components/kit/ThinkingText';
+import { Mentioned } from '../components/Mentioned';
 import { ThemePicker } from '../components/ThemePicker';
 import { ArrangeToday } from '../components/ArrangeToday';
 import { Segmented } from '../components/Segmented';
@@ -377,6 +378,18 @@ export function Specimen() {
             label="Specimen composer, spent"
           />
         </div>
+      </Section>
+
+      <Section title="Mentioned — names inside a sentence">
+        <p className="type-body px-4 text-text-mid">
+          <Mentioned
+            text="Your Lab report 2 is due Thursday, and the Midterm is on Friday."
+            mentions={[
+              { title: 'Lab report 2', href: '/work/3f2a9c1e-7b44-4d2e-9a10-5c6d7e8f9a0b', kind: 'work' },
+              { title: 'Midterm', href: '/month?day=2026-10-30', kind: 'event' },
+            ]}
+          />
+        </p>
       </Section>
 
       <Section title="ThinkingText — waiting on a model">

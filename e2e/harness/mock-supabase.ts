@@ -107,6 +107,7 @@ const db: Record<string, any[]> = {
   ],
   deferrals: Array.from({ length: 7 }, (_, n) => ({ id: id('d', n + 1), user_id: USER, assignment_id: id('a', 8), created_at: at(-n - 1, 10) })),
   assignment_series: [],
+  assignment_files: [],
   class_series: [
     { id: id('s', 9), user_id: USER, course_id: C.coen231, title: 'COEN 231 Lecture', weekdays: [2, 4], start_time: '10:15', end_time: '11:30', location: 'H 937', first_day: localDay(-44), last_day: localDay(47), skip_days: [], created_at: at(-50, 9) },
   ],
@@ -333,13 +334,51 @@ export const supabase: any = {
 /* ------------------------------------------------- edge function stand-ins */
 
 const realFetch = window.fetch.bind(window);
+/** Storage objects by path, as the work-files bucket would hold them. */
+const objects = new Map<string, ArrayBuffer>();
 window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(typeof input === 'string' || input instanceof URL ? input : input.url);
+  if (url.includes('/storage/v1/object/')) {
+    const method = (init?.method ?? 'GET').toUpperCase();
+    const bucket = /\/storage\/v1\/object\/(?:sign\/)?(work-files|board-photos)\//.exec(url);
+    if (bucket) {
+      const path = decodeURIComponent(url.split(`${bucket[1]}/`)[1].split('?')[0]);
+      if (url.includes('/object/sign/') && method === 'POST') {
+        return new Response(JSON.stringify({ signedURL: `/object/sign/${bucket[1]}/${path}?token=sample` }), { status: 200 });
+      }
+      if (url.includes('/object/sign/') && method === 'GET') {
+        const bytes = objects.get(path);
+        return bytes ? new Response(bytes, { status: 200, headers: { 'Content-Type': 'application/pdf' } }) : new Response('', { status: 404 });
+      }
+      if (method === 'POST') {
+        objects.set(path, await new Response(init?.body as BodyInit).arrayBuffer());
+        return new Response(JSON.stringify({ Key: path }), { status: 200 });
+      }
+    }
+    if (method === 'DELETE') {
+      for (const p of JSON.parse(String(init?.body ?? '{}')).prefixes ?? []) objects.delete(p);
+      return new Response('[]', { status: 200 });
+    }
+  }
   if (url.includes('/functions/v1/')) {
     const body = init?.body ? JSON.parse(String(init.body)) : {};
     const json = (o: unknown) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
     if (url.includes('/assist') && body.task === 'summary') {
       return json({ ok: true, summary: 'WeBWorK set 5 is due at 3 p.m. and the PHYS problem set tonight, with the midterm on Wednesday. Worth finishing WeBWorK first while the lab report from yesterday waits for the evening.' });
+    }
+    if (url.includes('/assist') && body.task === 'guide') {
+      await new Promise((r) => setTimeout(r, 300));
+      return json({
+        ok: true,
+        warnings: [],
+        guide: {
+          overview: 'A short problem set on limits. Submit one PDF with your working shown.',
+          requirements: ['One PDF', 'Show all working'],
+          parts: [{ label: 'Question 1', approach: 'Factor the numerator and cancel the common term before substituting.', concepts: ['Limits', 'Factoring'] }],
+          pitfalls: ['Substituting before simplifying'],
+          ask: ['Is a scan of handwriting accepted?'],
+        },
+      });
     }
     if (url.includes('/assist') && body.task === 'syllabus') {
       // What the reader returns for a typical evaluation section, dated

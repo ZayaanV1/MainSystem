@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { BreakdownStep } from '../../supabase/functions/_shared/breakdown';
 import type { SyllabusItem } from '../../supabase/functions/_shared/syllabus';
+import type { Guide } from '../../supabase/functions/_shared/guide';
 
 /**
  * Client for the assist edge function.
@@ -121,6 +122,19 @@ export async function readSyllabus(input: {
     items: (body.items ?? []) as SyllabusItem[],
     warnings: (body.warnings ?? []) as string[],
   };
+}
+
+export interface GuideResponse {
+  ok: true;
+  guide: Guide;
+  warnings: string[];
+}
+
+/** A guide to an attached brief. A proposal: nothing is saved until the person accepts it. */
+export async function generateGuide(fileId: string): Promise<GuideResponse | AssistFailure> {
+  const body = await call({ task: 'guide', fileId });
+  if (body.ok !== true) return failureOf(body);
+  return { ok: true, guide: body.guide as Guide, warnings: (body.warnings ?? []) as string[] };
 }
 
 export interface ChatResponse {

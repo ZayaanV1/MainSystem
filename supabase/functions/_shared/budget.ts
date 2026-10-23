@@ -27,7 +27,7 @@
  * pool, so no cap applies to it. That is the whole point of the setting.
  */
 
-export type AiKind = 'chat' | 'summary' | 'breakdown' | 'syllabus';
+export type AiKind = 'chat' | 'summary' | 'breakdown' | 'syllabus' | 'guide';
 
 const envNumber = (name: string, fallback: number): number => {
   const raw = Deno.env.get(name);
@@ -52,6 +52,8 @@ export function caps(): Record<AiKind, number> {
     breakdown: envNumber('BREAKDOWN_CALLS_PER_DAY', 20),
     // Large input, expensive, and needed a few times a term at most.
     syllabus: envNumber('SYLLABUS_CALLS_PER_DAY', 10),
+    // Also reads a whole PDF, but of one assignment and only on request.
+    guide: envNumber('GUIDE_CALLS_PER_DAY', 8),
   };
 }
 

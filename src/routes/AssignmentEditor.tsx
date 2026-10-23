@@ -1,5 +1,7 @@
 import { useEffect, useId, useState, type CSSProperties, type FormEvent } from 'react';
 import { rememberOpened } from '../lib/recent';
+import { afterSettled } from '../lib/history';
+import { goTo, workHref } from '../lib/mentions';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Sheet } from '../components/Sheet';
@@ -450,6 +452,26 @@ export function AssignmentEditor({
               </a>
             )}
           </div>
+
+          {/* The page for this work: its details, the brief as a PDF and a
+              guide to it. Closing this sheet and opening that page is one
+              move, so the sheet's history entry is let go of first. */}
+          <a
+            className="cell"
+            href={workHref(assignment.id)}
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+              e.preventDefault();
+              onClose();
+              window.setTimeout(() => afterSettled(() => goTo(workHref(assignment.id))), 60);
+            }}
+          >
+            Brief and guide
+            <span className="cell-v" data-tone="low">
+              PDF, AI guide
+            </span>
+            {chevron}
+          </a>
         </div>
 
         <div className="flex flex-col">
