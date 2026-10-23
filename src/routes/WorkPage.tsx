@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '../components/Button';
 import { PdfViewer } from '../components/PdfViewer';
 import { SectionHead } from '../components/SectionHead';
@@ -59,6 +59,12 @@ export function WorkPage({
 }) {
   const [loaded, setLoaded] = useState<Loaded>({ state: 'loading' });
   const [attempt, setAttempt] = useState(0);
+
+  // A page opened from a link starts at its top, not wherever the screen it
+  // was opened from had been scrolled to.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   useEffect(() => {
     let live = true;
@@ -130,7 +136,8 @@ function Ready({
 }) {
   const due = work.due_at ? new Date(work.due_at) : null;
   const urgency = urgencyFor(due, { done: work.status === 'done' });
-  const when = rowWhen(urgency, due, work.due_has_time, new Date());
+  // The urgency label already says the day; this adds the time, or how late.
+  const when = rowWhen(urgency, due, work.due_has_time, new Date(), { dayShown: true });
   const cv = courseVar(course?.colour_index);
 
   return (
