@@ -28,7 +28,24 @@ declare const self: ServiceWorkerGlobalScope & {
 };
 
 const MANIFEST = self.__WB_MANIFEST;
-const CACHE = `app-shell-${MANIFEST.map((e) => e.revision ?? e.url).join('|').length}`;
+/*
+ * Named by what is in the build, not by how long the file list is. It used to
+ * be the list's length, which a redeploy leaves unchanged when every hashed
+ * filename keeps its eight characters, so the name never changed, activate
+ * never found an old cache to delete, and each deploy added another 1.6 MB of
+ * stale bundles. A 32-bit FNV-1a hash of the revisions and URLs changes with
+ * any file.
+ */
+function fingerprint(parts: string[]): string {
+  let h = 0x811c9dc5;
+  for (const ch of parts.join('|')) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+const CACHE = `app-shell-${fingerprint(MANIFEST.map((e) => e.revision ?? e.url))}`;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

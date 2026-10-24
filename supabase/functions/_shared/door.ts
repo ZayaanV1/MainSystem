@@ -2,7 +2,7 @@ import { askAbood, learn } from './abood.ts';
 import { geminiProvider } from './llm/gemini.ts';
 import { groqProvider } from './llm/groq.ts';
 import { withFallback } from './llm/chain.ts';
-import { checkBudget, recordUse } from './budget.ts';
+import { meterFor, release, reserve, standDownMessage } from './budget.ts';
 import { localDayKey } from './time.ts';
 
 /**
@@ -126,12 +126,17 @@ export async function converse(opts: {
 
   // The same daily budget as the app's chat, so a second door is not a way
   // round it.
-  const budget = await checkBudget(admin, userId, 'chat', today, onOwnKey);
+  // A slot is taken in one step before the model is called, so messages sent
+  // together cannot all be handed the last one.
+  const slot = await reserve(admin, userId, 'chat', today, onOwnKey);
 
   await admin.from('chat_messages').insert({ user_id: userId, role: 'user', content: message, via });
 
-  if (!budget.allowed) {
-    const reason = 'That is enough questions for today. It resets tomorrow, and everything else works as usual.';
+  if (!slot.allowed) {
+    const reason =
+      slot.denied === 'shared'
+        ? standDownMessage('chat', 'shared')
+        : 'That is enough questions for today. It resets tomorrow, and everything else works as usual.';
     await admin
       .from('chat_messages')
       .insert({ user_id: userId, role: 'assistant', content: reason, failed: true, via });
@@ -141,10 +146,20 @@ export async function converse(opts: {
 
   await typing?.();
 
-  const result = await askAbood({ admin, userId, message, today, tz, provider, geminiKey });
-  await recordUse(admin, userId, 'chat', today, onOwnKey);
+  // Looking a memory up and filing a new one each cost an embedding call on
+  // the same key, so they are counted too.
+  const embedMeter = meterFor(admin, userId, 'embed', today, Boolean(ownGemini));
+  let result: Awaited<ReturnType<typeof askAbood>>;
+  try {
+    result = await askAbood({ admin, userId, message, today, tz, provider, geminiKey, embedMeter });
+  } catch (e) {
+    await release(admin, userId, 'chat', today, slot);
+    throw e;
+  }
 
   if (!result.ok) {
+    // Nothing came back, so the slot goes back with it.
+    await release(admin, userId, 'chat', today, slot);
     const reason =
       result.failure === 'quota'
         ? 'Out of model requests for now. Try again later.'
@@ -173,7 +188,7 @@ export async function converse(opts: {
 
   // Learned after answering, and said out loud: memory that grows in secret
   // is memory nobody can correct.
-  const learned = await learn(admin, userId, result.remember, geminiKey, via).catch(() => []);
+  const learned = await learn(admin, userId, result.remember, geminiKey, via, embedMeter).catch(() => []);
   if (learned.length) {
     await send(`Noted: ${learned.join(' ')}`);
   }

@@ -200,7 +200,10 @@ export async function gatherContext(admin: any, userId: string, today: string, t
  * because Google retires them on its own schedule, which this project has
  * already been bitten by twice.
  */
-export async function embed(text: string, apiKey: string): Promise<number[] | null> {
+export async function embed(text: string, apiKey: string, allow?: () => Promise<boolean>): Promise<number[] | null> {
+  // Counted against the daily embedding budget when one is given; over it, no
+  // vector, which recall and learn already handle (they fall back to recency).
+  if (allow && !(await allow())) return null;
   if (!apiKey) return null;
   for (const model of ['gemini-embedding-001', 'text-embedding-004']) {
     try {
@@ -229,8 +232,14 @@ export async function embed(text: string, apiKey: string): Promise<number[] | nu
 const vectorLiteral = (v: number[]) => `[${v.join(',')}]`;
 
 /** The facts most relevant to a message, or the most recent when that fails. */
-export async function recall(admin: Admin, userId: string, message: string, geminiKey: string): Promise<string[]> {
-  const v = await embed(message, geminiKey);
+export async function recall(
+  admin: Admin,
+  userId: string,
+  message: string,
+  geminiKey: string,
+  allow?: () => Promise<boolean>,
+): Promise<string[]> {
+  const v = await embed(message, geminiKey, allow);
   if (v) {
     const { data, error } = await admin.rpc('match_memory_facts', {
       p_user_id: userId,
@@ -286,6 +295,7 @@ export async function learn(
   offered: string[],
   geminiKey: string,
   source: 'app' | 'telegram' | 'imessage',
+  allow?: () => Promise<boolean>,
 ): Promise<string[]> {
   if (offered.length === 0) return [];
   const { data: existing } = await admin
@@ -306,7 +316,7 @@ export async function learn(
 
   const saved: string[] = [];
   for (const fact of validateFacts({ facts: offered }, known)) {
-    const v = await embed(fact, geminiKey);
+    const v = await embed(fact, geminiKey, allow);
     const { data } = await admin.rpc('remember_fact', {
       p_user_id: userId,
       p_fact: fact,
@@ -444,8 +454,10 @@ export async function askAbood(opts: {
   tz: string;
   provider: LlmProvider;
   geminiKey: string;
+  /** Says whether one more embedding call is within today's budget. */
+  embedMeter?: () => Promise<boolean>;
 }): Promise<AskResult> {
-  const { admin, userId, message, today, tz, provider, geminiKey } = opts;
+  const { admin, userId, message, today, tz, provider, geminiKey, embedMeter } = opts;
 
   const [history, memory] = await Promise.all([
     admin
@@ -455,7 +467,7 @@ export async function askAbood(opts: {
       .eq('failed', false)
       .order('created_at', { ascending: false })
       .limit(HISTORY_TURNS + 1),
-    recall(admin, userId, message, geminiKey),
+    recall(admin, userId, message, geminiKey, embedMeter),
   ]);
 
   const turns = (((history as { data: unknown }).data ?? []) as { role: string; content: string }[]).reverse();

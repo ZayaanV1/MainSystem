@@ -27,7 +27,7 @@ import { textsOf } from '../_shared/door.ts';
 import { geminiProvider } from '../_shared/llm/gemini.ts';
 import { groqProvider } from '../_shared/llm/groq.ts';
 import { withFallback } from '../_shared/llm/chain.ts';
-import { checkBudget, recordUse } from '../_shared/budget.ts';
+import { meterFor, release, reserve } from '../_shared/budget.ts';
 import { localDayKey, localHourMinute } from '../_shared/time.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
@@ -151,12 +151,12 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
   const onOwnKey = Boolean(ownGroq || (!groqKey && ownGemini));
 
   const today = localDayKey(new Date(), tz);
-  const budget = await checkBudget(admin, userId, 'chat', today, onOwnKey);
-  if (!budget.allowed) return 'over budget';
+  const slot = await reserve(admin, userId, 'chat', today, onOwnKey);
+  if (!slot.allowed) return 'over budget';
 
   const [context, memory, { data: turns }] = await Promise.all([
     gatherContext(admin, userId, today, tz, { scopes: new Set(), shortIds: true }),
-    recall(admin, userId, last.content, geminiKey),
+    recall(admin, userId, last.content, geminiKey, meterFor(admin, userId, 'embed', today, Boolean(ownGemini))),
     admin
       .from('chat_messages')
       .select('role, content')
@@ -186,8 +186,10 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
     maxOutputTokens: 600,
     timeoutMs: 30_000,
   });
-  await recordUse(admin, userId, 'chat', today, onOwnKey);
-  if (!result.ok) return `model: ${result.failure}`;
+  if (!result.ok) {
+    await release(admin, userId, 'chat', today, slot);
+    return `model: ${result.failure}`;
+  }
 
   const titles = context.titles;
   const raw = (result.value as { texts?: unknown })?.texts;

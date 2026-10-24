@@ -147,6 +147,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
    * here, because only the Mac can send an iMessage. Delete-and-return, so a
    * text is handed to the bridge exactly once — and only this account's.
    */
+  /*
+   * The senders this account has linked. The bridge sends nothing from anyone
+   * else, so a friend's private message never leaves the Mac. See bridge.mjs.
+   */
+  if (body.kind === 'handles') {
+    const { data } = await admin.from('imessage_links').select('handle').eq('user_id', ownerId);
+    return new Response(
+      JSON.stringify({ handles: ((data ?? []) as { handle: string }[]).map((l) => l.handle) }),
+      { headers: { 'content-type': 'application/json' } },
+    );
+  }
+
   if (body.kind === 'outbox') {
     await heartbeat(admin, ownerId);
 

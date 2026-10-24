@@ -17,6 +17,7 @@
  * during a bad week takes the digest down exactly when it is most needed.
  */
 
+import { corsFor } from '../_shared/cors.ts';
 import { sameSecret } from '../_shared/secret.ts';
 import { alertOperator, type Alert } from '../_shared/alerts.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -50,8 +51,8 @@ const SUPABASE_URL = env('SUPABASE_URL');
 const SERVICE_ROLE_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
 const CRON_SECRET = env('CRON_SECRET');
 
-/** Failed rows in one local day (one per channel per tick) before a digest is given up on. */
-const GIVE_UP_AFTER_FAILURES = 6;
+/** Failed rows in one local day (one per channel per tick) before the operator is told. */
+const ALERT_AFTER_FAILURES = 6;
 const APP_URL = env('APP_URL');
 
 const VAPID: VapidKeys = {
@@ -73,39 +74,6 @@ const ESCALATION_HOUR = 20;
 
 /** Same catch-up tolerance as the digest, for the same reason. */
 const ESCALATION_WINDOW_MINUTES = 180;
-
-/**
- * CORS.
- *
- * This was previously pinned to APP_URL alone, which fails badly: deploy to a
- * new URL, or open a Vercel preview build, and every request dies with Safari's
- * opaque "Load failed" — no clue that the cause is a stale environment
- * variable. That is precisely the kind of silent, undiagnosable breakage this
- * project is supposed to avoid.
- *
- * CORS is not the security boundary here in any case. Every path is gated on
- * either a user JWT or the cron secret, and the browser sends a bearer token
- * rather than a cookie, so no request is authorised merely by its origin.
- */
-function corsFor(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') ?? '';
-
-  const allowed =
-    origin === APP_URL ||
-    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
-    /^http:\/\/localhost(:\d+)?$/i.test(origin) ||
-    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-    // The native iOS shell (Capacitor) loads the bundle from this scheme.
-    origin === 'capacitor://localhost';
-
-  return {
-    'Access-Control-Allow-Origin': allowed && origin ? origin : APP_URL || '*',
-    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-cron-secret',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    Vary: 'Origin',
-  };
-}
 
 interface SettingsRow extends DigestSettings {
   user_id: string;
@@ -186,7 +154,7 @@ async function gatherWeekly(admin: any, userId: string, today: string, tz: strin
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
-  const CORS = corsFor(req);
+  const CORS = corsFor(req, APP_URL, 'x-cron-secret');
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body, null, 2), {
@@ -264,11 +232,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       /*
-       * Retrying is for a blip, not for a message that will never be accepted.
-       * Each tick that fails writes a row per channel, so after a few rounds the
-       * day is given up on: said once in the log and to the operator, rather
-       * than the same refusal being repeated every fifteen minutes until
-       * midnight. A new day starts clean.
+       * Retrying keeps going until the catch-up window closes (three hours): a
+       * short outage at the digest time must not cost the day's digest. But a
+       * run of failures is worth hearing about while there is still time to
+       * act, so after a few rounds the operator is told, once. Each tick that
+       * fails writes a row per channel, so six rows is about three rounds.
        */
       const { count: failedToday } = await admin
         .from('delivery_log')
@@ -278,7 +246,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .eq('local_day', decision.localDay)
         .eq('status', 'failed');
 
-      if ((failedToday ?? 0) >= GIVE_UP_AFTER_FAILURES) {
+      if ((failedToday ?? 0) >= ALERT_AFTER_FAILURES) {
         const { count: noted } = await admin
           .from('delivery_log')
           .select('id', { count: 'exact', head: true })
@@ -286,7 +254,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           .eq('kind', 'digest')
           .eq('local_day', decision.localDay)
           .eq('status', 'skipped')
-          .like('error', 'gave up%');
+          .like('error', 'alerted%');
         if (!noted) {
           await admin.from('delivery_log').insert({
             user_id: settings.user_id,
@@ -294,17 +262,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
             channel: null,
             local_day: decision.localDay,
             status: 'skipped',
-            error: `gave up after ${failedToday} failed attempts`,
+            error: `alerted after ${failedToday} failed attempts`,
             payload: { title: '', body: '' },
           });
           await alertOperator(alertConfig, {
-            kind: 'digest-gave-up',
+            kind: 'digest-failing',
             userId: settings.user_id,
-            detail: `${failedToday} attempts failed on ${decision.localDay}. See delivery_log for the errors.`,
+            detail: `${failedToday} attempts failed on ${decision.localDay}; still retrying until the window closes. See delivery_log for the errors.`,
           });
         }
-        results.push({ user: settings.user_id, sent: false, reason: 'gave-up' });
-        continue;
       }
 
       const msg = await buildDigest(admin, settings.user_id, settings, decision.localDay, APP_URL);

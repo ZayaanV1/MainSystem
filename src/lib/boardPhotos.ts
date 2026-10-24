@@ -89,31 +89,50 @@ export async function photoUrl(path: string): Promise<string | null> {
 
 /** Remove photos by path. Quiet on failure: an orphaned photo is unreadable by anyone else. */
 export async function removePhotos(paths: string[]): Promise<void> {
-  if (!paths.length) return;
+  await removeKeys(paths);
+}
+
+/** Whether every path was removed. */
+async function removeKeys(paths: string[]): Promise<boolean> {
+  if (!paths.length) return true;
   const h = await headers({ 'Content-Type': 'application/json' });
-  if (!h) return;
+  if (!h) return false;
   paths.forEach((p) => signed.delete(p));
-  await fetch(`${base}/object/${BUCKET}`, { method: 'DELETE', headers: h, body: JSON.stringify({ prefixes: paths }) }).catch(() => {});
+  try {
+    const res = await fetch(`${base}/object/${BUCKET}`, { method: 'DELETE', headers: h, body: JSON.stringify({ prefixes: paths }) });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Every photo in the account's folder, removed. Called before the account
- * is deleted: storage objects are not rows with a foreign key to the
- * account, so the cascade that removes everything else cannot reach them.
+ * Every photo in the account's folder, removed, and whether that worked.
+ *
+ * Called before the account is deleted: storage objects are not rows with a
+ * foreign key to the account, so the cascade that removes everything else
+ * cannot reach them. The answer matters. Deleting the account after a failed
+ * removal would leave the photos in storage with nobody able to reach or
+ * remove them, so the caller stops instead.
  */
-export async function removeAllPhotos(userId: string): Promise<void> {
+export async function removeAllPhotos(userId: string): Promise<boolean> {
   const h = await headers({ 'Content-Type': 'application/json' });
-  if (!h) return;
+  if (!h) return false;
   try {
-    const res = await fetch(`${base}/object/list/${BUCKET}`, {
-      method: 'POST',
-      headers: h,
-      body: JSON.stringify({ prefix: userId, limit: 100 }),
-    });
-    if (!res.ok) return;
-    const items = (await res.json()) as { name: string }[];
-    await removePhotos(items.map((i) => `${userId}/${i.name}`));
+    // Pages of 100 until the folder is empty, so a full board is not left half there.
+    for (let page = 0; page < 20; page++) {
+      const res = await fetch(`${base}/object/list/${BUCKET}`, {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({ prefix: userId, limit: 100 }),
+      });
+      if (!res.ok) return false;
+      const items = (await res.json()) as { name: string }[];
+      if (items.length === 0) return true;
+      if (!(await removeKeys(items.map((i) => `${userId}/${i.name}`)))) return false;
+    }
+    return false;
   } catch {
-    // Unreachable storage does not stop someone leaving.
+    return false;
   }
 }

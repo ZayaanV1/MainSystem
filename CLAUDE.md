@@ -1738,10 +1738,13 @@ What changed, in `_shared/fit.ts` and its callers:
   push, cutting the lowest-priority lists first (events, then upcoming work,
   then overdue; today's checklist last) and saying what it cut: "and 9 more".
   A channel clamps again as a net, at a line break and never inside a character.
-- A day is given up on after six failed rows, once, rather than retried until
-  midnight. A new day starts clean.
-- **Alerts** (`_shared/alerts.ts`): a digest given up on, or a channel switched
-  off for good, is written to the function log as one structured line and, if
+- After six failed rows in a day (about three rounds) the operator is told once,
+  and delivery keeps being retried until the three-hour catch-up window closes.
+  (The first version gave up outright after six, which would have lost the
+  digest to any outage over about forty-five minutes. Found in the second audit
+  and changed the next day.)
+- **Alerts** (`_shared/alerts.ts`): a digest that keeps failing, or a channel
+  switched off for good, is written to the function log as one structured line and, if
   `ALERT_TELEGRAM_CHAT_ID` is set, sent to that chat. An alert names an account
   by a short id and never a title. It is optional; set it with
   `supabase secrets set ALERT_TELEGRAM_CHAT_ID=<chat id>`.
@@ -1761,28 +1764,60 @@ was left as a decision. The PDF reader now flows with the page under a sticky
 toolbar instead of scrolling in a box of its own.
 
 **Still open from the audit:** no error reporting beyond the alerts above (a
-service such as Sentry needs an account and a DSN); the edge functions' own
-entry files are covered by the auth guard and type checks but not by handler
-tests; a Capacitor 8 upgrade, deliberately deferred; and a PDF orphaned by an
-offline delete is not yet swept.
+service such as Sentry needs an account and a DSN), and old sessions have not
+been revoked (that would sign out every account).
 
-### The phone install, and Node 22 — 23 Oct 2026
+### The second audit, and what it fixed — 24 Oct 2026
 
-**The home-screen web app is the primary phone install; the native shell is
-optional.** The sideloaded Capacitor build expires every seven days on a free
-Apple ID and, because web push does not run in its web view, cannot deliver the
-morning digest. The home-screen app never expires, redeploys with every push to
-`main`, and is the one that gets notifications. `ios/` stays in the repo for a
-future App Store route, but nobody maintains it weekly.
+A line-by-line audit of the risky paths, run as a ranked list of seventeen
+findings, all acted on except two that were deliberately left. In order:
 
-`npm run ios:sync` failed under Ruby 4 with "Unicode Normalization not
-appropriate for ASCII-8BIT": a shell with no `LANG` makes CocoaPods read the
-project path as raw bytes. The script now sets `LANG` and `LC_ALL` itself, so it
-works from any terminal. Capacitor stays on 7; version 8 needs Node 22 and would
-mean re-testing the Xcode 27 workarounds for an app that cannot push.
+- **The Mac iMessage bridge uploaded every incoming direct message** and let the
+  server discard the ones from strangers, so a friend's text or a one-time code
+  had left the Mac by then. The bridge now asks the planner which senders are
+  linked (`kind: 'handles'`) and forwards only those, plus a link code, which is
+  how a sender becomes linked. If the planner cannot be reached the message
+  waits rather than being dropped or sent. **The bridge runs on the Mac, so the
+  fix takes effect when `bridge/imessage/install.sh` is run again.**
+- **Deleting an account could strand its files.** The removal of board photos and
+  attached PDFs ignored failure, then the account was deleted, leaving objects
+  nobody could reach or remove. It now fails closed: if the files cannot be
+  removed the account is kept and the person is told.
+- **The daily AI limits could be beaten by overlapping requests.** The count was
+  read, the model called, then the count raised, so fifty requests sent
+  together all read zero. A slot is now reserved in one SQL statement
+  (`reserve_ai_use`, migration 0045) and given back if the call produced
+  nothing. A shared ceiling across every account on the shared key sits beside
+  the per-account one (`AI_GLOBAL_ACCOUNT_BUDGET`, default 25 accounts' worth).
+  Embedding calls, which Abood's memory makes on the same key and which were
+  never counted, are metered (`EMBED_CALLS_PER_DAY`, default 150), and so are
+  calendar address lookups (`FEED_FETCHES_PER_DAY`, default 30), since those make
+  the platform fetch a public URL on someone's behalf.
+- **The service worker's cache name was the length of its file list**, which a
+  redeploy leaves unchanged when every hashed name keeps its eight characters,
+  so old bundles were never deleted (about 1.6 MB a deploy). It is now a hash of
+  the contents.
+- **An attached file's path was not checked**, so a row could name another
+  account's object for the guide function, which reads with the service role.
+  The path must now be the owner's own folder (migration 0046), and the file
+  limit is taken under a lock so two uploads at once cannot make four.
+- **The CORS rule was copied into three functions and had drifted.** It is one
+  module (`_shared/cors.ts`), with a test that no function defines its own.
+- **The edge functions' request handlers now have tests**
+  (`tests/assist-handler.test.ts`, `tests/dispatch-handler.test.ts`), run for
+  real by stubbing `Deno` and the Supabase client: login, the limits, the
+  alert-once rule, and the failure messages.
+- **pdf.js runs with `isEvalSupported: false`**, `design-canvas/` (six design
+  scratch pages, referenced only to be excluded from the CSS scan) is removed,
+  and the account and API-key code left `planner.ts` for `lib/account.ts`.
 
-The repo is on Node 22 (`.nvmrc`, `"engines": { "node": "22.x" }`), which CI
-already used. Node 20 reached end of life in April 2026.
+**Left deliberately:** the two things the audit marked as accepted. Resolving a
+calendar address's DNS and then fetching it resolves twice, which a hostile DNS
+server could exploit, but the platform has no internal network to reach and the
+address checks run on every hop. And `Settings.tsx` and `widgets.tsx` stay whole:
+they are large because they are many small pages and widgets, not one tangled
+job, and splitting them would be churn. The Capacitor packages stay because the
+native shell is kept for a future App Store route.
 
 ## Phase 0 — done, verified 17 Aug 2026
 

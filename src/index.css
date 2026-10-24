@@ -8,7 +8,6 @@
 @source not "../docs";
 @source not "../tests";
 @source not "../supabase";
-@source not "../design-canvas";
 @import './styles/tokens.css';
 @import './styles/calendar.css';
 @import './styles/material.css';

@@ -13,6 +13,7 @@
  * than the empty one it replaced.
  */
 
+import { corsFor } from '../_shared/cors.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { geminiProvider } from '../_shared/llm/gemini.ts';
@@ -32,7 +33,7 @@ import {
   DUE_EVENT_KINDS,
 } from '../_shared/summary.ts';
 import { addDays, endOfDayUTC, localDayKey, localHourMinute, startOfDayUTC } from '../_shared/time.ts';
-import { checkBudget, recordUse, standDownMessage, type AiKind } from '../_shared/budget.ts';
+import { meterFor, release, reserve, standDownMessage, type AiKind, type Reservation } from '../_shared/budget.ts';
 import { groqProvider } from '../_shared/llm/groq.ts';
 import { withFallback } from '../_shared/llm/chain.ts';
 
@@ -42,44 +43,9 @@ const SUPABASE_URL = env('SUPABASE_URL');
 const SERVICE_ROLE_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
 const APP_URL = env('APP_URL');
 
-/**
- * How many model calls a day the chatbot may make before it stands down.
- *
- * The chatbot shares one free-tier quota with the syllabus reader, the task
- * breakdown and the briefing, and it is the path most easily run up. So it has
- * its own ceiling and stops with a sentence saying so, rather than draining
- * the pool the other paths draw on.
- *
- * Deliberately not derived from Google's published limits. Those change, are
- * per-model, and are not visible from here — a number invented from them would
- * be a guess dressed as a policy. This is a self-imposed budget instead, and
- * running into Google's real limit is still handled as a 'quota' failure.
- */
-const CHAT_CALLS_PER_DAY = Number(Deno.env.get('CHAT_CALLS_PER_DAY') ?? '40');
-
-
 /** A syllabus PDF. They do run long. */
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
 const MAX_TEXT_LENGTH = 8_000;
-
-function corsFor(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') ?? '';
-  const allowed =
-    origin === APP_URL ||
-    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
-    /^http:\/\/localhost(:\d+)?$/i.test(origin) ||
-    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-    // The native iOS shell (Capacitor) loads the bundle from this scheme.
-    origin === 'capacitor://localhost';
-
-  return {
-    'Access-Control-Allow-Origin': allowed && origin ? origin : APP_URL || '*',
-    'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    Vary: 'Origin',
-  };
-}
 
 /**
  * Every failure ends with something the person can still do.
@@ -215,22 +181,15 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
 }
 
 /**
- * The budget guard the three non-chat model paths never had.
- *
- * Returns a payload rather than a Response so it carries no dependency on
- * where `json` sits in this file. `chat` keeps its own inline check because it
- * reports `remaining` to the client for the "N questions left" footer; these
- * three only need a yes or no.
+ * What a refused reservation is told. A payload rather than a Response so it
+ * carries no dependency on where `json` sits in this file.
  */
-// deno-lint-ignore no-explicit-any
-async function overBudget(admin: any, userId: string, kind: AiKind, day: string, ownKey: boolean) {
-  const verdict = await checkBudget(admin, userId, kind, day, ownKey);
-  if (verdict.allowed) return null;
-  return { ok: false as const, failure: 'quota' as const, reason: standDownMessage(kind) };
+function standDown(slot: Reservation, kind: AiKind) {
+  return { ok: false as const, failure: 'quota' as const, reason: standDownMessage(kind, slot.denied) };
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
-  const CORS = corsFor(req);
+  const CORS = corsFor(req, APP_URL);
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body, null, 2), {
@@ -367,8 +326,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .filter(Boolean)
       .join('\n');
 
-    const denied = await overBudget(admin, userData.user.id, 'breakdown', localDayKey(new Date(), accountTz), Boolean(ownKey));
-    if (denied) return json(denied);
+    const slot = await reserve(admin, userData.user.id, 'breakdown', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    if (!slot.allowed) return json(standDown(slot, 'breakdown'));
 
     const result = await provider.complete<unknown>({
       instruction: BREAKDOWN_INSTRUCTION,
@@ -380,11 +339,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       timeoutMs: 40_000,
     });
 
-    if (!result.ok) return fail(result.failure, result.message);
-
-    // Counted only after the model was actually reached — billing a
-    // refused call charges the user for hitting the wall.
-    await recordUse(admin, userData.user.id, 'breakdown', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    // A slot was reserved; a call that produced nothing gives it back, so
+    // hitting a wall never costs the user a question.
+    if (!result.ok) {
+      await release(admin, userData.user.id, 'breakdown', localDayKey(new Date(), accountTz), slot);
+      return fail(result.failure, result.message);
+    }
 
     const validated = validateBreakdown(result.value, title);
 
@@ -416,8 +376,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    const denied = await overBudget(admin, userData.user.id, 'syllabus', localDayKey(new Date(), accountTz), Boolean(ownKey));
-    if (denied) return json(denied);
+    const slot = await reserve(admin, userData.user.id, 'syllabus', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    if (!slot.allowed) return json(standDown(slot, 'syllabus'));
 
     const result = await provider.complete<unknown>({
       instruction: SYLLABUS_INSTRUCTION,
@@ -429,11 +389,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       timeoutMs: 110_000,
     });
 
-    if (!result.ok) return fail(result.failure, result.message);
-
-    // Counted only after the model was actually reached — billing a
-    // refused call charges the user for hitting the wall.
-    await recordUse(admin, userData.user.id, 'syllabus', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    if (!result.ok) {
+      await release(admin, userData.user.id, 'syllabus', localDayKey(new Date(), accountTz), slot);
+      return fail(result.failure, result.message);
+    }
 
     const bounds =
       body.termFrom && body.termTo ? { from: body.termFrom, to: body.termTo } : undefined;
@@ -478,11 +437,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .eq('user_id', userId)
       .maybeSingle();
 
-    const denied = await overBudget(admin, userId, 'guide', localDayKey(new Date(), accountTz), Boolean(ownKey));
-    if (denied) return json(denied);
+    const slot = await reserve(admin, userId, 'guide', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    if (!slot.allowed) return json(standDown(slot, 'guide'));
 
     const blob = await admin.storage.from('work-files').download(file.path as string);
     if (blob.error || !blob.data) {
+      await release(admin, userId, 'guide', localDayKey(new Date(), accountTz), slot);
       return json({ ok: false, reason: 'Could not open that file. Try again in a moment.' }, 502);
     }
     const bytes = new Uint8Array(await blob.data.arrayBuffer());
@@ -510,10 +470,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       timeoutMs: 110_000,
     });
 
-    if (!result.ok) return fail(result.failure, result.message);
-
-    // Counted only after the model was actually reached.
-    await recordUse(admin, userId, 'guide', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    if (!result.ok) {
+      await release(admin, userId, 'guide', localDayKey(new Date(), accountTz), slot);
+      return fail(result.failure, result.message);
+    }
 
     const validated = validateGuide(result.value);
     if (validated.guide.parts.length === 0 && validated.guide.requirements.length === 0) {
@@ -538,51 +498,50 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const userId = userData.user.id;
     const today = localDayKey(new Date(), accountTz);
 
-    // The budget check comes before the model call, so standing down costs
-    // nothing. Read rather than incremented here; the increment happens only
-    // if a call is actually made.
-    const { data: usage } = await admin
-      .from('ai_usage')
-      .select('count')
-      .eq('user_id', userId)
-      .eq('local_day', today)
-      .eq('kind', 'chat')
-      .maybeSingle();
-
-    /*
-     * The daily budget exists to stop one account draining a shared free tier
-     * before anyone else can use it. An account paying its own way is not
-     * competing with anybody, so the reserve simply does not apply to it.
-     */
-    if (!chatOnOwnKey && (usage?.count ?? 0) >= CHAT_CALLS_PER_DAY) {
+    // A slot is taken before the model is called, in one step, so requests
+    // sent together cannot all be handed the last one. Standing down costs
+    // nothing, and a call that produces nothing gives its slot back.
+    const slot = await reserve(admin, userId, 'chat', today, chatOnOwnKey);
+    if (!slot.allowed) {
       return json({
         ok: false,
         failure: 'quota',
         reason:
-          'That is enough questions for today. It resets tomorrow, and everything else works as usual.',
+          slot.denied === 'shared'
+            ? standDownMessage('chat', 'shared')
+            : 'That is enough questions for today. It resets tomorrow, and everything else works as usual.',
       });
     }
 
     const gemini = ownKey ?? env('GEMINI_API_KEY');
-    const result = await askAbood({
-      admin,
-      userId,
-      message,
-      today,
-      tz: accountTz,
-      provider: chatProvider,
-      geminiKey: gemini,
-    });
+    // Looking a memory up and filing a new one each cost an embedding call on
+    // the same key, so they are counted too.
+    const embedMeter = meterFor(admin, userId, 'embed', today, Boolean(ownKey));
+    let result: Awaited<ReturnType<typeof askAbood>>;
+    try {
+      result = await askAbood({
+        admin,
+        userId,
+        message,
+        today,
+        tz: accountTz,
+        provider: chatProvider,
+        geminiKey: gemini,
+        embedMeter,
+      });
+    } catch (e) {
+      await release(admin, userId, 'chat', today, slot);
+      throw e;
+    }
 
-    // Counted after the call is made rather than before, so a failed request
-    // does not spend budget the user never got an answer from.
-    await admin.rpc('record_ai_use', { p_user_id: userId, p_local_day: today, p_kind: 'chat' });
-
-    if (!result.ok) return fail(result.failure, result.message);
+    if (!result.ok) {
+      await release(admin, userId, 'chat', today, slot);
+      return fail(result.failure, result.message);
+    }
 
     // Learn from what they said, after answering it. A memory failure never
     // costs the answer.
-    const learned = await learn(admin, userId, result.remember, gemini, 'app').catch(() => []);
+    const learned = await learn(admin, userId, result.remember, gemini, 'app', embedMeter).catch(() => []);
     const { ok: _ok, provider: _p, remember: _r, needsPlanner: _n, ...validated } = result;
 
     return json({
@@ -590,7 +549,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       provider: result.provider,
       ...validated,
       learned,
-      remaining: Math.max(0, CHAT_CALLS_PER_DAY - ((usage?.count ?? 0) + 1)),
+      remaining: Number.isFinite(slot.remaining) ? slot.remaining : slot.limit,
     });
   }
 
@@ -642,10 +601,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       input.chores.length ? input.chores.map((c) => `  - ${c}`).join('\n') : '  (nothing)',
     ].join('\n');
 
-    const denied = await overBudget(admin, userData.user.id, 'summary', localDayKey(new Date(), accountTz), Boolean(ownKey));
+    const slot = await reserve(admin, userData.user.id, 'summary', localDayKey(new Date(), accountTz), Boolean(ownKey));
     // Over today's cap, the last briefing beats no briefing: it was true when
     // written and the screen below it is current either way.
-    if (denied) return cached?.body ? json({ ok: true, summary: cached.body, stale: true }) : json(denied);
+    if (!slot.allowed) return cached?.body ? json({ ok: true, summary: cached.body, stale: true }) : json(standDown(slot, 'summary'));
 
     const result = await provider.complete<unknown>({
       instruction: SUMMARY_INSTRUCTION,
@@ -658,15 +617,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
 
     if (!result.ok) {
+      await release(admin, userData.user.id, 'summary', localDayKey(new Date(), accountTz), slot);
       // A stale summary beats none: it was true this morning, and the screen
       // underneath is authoritative either way.
       if (cached?.body) return json({ ok: true, summary: cached.body, stale: true });
       return fail(result.failure, result.message);
     }
-
-    // Counted only after the model was actually reached — billing a
-    // refused call charges the user for hitting the wall.
-    await recordUse(admin, userData.user.id, 'summary', localDayKey(new Date(), accountTz), Boolean(ownKey));
 
     const validated = validateSummary(result.value, input);
 

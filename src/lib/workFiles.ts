@@ -150,10 +150,16 @@ export async function removeFilesFor(assignmentId: string): Promise<void> {
   await removeObjects((data ?? []).map((r) => r.path as string));
 }
 
-/** Every file in the account, before the account is deleted: storage is not reached by the cascade. */
-export async function removeAllWorkFiles(): Promise<void> {
-  const { data } = await supabase.from('assignment_files').select('path');
-  await removeObjects((data ?? []).map((r) => r.path as string));
+/**
+ * Every file in the account, before the account is deleted: storage is not
+ * reached by the cascade. Returns whether they are all gone, because deleting
+ * the account after a failed removal would strand the PDFs where nobody could
+ * ever reach or remove them.
+ */
+export async function removeAllWorkFiles(): Promise<boolean> {
+  const { data, error } = await supabase.from('assignment_files').select('path');
+  if (error) return false;
+  return removeObjects((data ?? []).map((r) => r.path as string));
 }
 
 const urls = new Map<string, { url: string; until: number }>();

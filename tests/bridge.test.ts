@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decodeAttributedBody } from '../bridge/imessage/bridge.mjs';
+import { decodeAttributedBody, mayForward, normaliseHandle } from '../bridge/imessage/bridge.mjs';
 
 /**
  * The Mac bridge reads message text out of Messages' attributedBody when the
@@ -28,5 +28,42 @@ describe('decodeAttributedBody', () => {
   it('returns nothing for a body with no string in it', () => {
     expect(decodeAttributedBody('')).toBeNull();
     expect(decodeAttributedBody('0102030405')).toBeNull();
+  });
+});
+
+/**
+ * The bridge used to post every incoming direct message to the cloud and let
+ * the server throw away the ones from strangers. By then the text had already
+ * left the Mac. These pin the rule that only linked senders, and link codes,
+ * are forwarded.
+ */
+describe('what may leave the Mac', () => {
+  const linked = new Set(['+15145550100', 'friend@example.com']);
+
+  it('forwards a message from a linked number, however it is written', () => {
+    expect(mayForward('+15145550100', 'when is my lab due', linked)).toBe(true);
+    expect(mayForward('+1 514 555 0100', 'hi', linked)).toBe(true);
+    // No country code is a different handle, as the planner treats it.
+    expect(mayForward('(514) 555-0100', 'hi', linked)).toBe(false);
+  });
+
+  it('forwards from a linked Apple ID regardless of case', () => {
+    expect(mayForward('Friend@Example.com', 'hello', linked)).toBe(true);
+  });
+
+  it('drops everyone else, including a code that looks like a bank message', () => {
+    expect(mayForward('+15145559999', 'Your code is 481516', linked)).toBe(false);
+    expect(mayForward('stranger@example.com', 'private thing', linked)).toBe(false);
+  });
+
+  it('lets a link code through from a sender who is not linked yet', () => {
+    expect(mayForward('+15145559999', 'link abcdefghijklmnop', linked)).toBe(true);
+    expect(mayForward('+15145559999', 'link short', linked)).toBe(false);
+  });
+
+  it('normalises handles the way the planner does', () => {
+    expect(normaliseHandle('Friend@Example.com')).toBe('friend@example.com');
+    expect(normaliseHandle('514-555-0100')).toBe('+5145550100');
+    expect(normaliseHandle('+1 (514) 555-0100')).toBe('+15145550100');
   });
 });

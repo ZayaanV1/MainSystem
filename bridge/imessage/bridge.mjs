@@ -18,9 +18,11 @@
  *   Automation permission for Messages, the first time it sends a reply.
  *
  * WHAT IT NEVER DOES
- *   Read group chats, read anything you sent, or answer a number that has not
- *   linked itself to a planner account (the edge function returns nothing for
- *   those, and nothing is what gets sent).
+ *   Read group chats, read anything you sent, or upload a message from anyone
+ *   who has not linked themselves to your planner account. It asks the planner
+ *   which senders are linked and drops every other message on this Mac, so a
+ *   friend's text never crosses the network. The one exception is a message
+ *   that is a link code, which is how a sender becomes linked.
  */
 
 import { execFile, spawn } from 'node:child_process';
@@ -213,6 +215,36 @@ async function drainOutbox(config) {
   }
 }
 
+/** Phone numbers arrive as +15145550100, Apple IDs as lower-case emails. Same rule as the planner's. */
+export function normaliseHandle(handle) {
+  const h = handle.trim();
+  if (h.includes('@')) return h.toLowerCase();
+  const digits = h.replace(/[^\d+]/g, '');
+  return digits.startsWith('+') ? digits : `+${digits}`;
+}
+
+const LINK_CODE = /^link\s+[A-Za-z0-9_-]{16,64}$/i;
+
+/** Whether a message may leave this Mac: from a linked sender, or a link code. */
+export function mayForward(handle, text, linked) {
+  return LINK_CODE.test(text) || linked.has(normaliseHandle(handle));
+}
+
+const LINKED_TTL_MS = 5 * 60_000;
+let linkedCache = { at: 0, handles: new Set() };
+
+/**
+ * The linked senders, cached for a few minutes. Throws when the planner cannot
+ * be reached, which leaves the message unread: dropping it would lose a real
+ * question, and sending it anyway would defeat the point.
+ */
+async function linkedHandles(config) {
+  if (Date.now() - linkedCache.at < LINKED_TTL_MS) return linkedCache.handles;
+  const { handles = [] } = await post(config, { kind: 'handles' });
+  linkedCache = { at: Date.now(), handles: new Set(handles.map(normaliseHandle)) };
+  return linkedCache.handles;
+}
+
 async function post(config, body) {
   const res = await fetch(config.url, {
     method: 'POST',
@@ -261,10 +293,17 @@ async function main() {
   for (;;) {
     try {
       for (const m of await incoming(state.last)) {
+        const text = (m.text ?? decodeAttributedBody(m.body) ?? '').replace(/￼/g, '').trim();
+        // Before the position moves on, so an unreachable planner retries this
+        // message instead of skipping it.
+        const allowed = mayForward(m.handle, text, await linkedHandles(config));
+
         state.last = m.id;
         saveState(state);
+        if (!allowed) continue;
+        // A link code changes who is linked; ask again next time.
+        if (LINK_CODE.test(text)) linkedCache.at = 0;
 
-        const text = (m.text ?? decodeAttributedBody(m.body) ?? '').replace(/￼/g, '').trim();
         const { replies = [] } = await post(config, { kind: 'message', handle: m.handle, text });
         await sendAll(m.handle, replies, config.address);
         if (replies.length) {

@@ -36,6 +36,8 @@ describe('every edge function authenticates its own callers', () => {
       expect(source).toMatch(GATES[name]);
       // No private comparison of its own: the shared one refuses empty secrets.
       expect(source).not.toMatch(/function (sameSecret|timingSafeEqual)\(/);
+      // Nor its own copy of the CORS rule, which had already drifted once.
+      expect(source).not.toMatch(/function corsFor\(/);
     });
   }
 });

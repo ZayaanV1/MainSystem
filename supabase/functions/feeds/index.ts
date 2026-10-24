@@ -16,7 +16,9 @@
  * `fetchFeed` — and about never letting two runs fight over one feed.
  */
 
+import { corsFor } from '../_shared/cors.ts';
 import { sameSecret } from '../_shared/secret.ts';
+import { reserve } from '../_shared/budget.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { parseFeed, type FeedParse } from '../_shared/feed.ts';
 import { botChallengeReason, checkFeedUrl, isBotChallenge, isPrivateAddress } from '../_shared/feedurl.ts';
@@ -65,25 +67,6 @@ const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
 /** Stop starting new syncs after this, so a cron run finishes inside its budget. */
 const CRON_BUDGET_MS = 45_000;
-
-function corsFor(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') ?? '';
-  const allowed =
-    origin === APP_URL ||
-    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
-    /^http:\/\/localhost(:\d+)?$/i.test(origin) ||
-    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-    // The native iOS shell (Capacitor) loads the bundle from this scheme.
-    origin === 'capacitor://localhost';
-
-  return {
-    'Access-Control-Allow-Origin': allowed && origin ? origin : APP_URL || '*',
-    'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    Vary: 'Origin',
-  };
-}
 
 /* ============================================================================
    The network
@@ -619,8 +602,19 @@ const FEED_COLUMNS = 'id, user_id, url, etag, last_modified, last_parsed_at, las
    Entry
    ========================================================================= */
 
+/**
+ * A look at an address someone typed makes the platform fetch it from its own
+ * network, which anyone signed in could otherwise do without limit. The
+ * address checks (https only, no IP literals, no private ranges, redirects
+ * re-checked) stop it reaching anything internal; this stops it being used to
+ * hammer a public site from the platform's addresses. A refusal is a sentence,
+ * like every other one here.
+ */
+const FEED_LOOKUPS_REFUSED =
+  'That is a lot of calendar addresses for one day. Try again tomorrow; the ones already added keep syncing.';
+
 Deno.serve(async (req: Request): Promise<Response> => {
-  const CORS = corsFor(req);
+  const CORS = corsFor(req, APP_URL);
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
       status,
@@ -683,6 +677,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (body.action === 'preview') {
     const checked = checkFeedUrl(body.url ?? '');
     if (!checked.ok) return json({ ok: false, reason: checked.reason });
+    if (!(await reserve(admin, userId, 'feed', todayKey(new Date(), zone), false)).allowed) {
+      return json({ ok: false, reason: FEED_LOOKUPS_REFUSED });
+    }
 
     const fetched = await fetchFeed(checked.url, null);
     if (fetched.kind !== 'body') {
@@ -705,6 +702,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (body.action === 'add') {
     const checked = checkFeedUrl(body.url ?? '');
     if (!checked.ok) return json({ ok: false, reason: checked.reason });
+    if (!(await reserve(admin, userId, 'feed', todayKey(new Date(), zone), false)).allowed) {
+      return json({ ok: false, reason: FEED_LOOKUPS_REFUSED });
+    }
 
     // Read BEFORE saving, so an address that returns a web page is refused
     // with a reason now rather than saved and failing quietly every five

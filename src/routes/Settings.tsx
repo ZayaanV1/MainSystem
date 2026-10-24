@@ -27,7 +27,8 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { Field } from '../components/Field';
-import { hasOwnGroqKey, loadDigestSettings, setOwnGroqKey, type DigestSettings as DigestSettingsRow } from '../lib/planner';
+import { loadDigestSettings, type DigestSettings as DigestSettingsRow } from '../lib/planner';
+import { deleteAccount, hasOwnApiKey, hasOwnGroqKey, setOwnApiKey, setOwnGroqKey } from '../lib/account';
 import { applyTheme, readTheme, writeTheme, type ThemeChoice } from '../lib/theme';
 import { setAppearance, useAppearance, type GlassLevel, type MotionLevel, type SlipStyle, type TabTransition } from '../lib/appearance';
 import { EmptyState } from '../components/EmptyState';
@@ -37,8 +38,7 @@ import { fetchDeliveryLog, type DeliveryRow } from '../lib/health';
 import { pushStatus, subscribeToPush, type PushStatus } from '../lib/notifications';
 import { subscribeSw, type SwState } from '../lib/sw';
 import { DigestSettings } from './DigestSettings';
-import {
-  deleteAccount, calendarFeedUrl, hasOwnApiKey, setOwnApiKey } from '../lib/planner';
+import { calendarFeedUrl } from '../lib/planner';
 import { supabase } from '../lib/supabase';
 import {
   activeTimezone,

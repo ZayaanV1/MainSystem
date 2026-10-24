@@ -1456,3 +1456,83 @@ describe('classes typed by hand', () => {
     expect(r.rows[0].def).toMatch(/series_id IS NULL\) OR \(feed_id IS NULL/);
   });
 });
+
+describe('the AI budget reserves a slot in one step (0045)', () => {
+  const U1 = '77777777-7777-7777-7777-000000000001';
+  const U2 = '77777777-7777-7777-7777-000000000002';
+  const day = '2026-10-23';
+
+  beforeAll(async () => {
+    await db.exec(`insert into auth.users (id, email) values ('${U1}', 'ai1@example.com'), ('${U2}', 'ai2@example.com')`);
+  });
+
+  const reserve = async (u: string, kind: string, limit: number, global: number | null = null) =>
+    (await db.query<{ n: number }>(`select public.reserve_ai_use($1, $2, $3, $4, $5) as n`, [u, day, kind, limit, global])).rows[0].n;
+
+  it('hands out exactly the limit and then refuses, however many ask', async () => {
+    const results: number[] = [];
+    for (let i = 0; i < 8; i++) results.push(await reserve(U1, 'chat', 5));
+    expect(results).toEqual([1, 2, 3, 4, 5, -1, -1, -1]);
+    const stored = await db.query<{ count: number }>(`select count from public.ai_usage where user_id = '${U1}' and kind = 'chat'`);
+    // Refusals are not counted: hitting the wall costs nothing.
+    expect(stored.rows[0].count).toBe(5);
+  });
+
+  it('gives a slot back and never goes below zero', async () => {
+    await db.exec(`select public.release_ai_use('${U1}', '${day}', 'chat')`);
+    expect(await reserve(U1, 'chat', 5)).toBe(5);
+    for (let i = 0; i < 8; i++) await db.exec(`select public.release_ai_use('${U1}', '${day}', 'summary')`);
+    const none = await db.query(`select 1 from public.ai_usage where user_id = '${U1}' and kind = 'summary' and count < 0`);
+    expect(none.rows).toHaveLength(0);
+  });
+
+  it('refuses outright when the limit is zero', async () => {
+    expect(await reserve(U2, 'embed', 0)).toBe(-1);
+  });
+
+  it('stops everyone at the shared ceiling and says so differently', async () => {
+    // One account has used 3 of a shared ceiling of 4 today.
+    for (let i = 0; i < 3; i++) await reserve(U1, 'guide', 10, 4);
+    expect(await reserve(U2, 'guide', 10, 4)).toBe(1);
+    // The ceiling is now reached: the next account is refused with -2, not -1.
+    expect(await reserve(U1, 'guide', 10, 4)).toBe(-2);
+    expect(await reserve(U2, 'guide', 10, 4)).toBe(-2);
+  });
+
+  it('is not callable by a signed-in user or by anyone signed out', async () => {
+    const r = await db.query<{ a: boolean; b: boolean; c: boolean }>(
+      `select has_function_privilege('authenticated', 'public.reserve_ai_use(uuid, text, text, integer, integer)', 'execute') as a,
+              has_function_privilege('anon', 'public.reserve_ai_use(uuid, text, text, integer, integer)', 'execute') as b,
+              has_function_privilege('authenticated', 'public.release_ai_use(uuid, text, text)', 'execute') as c`,
+    );
+    expect(r.rows[0]).toEqual({ a: false, b: false, c: false });
+  });
+});
+
+describe('attached files are held to their owner (0046)', () => {
+  const U = '88888888-8888-8888-8888-000000000001';
+  const W = '88888888-8888-8888-8888-0000000000a1';
+  const OTHER = '99999999-9999-9999-9999-000000000001';
+
+  beforeAll(async () => {
+    await db.exec(`insert into auth.users (id, email) values ('${U}', 'files@example.com')`);
+    await db.exec(`insert into public.assignments (id, user_id, title) values ('${W}', '${U}', 'Lab')`);
+  });
+
+  const add = (path: string) =>
+    db.exec(`insert into public.assignment_files (user_id, assignment_id, name, path, size_bytes) values ('${U}', '${W}', 'Brief', '${path}', 100)`);
+
+  it('refuses a path that is not the owner’s own folder', async () => {
+    // Another account's object, which the guide function would otherwise read
+    // with the service role and summarise for this one.
+    await expect(add(`${OTHER}/${W}/stolen.pdf`)).rejects.toThrow(/assignment_files_path_owned/);
+    await expect(add(`${U}/${OTHER}/elsewhere.pdf`)).rejects.toThrow(/assignment_files_path_owned/);
+  });
+
+  it('accepts the path the app writes, and holds the limit of three', async () => {
+    await add(`${U}/${W}/one.pdf`);
+    await add(`${U}/${W}/two.pdf`);
+    await add(`${U}/${W}/three.pdf`);
+    await expect(add(`${U}/${W}/four.pdf`)).rejects.toThrow(/three files/i);
+  });
+});

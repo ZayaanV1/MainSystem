@@ -3,7 +3,7 @@ import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
 import { HISTORY_DAYS } from '../../supabase/functions/_shared/history';
 import { missingDays } from '../../supabase/functions/_shared/series';
-import { clearCache, getCache, putCache } from './readcache';
+import { getCache, putCache } from './readcache';
 import { normaliseLink } from './link';
 export { normaliseLink } from './link';
 import {
@@ -509,47 +509,6 @@ export async function loadAllCourses(): Promise<Course[]> {
     .order('name');
 
   return (data ?? []) as Course[];
-}
-
-/* ------------------------------------------------------------- own key --- */
-
-/**
- * Whether this account has its own Gemini key, without ever reading it back.
- *
- * The key is write-only from the app's point of view. There is no reason to
- * pull a secret into the browser to render a row that only needs to say
- * "set" or "not set", and a value that is never fetched cannot leak from a
- * screenshot, a bug report or a stray log.
- */
-export async function hasOwnApiKey(): Promise<boolean> {
-  return (await ownKeyStatus()).gemini;
-}
-
-/**
- * Whether each key is set — the only question the app asks about them.
- *
- * This used to select the key columns themselves, so the raw keys reached the
- * browser on every Settings open while the copy promised they never would.
- * The columns are no longer readable by the account at all (migration 0034);
- * a function answers yes or no.
- */
-async function ownKeyStatus(): Promise<{ gemini: boolean; groq: boolean }> {
-  const { data } = await supabase.rpc('own_key_status');
-  const row = (Array.isArray(data) ? data[0] : data) as { gemini?: boolean; groq?: boolean } | null;
-  return { gemini: Boolean(row?.gemini), groq: Boolean(row?.groq) };
-}
-
-/** Sets or clears it. Passing null goes back to the shared key. */
-export async function setOwnApiKey(
-  userId: string,
-  key: string | null,
-): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from('app_settings')
-    .update({ gemini_api_key: key && key.trim() ? key.trim() : null })
-    .eq('user_id', userId);
-
-  return { error: error ? error.message : null };
 }
 
 /* -------------------------------------------------------- calendar feed --- */
@@ -1553,65 +1512,4 @@ export async function deleteSeries(
 
   const { error } = await supabase.from('assignment_series').delete().eq('id', id);
   return { removed, error: error?.message ?? null };
-}
-
-/**
- * Deletes this account and everything in it.
- *
- * Irreversible, and there is no soft-delete hiding behind it — the twenty-one
- * foreign keys to auth.users cascade, so the row going means the data goes.
- * A planner that claims to delete and quietly retains is worse than one that
- * cannot delete at all, because the claim is the thing people rely on.
- *
- * The cache is cleared first for the same reason it is on sign-out: a device
- * still holding the last-seen day of a deleted account is exactly the copy
- * this action promised to remove.
- */
-export async function deleteAccount(): Promise<{ error: string | null }> {
-  await clearCache();
-
-  // Photos on the board are files, not rows: the cascade cannot reach them.
-  const { data: who } = await supabase.auth.getUser();
-  if (who.user) {
-    const { removeAllPhotos } = await import('./boardPhotos');
-    await removeAllPhotos(who.user.id);
-    const { removeAllWorkFiles } = await import('./workFiles');
-    await removeAllWorkFiles().catch(() => {});
-  }
-
-  const { error } = await supabase.rpc('delete_own_account');
-  if (error) return { error: error.message };
-
-  // The session now references a user that no longer exists. Ending it locally
-  // stops the app from spending the next minute retrying queries as a ghost.
-  await supabase.auth.signOut();
-  return { error: null };
-}
-
-/**
- * Whether this account has its own Groq key.
- *
- * Same write-only contract as the Gemini one: the app asks WHETHER a key is
- * set and never reads the value back, so it cannot leak from a screenshot, a
- * bug report or a stray log.
- *
- * A separate column rather than a shared "api key" because the two providers
- * are not interchangeable — Groq's chat models take no documents, so the
- * syllabus reader stays on Gemini whatever is set here.
- */
-export async function hasOwnGroqKey(): Promise<boolean> {
-  return (await ownKeyStatus()).groq;
-}
-
-/** Sets or clears it. Passing null returns the chatbot to the shared key. */
-export async function setOwnGroqKey(
-  userId: string,
-  key: string | null,
-): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from('app_settings')
-    .update({ groq_api_key: key && key.trim() ? key.trim() : null })
-    .eq('user_id', userId);
-
-  return { error: error ? error.message : null };
 }

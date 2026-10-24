@@ -141,7 +141,10 @@ export function PdfViewer({ bytes, filename }: { bytes: ArrayBuffer; filename: s
         const lib = await loadPdfjs();
         // Handed over as a copy: the worker takes ownership of what it is given,
         // and the bytes are still needed for saving and printing.
-        const loadingTask = lib.getDocument({ data: new Uint8Array(bytes.slice(0)) });
+        // isEvalSupported off: a PDF is a file someone else made, often a classmate's,
+        // and the parser runs in the app's own origin where the login lives. Font
+        // programs are the part pdf.js once ran through eval.
+        const loadingTask = lib.getDocument({ data: new Uint8Array(bytes.slice(0)), isEvalSupported: false });
         opened = await loadingTask.promise;
         if (!live) return void opened.destroy();
         const first = await opened.getPage(1);

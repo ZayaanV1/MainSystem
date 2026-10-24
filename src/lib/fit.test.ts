@@ -120,9 +120,9 @@ describe('the digest that failed in production', () => {
 
 describe('alerts', () => {
   it('describe an account by a short id and carry no titles', () => {
-    const text = describeAlert({ kind: 'digest-gave-up', userId: '123e4567-e89b-12d3-a456-426614174000', detail: '6 attempts failed.' });
+    const text = describeAlert({ kind: 'digest-failing', userId: '123e4567-e89b-12d3-a456-426614174000', detail: '6 attempts failed.' });
     expect(text).toContain('123e4567');
     expect(text).not.toContain('e89b-12d3');
-    expect(text).toMatch(/given up on for the day/);
+    expect(text).toMatch(/failing to deliver/);
   });
 });

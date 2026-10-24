@@ -22,7 +22,7 @@ export interface AlertConfig {
   chatId: string;
 }
 
-export type AlertKind = 'digest-gave-up' | 'channel-retired' | 'tick-failed';
+export type AlertKind = 'digest-failing' | 'channel-retired' | 'tick-failed';
 
 export interface Alert {
   kind: AlertKind;
@@ -36,7 +36,7 @@ export interface Alert {
 export function describeAlert(a: Alert): string {
   const who = a.userId ? ` (account ${a.userId.slice(0, 8)})` : '';
   const what: Record<AlertKind, string> = {
-    'digest-gave-up': 'A morning digest could not be delivered and was given up on for the day',
+    'digest-failing': 'A morning digest is failing to deliver',
     'channel-retired': 'A notification channel was switched off after it stopped working',
     'tick-failed': 'A scheduled run failed',
   };
