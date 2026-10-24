@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -20,7 +23,7 @@
     "set:url": "node scripts/set-app-url.mjs",
     "doses": "node scripts/doses.mjs",
     "secret": "node scripts/secret.mjs",
-    "ios:sync": "npm run build && cap sync ios",
+    "ios:sync": "npm run build && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 cap sync ios",
     "ios:open": "cap open ios"
   },
   "dependencies": {

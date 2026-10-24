@@ -1763,8 +1763,26 @@ toolbar instead of scrolling in a box of its own.
 **Still open from the audit:** no error reporting beyond the alerts above (a
 service such as Sentry needs an account and a DSN); the edge functions' own
 entry files are covered by the auth guard and type checks but not by handler
-tests; the Capacitor 8 upgrade is blocked by Node 20; and a PDF orphaned by an
+tests; a Capacitor 8 upgrade, deliberately deferred; and a PDF orphaned by an
 offline delete is not yet swept.
+
+### The phone install, and Node 22 — 23 Oct 2026
+
+**The home-screen web app is the primary phone install; the native shell is
+optional.** The sideloaded Capacitor build expires every seven days on a free
+Apple ID and, because web push does not run in its web view, cannot deliver the
+morning digest. The home-screen app never expires, redeploys with every push to
+`main`, and is the one that gets notifications. `ios/` stays in the repo for a
+future App Store route, but nobody maintains it weekly.
+
+`npm run ios:sync` failed under Ruby 4 with "Unicode Normalization not
+appropriate for ASCII-8BIT": a shell with no `LANG` makes CocoaPods read the
+project path as raw bytes. The script now sets `LANG` and `LC_ALL` itself, so it
+works from any terminal. Capacitor stays on 7; version 8 needs Node 22 and would
+mean re-testing the Xcode 27 workarounds for an app that cannot push.
+
+The repo is on Node 22 (`.nvmrc`, `"engines": { "node": "22.x" }`), which CI
+already used. Node 20 reached end of life in April 2026.
 
 ## Phase 0 — done, verified 17 Aug 2026
 

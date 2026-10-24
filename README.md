@@ -190,7 +190,7 @@ browser through the Web Animations API (`src/lib/motion.ts`).
 
 ## Getting started
 
-You need a current Node.js LTS, a free [Supabase](https://supabase.com) project, and
+You need Node.js 22 (`nvm use` reads `.nvmrc`), a free [Supabase](https://supabase.com) project, and
 optionally a Telegram bot. The full walkthrough, including where to find
 every value, is in **[SETUP.md](SETUP.md)**.
 
@@ -224,7 +224,7 @@ themselves; filling them in also creates your own account.
 | `npm run test:tz` | Unit tests under five host time zones |
 | `npm run e2e` | End-to-end tests in Chromium (phone, desktop, iPad) |
 | `npm run test:notify` | Send a test notification to your phone |
-| `npm run ios:sync` | Build and sync the iOS app |
+| `npm run ios:sync` | Build and sync the optional native iOS shell (sets the UTF-8 locale CocoaPods needs) |
 
 ## Project layout
 

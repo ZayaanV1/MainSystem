@@ -124,6 +124,11 @@ has no way to know that and fails with a confusing auth error.
 
 Then open that URL on your iPhone in Safari, Share → **Add to Home Screen**.
 
+**This is the phone install.** It never expires, updates with every deploy
+without a cable, and is the only one that receives the morning digest as a push
+notification. The native iOS shell in `ios/` is optional and secondary: a free
+Apple ID signs it for only seven days, and web push does not work inside it.
+
 ---
 
 ## What to watch for
