@@ -1819,6 +1819,37 @@ they are large because they are many small pages and widgets, not one tangled
 job, and splitting them would be churn. The Capacitor packages stay because the
 native shell is kept for a future App Store route.
 
+### CI, a report-only CSP and a bounded body reader — 26 Oct 2026
+
+Built in a parallel session the owner approved on 23 Oct, left uncommitted, then
+merged and finished on 26 Oct.
+
+- **CI** (`.github/workflows/check.yml`): lint, build, unit tests and the Deno
+  check on every push to `main` and every pull request, with placeholder
+  Supabase values so the repo needs no secrets. End-to-end tests are not in it.
+- **`Content-Security-Policy-Report-Only`** in `vercel.json`: only the app's own
+  origin plus the Supabase project. The inline theme script became
+  `/theme-init.js` (built from `theme-init.template.js` by a plugin in
+  `vite.config.ts`) so `script-src` can be `'self'`. Loading the production build
+  under the policy in a real browser flagged the PDF Print frame (a `blob:`
+  iframe), and reading the code found board photos (Supabase storage images), so
+  `frame-src blob:` and the Supabase host in `img-src` were added; a second pass
+  reports nothing. **It is still report-only.** Violations go to the browser
+  console only, so test on a desktop browser with the console open before
+  enforcing. A `Content-Security-Policy` that blocks should be a deliberate step.
+- **`readBody`** (`_shared/body.ts`) in `assist`, `feeds` and `imessage`: a wrong
+  type or an oversized field is a 400 or 413 and not a 500. It reads in chunks
+  and stops at the cap, in bytes, so a body that declares no length is not
+  buffered whole first.
+
+**CI paid for itself on its first run.** Two tests asserted that Vancouver is on
+standard time after 1 November 2026. CI's newer Node ships time-zone data
+(2026e) in which British Columbia stays on daylight time, while the laptop's
+(2026a) does not, so they failed only there. The app follows the runtime's data,
+which is right; the tests now use Los Angeles for dates past that change. The
+suite passes under both versions of the data
+(`npx --yes node@22 node_modules/vitest/vitest.mjs run` reproduces CI's).
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
