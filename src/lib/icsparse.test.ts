@@ -235,7 +235,9 @@ describe('parseIcs — UTC stamps across a clock change', () => {
   });
 
   it('uses the account zone, not Toronto', () => {
-    const { events } = parseIcs(event(['SUMMARY:Lab', 'DTSTART:20261110T151500Z']), 'America/Vancouver');
+    // Los Angeles, not Vancouver: after 1 November 2026 newer time-zone data keep
+    // Vancouver on daylight time, and this should not depend on which data ran it.
+    const { events } = parseIcs(event(['SUMMARY:Lab', 'DTSTART:20261110T151500Z']), 'America/Los_Angeles');
     expect(events[0]).toMatchObject({ day: '2026-11-10', time: '07:15' });
   });
 

@@ -22,6 +22,12 @@ import {
 
 const TORONTO = 'America/Toronto';
 const VANCOUVER = 'America/Vancouver';
+// Used wherever a test crosses 1 November 2026: British Columbia is moving to
+// permanent daylight time, so newer time-zone data (CI's, and soon everyone's)
+// disagree with older about Vancouver after that date, while Los Angeles' rules
+// are unchanged. The app follows the runtime's data, which is the point; a test
+// should not hard-code a rule a legislature can change.
+const LOS_ANGELES = 'America/Los_Angeles';
 const SYDNEY = 'Australia/Sydney';
 const KOLKATA = 'Asia/Kolkata';
 
@@ -78,9 +84,10 @@ describe('each session keeps its wall-clock time', () => {
     expect(after).toEqual({ starts_at: '2026-11-03T15:15:00.000Z', ends_at: '2026-11-03T16:30:00.000Z' });
   });
 
-  it('uses the account\'s zone, not Toronto: Vancouver', () => {
-    expect(sessionOn('2026-10-27', lecture(), VANCOUVER).starts_at).toBe('2026-10-27T17:15:00.000Z');
-    expect(sessionOn('2026-11-03', lecture(), VANCOUVER).starts_at).toBe('2026-11-03T18:15:00.000Z');
+  it('uses the account\'s zone, not Toronto: Los Angeles', () => {
+    // PDT is UTC-7 and PST UTC-8: the same 10:15, an hour apart in UTC.
+    expect(sessionOn('2026-10-27', lecture(), LOS_ANGELES).starts_at).toBe('2026-10-27T17:15:00.000Z');
+    expect(sessionOn('2026-11-03', lecture(), LOS_ANGELES).starts_at).toBe('2026-11-03T18:15:00.000Z');
   });
 
   it('crosses a southern spring change the other way: Sydney on 4 October', () => {
