@@ -16,7 +16,7 @@
 
     <!-- Matches --ink-900, so the status bar and the app agree and there is no
          white flash on launch. -->
-    <!-- Overwritten before paint by the inline script below, which is the
+    <!-- Overwritten before paint by the script below, which is the
          only way to avoid a flash of the wrong palette. The value here is the
          dark ink-900, matching the default. -->
     <meta name="theme-color" content="#13100c" />
@@ -56,7 +56,7 @@
     <!--
       Theme, applied before the first paint.
 
-      This has to be a blocking inline script and not a React effect: an effect
+      This has to be a blocking script in <head> and not a React effect: an effect
       runs AFTER paint, so a light-mode user would see a full frame of the dark
       palette on every load. Kept deliberately tiny and duplicated from
       src/lib/theme.ts rather than imported, because importing it would mean
@@ -68,26 +68,7 @@
       light, written in at build time from tokens.css, so the status bar
       cannot drift from the ground.
     -->
-    <script>
-      (function () {
-        var GROUNDS = __THEME_GROUNDS__;
-        try {
-          var root = document.documentElement;
-          var c = localStorage.getItem('planner.theme');
-          if (c === 'light' || c === 'dark') root.setAttribute('data-theme', c);
-          var s = localStorage.getItem('planner.skin');
-          if (!GROUNDS[s] || s === 'cloisonne') s = 'cloisonne';
-          else root.setAttribute('data-skin', s);
-          var dark =
-            c === 'dark' ||
-            (c !== 'light' && !window.matchMedia('(prefers-color-scheme: light)').matches);
-          var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', GROUNDS[s][dark ? 0 : 1]);
-        } catch (e) {
-          /* storage unavailable — the media query still decides */
-        }
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

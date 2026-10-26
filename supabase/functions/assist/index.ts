@@ -33,6 +33,7 @@ import {
   DUE_EVENT_KINDS,
 } from '../_shared/summary.ts';
 import { addDays, endOfDayUTC, localDayKey, localHourMinute, startOfDayUTC } from '../_shared/time.ts';
+import { readBody } from '../_shared/body.ts';
 import { meterFor, release, reserve, standDownMessage, type AiKind, type Reservation } from '../_shared/budget.ts';
 import { groqProvider } from '../_shared/llm/groq.ts';
 import { withFallback } from '../_shared/llm/chain.ts';
@@ -46,6 +47,8 @@ const APP_URL = env('APP_URL');
 /** A syllabus PDF. They do run long. */
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
 const MAX_TEXT_LENGTH = 8_000;
+/** The PDF as base64 plus the JSON around it. Anything bigger is refused unread. */
+const MAX_REQUEST_BYTES = Math.ceil((MAX_PDF_BYTES * 4) / 3) + 64 * 1024;
 
 /**
  * Every failure ends with something the person can still do.
@@ -212,24 +215,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
   );
   if (userError || !userData?.user) return json({ error: 'not authorised' }, 401);
 
-  let body: {
-    task?: string;
-    title?: string;
-    notes?: string;
-    courseName?: string;
-    text?: string;
-    pdf?: { data: string; mimeType: string };
-    termFrom?: string;
-    termTo?: string;
-    message?: string;
-    timezone?: string;
-    fileId?: string;
-  };
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: 'expected JSON' }, 400);
-  }
+  const read = await readBody(
+    req,
+    {
+      task: { type: 'string', max: 40 },
+      title: { type: 'string', max: 5_000 },
+      notes: { type: 'string', max: 50_000 },
+      courseName: { type: 'string', max: 500 },
+      text: { type: 'string', max: 200_000 },
+      // Base64 of MAX_PDF_BYTES, with a little room for the encoding's padding.
+      pdf: { type: 'file', maxChars: Math.ceil((MAX_PDF_BYTES * 4) / 3) + 16 },
+      termFrom: { type: 'string', max: 20 },
+      termTo: { type: 'string', max: 20 },
+      message: { type: 'string', max: 50_000 },
+      timezone: { type: 'string', max: 100 },
+      fileId: { type: 'string', max: 100 },
+    },
+    MAX_REQUEST_BYTES,
+  );
+  if (!read.ok) return json({ error: read.error }, read.status);
+  const body = read.body;
 
   /*
    * The account's own key wins over the shared one.

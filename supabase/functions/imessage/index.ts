@@ -32,6 +32,7 @@
  * must never be answered by a bot.
  */
 
+import { readBody } from '../_shared/body.ts';
 import { sameSecret } from '../_shared/secret.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -125,12 +126,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const ownerId = await bridgeOwner(admin, req.headers.get('x-bridge-secret') ?? '');
   if (!ownerId) return new Response('unauthorised', { status: 401 });
 
-  let body: { kind?: string; address?: string; handle?: string; text?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return new Response('bad request', { status: 400 });
-  }
+  const read = await readBody(
+    req,
+    {
+      kind: { type: 'string', max: 20 },
+      address: { type: 'string', max: 500 },
+      handle: { type: 'string', max: 500 },
+      text: { type: 'string', max: 20_000 },
+    },
+    64 * 1024,
+  );
+  if (!read.ok) return new Response(read.error, { status: read.status });
+  const body = read.body;
 
   const reply = (replies: string[]) =>
     new Response(JSON.stringify({ replies }), { headers: { 'content-type': 'application/json' } });

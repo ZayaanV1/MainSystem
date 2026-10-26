@@ -1,0 +1,32 @@
+name: check
+
+# Lint, typecheck + build, unit tests and the Deno check, on every push and PR.
+# Playwright is deliberately not here: it needs a backend, so it belongs in its
+# own job once there is a preview project to point it at.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # The build reads these at compile time. Placeholders are enough: nothing
+      # in this job talks to a real project, so the repo needs no secrets.
+      VITE_SUPABASE_URL: https://ci.invalid
+      VITE_SUPABASE_ANON_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check

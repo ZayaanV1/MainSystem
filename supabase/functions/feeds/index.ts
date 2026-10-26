@@ -17,6 +17,7 @@
  */
 
 import { corsFor } from '../_shared/cors.ts';
+import { readBody } from '../_shared/body.ts';
 import { sameSecret } from '../_shared/secret.ts';
 import { reserve } from '../_shared/budget.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -664,12 +665,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (userError || !userData?.user) return json({ error: 'not authorised' }, 401);
   const userId = userData.user.id;
 
-  let body: { action?: string; url?: string; label?: string; id?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return json({ ok: false, reason: 'The request was not readable.' }, 400);
-  }
+  const read = await readBody(
+    req,
+    {
+      action: { type: 'string', max: 20 },
+      url: { type: 'string', max: 2_048 },
+      label: { type: 'string', max: 500 },
+      id: { type: 'string', max: 100 },
+    },
+    16 * 1024,
+  );
+  if (!read.ok) return json({ ok: false, reason: read.error }, read.status);
+  const body = read.body;
 
   const zone = await zoneOf(admin, userId);
 

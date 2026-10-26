@@ -58,6 +58,11 @@ function themeGrounds(): string {
   return JSON.stringify(grounds);
 }
 
+function themeInitSource(): string {
+  const template = readFileSync(new URL('./theme-init.template.js', import.meta.url), 'utf8');
+  return template.replace('__THEME_GROUNDS__', themeGrounds());
+}
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -73,8 +78,19 @@ export default defineConfig({
   },
   plugins: [
     {
-      name: 'theme-grounds',
-      transformIndexHtml: (html) => html.replace('__THEME_GROUNDS__', themeGrounds()),
+      // The pre-paint theme script, served as a same-origin file rather than
+      // inlined so the CSP can say script-src 'self' with no hash to keep in
+      // step with tokens.css. Still blocking in <head>, so still no flash.
+      name: 'theme-init',
+      configureServer(server) {
+        server.middlewares.use('/theme-init.js', (_req, res) => {
+          res.setHeader('Content-Type', 'text/javascript');
+          res.end(themeInitSource());
+        });
+      },
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'theme-init.js', source: themeInitSource() });
+      },
     },
     react(),
     tailwindcss(),
