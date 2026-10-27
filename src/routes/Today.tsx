@@ -474,8 +474,10 @@ export function Today({
             </div>
           </div>
         ) : (
-          <div ref={titleRow} className="flex items-end justify-between gap-3">
-            <div className="min-w-0">
+          // Wraps rather than shrinks: a weekday is one word and cannot break, so a
+          // squeezed column let "Wednesday" run underneath the buttons.
+          <div ref={titleRow} className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+            <div>
               <p className="today-date">
                 {monthDay(today)}
                 {activeTimezone() !== detectedTimezone() && ` · ${zoneAbbrev()}`}
@@ -484,7 +486,7 @@ export function Today({
                 {weekdayName(today)}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="ml-auto flex shrink-0 items-center gap-1">
               {askable && (
                 <button type="button" className="bar-btn md:hidden" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
                   What now
