@@ -39,7 +39,10 @@ for (const theme of ['light', 'dark'] as const) {
 // bar is glass, composited over the page, so only the rendered screen shows
 // the contrast its labels really get (BUG-003 was 4.14:1 there, 4.29:1 on the
 // token alone).
-for (const skin of ['cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast'] as const) {
+for (const skin of [
+  'cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast', 'nothing', 'arc', 'cupertino', 'field', 'kraft',
+  'oxide', 'static', 'sangria', 'brass', 'bronze', 'velvet',
+] as const) {
   for (const theme of ['light', 'dark'] as const) {
     test.describe(`Theme ${skin}, ${theme}`, () => {
       test.use({ colorScheme: theme });

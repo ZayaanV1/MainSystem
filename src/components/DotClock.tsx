@@ -48,7 +48,8 @@ export function DotClock({ className = '' }: { className?: string }) {
   const iso = `${String(now.hour).padStart(2, '0')}:${String(now.minute).padStart(2, '0')}`;
 
   return (
-    <time dateTime={iso} aria-label={spoken} className={`dot-clock ${className}`}>
+    // role="img": a plain <time> may not carry a label, and the dots are only a picture of the spoken time.
+    <time dateTime={iso} role="img" aria-label={spoken}className={`dot-clock ${className}`}>
       <svg aria-hidden viewBox={`0 0 ${cols * 10} ${MATRIX_ROWS * 10}`} className="dot-clock-panel">
         {dots.map((d) => (
           <circle

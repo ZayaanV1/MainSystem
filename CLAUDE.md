@@ -1850,6 +1850,24 @@ which is right; the tests now use Los Angeles for dates past that change. The
 suite passes under both versions of the data
 (`npx --yes node@22 node_modules/vitest/vitest.mjs run` reproduces CI's).
 
+### Six palette themes — 26 Oct 2026
+
+Oxide, Static, Sangria, Brass, Bronze and Velvet, each built from a
+three-colour palette the owner picked (migration 0047). Three colours do not
+make a theme: grounds, text and accents come from the palette, while urgency and
+course colours stay the shared ones, because those systems must read the same
+in every theme. Most palettes failed a floor as given, so each was adapted
+rather than copied: moss cannot be a button on oxide, citrine vanishes on
+white, brass vanishes on ivory, and no two of Bronze's colours reach 3:1.
+Sangria, Bronze and Velvet's burgundy only ever fill a shape and never colour
+text, the Kraft rule, so none can pass for the overdue rose.
+
+The pre-paint script knew five of the ten existing themes, so Arc, Cupertino,
+Field kit and Kraft painted the default theme until the app loaded. It now
+reads every theme from `tokens.css`, so a new one cannot be left out. Widening
+the per-theme accessibility scan to all sixteen also found Dot matrix's clock
+labelling a `<time>`, which ARIA forbids; it is `role="img"` now.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:

@@ -52,7 +52,8 @@ function themeGrounds(): string {
   const grounds: Record<string, [string, string]> = {
     cloisonne: [inkGround(), inkIn(":root[data-theme='light'] {")],
   };
-  for (const skin of ['letterpress', 'instrument', 'fjord', 'contrast', 'nothing']) {
+  // Every theme tokens.css defines, so a new one cannot be left out of the pre-paint.
+  for (const [, skin] of tokens.matchAll(/^:root\[data-skin='([a-z]+)'\] \{/gmu)) {
     grounds[skin] = [inkIn(`:root[data-skin='${skin}'] {`), inkIn(`:root[data-skin='${skin}'][data-theme='light'] {`)];
   }
   return JSON.stringify(grounds);

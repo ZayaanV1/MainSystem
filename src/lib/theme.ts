@@ -107,7 +107,7 @@ export function watchSystemTheme(onChange: () => void): () => void {
 /* ============================================================================
    Themes: a whole look, chosen per account.
 
-   Ten complete themes, each a designed dark and light pair (tokens.css,
+   Sixteen complete themes, each a designed dark and light pair (tokens.css,
    THEMES). The theme follows the account so the phone and the laptop match;
    light or dark (above) stays per device. The account's choice is cached here
    so index.html can apply it before the first paint: a cached theme never
@@ -124,7 +124,13 @@ export type Skin =
   | 'arc'
   | 'cupertino'
   | 'field'
-  | 'kraft';
+  | 'kraft'
+  | 'oxide'
+  | 'static'
+  | 'sangria'
+  | 'brass'
+  | 'bronze'
+  | 'velvet';
 
 export const SKINS: { id: Skin; name: string; line: string; reference: string }[] = [
   { id: 'cloisonne', name: 'Cloisonné', line: 'Burnt orange and phthalo, enamel lit from inside', reference: 'Cloisonné enamel' },
@@ -137,6 +143,12 @@ export const SKINS: { id: Skin; name: string; line: string; reference: string }[
   { id: 'cupertino', name: 'Cupertino', line: 'Grouped grey, white cards and system blue, in the system font', reference: 'After iOS' },
   { id: 'field', name: 'Field kit', line: 'Aluminium grey and international orange, with mono labels', reference: 'After Teenage Engineering' },
   { id: 'kraft', name: 'Kraft', line: 'Unbleached kraft and burgundy labels, quiet and square', reference: 'After Muji' },
+  { id: 'oxide', name: 'Oxide', line: 'Iron oxide and moss, lit with pale ionized gold', reference: 'Ironheart Oxide, Mossy Anchor, Pale Ionized' },
+  { id: 'static', name: 'Static', line: 'Black, electric citrine and a mist of lilac', reference: 'Static Void, Electric Citrine, Mist Lilac' },
+  { id: 'sangria', name: 'Sangria', line: 'Sangria labels on pebble grey, with jade', reference: 'Sangria Deep, Jade Botanical, Pebble Mist' },
+  { id: 'brass', name: 'Brass', line: 'Ash grey and antique brass on ivory', reference: 'Obsidian Ash, Antique Brass, Ivory Vapor' },
+  { id: 'bronze', name: 'Bronze', line: 'Roasted bronze, cornsilk and glacial blue', reference: 'Sun-Roasted Bronze, Glacial Ether, Silk Cornsilk' },
+  { id: 'velvet', name: 'Velvet', line: 'Ink black and almond, with velvet labels', reference: 'Obsidian Ink, Velvet Curfew, Almond Hearth' },
 ];
 
 const SKIN_KEY = 'planner.skin';

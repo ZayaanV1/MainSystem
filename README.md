@@ -107,8 +107,9 @@ your deadlines.
 
 ### Make it yours
 
-- **Ten themes**: Cloisonné, Letterpress, Instrument, Fjord and Contrast, each
-  designed as a light and dark pair and held to WCAG 2.1 AA contrast.
+- **Sixteen themes**: Cloisonné, Letterpress, Instrument, Fjord, High contrast,
+  Dot matrix, Arc, Cupertino, Field kit, Kraft, Oxide, Static, Sangria, Brass,
+  Bronze and Velvet, each designed as a light and dark pair and held to WCAG 2.1 AA contrast.
 - **Modules you can switch off** (Abood, Briefing, Grades, Repeating work,
   Calendar feeds, Low-battery mode). Off hides; it never deletes.
 - **Appearance settings** for glass, blur, slip style and motion, with full
