@@ -218,12 +218,20 @@ describe('formatter reuse', () => {
     // construction — not formatting — is the expensive part. A calendar feed
     // does this thousands of times per sync inside a CPU-limited edge
     // function; the first real subscription was killed by it.
+    // Counted rather than timed: a time budget failed at random on CI's slower runners.
     const { wallClockToUTC } = await import('../../supabase/functions/_shared/time');
-    const t0 = performance.now();
-    for (let i = 0; i < 20_000; i++) {
-      wallClockToUTC('2026-11-01', i % 24, i % 60, 0, i % 2 ? 'America/Toronto' : 'Europe/London');
+    const Real = Intl.DateTimeFormat;
+    let made = 0;
+    const count = { construct: (t: typeof Real, a: unknown[]) => (made++, new t(...(a as []))), apply: (t: typeof Real, _: unknown, a: unknown[]) => (made++, t(...(a as []))) };
+    Intl.DateTimeFormat = new Proxy(Real, count);
+    try {
+      for (let i = 0; i < 20_000; i++) {
+        wallClockToUTC('2026-11-01', i % 24, i % 60, 0, i % 2 ? 'America/Toronto' : 'Europe/London');
+      }
+    } finally {
+      Intl.DateTimeFormat = Real;
     }
-    expect(performance.now() - t0).toBeLessThan(400);
+    expect(made).toBeLessThan(10);
   });
 });
 
