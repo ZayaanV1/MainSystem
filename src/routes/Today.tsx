@@ -36,6 +36,8 @@ const ChecklistSheet = lazyRetry(loadChecklistSheet, (m) => m.ChecklistSheet);
  * for it.
  */
 const loadBoard = () => import('../components/board/Board');
+/* Vision's desk dashboard: its own chunk, fetched only where it is drawn. */
+const VisionToday = lazyRetry(() => import('./VisionToday'), (m) => m.VisionToday);
 const Board = lazyRetry(loadBoard, (m) => m.Board);
 import { LowBattery } from './LowBattery';
 import type { ChecklistItem } from '../lib/checklist';
@@ -76,6 +78,7 @@ import { askBoard } from '../lib/board';
 import { dismissInstallHint, shouldHintInstall } from '../lib/install';
 import { onFeedsChanged } from '../lib/feeds';
 import { usePullToRefresh } from '../lib/usePullToRefresh';
+import { useVisionDesk } from '../lib/vision';
 
 /**
  * Today — the default view.
@@ -101,6 +104,7 @@ export function Today({
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
   const prefs = usePreferences();
+  const vision = useVisionDesk();
   const [askingTime, setAskingTime] = useState<Assignment | null>(null);
   // The last thing done to a piece of work from this screen (finished, or
   // moved to tomorrow), offered back for a moment.
@@ -441,6 +445,37 @@ export function Today({
         travelling is when it matters, and at home it was a word on every
         open that never changed.
       */}
+      {vision ? (
+        <>
+          {data?.cachedAt != null && <CachedNotice at={data.cachedAt} onRetry={() => void retry()} />}
+          {data && <LoadFailure failed={data.failed} onRetry={() => void retry()} retrying={retrying} />}
+          <Suspense fallback={<div aria-hidden className="h-96 rounded-hero skeleton-wait" />}>
+            <VisionToday
+              userId={userId}
+              data={data}
+              today={today}
+              now={now}
+              pills={pills}
+              isDone={(id) => isDone(id, today)}
+              onToggleItem={(id) => void toggle(id, today)}
+              onFinish={finish}
+              onOpen={setOpenAssignment}
+              onOpenChecklist={() => setChecklistOpen(true)}
+              onAddChecklist={() => setEditorFor({ item: null })}
+              sized={sized}
+              assistOn={assistOn}
+              menu={menuButton}
+            />
+          </Suspense>
+          {askingTime && (
+            <div className="mt-4">
+              <HowLong assignment={askingTime} onDone={() => setAskingTime(null)} />
+            </div>
+          )}
+          {status?.warn && <p className="mt-3 type-note text-t-critical">{status.text}</p>}
+        </>
+      ) : (
+      <>
       <header className="mb-3 px-4">
         <h1 className="sr-only">Today</h1>
         {prefs.skin === 'nothing' ? (
@@ -554,6 +589,8 @@ export function Today({
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* Suspense inside each condition, never around it: SheetPresence reads
           whether it has children to know whether a sheet is open, and a
@@ -641,12 +678,17 @@ export function Today({
       <PopMenu label="Today options" anchor={menuAt} onClose={() => setMenuAt(null)}>
         {(choose) => (
           <>
-            <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => askBoard('edit'))}>
-              Edit widgets
-            </button>
-            <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => askBoard('add'))}>
-              Add a widget
-            </button>
+            {/* The board is the phone's Today; the desk dashboard has none to edit. */}
+            {!vision && (
+              <>
+                <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => askBoard('edit'))}>
+                  Edit widgets
+                </button>
+                <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => askBoard('add'))}>
+                  Add a widget
+                </button>
+              </>
+            )}
             <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => setChecklistOpen(true))}>
               Checklist and past days
             </button>

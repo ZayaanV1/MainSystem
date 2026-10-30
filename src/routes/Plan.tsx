@@ -33,6 +33,9 @@ import {
   type WeightedEvent,
 } from '../lib/planner';
 import { formatDay, localDayKey } from '../lib/time';
+import { useVisionDesk } from '../lib/vision';
+import { rowWhen } from '../lib/rowWhen';
+import { urgencyFor } from '../lib/urgency';
 
 /**
  * Plan — where a semester gets loaded in one go.
@@ -46,8 +49,10 @@ import { formatDay, localDayKey } from '../lib/time';
  * written until it has been shown. A row the parser guessed at is marked as
  * guessed, and a row it could not read is excluded rather than approximated.
  */
-export function Plan({ courses, onBack, onChanged, onOpenWork }: {
+export function Plan({ courses, assignments = [], onBack, onChanged, onOpenWork }: {
   courses: Course[];
+  /** Today's open work, for Vision's course cards. */
+  assignments?: Assignment[];
   onBack: () => void;
   onChanged: () => void;
   onOpenWork?: (id: string) => void;
@@ -210,7 +215,7 @@ export function Plan({ courses, onBack, onChanged, onOpenWork }: {
         </Button>
       </header>
 
-      <CourseEditor userId={userId} courses={courses} onChanged={onChanged} onOpen={openCourse} />
+      <CourseEditor userId={userId} courses={courses} assignments={assignments} onChanged={onChanged} onOpen={openCourse} />
 
       {/*
         Above the importer on purpose. Once a syllabus has been read this is
@@ -525,11 +530,13 @@ function PreviewRow({
 function CourseEditor({
   userId,
   courses,
+  assignments,
   onChanged,
   onOpen,
 }: {
   userId: string;
   courses: Course[];
+  assignments: Assignment[];
   onChanged: () => void;
   onOpen: (id: string) => void;
 }) {
@@ -539,6 +546,7 @@ function CourseEditor({
   const [managing, setManaging] = useState(false);
   const [all, setAll] = useState<Course[]>([]);
   const [archiveNote, setArchiveNote] = useState<string | null>(null);
+  const vision = useVisionDesk();
 
   // Loaded only when the archive is opened, and reloaded after each change.
   // The normal course list already excludes archived ones, so this is the
@@ -651,6 +659,8 @@ function CourseEditor({
         </div>
       ) : courses.length === 0 && !open ? (
         <EmptyState>No courses yet. Adding them lets a pasted syllabus match itself up.</EmptyState>
+      ) : vision ? (
+        <VisionCourses courses={courses} assignments={assignments} onOpen={onOpen} />
       ) : (
         /*
           Each course as a tile of its own glass: the code set large, the full
@@ -705,6 +715,72 @@ function CourseEditor({
         </form>
       )}
     </section>
+  );
+}
+
+/**
+ * Courses on Vision's desk, as the glass dashboard's saved cards: a header in
+ * the course's own glass (the wash the Week view's blocks use, never a flat
+ * fill), then what is still open in it and when the next thing is due. The
+ * grades stay in Grades below rather than repeated on every card.
+ */
+function VisionCourses({
+  courses,
+  assignments,
+  onOpen,
+}: {
+  courses: Course[];
+  assignments: Assignment[];
+  onOpen: (id: string) => void;
+}) {
+  const now = new Date();
+  return (
+    <div className="v-courses">
+      {courses.map((c) => {
+        const cv = courseVar(c.colour_index);
+        const open = assignments
+          .filter((a) => a.course_id === c.id && a.status !== 'done')
+          .sort((a, b) => (a.due_at ?? '9999').localeCompare(b.due_at ?? '9999'));
+        const next = open[0];
+        const due = next?.due_at ? new Date(next.due_at) : null;
+        const u = urgencyFor(due, { now });
+        const when = next ? rowWhen(u, due, next.due_has_time, now) : null;
+        return (
+          <button
+            type="button"
+            key={c.id}
+            className="v-card v-lift v-course text-left"
+            onClick={() => onOpen(c.id)}
+            aria-label={`Open ${c.code ?? c.name}`}
+          >
+            <span
+              className="mat v-course-head"
+              data-block={cv ? true : undefined}
+              style={cv ? ({ '--b': `var(${cv}-rgb)` } as CSSProperties) : undefined}
+            >
+              <span aria-hidden className="chip-dot" />
+              <span className="v-course-tag">{open.length ? `${open.length} open` : 'All done'}</span>
+            </span>
+            <span className="v-course-code">{c.code ?? c.name}</span>
+            {c.code && c.name !== c.code && <span className="v-course-name">{c.name}</span>}
+            <span className="v-course-foot">
+              {next ? (
+                <>
+                  <span className="v-line">{next.title}</span>
+                  {when && (
+                    <span className="v-when" style={{ color: `var(${u.colourVar})` }}>
+                      {when}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="v-meta">Nothing open</span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

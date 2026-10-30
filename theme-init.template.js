@@ -13,7 +13,7 @@
       (c !== 'light' && !window.matchMedia('(prefers-color-scheme: light)').matches);
     var m = document.querySelector('meta[name="theme-color"]');
     if (m) m.setAttribute('content', GROUNDS[s][dark ? 0 : 1]);
-  } catch (e) {
+  } catch {
     /* storage unavailable — the media query still decides */
   }
 })();

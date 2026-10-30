@@ -1868,6 +1868,55 @@ reads every theme from `tokens.css`, so a new one cannot be left out. Widening
 the per-theme accessibility scan to all sixteen also found Dot matrix's clock
 labelling a `<time>`, which ARIA forbids; it is `role="img"` now.
 
+### Vision — 29 Oct 2026
+
+The seventeenth theme, from the owner's request to make the desk "like" a
+glassmorphism dashboard reel (code.xr, "Glassy Dashboard V5"), first rebuilt
+as a standalone app and then proposed as a theme and approved with every
+recommended answer: a theme of its own, a fixed dashboard on the desk with
+the board kept on phone and iPad, a bundled photo plus the account's own, and
+forward-looking minis where the reel had sparklines (a line of past days is a
+score across days, rule 3). Migration 0048.
+
+- **On a phone it is a theme like the others**: the photo behind the app
+  (`--vision-photo`, the veil tokens), Poppins, blue and emerald. The real
+  backdrop blur is desk-only; a phone keeps the opaque panels.
+- **From 64rem (`.vision-desk`, `useVisionDesk`)** the rail becomes a
+  floating dock (same seven destinations, a white disc moved by
+  `moveCapsule`, a tooltip on hover) and a top bar that does not repeat the
+  dock: the time, a box that captures to the inbox, the inbox count, Abood,
+  the account.
+- **Today is a dashboard** (`routes/VisionToday.tsx`, its own chunk): the
+  What now pick as the greeting's subtitle with the time chips and Start on
+  it beside it; Next due, Up next (with how far through a class you are),
+  Open work and the checklist as stat cards; this week's load as bars of
+  what is due per day; today's timeline with the course as the 3px edge;
+  assignments, the checklist pills and a goal ring. Every action is one
+  Today already had. The ⋯ menu hides Edit widgets there, since the desk has
+  no board to edit.
+- **Abood** sits between its channels (live Telegram and iMessage state)
+  and what it remembers, forgettable in place. **Courses** are cards with the
+  course's glass as their head, open count and next due; grades stay below.
+- **Motion** is the reel's, in CSS rather than Framer Motion: blur-in rise
+  (700 ms, 18 px, 0.97, 14 px blur, 70 ms stagger, cubic-bezier(0.22, 1, 0.36,
+  1)), screens dissolving out (280 ms) before the next rises (`leaveThen` in
+  App's `changeScreen`), bars grown with a `linear()` spring, the ring drawn,
+  the dock sliding in, hover lifts behind a real pointer. Calm and reduced
+  motion keep the fades only. `cascade` numbers panels as they arrive, for
+  2.5 s, so a later edit never replays an entrance.
+- **Contrast**: the light blue and the emerald text were darkened after axe
+  measured 4.2:1 and 4.1:1 on the light ground; the palette test checked
+  them only against white cards. `e2e/vision.desktop.spec.ts` scans the
+  dashboard, Abood and Courses in both modes, which also caught chart labels
+  put on bare spans.
+- **The photo** is Unsplash 2DVdZhvwnuM (Unsplash licence), self-hosted at
+  two sizes and kept out of the precache. Your own is a path in the board's
+  private bucket (`lib/backdrop.ts`), re-signed every 45 minutes.
+
+Not verified on a phone or a real laptop's GPU; Chromium only. The dock's
+disc moves with the app's stretching capsule rather than the reel's plain
+spring, by choice.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:

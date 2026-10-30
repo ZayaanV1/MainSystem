@@ -27,7 +27,7 @@ const SIZES: Record<string, string[]> = {
 const ALL = Object.entries(SIZES).flatMap(([type, sizes]) => sizes.map((s) => `${type}:${s}`));
 // The board holds at most 40, so the set is drawn in two halves.
 const HALVES = [ALL.slice(0, 30), ALL.slice(30)];
-const THEMES = ['cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast', 'nothing', 'arc', 'cupertino', 'field', 'kraft', 'oxide', 'static', 'sangria', 'brass', 'bronze', 'velvet'];
+const THEMES = ['cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast', 'nothing', 'arc', 'cupertino', 'field', 'kraft', 'oxide', 'static', 'sangria', 'brass', 'bronze', 'velvet', 'vision'];
 
 for (const theme of THEMES) {
   test(`every widget fits at every size in ${theme}`, async ({ page }) => {

@@ -41,7 +41,7 @@ for (const theme of ['light', 'dark'] as const) {
 // token alone).
 for (const skin of [
   'cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast', 'nothing', 'arc', 'cupertino', 'field', 'kraft',
-  'oxide', 'static', 'sangria', 'brass', 'bronze', 'velvet',
+  'oxide', 'static', 'sangria', 'brass', 'bronze', 'velvet', 'vision',
 ] as const) {
   for (const theme of ['light', 'dark'] as const) {
     test.describe(`Theme ${skin}, ${theme}`, () => {

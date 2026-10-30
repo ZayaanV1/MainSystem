@@ -11,6 +11,8 @@ import { askChat } from '../lib/assist';
 import { clearChat, loadChat, markActionTaken, saveMessage, type ChatMessage } from '../lib/chat';
 import { addAssignment, assignmentDueAt, setCompletion, type Course } from '../lib/planner';
 import { formatDay, formatTime, todayKey } from '../lib/time';
+import { useVisionDesk } from '../lib/vision';
+import { AboodChannels, AboodMemory } from '../components/VisionAbood';
 
 /**
  * Ask the app about your own data.
@@ -43,6 +45,7 @@ export function Chat({ courses, mentions, onBack, onChanged }: {
 }) {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
+  const vision = useVisionDesk();
 
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const [draft, setDraft] = useState('');
@@ -176,8 +179,8 @@ export function Chat({ courses, mentions, onBack, onChanged }: {
 
   if (!messages) return null;
 
-  return (
-    <main className="page-frame">
+  const conversation = (
+    <>
       <header className="mb-6 flex items-baseline justify-between gap-4 px-4">
         <h1 className="page-title">Abood</h1>
         <div className="flex items-baseline gap-4">
@@ -386,8 +389,25 @@ export function Chat({ courses, mentions, onBack, onChanged }: {
           {remaining} more questions today.
         </p>
       )}
-    </main>
+    </>
   );
+
+  // On Vision's desk the conversation sits between its channels and its memory.
+  if (vision) {
+    return (
+      <main className="page-frame">
+        <div className="v-chat">
+          <AboodChannels starters={STARTERS} onAsk={(q) => void send(q)} spent={Boolean(spent)} />
+          <section className="v-card v-chat-main" aria-label="Conversation">
+            {conversation}
+          </section>
+          <AboodMemory refresh={messages.length} />
+        </div>
+      </main>
+    );
+  }
+
+  return <main className="page-frame">{conversation}</main>;
 }
 
 /**

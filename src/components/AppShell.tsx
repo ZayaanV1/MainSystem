@@ -3,6 +3,10 @@ import type { ReactNode } from 'react';
 import { followCapsule, moveCapsule, popClose, popIcon, popOpen } from '../lib/motion';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { StatusVeil } from './CompactBar';
+import { VisionChrome } from './VisionChrome';
+import { cascade, useVisionDesk } from '../lib/vision';
+import { usePreferences } from '../lib/preferences';
+import { loadBackdrop, showBackdrop } from '../lib/backdrop';
 
 /**
  * The frame the whole app sits in.
@@ -48,9 +52,20 @@ export function AppShell<T extends string>({
   onNavigate: (id: T) => void;
   children: ReactNode;
 }) {
+  const vision = useVisionDesk();
+  // Vision's room: the account's own photo, when it chose one, at any width.
+  const { skin } = usePreferences();
+  useEffect(() => {
+    if (skin !== 'vision') return;
+    void loadBackdrop().then(showBackdrop);
+  }, [skin]);
   return (
-    <div className="atmosphere lg:flex lg:min-h-svh">
-      <Rail current={current} items={items} onNavigate={onNavigate} />
+    <div className={`atmosphere lg:flex lg:min-h-svh ${vision ? 'vision-desk' : ''}`}>
+      {vision ? (
+        <VisionChrome current={current} items={items} onNavigate={onNavigate} />
+      ) : (
+        <Rail current={current} items={items} onNavigate={onNavigate} />
+      )}
 
       {/* min-w-0 so a wide child (a long title, a table) shrinks instead of
           pushing the rail off screen. */}
@@ -348,5 +363,12 @@ function Rail<T extends string>({
  * and a fresh node runs its animation from the beginning.
  */
 export function Page({ children }: { children: ReactNode }) {
-  return <div className="page-enter">{children}</div>;
+  // On Vision's desk the screen's surfaces also rise one after another.
+  const page = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => cascade(page.current), []);
+  return (
+    <div ref={page} className="page-enter">
+      {children}
+    </div>
+  );
 }

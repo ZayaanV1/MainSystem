@@ -114,7 +114,7 @@ export default defineConfig({
         // theme is chosen; everyone else never downloads them.
         globIgnores: [
           '**/fonts/{Fraunces,IBMPlexMono,AtkinsonHyperlegible,Doto,Geist,GeistMono}-*.woff2',
-          '**/fonts/{BricolageGrotesque,Archivo,JetBrainsMono,ZenKakuGothicNew}-*.woff2',
+          '**/fonts/{BricolageGrotesque,Archivo,JetBrainsMono,ZenKakuGothicNew,Poppins}-*.woff2',
         ],
       },
 

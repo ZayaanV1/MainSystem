@@ -3,6 +3,7 @@ import { SKINS, applySkin, type Skin } from '../lib/theme';
 import { saveSkin, usePreferences } from '../lib/preferences';
 import { sweepFrom } from '../lib/transition';
 import { Button } from './Button';
+import { clearBackdrop, loadBackdrop, setBackdrop } from '../lib/backdrop';
 
 /**
  * Choosing a theme.
@@ -93,7 +94,70 @@ export function ThemePicker({ userId }: { userId: string }) {
         </div>
       )}
       {problem && <p className="type-note text-t-overdue">{problem}</p>}
+      {shown === 'vision' && <VisionRoom userId={userId} />}
       <p className="type-note text-text-low">The theme follows your account, so your phone and laptop match.</p>
+    </div>
+  );
+}
+
+/**
+ * The photo behind Vision: the bundled room at dusk, or one of your own.
+ * Shown while Vision is the theme on screen, since it means nothing elsewhere.
+ */
+function VisionRoom({ userId }: { userId: string }) {
+  const [path, setPath] = useState<string | null | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void loadBackdrop().then(setPath);
+  }, []);
+
+  async function pick(file: File | undefined) {
+    if (!file) return;
+    setBusy(true);
+    setProblem(null);
+    const r = await setBackdrop(userId, file, path ?? null);
+    setBusy(false);
+    if (r.error) setProblem(r.error);
+    else setPath(r.path);
+  }
+
+  async function reset() {
+    setBusy(true);
+    setProblem(null);
+    const r = await clearBackdrop(userId, path ?? null);
+    setBusy(false);
+    if (r.error) setProblem(r.error);
+    else setPath(null);
+  }
+
+  return (
+    <div className="mat flex flex-col gap-2 p-4">
+      <span className="kicker">Vision background</span>
+      <p className="type-note text-text-mid">
+        {path === undefined ? 'Checking' : path ? 'Your own photo, behind the glass on every device.' : 'A room at dusk, the theme’s own.'}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          aria-label="Choose a background photo"
+          onChange={(e) => void pick(e.target.files?.[0])}
+        />
+        <Button variant="secondary" size="sm" disabled={busy} onClick={() => input.current?.click()}>
+          {busy ? 'Saving' : path ? 'Change photo' : 'Use my own photo'}
+        </Button>
+        {path && (
+          <Button variant="quiet" size="sm" disabled={busy} onClick={() => void reset()}>
+            Use the default
+          </Button>
+        )}
+      </div>
+      {problem && <p className="type-note text-t-overdue">{problem}</p>}
     </div>
   );
 }

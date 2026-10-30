@@ -107,7 +107,7 @@ export function watchSystemTheme(onChange: () => void): () => void {
 /* ============================================================================
    Themes: a whole look, chosen per account.
 
-   Sixteen complete themes, each a designed dark and light pair (tokens.css,
+   Seventeen complete themes, each a designed dark and light pair (tokens.css,
    THEMES). The theme follows the account so the phone and the laptop match;
    light or dark (above) stays per device. The account's choice is cached here
    so index.html can apply it before the first paint: a cached theme never
@@ -130,7 +130,8 @@ export type Skin =
   | 'sangria'
   | 'brass'
   | 'bronze'
-  | 'velvet';
+  | 'velvet'
+  | 'vision';
 
 export const SKINS: { id: Skin; name: string; line: string; reference: string }[] = [
   { id: 'cloisonne', name: 'Cloisonné', line: 'Burnt orange and phthalo, enamel lit from inside', reference: 'Cloisonné enamel' },
@@ -149,6 +150,7 @@ export const SKINS: { id: Skin; name: string; line: string; reference: string }[
   { id: 'brass', name: 'Brass', line: 'Ash grey and antique brass on ivory', reference: 'Obsidian Ash, Antique Brass, Ivory Vapor' },
   { id: 'bronze', name: 'Bronze', line: 'Roasted bronze, cornsilk and glacial blue', reference: 'Sun-Roasted Bronze, Glacial Ether, Silk Cornsilk' },
   { id: 'velvet', name: 'Velvet', line: 'Ink black and almond, with velvet labels', reference: 'Obsidian Ink, Velvet Curfew, Almond Hearth' },
+  { id: 'vision', name: 'Vision', line: 'Frosted glass over a room at dusk, with a dock on the desk', reference: 'After visionOS' },
 ];
 
 const SKIN_KEY = 'planner.skin';

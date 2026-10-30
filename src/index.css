@@ -11,6 +11,7 @@
 @import './styles/tokens.css';
 @import './styles/calendar.css';
 @import './styles/material.css';
+@import './styles/vision.css';
 
 /* ============================================================================
    Fonts — self-hosted latin subsets. No runtime request to Google.
@@ -145,6 +146,36 @@
    gothic Muji's signage is closest to. Cupertino needs no file: it asks for
    the system face, which is San Francisco on Apple devices. Latin subsets
    from Google Fonts, all OFL. */
+/* Poppins for Vision, after the glass dashboards it is drawn from. Static
+   weights: Google ships no variable file of it. */
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Poppins-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Poppins-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Poppins-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Poppins-700.woff2') format('woff2');
+}
 @font-face {
   font-family: 'Bricolage Grotesque';
   font-style: normal;

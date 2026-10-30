@@ -1,0 +1,1360 @@
+/* ============================================================================
+   vision.css — the Vision theme's room, glass and desk (Oct 2026).
+
+   Drawn from a glassmorphism dashboard: a photographed room at dusk behind
+   everything, panels of frosted glass over it, a floating dock, and screens
+   that resolve out of a blur. On a phone Vision is a theme like the others
+   with the room behind it; from 64rem (.vision-desk, lib/vision.ts) it takes
+   the desk layout and the real backdrop blur.
+
+   Every colour is a token (tokens.css, the Vision blocks). Hover lifts need a
+   real pointer, as everywhere in this app. Reduced and calm motion keep the
+   fades and drop the travel and the blur.
+   ========================================================================= */
+
+/* ---- the room ------------------------------------------------------------- */
+
+:root[data-skin='vision'] .atmosphere::before {
+  /* The account's own photo, when it has one, arrives as --vision-photo. */
+  background:
+    linear-gradient(180deg, var(--veil-top) 0%, var(--veil-mid) 45%, var(--veil-bottom) 100%),
+    linear-gradient(var(--veil-tint), var(--veil-tint)),
+    var(--vision-photo, url('/backdrops/vision-sm.webp')) center / cover no-repeat;
+  animation: v-room 1.6s var(--v-ease) both;
+}
+
+@media (width >= 64rem) {
+  :root[data-skin='vision'] .atmosphere::before {
+    background:
+      linear-gradient(180deg, var(--veil-top) 0%, var(--veil-mid) 45%, var(--veil-bottom) 100%),
+      linear-gradient(var(--veil-tint), var(--veil-tint)),
+      var(--vision-photo, url('/backdrops/vision.webp')) center / cover no-repeat;
+  }
+}
+
+:root[data-skin='vision'] {
+  --v-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes v-room {
+  from {
+    transform: scale(1.08);
+    filter: blur(8px);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+
+/* ---- glass ------------------------------------------------------------------
+   On the desk every panel is glass: a backdrop read per card, which a laptop
+   carries easily. Glass: Off in Appearance still turns it off. */
+
+.vision-desk .mat,
+.vision-desk .v-card {
+  background:
+    radial-gradient(120% 100% at 0% 0%, var(--mat-light, var(--glass-fill)), transparent 62%),
+    linear-gradient(160deg, var(--glass-fill-hover), var(--glass-fill)),
+    linear-gradient(var(--mat-wash, transparent), var(--mat-wash, transparent)),
+    var(--surface-glass);
+  -webkit-backdrop-filter: blur(26px) saturate(140%);
+  backdrop-filter: blur(26px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    inset 0 0 0 1px var(--glass-edge),
+    0 14px 40px -18px rgb(var(--shadow-color) / 0.6);
+}
+
+.vision-desk .v-card {
+  position: relative;
+  border-radius: var(--r-card);
+}
+
+:root[data-glass='off'] .vision-desk .mat,
+:root[data-glass='off'] .vision-desk .v-card {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--ink-800);
+}
+
+/* Lift on a real pointer, as in the dashboard's `whileHover={{ y: -5 }}`. */
+@media (hover: hover) and (pointer: fine) {
+  .vision-desk .v-lift {
+    transition:
+      transform 420ms var(--v-ease),
+      box-shadow 420ms var(--v-ease);
+  }
+  .vision-desk .v-lift:hover {
+    transform: translateY(-5px);
+  }
+}
+
+/* ---- the desk: room for the dock and the bar -------------------------------- */
+
+.vision-desk > [data-recede] {
+  padding-left: 6.25rem;
+  padding-top: 4.25rem;
+}
+
+.vision-desk .page-frame {
+  max-width: 92rem;
+  padding-inline: 1.5rem 2rem;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+  /* The frame fills the window on its own; under the bar it fills what is
+     left, or every screen scrolled by the bar's height for nothing. */
+  min-height: calc(100dvh - 4.25rem);
+}
+
+/* The phone's tab bar and compact bar have no place on the desk. */
+.vision-desk .compact-bar {
+  display: none;
+}
+
+/* ---- the top bar ------------------------------------------------------------ */
+
+.v-top {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 4.25rem;
+  padding: 0.75rem 1.5rem 0;
+  pointer-events: none;
+  animation: v-drop 700ms var(--v-ease) both;
+}
+
+.v-top > * {
+  pointer-events: auto;
+}
+
+/* Content scrolls under the bar into the room's own dusk, not under bare pills. */
+.v-top::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 -1.5rem 0;
+  z-index: -1;
+  background: linear-gradient(180deg, var(--veil-top), transparent);
+  -webkit-mask: linear-gradient(180deg, var(--text-hi) 55%, transparent);
+  mask: linear-gradient(180deg, var(--text-hi) 55%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.v-pill,
+.v-round,
+.v-dock {
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--glass-fill-hover), transparent 70%),
+    var(--surface-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    inset 0 0 0 1px var(--glass-edge),
+    0 6px 20px -8px rgb(var(--shadow-color) / 0.55);
+}
+
+.v-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-pill);
+  padding-inline: 1rem;
+  color: var(--text-hi);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.v-clock {
+  font-variant-numeric: tabular-nums;
+}
+
+.v-capture {
+  position: absolute;
+  left: 50%;
+  width: min(30rem, 40vw);
+  transform: translateX(-50%);
+  color: var(--text-low);
+  transition: box-shadow 260ms var(--v-ease);
+}
+
+.v-capture:focus-within {
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    inset 0 0 0 1px var(--accent),
+    0 0 0 4px var(--selection),
+    0 6px 20px -8px rgb(var(--shadow-color) / 0.55);
+}
+
+.v-capture input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  outline: none;
+}
+
+.v-capture input::placeholder {
+  color: var(--text-low);
+}
+
+.v-capture kbd {
+  border-radius: var(--r-tight);
+  padding: 0.125rem 0.4rem;
+  background: var(--tag-surface);
+  color: var(--text-low);
+  font: inherit;
+  font-size: 0.6875rem;
+}
+
+.v-top-end {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.v-round {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-pill);
+  color: var(--text-mid);
+  transition:
+    transform 220ms var(--v-ease),
+    color 220ms var(--v-ease);
+}
+
+.v-round:active {
+  transform: scale(0.94);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-round:hover {
+    transform: scale(1.06);
+    color: var(--text-hi);
+  }
+}
+
+.v-round .tab-badge,
+.v-dock-btn .tab-badge {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.35rem;
+}
+
+.v-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-pill);
+  background: linear-gradient(135deg, var(--accent-lit), var(--accent-deep));
+  color: var(--on-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow:
+    inset 0 0 0 2px var(--glass-edge-hover),
+    0 6px 18px -6px var(--now-glow);
+}
+
+/* ---- the dock --------------------------------------------------------------- */
+
+.v-dock {
+  position: fixed;
+  left: 1.5rem;
+  top: 50%;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.375rem;
+  border-radius: var(--r-pill);
+  translate: 0 -50%;
+  animation: v-slide 800ms var(--v-ease) 150ms both;
+}
+
+.v-dock-lit {
+  position: absolute;
+  top: 0;
+  left: 0.375rem;
+  width: 2.75rem;
+  border-radius: var(--r-pill);
+  background: var(--text-hi);
+  box-shadow: 0 4px 18px -2px var(--specular);
+  pointer-events: none;
+}
+
+.v-dock-btn {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--r-pill);
+  color: var(--text-mid);
+  transition: color 300ms var(--v-ease);
+}
+
+.v-dock-btn.is-active {
+  color: var(--ink-900);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-dock-btn:not(.is-active):hover {
+    color: var(--text-hi);
+  }
+}
+
+/* The name, beside the dock, on hover or keyboard focus. */
+.v-tip {
+  position: absolute;
+  left: calc(100% + 0.75rem);
+  top: 50%;
+  white-space: nowrap;
+  border-radius: var(--r-pill);
+  padding: 0.25rem 0.625rem;
+  background: var(--scrim);
+  color: var(--text-hi);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  opacity: 0;
+  filter: blur(4px);
+  translate: -6px -50%;
+  pointer-events: none;
+  transition:
+    opacity 200ms var(--v-ease),
+    filter 200ms var(--v-ease),
+    translate 200ms var(--v-ease);
+}
+
+.v-dock-btn:focus-visible .v-tip {
+  opacity: 1;
+  filter: none;
+  translate: 0 -50%;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-dock-btn:hover .v-tip {
+    opacity: 1;
+    filter: none;
+    translate: 0 -50%;
+  }
+}
+
+/* ---- entrances -------------------------------------------------------------- */
+
+@keyframes v-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes v-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes v-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+    filter: blur(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes v-fade {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+/* A screen arrives out of the blur the last one left into (leaveThen). */
+.vision-desk .page-enter {
+  animation: v-fade 600ms var(--v-ease) both;
+}
+
+/* Its panels rise in order (cascade numbers them). */
+.vision-desk [data-rise] {
+  animation: v-rise 700ms var(--v-ease) both;
+  animation-delay: calc(var(--i, 0) * 70ms + 50ms);
+}
+
+/* Rows inside a panel follow it in. */
+.vision-desk .v-stagger > * {
+  animation: v-item 500ms var(--v-ease) both;
+  animation-delay: calc(var(--j, 0) * 60ms + 250ms + var(--i, 0) * 70ms);
+}
+
+@keyframes v-item {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+:root[data-motion='calm'] .vision-desk [data-rise],
+:root[data-motion='calm'] .vision-desk .v-stagger > *,
+:root[data-motion='calm'] .v-top,
+:root[data-motion='calm'] .v-dock {
+  animation-name: v-fade-only;
+}
+
+@keyframes v-fade-only {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin='vision'] .atmosphere::before {
+    animation: none;
+  }
+  .vision-desk [data-rise],
+  .vision-desk .v-stagger > *,
+  .vision-desk .page-enter,
+  .v-top,
+  .v-dock {
+    animation-name: v-fade-only;
+  }
+  .vision-desk .v-lift:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+   Today on the desk: the dashboard (routes/VisionToday.tsx).
+   ========================================================================= */
+
+.v-dash {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  /* One screen, as the dashboard is: the chart takes what the rest leaves. On
+     a short window it scrolls rather than squeezing a card below legibility. */
+  height: calc(100dvh - 7rem);
+  min-height: 40rem;
+}
+
+.v-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  animation: v-rise 700ms var(--v-ease) both;
+}
+
+.v-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 2.2vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text-hi);
+}
+
+.v-sub {
+  margin-top: 0.25rem;
+  max-width: 46rem;
+  color: var(--text-mid);
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.v-sub b {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+
+.v-sub-link {
+  border-radius: var(--r-tight);
+  transition: color 200ms var(--v-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-sub-link:hover b {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.v-head-end {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.v-seg {
+  position: relative;
+  display: flex;
+  border-radius: var(--r-pill);
+  padding: 0.25rem;
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--glass-fill-hover), transparent 70%),
+    var(--surface-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    inset 0 0 0 1px var(--glass-edge);
+}
+
+.v-seg button {
+  position: relative;
+  z-index: 1;
+  border-radius: var(--r-pill);
+  padding: 0.4rem 0.9rem;
+  color: var(--text-mid);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: color 300ms var(--v-ease);
+}
+
+.v-seg button.is-on {
+  color: var(--ink-900);
+}
+
+.v-seg-lit {
+  position: absolute;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 0;
+  border-radius: var(--r-pill);
+  background: var(--text-hi);
+  pointer-events: none;
+}
+
+.v-primary {
+  height: 2.375rem;
+  border-radius: var(--r-pill);
+  padding-inline: 1.1rem;
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent));
+  color: var(--on-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-ember);
+  transition:
+    transform 220ms var(--v-ease),
+    opacity 200ms;
+}
+
+.v-primary:active {
+  transform: scale(0.96);
+}
+
+.v-primary:disabled {
+  opacity: 0.5;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-primary:not(:disabled):hover {
+    transform: scale(1.04);
+  }
+}
+
+/* ---- the grid ---- */
+
+.v-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.v-mid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+  gap: 1rem;
+  flex: 1;
+  min-height: 11rem;
+}
+
+.v-low {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  height: 11.25rem;
+}
+
+.v-low > .v-card {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.v-dash .v-card {
+  padding: 1.125rem;
+}
+
+.v-h {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.v-meta {
+  margin-top: 0.125rem;
+  color: var(--text-low);
+  font-size: 0.6875rem;
+}
+
+.v-empty {
+  margin-top: 0.75rem;
+  color: var(--text-mid);
+  font-size: 0.75rem;
+}
+
+.v-link {
+  color: var(--text-low);
+  font-size: 0.6875rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-link:hover {
+    color: var(--text-hi);
+  }
+}
+
+.v-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  margin-right: 0.4rem;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+/* ---- stat cards ---- */
+
+.v-stat {
+  display: flex;
+  flex-direction: column;
+  min-height: 8.25rem;
+}
+
+.v-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--r-tight);
+  color: var(--tint);
+  background: color-mix(in srgb, var(--tint) 22%, transparent);
+}
+
+.v-label {
+  margin-top: 0.75rem;
+  color: var(--text-low);
+  font-size: 0.6875rem;
+}
+
+.v-value {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text-hi);
+  font-variant-numeric: tabular-nums;
+}
+
+.v-unit {
+  margin-left: 0.3rem;
+  color: var(--text-low);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.v-stat-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.v-line {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-hi);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.v-chip {
+  border-radius: var(--r-pill);
+  padding: 0.125rem 0.5rem;
+  background: color-mix(in srgb, var(--tone) 16%, transparent);
+  color: var(--tone);
+  font-size: 0.625rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.v-track {
+  display: block;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--glass-fill-hover);
+}
+
+.v-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-2-lit);
+  transform-origin: left;
+  animation: v-grow-x 1.1s var(--v-ease) 600ms both;
+}
+
+.v-segs {
+  display: flex;
+  width: 100%;
+  gap: 3px;
+}
+
+.v-segs span {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--glass-fill-hover);
+  transition: background-color 300ms var(--v-ease);
+}
+
+.v-segs span.on {
+  background: var(--t-done);
+}
+
+@keyframes v-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ---- this week's load ---- */
+
+.v-week {
+  display: flex;
+  flex-direction: column;
+}
+
+.v-bars {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  padding-inline: 1.5rem;
+}
+
+.v-bar {
+  display: flex;
+  flex: 1;
+  max-width: 3rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.v-bar-n {
+  height: 1rem;
+  color: var(--text-mid);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.v-bar-col {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  max-width: 2rem;
+  align-items: flex-end;
+}
+
+.v-bar-fill {
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--glass-edge-hover), var(--glass-fill));
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  transform-origin: bottom;
+  /* Grown from the floor one after another, with the spring the dashboard's
+     bars have: a little past full height, then settled. */
+  animation: v-bar 1.1s
+    linear(0, 0.18 7%, 0.62 18%, 0.94 28%, 1.08 37%, 1.1 42%, 1.07 50%, 1.01 62%, 0.99 74%, 1);
+  animation-delay: calc(350ms + var(--k, 0) * 70ms);
+  animation-fill-mode: both;
+}
+
+.v-bar.is-today .v-bar-fill {
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent));
+  box-shadow: 0 0 30px -4px var(--now-glow);
+}
+
+.v-bar-day {
+  color: var(--text-low);
+  font-size: 0.625rem;
+}
+
+.v-bar.is-today .v-bar-day {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+
+@keyframes v-bar {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-bar-fill {
+    transition: transform 300ms var(--v-ease);
+  }
+  .v-bar:hover .v-bar-fill {
+    transform: scaleX(1.08);
+  }
+}
+
+/* ---- today's timeline ---- */
+
+.v-today {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.v-slots {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.v-slot-row {
+  display: flex;
+  width: 100%;
+  gap: 0.6rem;
+  text-align: left;
+}
+
+.v-slot-time {
+  width: 3.4rem;
+  flex-shrink: 0;
+  padding-top: 0.45rem;
+  color: var(--text-low);
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The course's colour as the 3px edge the colour law allows, and only that. */
+.v-slot {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  border-radius: var(--r-tight);
+  border-left: 3px solid var(--edge, var(--glass-edge-hover));
+  padding: 0.4rem 0.6rem;
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  transition:
+    transform 260ms var(--v-ease),
+    background-color 260ms var(--v-ease);
+}
+
+.v-slot.is-past {
+  opacity: 0.55;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.v-slot-row:hover .v-slot {
+    transform: translateX(3px);
+    background: var(--glass-fill-hover);
+  }
+}
+
+.v-slot-title {
+  overflow: hidden;
+  color: var(--text-hi);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.v-slot-sub {
+  color: var(--text-low);
+  font-size: 0.625rem;
+}
+
+/* ---- assignments ---- */
+
+.v-rows {
+  margin-top: 0.5rem;
+}
+
+.v-rows li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.25rem;
+  border-top: 1px solid var(--glass-edge);
+}
+
+.v-rows li:first-child {
+  border-top: 0;
+}
+
+.v-tick {
+  /* The tap floor stays; the circle is drawn inside it. */
+  display: grid;
+  width: 1.75rem;
+  flex-shrink: 0;
+  place-items: center;
+  align-self: stretch;
+}
+
+.v-tick::before {
+  content: '';
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1.5px var(--text-low);
+  transition:
+    box-shadow 200ms var(--v-ease),
+    transform 200ms var(--v-ease);
+}
+
+.v-tick:active::before {
+  transform: scale(0.88);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-tick:hover::before {
+    box-shadow: inset 0 0 0 2px var(--t-done);
+  }
+}
+
+.v-row-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  color: var(--text-hi);
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.v-when {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+/* ---- checklist and goal ---- */
+
+.v-check .tick-pills {
+  margin-top: 0.75rem;
+  padding-inline: 0;
+}
+
+.v-goal-body {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  margin-top: 0.75rem;
+}
+
+.v-ring {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+}
+
+.v-ring svg {
+  transform: rotate(-90deg);
+}
+
+.v-ring b {
+  position: absolute;
+  color: var(--text-hi);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.v-ring-track {
+  fill: none;
+  stroke: var(--glass-fill-hover);
+  stroke-width: 6;
+}
+
+.v-ring-fill {
+  fill: none;
+  stroke: var(--accent-2-lit);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dashoffset: var(--off);
+  filter: drop-shadow(0 0 6px var(--aura-phthalo));
+  transition: stroke-dashoffset 600ms var(--v-ease);
+  animation: v-ring 1.4s var(--v-ease) 700ms both;
+}
+
+@keyframes v-ring {
+  from {
+    stroke-dashoffset: var(--full);
+  }
+}
+
+.v-step {
+  margin-top: 0.4rem;
+  border-radius: var(--r-pill);
+  padding: 0.2rem 0.75rem;
+  background: var(--glass-fill-hover);
+  color: var(--text-hi);
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+}
+
+.v-step:active {
+  transform: scale(0.94);
+}
+
+.v-goal-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.v-goal-form .well {
+  min-width: 0;
+  flex: 1;
+}
+
+.v-goal-form .w-16 {
+  flex: 0 0 4rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-bar-fill,
+  .v-track span,
+  .v-ring-fill {
+    animation: none;
+  }
+}
+
+:root[data-motion='calm'] .v-bar-fill {
+  animation-timing-function: var(--v-ease);
+}
+
+/* ============================================================================
+   Abood on the desk (routes/Chat.tsx, components/VisionAbood.tsx).
+   ========================================================================= */
+
+.v-chat {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) minmax(0, 2.1fr) minmax(14rem, 1fr);
+  gap: 1rem;
+  height: calc(100dvh - 7rem);
+  min-height: 34rem;
+}
+
+.v-side {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 1.125rem;
+  scrollbar-width: none;
+}
+
+.v-chat-main {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-top: 1.25rem;
+  scrollbar-width: thin;
+}
+
+/* The page's own frame padding is the card's now. */
+.v-chat-main > header {
+  margin-bottom: 1rem;
+}
+
+.v-chat-main .composer-dock {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  background: none;
+}
+
+.v-channels {
+  margin-top: 0.75rem;
+}
+
+.v-channels li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.25rem;
+  border-top: 1px solid var(--glass-edge);
+}
+
+.v-channels li:first-child {
+  border-top: 0;
+}
+
+.v-led {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--glass-edge-hover);
+}
+
+.v-led.is-on {
+  background: var(--t-done);
+  box-shadow: 0 0 10px var(--done-glow);
+}
+
+.v-starters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.6rem;
+}
+
+.v-starter {
+  border-radius: var(--r-tight);
+  padding: 0.5rem 0.7rem;
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  color: var(--text-mid);
+  font-size: 0.75rem;
+  text-align: left;
+  transition:
+    transform 240ms var(--v-ease),
+    color 240ms var(--v-ease),
+    background-color 240ms var(--v-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-starter:hover {
+    transform: translateX(3px);
+    background: var(--glass-fill-hover);
+    color: var(--text-hi);
+  }
+}
+
+.v-mem-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.v-mem-mark {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent-lit), var(--accent-deep));
+  color: var(--on-accent);
+  font-size: 1.125rem;
+  font-weight: 600;
+  box-shadow:
+    inset 0 0 0 2px var(--glass-edge-hover),
+    0 8px 24px -8px var(--now-glow);
+}
+
+.v-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.v-facts li {
+  border-radius: var(--r-tight);
+  padding: 0.6rem 0.7rem;
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+}
+
+.v-facts p {
+  color: var(--text-hi);
+  font-size: 0.75rem;
+}
+
+/* Your messages in the dashboard's blue; Abood's on glass. */
+.vision-desk .chat-mine {
+  background: linear-gradient(135deg, var(--accent-lit), var(--accent));
+  box-shadow: var(--shadow-ember);
+}
+
+.vision-desk .chat-mine .text-on-accent-2 {
+  color: var(--on-accent);
+}
+
+.vision-desk .v-chat-main [class*='self-'] {
+  animation: v-rise 500ms var(--v-ease) both;
+}
+
+/* ============================================================================
+   Courses on the desk (routes/Plan.tsx, VisionCourses).
+   ========================================================================= */
+
+.v-courses {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 1rem;
+}
+
+.v-course {
+  display: flex;
+  min-height: 13rem;
+  flex-direction: column;
+  padding: 0.5rem 0.5rem 0.875rem;
+}
+
+.v-course-head {
+  position: relative;
+  display: block;
+  height: 5.5rem;
+  border-radius: calc(var(--r-card) - 6px);
+}
+
+/* The course's glass, a little deeper than a Week block's: the card's whole
+   head is the course, as the dashboard's thumbnails are their kind. Derived
+   from the theme's own wash, so it stays the same glass, only thicker. */
+.vision-desk .v-course-head[data-block] {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgb(var(--b) / calc(var(--block-wash-top) * 1.9)), transparent 70%),
+    linear-gradient(135deg, rgb(var(--b) / calc(var(--block-wash-top) * 1.5)), rgb(var(--b) / calc(var(--block-wash) * 1.2))),
+    var(--surface-glass);
+}
+
+.v-course-head .chip-dot {
+  position: absolute;
+  left: 0.75rem;
+  top: 0.75rem;
+}
+
+.v-course-tag {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  border-radius: var(--r-pill);
+  padding: 0.125rem 0.55rem;
+  background: var(--scrim);
+  color: var(--text-hi);
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.v-course-code {
+  margin: 0.75rem 0.5rem 0;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-hi);
+}
+
+.v-course-name {
+  margin: 0.125rem 0.5rem 0;
+  overflow: hidden;
+  color: var(--text-low);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.v-course-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: auto 0.5rem 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--glass-edge);
+}
+
+/* The picker's miniature sits in the room too, or Vision's card would be the
+   one theme drawn without what makes it Vision. */
+.theme-mini.skin-vision {
+  background:
+    linear-gradient(180deg, var(--veil-top), var(--veil-bottom)),
+    url('/backdrops/vision-sm.webp') center / cover no-repeat;
+}
+
+/* Text that would otherwise sit straight on the photo gets glass under it. */
+.vision-desk .theme-card,
+.vision-desk .theme-preview-bar {
+  border-radius: var(--r-card);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+}

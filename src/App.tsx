@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { SheetPresence } from './components/Sheet';
 import { withTransition, directionBetween } from './lib/transition';
 import { getAppearance } from './lib/appearance';
+import { leaveThen } from './lib/vision';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { setOutboxOwner, startOutbox } from './lib/outbox';
@@ -124,7 +125,8 @@ function changeScreen(
   direction: Parameters<typeof withTransition>[1],
 ): void {
   if (getAppearance().tabs === 'slide') withTransition(() => set(next), direction);
-  else set(next);
+  // Vision's desk dissolves the old screen first; elsewhere this is immediate.
+  else leaveThen(() => set(next));
 }
 
 function Shell() {
@@ -547,7 +549,7 @@ function Shell() {
           />
         );
       case 'plan':
-        return <Plan courses={data?.courses ?? []} onBack={home} onChanged={bumped} onOpenWork={openWork} />;
+        return <Plan courses={data?.courses ?? []} assignments={data?.assignments} onBack={home} onChanged={bumped} onOpenWork={openWork} />;
       default:
         return null;
     }

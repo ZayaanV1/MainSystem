@@ -32,7 +32,7 @@ export const EXPORTED: Record<string, string> = {
     'approaching_days', 'low_battery', 'created_at', 'updated_at',
     'weekly_review_enabled', 'weekly_review_weekday', 'onboarded_at', 'abood_checkins',
     'abood_checkin_every_hours', 'abood_checkin_from', 'abood_checkin_until',
-    'theme', 'today_order', 'today_hidden', 'modules_off', 'board',
+    'theme', 'today_order', 'today_hidden', 'modules_off', 'board', 'backdrop',
   ].join(','),
   courses: '*',
   course_pages: '*',
