@@ -67,6 +67,20 @@ test.describe('Vision on a desk', () => {
     expect(Math.round(dash!.x - (dock!.x + dock!.width))).toBe(Math.round(vw - (dash!.x + dash!.width)));
   });
 
+  test('every card fills its row, with a mouse as on a real desk', async ({ page }) => {
+    // The pointer-desk spacing (index.css) applies only with a fine pointer.
+    await page.emulateMedia({});
+    await openToday(page, '?skin=vision');
+    await page.waitForTimeout(1500);
+    const rows = await page.evaluate(() =>
+      ['.v-stats', '.v-mid', '.v-low'].map((sel) => {
+        const row = document.querySelector(sel)!.getBoundingClientRect();
+        return [...document.querySelector(sel)!.children].map((c) => Math.round(row.bottom - c.getBoundingClientRect().bottom));
+      }),
+    );
+    for (const gaps of rows) expect(gaps.every((g) => g === 0)).toBe(true);
+  });
+
   test('Motion: None leaves nothing running', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('planner.appearance', JSON.stringify({ version: 2, motion: 'none' })));
     await openToday(page, '?skin=vision');

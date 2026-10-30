@@ -1459,3 +1459,22 @@
     font-size: clamp(16px, 1.1vw, 22px);
   }
 }
+
+/* The desk's grids space their own cards. The pointer-desk rule that spaces
+   sections in a list (index.css, `main section`) shortened every <section>
+   card by its margin, so rows ended 24px apart and stat cards at two heights.
+   Found on a real laptop with a mouse (Oct 2026); emulated touch never ran it. */
+.vision-desk :is(.v-dash, .v-chat, .v-courses) section,
+.vision-desk :is(.v-dash, .v-chat, .v-courses) aside {
+  margin-bottom: 0;
+}
+
+/* The goal's form on a narrow card: the title takes its own line rather than
+   being squeezed beside the count and the button. */
+.v-goal-form {
+  flex-wrap: wrap;
+}
+
+.v-goal-form .well:first-of-type {
+  flex: 1 1 100%;
+}
