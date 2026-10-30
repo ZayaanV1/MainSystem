@@ -33,7 +33,6 @@ const MODULE_COPY: Record<Module, { label: string; note: string }> = {
   grades: { label: 'Grades', note: 'What work is worth, your marks, and where you stand' },
   series: { label: 'Repeating work', note: 'Weekly labs and readings as one series' },
   feeds: { label: 'Calendar feeds', note: 'Subscribed calendars, and your deadlines in other calendars' },
-  lowbattery: { label: 'Low-battery mode', note: 'In Today’s ⋯ menu: shrinks the day to the essentials' },
 };
 
 export function ArrangeToday({ userId }: { userId: string }) {

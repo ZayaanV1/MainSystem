@@ -813,6 +813,7 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
   const motionOptions: { value: MotionLevel; label: string; hint: string }[] = [
     { value: 'full', label: 'Full', hint: 'Every moment as designed: the falling punch, the stretching tab, the page that steps back.' },
     { value: 'calm', label: 'Calm', hint: 'Everything still animates, without the flourishes.' },
+    { value: 'none', label: 'None', hint: 'Nothing moves. Every change lands at once: no entrances, slides or fades.' },
   ];
 
   const tabOptions: { value: TabTransition; label: string; hint: string }[] = [

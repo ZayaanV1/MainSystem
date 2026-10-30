@@ -200,24 +200,6 @@ export function ChecklistEditor({
           hint="Optional. Only on days this is due, and only while it is still outstanding."
         />
 
-        <div className="flex flex-col gap-2">
-          <Pressable className="gap-3"
-            onClick={() => set('essential', !fields.essential)}
-            aria-pressed={fields.essential}>
-            <span
-              aria-hidden
-              className={[
-                'flex h-5 w-5 shrink-0 items-center justify-center rounded-pill border-2',
-                fields.essential ? 'border-t-done bg-t-done' : 'border-ink-600',
-              ].join(' ')}
-            />
-            <span className="type-label text-text-hi">Keep on a bad day</span>
-          </Pressable>
-          <p className="type-note text-text-low">
-            Low-battery mode shows only these. Everything else is hidden until you turn it off.
-          </p>
-        </div>
-
         <div className="flex flex-col gap-3">
           <Pressable className="gap-3"
             onClick={() => set('tracks_doses', !fields.tracks_doses)}

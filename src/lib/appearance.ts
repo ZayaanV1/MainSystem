@@ -21,8 +21,14 @@ import { useSyncExternalStore } from 'react';
 export type SlipStyle = 'list' | 'ticket' | 'glass';
 /** Where real backdrop-blur glass is drawn. Surfaces is the expensive one. */
 export type GlassLevel = 'off' | 'bars' | 'surfaces';
-/** Full motion, or the same moments without the flourishes. */
-export type MotionLevel = 'full' | 'calm';
+/**
+ * Full motion, the same moments without the flourishes, or none at all.
+ * None is the one exception to rule 12, by the owner's choice (29 Oct 2026):
+ * every change lands at once, with no entrance, slide or fade.
+ */
+export type MotionLevel = 'full' | 'calm' | 'none';
+/** Vision's room behind the glass: the photo (the theme's or your own), or none. */
+export type VisionBackground = 'photo' | 'off';
 /**
  * How a change of screen is drawn. Quick plays the screen's own entrance and
  * never covers the page, so the next tap lands at once. Slide is the view
@@ -40,6 +46,15 @@ export interface Appearance {
   animatedBlur: boolean;
   motion: MotionLevel;
   tabs: TabTransition;
+  /** Vision: how see-through its panels are, 0 (solid) to 100 (clearest). */
+  visionClear: number;
+  /** Vision: the frosting behind its panels, in px; 0 is none. */
+  visionBlur: number;
+  /** Vision: how far the room is dimmed behind the glass, 0 to 100. */
+  visionDim: number;
+  visionBackground: VisionBackground;
+  /** Vision: cards rise under a mouse. */
+  visionLift: boolean;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -48,7 +63,14 @@ export const DEFAULT_APPEARANCE: Appearance = {
   animatedBlur: false,
   motion: 'full',
   tabs: 'quick',
+  visionClear: 50,
+  visionBlur: 26,
+  visionDim: 50,
+  visionBackground: 'photo',
+  visionLift: true,
 };
+
+const steps = (to: number, by: number) => Array.from({ length: to / by + 1 }, (_, i) => i * by);
 
 const KEY = 'planner.appearance';
 
@@ -56,8 +78,13 @@ const OPTIONS: { [K in keyof Appearance]: readonly Appearance[K][] } = {
   slip: ['list', 'ticket', 'glass'],
   glass: ['off', 'bars', 'surfaces'],
   animatedBlur: [true, false],
-  motion: ['full', 'calm'],
+  motion: ['full', 'calm', 'none'],
   tabs: ['quick', 'slide'],
+  visionClear: steps(100, 5),
+  visionBlur: steps(40, 2),
+  visionDim: steps(100, 5),
+  visionBackground: ['photo', 'off'],
+  visionLift: [true, false],
 };
 
 /**
@@ -103,8 +130,32 @@ function apply(a: Appearance) {
   root.dataset.motion = a.motion;
   if (a.animatedBlur) root.dataset.animatedBlur = 'true';
   else delete root.dataset.animatedBlur;
+
+  // Vision reads these; every other theme ignores them (vision.css).
+  root.style.setProperty('--v-alpha', String(Math.round((0.85 - a.visionClear * 0.008) * 1000) / 1000));
+  root.style.setProperty('--v-blur', `${a.visionBlur}px`);
+  root.style.setProperty('--v-dim', String(a.visionDim / 100));
+  root.dataset.vBg = a.visionBackground;
+  root.dataset.vLift = String(a.visionLift);
+  // Very clear glass over a bright room: text takes a shadow to stay legible.
+  root.dataset.vClear = a.visionClear >= 70 ? 'high' : 'normal';
 }
 apply(current);
+
+/*
+ * Motion: None reaches the animations played from JavaScript as well as the
+ * CSS ones (index.css). Sixteen call sites animate elements directly; rather
+ * than teach each one, every animation asked for while None is chosen runs
+ * in no time and lands where it was going. A loop runs once, at no length.
+ */
+if (typeof Element !== 'undefined' && typeof Element.prototype.animate === 'function') {
+  const animate = Element.prototype.animate;
+  Element.prototype.animate = function (keyframes, options) {
+    if (document.documentElement.dataset.motion !== 'none') return animate.call(this, keyframes, options);
+    const o: KeyframeAnimationOptions = typeof options === 'number' ? {} : { ...(options ?? {}) };
+    return animate.call(this, keyframes, { ...o, duration: 0, delay: 0, endDelay: 0, iterations: 1 });
+  };
+}
 
 export function getAppearance(): Appearance {
   return current;

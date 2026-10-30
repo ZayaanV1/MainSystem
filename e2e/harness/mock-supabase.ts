@@ -51,7 +51,7 @@ const C = {
 
 const db: Record<string, any[]> = {
   app_settings: [{
-    user_id: USER, timezone: TZ, low_battery: false, digest_hour: 7, digest_minute: 0, digest_enabled: true,
+    user_id: USER, timezone: TZ, digest_hour: 7, digest_minute: 0, digest_enabled: true,
     assignment_window_days: 7, event_window_days: 14, weekly_review_enabled: true, weekly_review_weekday: 7,
     onboarded_at: params.has('firstrun') ? null : at(-20, 9), abood_checkins: true, abood_checkin_every_hours: null,
     abood_checkin_from: 10, abood_checkin_until: 21, theme: params.get('skin'), today_order: null, today_hidden: null, modules_off: null, board: boardParam(),

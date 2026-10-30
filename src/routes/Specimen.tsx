@@ -109,14 +109,12 @@ const SPECIMEN_PILLS: ChecklistItem[] = [
 
 export function Specimen() {
   const [light, setLight] = useState(false);
-  const [lowBattery, setLowBattery] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [checked, setChecked] = useState<Record<string, boolean>>({ meds: true });
   const [prompt, setPrompt] = useState('');
 
   const root = document.documentElement;
   root.setAttribute('data-theme', light ? 'light' : 'dark');
-  root.setAttribute('data-low-battery', String(lowBattery));
 
   const toggle = (k: string) => setChecked((c) => ({ ...c, [k]: !c[k] }));
 
@@ -141,9 +139,6 @@ export function Specimen() {
 
       <div className="mb-8 flex flex-wrap gap-3 px-4">
         <Button onClick={() => setLight((v) => !v)}>{light ? 'Dark' : 'Light'}</Button>
-        <Button onClick={() => setLowBattery((v) => !v)}>
-          {lowBattery ? 'Exit low battery' : 'Low battery'}
-        </Button>
       </div>
 
       <Section title="CommandPalette — cmd/ctrl+K on a laptop">

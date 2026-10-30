@@ -3,7 +3,9 @@ import { SKINS, applySkin, type Skin } from '../lib/theme';
 import { saveSkin, usePreferences } from '../lib/preferences';
 import { sweepFrom } from '../lib/transition';
 import { Button } from './Button';
+import { Chip } from './Chip';
 import { clearBackdrop, loadBackdrop, setBackdrop } from '../lib/backdrop';
+import { setAppearance, useAppearance } from '../lib/appearance';
 
 /**
  * Choosing a theme.
@@ -101,8 +103,11 @@ export function ThemePicker({ userId }: { userId: string }) {
 }
 
 /**
- * The photo behind Vision: the bundled room at dusk, or one of your own.
- * Shown while Vision is the theme on screen, since it means nothing elsewhere.
+ * Vision's own settings: the room behind the glass and the glass itself.
+ * Shown while Vision is the theme on screen, since they mean nothing
+ * elsewhere. The photo follows the account; the rest is per device, because
+ * how clear and how frosted the glass can be is this device's GPU's say.
+ * Every change shows at once behind this panel.
  */
 function VisionRoom({ userId }: { userId: string }) {
   const [path, setPath] = useState<string | null | undefined>(undefined);
@@ -133,9 +138,67 @@ function VisionRoom({ userId }: { userId: string }) {
     else setPath(null);
   }
 
+  const look = useAppearance();
+
   return (
     <div className="mat flex flex-col gap-2 p-4">
-      <span className="kicker">Vision background</span>
+      <span className="kicker">Vision</span>
+      <div role="radiogroup" aria-label="Background" className="flex flex-wrap gap-2">
+        {(['photo', 'off'] as const).map((v) => (
+          <Chip
+            key={v}
+            role="radio"
+            aria-checked={look.visionBackground === v}
+            selected={look.visionBackground === v}
+            onClick={() => setAppearance({ visionBackground: v })}
+          >
+            {v === 'photo' ? 'Photo behind the glass' : 'No photo'}
+          </Chip>
+        ))}
+      </div>
+      <Slider
+        label="See-through"
+        value={look.visionClear}
+        max={100}
+        step={5}
+        shown={`${look.visionClear}%`}
+        ends={['Solid', 'Clear']}
+        onChange={(v) => setAppearance({ visionClear: v })}
+      />
+      <Slider
+        label="Blur"
+        value={look.visionBlur}
+        max={40}
+        step={2}
+        shown={look.visionBlur ? `${look.visionBlur} px` : 'Off'}
+        ends={['None', 'Heavy']}
+        onChange={(v) => setAppearance({ visionBlur: v })}
+      />
+      <Slider
+        label="Dim the room"
+        value={look.visionDim}
+        max={100}
+        step={5}
+        shown={`${look.visionDim}%`}
+        ends={['Bright', 'Dark']}
+        disabled={look.visionBackground === 'off'}
+        onChange={(v) => setAppearance({ visionDim: v })}
+      />
+      <label className="flex min-h-[var(--tap)] items-center justify-between gap-4">
+        <span className="type-label text-text-hi">Cards lift under the mouse</span>
+        <input
+          type="checkbox"
+          className="settings-switch"
+          checked={look.visionLift}
+          onChange={(e) => setAppearance({ visionLift: e.target.checked })}
+        />
+      </label>
+      <p className="type-note text-text-low">
+        The clearer the glass, the more the room dims behind it, so text always stays readable. These are
+        remembered on this device.
+      </p>
+
+      <span className="kicker mt-3">Photo</span>
       <p className="type-note text-text-mid">
         {path === undefined ? 'Checking' : path ? 'Your own photo, behind the glass on every device.' : 'A room at dusk, the theme’s own.'}
       </p>
@@ -159,6 +222,49 @@ function VisionRoom({ userId }: { userId: string }) {
       </div>
       {problem && <p className="type-note text-t-overdue">{problem}</p>}
     </div>
+  );
+}
+
+function Slider({
+  label,
+  value,
+  max,
+  step,
+  shown,
+  ends,
+  disabled = false,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  step: number;
+  shown: string;
+  ends: [string, string];
+  disabled?: boolean;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className={`v-slider ${disabled ? 'opacity-50' : ''}`}>
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="type-label text-text-hi">{label}</span>
+        <span className="type-note text-text-mid">{shown}</span>
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={step}
+        value={value}
+        disabled={disabled}
+        aria-valuetext={shown}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      <span aria-hidden className="flex justify-between type-note text-text-low">
+        <span>{ends[0]}</span>
+        <span>{ends[1]}</span>
+      </span>
+    </label>
   );
 }
 

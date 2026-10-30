@@ -98,22 +98,6 @@ test.describe('Today', () => {
     await page.getByRole('button', { name: 'Done', exact: true }).click();
     await expect(page.getByText('Drag to move. Tap a widget to change it.')).toHaveCount(0);
   });
-
-  // Rule: low-battery mode offers ONE task, small and soon, never the most
-  // overdue. Regression for BUG-001 in e2e/BUGS.md.
-  test('low-battery mode keeps the essentials and one task that is not the overdue one', async ({ page }) => {
-    await openToday(page);
-    await page.getByRole('button', { name: 'Today options' }).first().click();
-    await page.getByRole('menuitem', { name: 'Low battery' }).click();
-    await expect(page.getByText('Just the essentials.')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'If you have it in you' })).toBeVisible();
-    await expect(row(page, 'WeBWorK set 5')).toBeVisible();
-    await expect(row(page, 'Lab 3 report: sequential circuits')).toHaveCount(0);
-    // Hidden work is counted, never named.
-    await expect(page.getByText(/other things are hidden\. They keep\./)).toBeVisible();
-    await page.getByRole('button', { name: 'Show everything' }).click();
-    await expect(page.getByRole('region', { name: 'Widgets' })).toBeVisible();
-  });
 });
 
 // F04: open a piece of work, change it, see it move.

@@ -28,7 +28,7 @@ function visionDesk(): boolean {
 
 const still = () =>
   (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) ||
-  document.documentElement.dataset.motion === 'calm';
+  document.documentElement.dataset.motion !== 'full';
 
 /** The curve every Vision entrance and exit uses: fast out, long settle. */
 export const VISION_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';

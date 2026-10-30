@@ -39,7 +39,6 @@ const loadBoard = () => import('../components/board/Board');
 /* Vision's desk dashboard: its own chunk, fetched only where it is drawn. */
 const VisionToday = lazyRetry(() => import('./VisionToday'), (m) => m.VisionToday);
 const Board = lazyRetry(loadBoard, (m) => m.Board);
-import { LowBattery } from './LowBattery';
 import type { ChecklistItem } from '../lib/checklist';
 import { useAuth } from '../lib/auth';
 import { dueOn } from '../lib/checklist';
@@ -58,7 +57,6 @@ import {
   loadToday,
   setAssignmentStatus,
   setCompletion,
-  setLowBattery,
   type Assignment,
   type TodayData,
 } from '../lib/planner';
@@ -288,30 +286,6 @@ export function Today({
   useEffect(() => {
     void loadCalibrationPairs().then(setPairs);
   }, [loaded]);
-
-  // One root attribute collapses every urgency and course colour to muted
-  // ground. No component below knows the mode exists, which is why it cannot
-  // be forgotten when a new screen is added.
-  const lowBattery = Boolean(data?.lowBattery);
-  useEffect(() => {
-    document.documentElement.setAttribute('data-low-battery', String(lowBattery));
-  }, [lowBattery]);
-
-  async function exitLowBattery() {
-    await setLowBattery(userId, false);
-    await reload();
-  }
-
-  if (lowBattery && data) {
-    return (
-      <LowBattery
-        data={data}
-        onExit={() => void exitLowBattery()}
-        isDone={(id) => isDone(id, today)}
-        onToggleItem={(id) => void toggle(id, today)}
-      />
-    );
-  }
 
   /*
    * Each of Today's sections, by name, so the account's arrangement can place
@@ -692,19 +666,6 @@ export function Today({
             <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => setChecklistOpen(true))}>
               Checklist and past days
             </button>
-            {moduleOn('lowbattery', prefs) && (
-              <>
-                <div role="separator" className="pop-sep" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="pop-item"
-                  onClick={() => choose(() => void setLowBattery(userId, true).then(reload))}
-                >
-                  Low battery
-                </button>
-              </>
-            )}
             {status && (
               <>
                 <div role="separator" className="pop-sep" />

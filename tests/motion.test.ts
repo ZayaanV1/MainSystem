@@ -145,18 +145,6 @@ describe('presence keeps a leaving item where it was', () => {
   });
 });
 
-describe('low-battery work leaves through presence', () => {
-  // Today's own work list moved to Schedule on 19 Oct 2026; finishing from
-  // Today is the Assignments widget, which leaves by re-rendering the board.
-  it('renders the low-battery work list from usePresence', () => {
-    for (const f of ['src/routes/LowBattery.tsx']) {
-      const s = readFileSync(f, 'utf8');
-      expect(s, f).toMatch(/usePresence\(/);
-      expect(s, f).not.toMatch(/data\.assignments\.map\(/);
-    }
-  });
-});
-
 describe('a cancelled animation is not an error', () => {
   // Animation.finished rejects with an AbortError when the animation is
   // cancelled, which happens every time a tap interrupts one. `.finally()`

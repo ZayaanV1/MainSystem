@@ -45,6 +45,42 @@ test.describe('Vision on a desk', () => {
     await expect(box).toHaveAttribute('placeholder', 'In the inbox');
   });
 
+  test('the glass and the room follow Appearance, and edges line up', async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem('planner.appearance', JSON.stringify({ version: 2, visionClear: 100, visionBlur: 0, visionDim: 0 })),
+    );
+    await openToday(page, '?skin=vision');
+    const root = page.locator('html');
+    await expect(root).toHaveAttribute('data-v-clear', 'high');
+    const card = page.locator('.v-stat').first();
+    await expect(card).toHaveCSS('backdrop-filter', /blur\(0px\)/);
+    // The room never dims below what the clearest glass needs.
+    const dim = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--v-alpha'));
+    expect(Number(dim)).toBeLessThan(0.1);
+    // One gutter: content starts the same distance past the dock as it ends before the window's edge.
+    // Measured once the entrance has settled, not mid-rise.
+    await page.waitForTimeout(1500);
+    const dock = await page.locator('.v-dock').boundingBox();
+    const dash = await page.locator('.v-dash').boundingBox();
+    // The page's own width: a scrollbar, when there is one, is not margin.
+    const vw = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(Math.round(dash!.x - (dock!.x + dock!.width))).toBe(Math.round(vw - (dash!.x + dash!.width)));
+  });
+
+  test('Motion: None leaves nothing running', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('planner.appearance', JSON.stringify({ version: 2, motion: 'none' })));
+    await openToday(page, '?skin=vision');
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'none');
+    const running = await page.evaluate(
+      () => document.getAnimations().filter((a) => a.playState === 'running' && Number(a.effect?.getComputedTiming().duration) > 0).length,
+    );
+    expect(running).toBe(0);
+    // A change of screen happens at once, with no dissolve in between.
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Courses' }).click();
+    await expect(page.locator('.v-course').first()).toBeVisible();
+    expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0);
+  });
+
   test('other themes keep the rail', async ({ page }) => {
     await openToday(page);
     await expect(page.locator('.v-dock')).toHaveCount(0);

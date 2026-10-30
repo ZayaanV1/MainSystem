@@ -29,7 +29,7 @@ export const EXPORTED: Record<string, string> = {
   app_settings: [
     'user_id', 'timezone', 'digest_hour', 'digest_minute', 'digest_enabled',
     'assignment_window_days', 'event_window_days', 'critical_days', 'urgent_days',
-    'approaching_days', 'low_battery', 'created_at', 'updated_at',
+    'approaching_days', 'created_at', 'updated_at',
     'weekly_review_enabled', 'weekly_review_weekday', 'onboarded_at', 'abood_checkins',
     'abood_checkin_every_hours', 'abood_checkin_from', 'abood_checkin_until',
     'theme', 'today_order', 'today_hidden', 'modules_off', 'board', 'backdrop',

@@ -78,7 +78,11 @@ export function withTransition(apply: () => void, direction: Direction = 'none')
   // cross-fade rather than removing it. Cutting instantly between two full
   // screens is its own kind of jarring, and a fade is not vestibular motion.
   // A hidden document cannot animate, and the browser rejects the attempt.
-  if (typeof doc.startViewTransition !== 'function' || doc.visibilityState === 'hidden') {
+  if (
+    typeof doc.startViewTransition !== 'function' ||
+    doc.visibilityState === 'hidden' ||
+    doc.documentElement.dataset.motion === 'none'
+  ) {
     apply();
     return;
   }

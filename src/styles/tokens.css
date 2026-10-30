@@ -2454,10 +2454,12 @@
   --atmo-ember: rgb(47 111 224 / 0.08);
   --atmo-phthalo: rgb(52 197 142 / 0.12);
   --grain-strength: 0.03;
-  --veil-top: rgb(22 16 12 / 0.66);
-  --veil-mid: rgb(30 22 16 / 0.52);
-  --veil-bottom: rgb(16 12 9 / 0.72);
+  --veil-top: rgb(22 16 12 / 0.45);
+  --veil-mid: rgb(30 22 16 / 0.12);
+  --veil-bottom: rgb(16 12 9 / 0.5);
   --veil-tint: rgb(70 44 22 / 0.2);
+  --v-glass-rgb: 40 33 28;
+  --v-veil-rgb: 18 13 9;
   --focus-ring: #7fb0ff;
   color-scheme: dark;
 }
@@ -2502,6 +2504,8 @@
     --veil-mid: rgb(250 246 240 / 0.12);
     --veil-bottom: rgb(240 234 226 / 0.45);
     --veil-tint: rgb(255 236 214 / 0.12);
+    --v-glass-rgb: 255 252 248;
+    --v-veil-rgb: 248 244 238;
     --focus-ring: #1f57c4;
     color-scheme: light;
   }
@@ -2546,6 +2550,8 @@
   --veil-mid: rgb(250 246 240 / 0.12);
   --veil-bottom: rgb(240 234 226 / 0.45);
   --veil-tint: rgb(255 236 214 / 0.12);
+  --v-glass-rgb: 255 252 248;
+  --v-veil-rgb: 248 244 238;
   --focus-ring: #1f57c4;
   color-scheme: light;
 }
@@ -4882,10 +4888,12 @@
   --atmo-ember: rgb(47 111 224 / 0.08);
   --atmo-phthalo: rgb(52 197 142 / 0.12);
   --grain-strength: 0.03;
-  --veil-top: rgb(22 16 12 / 0.66);
-  --veil-mid: rgb(30 22 16 / 0.52);
-  --veil-bottom: rgb(16 12 9 / 0.72);
+  --veil-top: rgb(22 16 12 / 0.45);
+  --veil-mid: rgb(30 22 16 / 0.12);
+  --veil-bottom: rgb(16 12 9 / 0.5);
   --veil-tint: rgb(70 44 22 / 0.2);
+  --v-glass-rgb: 40 33 28;
+  --v-veil-rgb: 18 13 9;
   --focus-ring: #7fb0ff;
 
   --t-distant: #8a90a8;
@@ -4960,6 +4968,8 @@
   --veil-mid: rgb(250 246 240 / 0.12);
   --veil-bottom: rgb(240 234 226 / 0.45);
   --veil-tint: rgb(255 236 214 / 0.12);
+  --v-glass-rgb: 255 252 248;
+  --v-veil-rgb: 248 244 238;
   --focus-ring: #1f57c4;
 
   --t-distant: #5c6178;
@@ -4993,47 +5003,6 @@
   --done-glow: rgb(20 150 110 / 0.3);
 
   color-scheme: light;
-}
-
-/* ---------------------------------------------------------------------------
-   Low-battery mode.
-
-   Not a filtered list — a global visual state. Every urgency colour collapses
-   to muted ground, leaving only --t-done to mark what is finished. The app
-   should visibly get quieter. Because urgency colour is only ever read through
-   these variables, this single block desaturates the entire interface without
-   any component knowing that low-battery mode exists.
-
-   The brand accents deliberately do NOT collapse. On the worst day of the
-   month the one action the screen is offering has to remain findable, and a
-   greyed-out primary button reads as disabled.
-   ------------------------------------------------------------------------ */
-:root[data-low-battery='true'] {
-  --t-distant: var(--text-low);
-  --t-approaching: var(--text-low);
-  --t-urgent: var(--text-low);
-  --t-critical: var(--text-low);
-  --t-overdue: var(--text-low);
-
-  --c-1: var(--text-low);
-  --c-2: var(--text-low);
-  --c-3: var(--text-low);
-  --c-4: var(--text-low);
-  --c-5: var(--text-low);
-  --c-6: var(--text-low);
-  --c-7: var(--text-low);
-  --c-8: var(--text-low);
-
-  /* Washes follow the marks into grey. */
-  --c-0-rgb: var(--text-low-rgb);
-  --c-1-rgb: var(--text-low-rgb);
-  --c-2-rgb: var(--text-low-rgb);
-  --c-3-rgb: var(--text-low-rgb);
-  --c-4-rgb: var(--text-low-rgb);
-  --c-5-rgb: var(--text-low-rgb);
-  --c-6-rgb: var(--text-low-rgb);
-  --c-7-rgb: var(--text-low-rgb);
-  --c-8-rgb: var(--text-low-rgb);
 }
 
 /* ============================================================================

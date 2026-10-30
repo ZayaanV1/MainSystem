@@ -223,8 +223,8 @@
    Token -> utility mapping.
 
    `inline` matters here: it makes `bg-ink-800` compile to the var() reference
-   itself rather than a snapshot of its value, so switching theme or entering
-   low-battery mode restyles the whole app without a re-render.
+   itself rather than a snapshot of its value, so switching theme restyles the
+   whole app without a re-render.
 
    Note what is deliberately absent: there is no hex code below. Every value
    points back at tokens.css.
@@ -1459,6 +1459,25 @@
      surfaces  every panel is glass too. The expensive one, kept as a choice
                rather than deleted (rule 13): a backdrop read per card.
    ------------------------------------------------------------------------ */
+/* Motion: None (Appearance). Every CSS entrance, transition and loop lands
+   at its end at once; JavaScript animations are handled in appearance.ts.
+   Durations go to zero rather than `animation: none`, so anything an
+   animation leaves in place (a fill) is still where it should be. */
+:root[data-motion='none'] *,
+:root[data-motion='none'] *::before,
+:root[data-motion='none'] *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+:root[data-motion='none'],
+:root[data-motion='none'] * {
+  scroll-behavior: auto !important;
+}
+
 :root[data-glass='off'] .fx-glass,
 :root[data-glass='off'] .sheet-scrim,
 :root[data-glass='off'] .composer-dock,

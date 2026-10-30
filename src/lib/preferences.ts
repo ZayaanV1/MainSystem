@@ -32,7 +32,7 @@ export type TodaySection = (typeof TODAY_SECTIONS)[number];
 export const ALWAYS_SHOWN: ReadonlySet<TodaySection> = new Set(['board', 'capture']);
 
 /** Whole features that can be switched off. Off hides; the data stays. */
-export const MODULES = ['abood', 'assist', 'grades', 'series', 'feeds', 'lowbattery'] as const;
+export const MODULES = ['abood', 'assist', 'grades', 'series', 'feeds'] as const;
 export type Module = (typeof MODULES)[number];
 
 export interface Preferences {

@@ -244,7 +244,7 @@ below. The original seven build phases were done 17-19 Aug 2026.
 Every Phase 2 item ships: configurable digest time and both windows, exam
 escalation at T-1, per-item reminders, and low-battery mode.
 
-**Low-battery mode is the one to preserve carefully.** It collapses the day to
+**REMOVED 29 Oct 2026, at the owner's request (migration 0049); kept here as history.** **Low-battery mode was the one to preserve carefully.** It collapses the day to
 what you marked non-negotiable plus ONE piece of work, chosen small-and-soon
 rather than most-overdue — the most overdue item is the one avoided longest,
 and offering it as today's only task on the worst day of the month is exactly
@@ -429,7 +429,7 @@ Scoped to the organisational items on request: **no mood or energy check-in
 and no doctor-appointment export.** This is a tool for keeping academic work
 in order, and those two were the parts of Phase 7 that were not.
 
-Low-battery mode and the no-streak rules stay exactly as they were. They are
+The no-streak rules stay exactly as they were. (Low-battery mode, kept here then, was removed on 29 Oct 2026 at the owner's request.) They are
 friction reduction, not a wellbeing feature — they are what keeps the app
 usable in a bad week, which is the academic case as much as any other.
 
@@ -1916,6 +1916,31 @@ score across days, rule 3). Migration 0048.
 Not verified on a phone or a real laptop's GPU; Chromium only. The dock's
 disc moves with the app's stretching capsule rather than the reel's plain
 spring, by choice.
+
+**Adjustable, same day.** Asked for "everything adjustable or turn off":
+Appearance > Vision has see-through (0-100), blur (0-40 px), dim the room
+(0-100), photo on or off and hover lift, per device (lib/appearance.ts sets
+`--v-alpha`, `--v-blur`, `--v-dim` and `data-v-*` on the root). The room
+never dims below `0.5 - alpha`, and very clear glass gives text a shadow, so
+no setting can take a label's contrast. Vision's glass now applies at every
+width, phones included. Motion gained **None**: CSS durations go to zero, and
+`Element.prototype.animate` is wrapped in appearance.ts so the sixteen
+JavaScript animations land at once too; view transitions are skipped. It is
+an exception to rule 12 the owner chose.
+
+**Low-battery mode was removed** the same day at the owner's request: the
+screen, the ⋯ item, the module switch, the greyed-urgency tokens, the shared
+chooser and its tests, and "Keep on a bad day" in the checklist editor,
+which had nothing left to do. `checklist_items.essential` stays in the
+schema, unread. Migration 0049 drops `app_settings.low_battery`, and must be
+applied only after this build is live, since the build before reads it.
+
+**Desk spacing.** One 1.5rem gutter everywhere: dock and bar 1.5rem from
+the window, content 1.5rem from the dock and from the right edge. Today,
+Abood and Courses span the desk (`:has(.v-dash, .v-chat, .v-courses)`);
+lists keep 76rem, centred. From 112rem the root size grows with the window
+(to 22px), so a 27-inch screen shows the same dashboard larger rather than
+stretched. The header's three controls share one height.
 
 ## Phase 0 — done, verified 17 Aug 2026
 

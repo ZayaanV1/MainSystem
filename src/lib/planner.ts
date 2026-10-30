@@ -122,7 +122,7 @@ export interface PlannerEvent {
 
 export interface TodayData {
   /**
-   * Which of the ten queries came back as an error.
+   * Which of the nine queries came back as an error.
    *
    * This exists because the alternative is worse than an error screen. Every
    * read below used to end in `data ?? []`, and Supabase returns
@@ -176,8 +176,6 @@ export interface TodayData {
    * the kind of hollow praise you can feel, and it devalues the real thing.
    */
   completedToday: Assignment[];
-  /** Persisted server-side, so a bad day does not start by finding a toggle. */
-  lowBattery: boolean;
 }
 
 /** How many days the Today day-strip offers. Bounded on purpose. */
@@ -285,7 +283,7 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
   const loadedAt = Date.now();
   const window = recentDays(today, Math.max(BACKFILL_DAYS, HISTORY_DAYS));
 
-  const [items, completions, inbox, courses, assignments, events, subtasks, completedToday, settings, deferralRows] =
+  const [items, completions, inbox, courses, assignments, events, subtasks, completedToday, deferralRows] =
     await Promise.all([
     supabase
       .from('checklist_items')
@@ -351,8 +349,6 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
       .gte('completed_at', startOfDayUTC(today).toISOString())
       .lt('completed_at', endOfDayUTC(today).toISOString()),
 
-    supabase.from('app_settings').select('low_battery').limit(1),
-
     // Every deferral row for open work. Counted here rather than stored, so
     // the number can never drift from what actually happened. Finished work's
     // history is not needed to decide what is stuck.
@@ -378,7 +374,6 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
   check('your calendar', events);
   check('the steps on your work', subtasks);
   check("what you finished today", completedToday);
-  check('your settings', settings);
   check('deferrals', deferralRows);
 
   const deferrals: Record<string, number> = {};
@@ -392,9 +387,9 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
    * mixing fresh rows with cached ones would produce a day that never existed,
    * so the banner names what is missing and the rest stands.
    *
-   * `failed.length === 10` rather than `> 0` for exactly that reason.
+   * `failed.length === 9` (every read) rather than `> 0` for exactly that reason.
    */
-  if (failed.length === 10) {
+  if (failed.length === 9) {
     const hit = await getCache<TodayData>(`today:${today}`);
     if (hit) return { ...hit.value, failed: [], cachedAt: hit.at, loadedAt: hit.at };
   }
@@ -416,7 +411,6 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
     ),
     completedToday: (completedToday.data ?? []) as Assignment[],
     deferrals,
-    lowBattery: Boolean((settings.data ?? [])[0]?.low_battery),
     cachedAt: null,
     loadedAt,
   };
@@ -847,19 +841,6 @@ export async function saveDigestSettings(
     .eq('user_id', userId);
 
   return { error: error ? error.message : null };
-}
-
-/* ----------------------------------------------------------- low battery */
-
-/**
- * Turning the day down, or back up.
- *
- * Written straight through rather than queued, and awaited. This is the one
- * setting whose whole value is that it takes effect the instant it is asked
- * for — a bad day is not the moment to wonder whether a tap registered.
- */
-export async function setLowBattery(userId: string, on: boolean): Promise<void> {
-  await supabase.from('app_settings').update({ low_battery: on }).eq('user_id', userId);
 }
 
 /* ---------------------------------------------------------------- courses */

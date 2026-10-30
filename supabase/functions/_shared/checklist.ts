@@ -22,7 +22,7 @@ export interface ChecklistItem {
   active: boolean;
   sort_order: number;
 
-  /** Shown in low-battery mode; everything else is hidden there. */
+  /** Kept for a bad-day view; nothing reads it since low-battery mode was removed (Oct 2026). */
   essential: boolean;
 
   /** Local wall-clock reminder time, or null. */

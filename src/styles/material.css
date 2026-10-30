@@ -514,8 +514,7 @@ textarea.well {
    day stays tight so the work reaches the first screen. */
 .today-layout [data-section='work'],
 .today-layout [data-section='ahead'],
-.today-layout [data-section='inbox'],
-.today-layout [data-section='lowbattery'] {
+.today-layout [data-section='inbox'] {
   margin-top: 0.75rem;
 }
 

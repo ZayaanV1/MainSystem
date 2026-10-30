@@ -42,7 +42,7 @@ function day(over: Partial<TodayData> = {}): TodayData {
   return {
     failed: [], cachedAt: null, loadedAt: LOADED_AT, items: [], completions: [], inbox: [],
     courses: [], assignments: [], events: [], subtasks: [], deferrals: {}, completedToday: [],
-    lowBattery: false, ...over,
+    ...over,
   };
 }
 
