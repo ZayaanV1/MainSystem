@@ -5,7 +5,7 @@ import { sweepFrom } from '../lib/transition';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { clearBackdrop, loadBackdrop, setBackdrop } from '../lib/backdrop';
-import { setAppearance, useAppearance } from '../lib/appearance';
+import { GLASS_PRESETS, setAppearance, useAppearance } from '../lib/appearance';
 
 /**
  * Choosing a theme.
@@ -156,6 +156,22 @@ function VisionRoom({ userId }: { userId: string }) {
           </Chip>
         ))}
       </div>
+      <div role="radiogroup" aria-label="Glass" className="flex flex-wrap gap-2">
+        {(['frost', 'smoke'] as const).map((g) => (
+          <Chip
+            key={g}
+            role="radio"
+            aria-checked={look.visionGlass === g}
+            selected={look.visionGlass === g}
+            onClick={() => setAppearance({ visionGlass: g, ...GLASS_PRESETS[g] })}
+          >
+            {g === 'frost' ? 'Frost' : 'Smoke'}
+          </Chip>
+        ))}
+      </div>
+      <p className="type-note text-text-low">
+        {look.visionGlass === 'smoke' ? 'Darker, warmer glass, after the V7 dashboard.' : 'Light, frosty glass.'} The sliders below still move freely.
+      </p>
       <Slider
         label="See-through"
         value={look.visionClear}
@@ -184,6 +200,13 @@ function VisionRoom({ userId }: { userId: string }) {
         disabled={look.visionBackground === 'off'}
         onChange={(v) => setAppearance({ visionDim: v })}
       />
+      <div role="radiogroup" aria-label="Navigation on a laptop" className="flex flex-wrap gap-2">
+        {(['floating', 'full'] as const).map((d) => (
+          <Chip key={d} role="radio" aria-checked={look.visionDock === d} selected={look.visionDock === d} onClick={() => setAppearance({ visionDock: d })}>
+            {d === 'floating' ? 'Floating dock' : 'Full-height sidebar'}
+          </Chip>
+        ))}
+      </div>
       <label className="flex min-h-[var(--tap)] items-center justify-between gap-4">
         <span className="type-label text-text-hi">Cards lift under the mouse</span>
         <input

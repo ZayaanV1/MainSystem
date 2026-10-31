@@ -36,6 +36,15 @@ describe('parseAppearance', () => {
     expect(bad).toMatchObject({ visionClear: 50, visionBlur: 26, visionDim: 50 });
   });
 
+  it('keeps the Smoke glass and the full-height dock when chosen', () => {
+    const v = parseAppearance(JSON.stringify({ visionGlass: 'smoke', visionDock: 'full', version: 2 }));
+    expect(v).toMatchObject({ visionGlass: 'smoke', visionDock: 'full' });
+    expect(parseAppearance(JSON.stringify({ visionGlass: 'fog', visionDock: 'side', version: 2 }))).toMatchObject({
+      visionGlass: 'frost',
+      visionDock: 'floating',
+    });
+  });
+
   it('falls back on anything unknown or corrupt', () => {
     expect(parseAppearance('{"slip":"cards","version":2}').slip).toBe('list');
     expect(parseAppearance('not json')).toEqual(DEFAULT_APPEARANCE);

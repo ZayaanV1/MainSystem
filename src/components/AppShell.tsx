@@ -7,6 +7,7 @@ import { VisionChrome } from './VisionChrome';
 import { cascade, useVisionDesk } from '../lib/vision';
 import { usePreferences } from '../lib/preferences';
 import { loadBackdrop, showBackdrop } from '../lib/backdrop';
+import { useAppearance } from '../lib/appearance';
 
 /**
  * The frame the whole app sits in.
@@ -45,24 +46,28 @@ export function AppShell<T extends string>({
   current,
   items,
   onNavigate,
+  onPalette,
   children,
 }: {
   current: T;
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
+  /** Opens the command palette: Vision's top-bar search. */
+  onPalette?: () => void;
   children: ReactNode;
 }) {
   const vision = useVisionDesk();
   // Vision's room: the account's own photo, when it chose one, at any width.
   const { skin } = usePreferences();
+  const { visionDock } = useAppearance();
   useEffect(() => {
     if (skin !== 'vision') return;
     void loadBackdrop().then(showBackdrop);
   }, [skin]);
   return (
-    <div className={`atmosphere lg:flex lg:min-h-svh ${vision ? 'vision-desk' : ''}`}>
+    <div className={`atmosphere lg:flex lg:min-h-svh ${vision ? 'vision-desk' : ''}`} data-dock={vision ? visionDock : undefined}>
       {vision ? (
-        <VisionChrome current={current} items={items} onNavigate={onNavigate} />
+        <VisionChrome current={current} items={items} onNavigate={onNavigate} onPalette={onPalette} full={visionDock === 'full'} />
       ) : (
         <Rail current={current} items={items} onNavigate={onNavigate} />
       )}

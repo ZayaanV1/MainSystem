@@ -95,6 +95,30 @@ test.describe('Vision on a desk', () => {
     expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0);
   });
 
+  test('V7 upgrades: Smoke, the full-height sidebar, search, the featured card, counts and day labels', async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem('planner.appearance', JSON.stringify({ version: 2, visionGlass: 'smoke', visionDock: 'full' })),
+    );
+    await openToday(page, '?skin=vision');
+    await expect(page.locator('html')).toHaveAttribute('data-v-glass', 'smoke');
+    // The sidebar runs the window's height, with Settings at its foot.
+    const dock = (await page.locator('.v-dock').boundingBox())!;
+    const vh = page.viewportSize()!.height;
+    expect(Math.round(dock.y)).toBe(24);
+    expect(Math.round(vh - (dock.y + dock.height))).toBe(24);
+    const settings = (await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Settings' }).boundingBox())!;
+    expect(settings.y + settings.height).toBeGreaterThan(dock.y + dock.height - 70);
+    // Next due is the featured card; the figures have finished counting up.
+    await expect(page.locator('.v-stat').first()).toHaveClass(/v-feat/);
+    await page.waitForTimeout(1500);
+    await expect(page.locator('.v-stat').nth(2).locator('.v-value')).not.toHaveText(/^0$/);
+    // Each day's bar names what it holds.
+    await expect(page.locator('.v-bar-tip').first()).toContainText(/Today: /);
+    // The search pill opens the command palette.
+    await page.getByRole('button', { name: /Search work, classes, courses/ }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+
   test('other themes keep the rail', async ({ page }) => {
     await openToday(page);
     await expect(page.locator('.v-dock')).toHaveCount(0);

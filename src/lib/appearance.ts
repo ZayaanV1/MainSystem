@@ -29,6 +29,10 @@ export type GlassLevel = 'off' | 'bars' | 'surfaces';
 export type MotionLevel = 'full' | 'calm' | 'none';
 /** Vision's room behind the glass: the photo (the theme's or your own), or none. */
 export type VisionBackground = 'photo' | 'off';
+/** Vision's glass: light frost, or V7's darker smoke. */
+export type VisionGlass = 'frost' | 'smoke';
+/** Vision's navigation on a desk: the floating dock, or a full-height sidebar. */
+export type VisionDock = 'floating' | 'full';
 /**
  * How a change of screen is drawn. Quick plays the screen's own entrance and
  * never covers the page, so the next tap lands at once. Slide is the view
@@ -55,6 +59,8 @@ export interface Appearance {
   visionBackground: VisionBackground;
   /** Vision: cards rise under a mouse. */
   visionLift: boolean;
+  visionGlass: VisionGlass;
+  visionDock: VisionDock;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -68,6 +74,14 @@ export const DEFAULT_APPEARANCE: Appearance = {
   visionDim: 50,
   visionBackground: 'photo',
   visionLift: true,
+  visionGlass: 'frost',
+  visionDock: 'floating',
+};
+
+/** What each glass preset sets; the sliders stay free to move after. */
+export const GLASS_PRESETS: Record<VisionGlass, Pick<Appearance, 'visionClear' | 'visionBlur' | 'visionDim'>> = {
+  frost: { visionClear: 50, visionBlur: 26, visionDim: 50 },
+  smoke: { visionClear: 60, visionBlur: 30, visionDim: 60 },
 };
 
 const steps = (to: number, by: number) => Array.from({ length: to / by + 1 }, (_, i) => i * by);
@@ -85,6 +99,8 @@ const OPTIONS: { [K in keyof Appearance]: readonly Appearance[K][] } = {
   visionDim: steps(100, 5),
   visionBackground: ['photo', 'off'],
   visionLift: [true, false],
+  visionGlass: ['frost', 'smoke'],
+  visionDock: ['floating', 'full'],
 };
 
 /**
@@ -137,6 +153,8 @@ function apply(a: Appearance) {
   root.style.setProperty('--v-dim', String(a.visionDim / 100));
   root.dataset.vBg = a.visionBackground;
   root.dataset.vLift = String(a.visionLift);
+  root.dataset.vGlass = a.visionGlass;
+  root.dataset.vDock = a.visionDock;
   // Very clear glass over a bright room: text takes a shadow to stay legible.
   root.dataset.vClear = a.visionClear >= 70 ? 'high' : 'normal';
 }

@@ -727,18 +727,9 @@
   min-height: 8.25rem;
 }
 
-.v-icon {
-  display: grid;
-  place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--r-tight);
-  color: var(--tint);
-  background: color-mix(in srgb, var(--tint) 22%, transparent);
-}
 
 .v-label {
-  margin-top: 0.75rem;
+  margin-top: 0;
   color: var(--text-low);
   font-size: 0.6875rem;
 }
@@ -1489,4 +1480,174 @@
 
 .v-goal-form .well:first-of-type {
   flex: 1 1 100%;
+}
+
+/* ============================================================================
+   V7 upgrades (31 Oct 2026): Smoke glass, the full-height sidebar, the
+   featured card, the top bar's search and the week chart's labels.
+   ========================================================================= */
+
+/* Smoke: V7's darker, browner glass. Only the glass's colour changes; how
+   see-through and how frosted it is stay the sliders' (Smoke sets them). */
+:root[data-skin='vision'][data-v-glass='smoke'] {
+  --v-glass-rgb: var(--v-smoke-rgb);
+}
+
+:root[data-skin='vision'][data-v-glass='smoke'] :is(.mat, .v-card) {
+  background:
+    radial-gradient(120% 100% at 0% 0%, var(--mat-light, var(--v-smoke-tint)), transparent 62%),
+    linear-gradient(160deg, var(--v-smoke-tint), transparent),
+    linear-gradient(var(--mat-wash, transparent), var(--mat-wash, transparent)),
+    var(--v-glass);
+}
+
+/* The featured card: Next due, in the accent's own glass. Blue, never an
+   urgency colour: the colour law keeps urgency off fills. */
+:root[data-skin='vision'] .v-card.v-feat {
+  background:
+    radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--accent-lit) 45%, transparent), transparent 70%),
+    linear-gradient(160deg, color-mix(in srgb, var(--accent-lit) 38%, transparent), color-mix(in srgb, var(--accent-deep) 22%, transparent)),
+    var(--v-glass);
+  box-shadow:
+    inset 0 1px 0 var(--specular),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent-lit) 30%, transparent),
+    0 18px 44px -14px var(--now-glow);
+}
+
+.v-arrow {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--text-hi);
+  box-shadow: inset 0 0 0 1px var(--glass-edge-hover);
+}
+
+.v-feat .v-arrow {
+  background: var(--text-hi);
+  color: var(--ink-900);
+  box-shadow: none;
+}
+
+/* The top bar's search: a way into the command palette, not a second search. */
+.v-search {
+  width: min(22rem, 26vw);
+  color: var(--text-low);
+}
+
+.v-search span {
+  flex: 1;
+  text-align: left;
+}
+
+/* Full-height sidebar: the dock runs the window's height, its destinations in
+   round glass buttons, the app's mark on top and Settings at the foot. */
+.vision-desk[data-dock='full'] .v-dock {
+  top: 1.5rem;
+  bottom: 1.5rem;
+  width: 4rem;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 0;
+  border-radius: 2rem;
+  translate: none;
+}
+
+.vision-desk[data-dock='full'] .v-dock-lit {
+  left: 0.625rem;
+}
+
+.vision-desk[data-dock='full'] .v-dock-btn:not(.is-active) {
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+}
+
+.v-dock-mark {
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.625rem;
+  border-radius: 0.875rem;
+}
+
+.v-dock-foot {
+  margin-top: auto;
+}
+
+/* Room for the taller, wider rail: the bar and the content start past it. */
+.vision-desk[data-dock='full'] > [data-recede] {
+  padding-left: 5.5rem;
+}
+
+.vision-desk[data-dock='full'] .v-top {
+  padding-left: 7rem;
+}
+
+/* The week chart names what each day holds, on a real pointer. */
+.v-bar {
+  position: relative;
+}
+
+.v-bar-tip {
+  position: absolute;
+  bottom: calc(100% - 0.25rem);
+  left: 50%;
+  z-index: 2;
+  max-width: 16rem;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  padding: 0.25rem 0.625rem;
+  background: var(--text-hi);
+  color: var(--ink-900);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0;
+  translate: -50% 4px;
+  pointer-events: none;
+  transition:
+    opacity 200ms var(--v-ease),
+    translate 200ms var(--v-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-bar:hover .v-bar-tip {
+    opacity: 1;
+    translate: -50% 0;
+  }
+}
+
+/* With search in it, the bar is a row rather than a centred box: clock,
+   search, quick-add taking what is left, then the account's corner. */
+.v-top {
+  justify-content: flex-start;
+}
+
+.v-top .v-capture {
+  position: static;
+  flex: 1 1 auto;
+  width: auto;
+  max-width: 30rem;
+  transform: none;
+}
+
+.v-top .v-top-end {
+  margin-left: auto;
+}
+
+button.v-pill {
+  border: 0;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.v-search kbd {
+  border-radius: var(--r-tight);
+  padding: 0.125rem 0.4rem;
+  background: var(--tag-surface);
+  color: var(--text-low);
+  font: inherit;
+  font-size: 0.6875rem;
 }

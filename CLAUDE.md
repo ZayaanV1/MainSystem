@@ -1935,6 +1935,19 @@ which had nothing left to do. `checklist_items.essential` stays in the
 schema, unread. Migration 0049 drops `app_settings.low_battery`, and must be
 applied only after this build is live, since the build before reads it.
 
+**V7 upgrades, 31 Oct.** From code.xr's "Glassy Dashboard V7", approved as a
+side-by-side canvas: Glass **Frost / Smoke** presets in Appearance > Vision
+(`GLASS_PRESETS`; Smoke swaps `--v-glass-rgb` for `--v-smoke-rgb` and sets
+see-through 60, blur 30, dim 60; the sliders stay free); **Floating dock /
+Full-height sidebar** (`visionDock`, app mark on top, Settings at the foot);
+a top-bar **search** pill that opens the command palette; **Next due
+featured** in the accent's glass (blue, never urgency); icon tiles dropped,
+arrows only on cards that open something; figures **count up** once on first
+paint (`CountUp`; a change mid-count shows the value at once, a bug the test
+caught); the week chart's bars **name what each day holds** on hover. Not
+taken: V7's orange (urgency's colour here), its history charts (rule 3), and
+a second add button.
+
 **Desk spacing.** One 1.5rem gutter everywhere: dock and bar 1.5rem from
 the window, content 1.5rem from the dock and from the right edge. Today,
 Abood and Courses span the desk (`:has(.v-dash, .v-chat, .v-courses)`);

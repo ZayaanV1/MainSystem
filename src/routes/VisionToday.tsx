@@ -170,49 +170,82 @@ function Header({ data, now, today, open, onOpen, sized, assistOn, menu }: Visio
 
 function Stat({
   label,
-  icon,
-  tint,
   value,
   unit,
   children,
   onClick,
+  feat = false,
 }: {
   label: string;
-  icon: ReactNode;
-  /** A token name for the icon tile, e.g. --accent. */
-  tint: string;
-  value: ReactNode;
+  value: string | number;
   unit?: string;
   children?: ReactNode;
   onClick?: () => void;
+  /** The one featured card, in the accent's glass (V7). */
+  feat?: boolean;
 }) {
   const body = (
     <>
-      <div className="flex items-start justify-between">
-        <span aria-hidden className="v-icon" style={{ ['--tint' as string]: `var(${tint})` }}>
-          {icon}
-        </span>
+      {/* Label and an arrow, after V7: the arrow only where the card opens something. */}
+      <div className="flex items-start justify-between gap-2">
+        <p className="v-label">{label}</p>
         {onClick && (
-          <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-low">
-            <path d="M7 17 17 7M8 7h9v9" />
-          </svg>
+          <span aria-hidden className="v-arrow">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M7 17 17 7M8 7h9v9" />
+            </svg>
+          </span>
         )}
       </div>
-      <p className="v-label">{label}</p>
       <p className="v-value">
-        {value}
+        <CountUp text={String(value)} />
         {unit && <span className="v-unit">{unit}</span>}
       </p>
       <div className="v-stat-foot">{children}</div>
     </>
   );
   return onClick ? (
-    <button type="button" className="v-card v-lift v-stat text-left" onClick={onClick}>
+    <button type="button" className={`v-card v-lift v-stat text-left ${feat ? 'v-feat' : ''}`} onClick={onClick}>
       {body}
     </button>
   ) : (
-    <section className="v-card v-lift v-stat">{body}</section>
+    <section className={`v-card v-lift v-stat ${feat ? 'v-feat' : ''}`}>{body}</section>
   );
+}
+
+/**
+ * Every number in a figure climbs from zero on the dashboard's first paint,
+ * as V7's do. Once only: a figure that changes later (the minute ticking
+ * down, a tick on the checklist) shows its new value at once. Calm and
+ * None motion, and reduced motion, show it at once from the start.
+ */
+function CountUp({ text }: { text: string }) {
+  const [t, setT] = useState(1);
+  const ran = useRef(false);
+  useEffect(() => {
+    // A figure that changes after the first count (or mid-count, which cancels
+    // it) shows its value at once; it never stays part-way.
+    if (ran.current) {
+      setT(1);
+      return;
+    }
+    if (!/\d/.test(text)) return;
+    ran.current = true;
+    const still =
+      document.documentElement.dataset.motion !== 'full' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still) return;
+    const start = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const k = Math.min(1, (now - start) / 800);
+      setT(1 - (1 - k) ** 3);
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    setT(0);
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [text]);
+  return <>{t >= 1 ? text : text.replace(/\d+/g, (n) => String(Math.round(Number(n) * t)))}</>;
 }
 
 function Chip({ tone, children }: { tone: string; children: ReactNode }) {
@@ -249,12 +282,7 @@ function NextDue({
   onOpen: (a: Assignment) => void;
 }) {
   const next = soonest(open, now);
-  const icon = (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" />
-    </svg>
-  );
-  if (!next) return <Stat label="Next due" icon={icon} tint="--t-done" value="Clear" />;
+  if (!next) return <Stat label="Next due" value="Clear" feat />;
   const due = new Date(next.due_at!);
   const u = urgencyFor(due, { now });
   const late = due < now;
@@ -262,11 +290,11 @@ function NextDue({
   return (
     <Stat
       label="Next due"
-      icon={icon}
-      tint={u.colourVar}
+     
       value={late ? 'Late' : c!.value}
       unit={late ? undefined : c!.unit}
       onClick={() => onOpen(next)}
+      feat
     >
       <p className="v-line">
         <CourseDot course={course(next.course_id)} />
@@ -295,13 +323,8 @@ function UpNext({
   today: DayKey;
   course: (id: string | null) => Course | undefined;
 }) {
-  const icon = (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M3 10h18M7 3v4M17 3v4M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2" />
-    </svg>
-  );
   const e = events ? upcoming(events, now) : null;
-  if (!e) return <Stat label="Up next" icon={icon} tint="--accent-2-lit" value={events ? 'Free' : '—'} />;
+  if (!e) return <Stat label="Up next" value={events ? 'Free' : '—'} />;
   const start = new Date(e.starts_at);
   const end = e.ends_at ? new Date(e.ends_at) : null;
   const under = start <= now;
@@ -309,7 +332,7 @@ function UpNext({
   // How far through it you are: the one mini that only ever looks ahead.
   const share = under && end ? (now.getTime() - start.getTime()) / (end.getTime() - start.getTime()) : 0;
   return (
-    <Stat label={under ? 'On now · left' : 'Up next · starts in'} icon={icon} tint="--accent-2-lit" value={c.value} unit={c.unit}>
+    <Stat label={under ? 'On now · left' : 'Up next · starts in'} value={c.value} unit={c.unit}>
       <p className="v-line">
         <CourseDot course={course(e.course_id)} />
         {e.title}
@@ -334,12 +357,7 @@ function OpenWork({ open, now, loading }: { open: Assignment[]; now: Date; loadi
   return (
     <Stat
       label="Open work"
-      tint="--accent-lit"
-      icon={
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
-        </svg>
-      }
+     
       value={loading ? '—' : open.length}
     >
       <p className="v-line text-text-mid">{loading ? 'Loading' : `${week} due this week`}</p>
@@ -353,12 +371,7 @@ function Checklist({ pills, isDone, onOpenChecklist, data }: VisionTodayProps) {
   return (
     <Stat
       label="Checklist today"
-      tint="--t-done"
-      icon={
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m5 12 5 5L20 7" />
-        </svg>
-      }
+     
       value={data ? done : '—'}
       unit={data ? `of ${pills.length}` : undefined}
       onClick={onOpenChecklist}
@@ -390,7 +403,9 @@ function WeekLoad({
   const per = days.map((d) => {
     const due = open.filter((a) => a.due_at && localDayKey(new Date(a.due_at)) === d);
     const minutes = due.reduce((s, a) => s + (sized(a.effort_minutes) ?? 0), 0);
-    return { day: d, count: due.length, minutes, unsized: due.filter((a) => a.effort_minutes === null).length };
+    // What the day holds, named, for the label a pointer shows over its bar.
+    const names = due.map((a) => (a.due_has_time ? `${a.title} · ${formatTime(new Date(a.due_at!))}` : a.title)).join(', ');
+    return { day: d, count: due.length, minutes, unsized: due.filter((a) => a.effort_minutes === null).length, names };
   });
   const max = Math.max(1, ...per.map((p) => p.count));
   const total = per.reduce((s, p) => s + p.count, 0);
@@ -413,6 +428,9 @@ function WeekLoad({
           <div key={p.day} className={`v-bar ${p.day === today ? 'is-today' : ''}`}>
             <span className="sr-only">
               {p.day === today ? 'Today' : weekdayShort(p.day)}: {p.count} due
+            </span>
+            <span aria-hidden className="v-bar-tip">
+              {p.day === today ? 'Today' : weekdayShort(p.day)}: {p.names || 'nothing due'}
             </span>
             <span aria-hidden className="v-bar-n">
               {p.count || ''}

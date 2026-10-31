@@ -2460,6 +2460,8 @@
   --veil-tint: rgb(70 44 22 / 0.2);
   --v-glass-rgb: 40 33 28;
   --v-veil-rgb: 18 13 9;
+  --v-smoke-rgb: 26 19 14;
+  --v-smoke-tint: rgb(255 236 214 / 0.07);
   --focus-ring: #7fb0ff;
   color-scheme: dark;
 }
@@ -2506,6 +2508,8 @@
     --veil-tint: rgb(255 236 214 / 0.12);
     --v-glass-rgb: 255 252 248;
     --v-veil-rgb: 248 244 238;
+    --v-smoke-rgb: 236 224 210;
+    --v-smoke-tint: rgb(60 40 24 / 0.05);
     --focus-ring: #1f57c4;
     color-scheme: light;
   }
@@ -2552,6 +2556,8 @@
   --veil-tint: rgb(255 236 214 / 0.12);
   --v-glass-rgb: 255 252 248;
   --v-veil-rgb: 248 244 238;
+  --v-smoke-rgb: 236 224 210;
+  --v-smoke-tint: rgb(60 40 24 / 0.05);
   --focus-ring: #1f57c4;
   color-scheme: light;
 }
@@ -4894,6 +4900,8 @@
   --veil-tint: rgb(70 44 22 / 0.2);
   --v-glass-rgb: 40 33 28;
   --v-veil-rgb: 18 13 9;
+  --v-smoke-rgb: 26 19 14;
+  --v-smoke-tint: rgb(255 236 214 / 0.07);
   --focus-ring: #7fb0ff;
 
   --t-distant: #8a90a8;
@@ -4970,6 +4978,8 @@
   --veil-tint: rgb(255 236 214 / 0.12);
   --v-glass-rgb: 255 252 248;
   --v-veil-rgb: 248 244 238;
+  --v-smoke-rgb: 236 224 210;
+  --v-smoke-tint: rgb(60 40 24 / 0.05);
   --focus-ring: #1f57c4;
 
   --t-distant: #5c6178;

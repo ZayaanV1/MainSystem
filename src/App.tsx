@@ -556,7 +556,7 @@ function Shell() {
   }
 
   return (
-    <AppShell current={screen === 'work' ? 'week' : screen} items={nav} onNavigate={navigate}>
+    <AppShell current={screen === 'work' ? 'week' : screen} items={nav} onNavigate={navigate} onPalette={() => setPalette(true)}>
       <SyncBanner />
 
       {palette && (

@@ -20,15 +20,20 @@ export function VisionChrome<T extends string>({
   current,
   items,
   onNavigate,
+  onPalette,
+  full,
 }: {
   current: T;
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
+  onPalette?: () => void;
+  /** The full-height sidebar (Appearance > Vision) rather than the floating dock. */
+  full: boolean;
 }) {
   return (
     <>
-      <TopBar items={items} onNavigate={onNavigate} />
-      <Dock current={current} items={items} onNavigate={onNavigate} />
+      <TopBar items={items} onNavigate={onNavigate} onPalette={onPalette} />
+      <Dock current={current} items={items} onNavigate={onNavigate} full={full} />
     </>
   );
 }
@@ -37,10 +42,12 @@ function Dock<T extends string>({
   current,
   items,
   onNavigate,
+  full,
 }: {
   current: T;
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
+  full: boolean;
 }) {
   const lit = useRef<HTMLSpanElement>(null);
   const dock = useRef<HTMLElement>(null);
@@ -55,11 +62,12 @@ function Dock<T extends string>({
       const now = dock.current?.querySelectorAll<HTMLElement>('[data-slot]');
       if (lit.current) moveCapsule(lit.current, now?.[index] ?? null, 'y', { instant: true });
     });
-  }, [index]);
+  }, [index, full]);
 
   return (
     <nav ref={dock} aria-label="Main" className="vt-chrome v-dock">
       <span ref={lit} aria-hidden className="v-dock-lit" style={{ opacity: 0 }} />
+      {full && <img src="/favicon.svg" alt="" className="v-dock-mark" />}
       {items.map((item) => {
         const active = item.id === current;
         return (
@@ -73,7 +81,8 @@ function Dock<T extends string>({
               if (!active) popIcon(e.currentTarget.querySelector('svg'));
               onNavigate(item.id);
             }}
-            className={`v-dock-btn ${active ? 'is-active' : ''}`}
+            // In the full-height sidebar, Settings sits at the foot, as in V7.
+            className={`v-dock-btn ${active ? 'is-active' : ''} ${full && item.id === 'settings' ? 'v-dock-foot' : ''}`}
           >
             <span aria-hidden className="relative">
               {item.icon}
@@ -89,7 +98,15 @@ function Dock<T extends string>({
   );
 }
 
-function TopBar<T extends string>({ items, onNavigate }: { items: NavItem<T>[]; onNavigate: (id: T) => void }) {
+function TopBar<T extends string>({
+  items,
+  onNavigate,
+  onPalette,
+}: {
+  items: NavItem<T>[];
+  onNavigate: (id: T) => void;
+  onPalette?: () => void;
+}) {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
   const initial = (session?.user.email ?? '?').slice(0, 1).toUpperCase();
@@ -124,6 +141,16 @@ function TopBar<T extends string>({ items, onNavigate }: { items: NavItem<T>[]; 
           {new Intl.DateTimeFormat('en-CA', { hour: 'numeric', minute: '2-digit' }).format(now)}
         </time>
       </p>
+
+      {onPalette && (
+        <button type="button" className="v-pill v-search" onClick={onPalette} aria-keyshortcuts="Meta+K Control+K">
+          <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35" />
+          </svg>
+          <span>Search work, classes, courses</span>
+          <kbd aria-hidden>⌘K</kbd>
+        </button>
+      )}
 
       <form onSubmit={(e) => void submit(e)} className="v-pill v-capture">
         <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
