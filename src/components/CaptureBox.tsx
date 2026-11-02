@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { dropGhost, flashReceipt } from '../lib/motion';
 import { readCapture, type CourseRef, type QuickRead } from '../lib/quickParse';
+import { MicButton } from './MicButton';
 import { formatDay, formatTime, localHourMinute, todayKey, wallClockToUTC } from '../lib/time';
 
 /**
@@ -36,6 +37,7 @@ export function CaptureBox({
   const [text, setText] = useState('');
   const [without, setWithout] = useState<{ date?: boolean; course?: boolean }>({});
   const [receiptText, setReceiptText] = useState('Added to inbox');
+  const [micNote, setMicNote] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const receipt = useRef<HTMLParagraphElement>(null);
   const ready = text.trim().length > 0;
@@ -98,6 +100,16 @@ export function CaptureBox({
           aria-describedby={read ? 'capture-read' : undefined}
           className="capture-input min-w-0 flex-1 bg-transparent type-body"
         />
+        {/* Speaking fills the field; Enter still sends (rule 6). */}
+        <MicButton
+          value={text}
+          onText={(next) => {
+            setText(next);
+            input.current?.focus();
+          }}
+          onError={setMicNote}
+          className="btn btn-icon capture-mic shrink-0"
+        />
         <button
           type="submit"
           aria-label={read ? 'Add as work' : 'Add to inbox'}
@@ -147,6 +159,12 @@ export function CaptureBox({
           </button>
         </div>
       ) : null}
+
+      {micNote && (
+        <p role="status" className="type-note capture-mic-note pl-[1.125rem] text-text-mid">
+          {micNote}
+        </p>
+      )}
 
       <p ref={receipt} aria-hidden className="kicker capture-receipt pl-[1.125rem] text-accent-2-lit" style={{ opacity: 0 }}>
         {receiptText}

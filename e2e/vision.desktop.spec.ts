@@ -45,6 +45,47 @@ test.describe('Vision on a desk', () => {
     await expect(box).toHaveAttribute('placeholder', 'In the inbox');
   });
 
+  test('the island opens into the day, ticks through Today, and closes', async ({ page }) => {
+    await openToday(page, '?skin=vision');
+    const toggle = page.getByRole('button', { name: 'Open today at a glance' });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await page.keyboard.press('Alt+KeyN');
+    const panel = page.locator('#v-island-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole('region', { name: 'Due today' })).toBeVisible();
+    await expect(panel.getByRole('region', { name: 'Focus timer' })).toBeVisible();
+    await expect(panel.getByRole('region', { name: 'Inbox' })).toBeVisible();
+    await expect(panel.getByRole('region', { name: 'Still to come today' })).toBeVisible();
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: 'test-results/vision-island.png' });
+    expect(await axeViolations(page)).toEqual([]);
+
+    // A tick goes through Today's own finish, so Undo is offered as it is there.
+    const tick = panel.getByRole('button', { name: /^Mark .+ done$/ }).first();
+    if (await tick.count()) {
+      const label = (await tick.getAttribute('aria-label')) ?? '';
+      await tick.click();
+      await expect(page.getByText(/marked done/).first()).toBeVisible();
+      await expect(panel.getByRole('button', { name: label })).toHaveCount(0);
+    }
+
+    // Escape closes the island and does not navigate away from Today.
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect(page.getByRole('region', { name: "Today's timeline" })).toBeVisible();
+  });
+
+  test('the island starts the focus timer the FocusBar runs', async ({ page }) => {
+    await openToday(page, '?skin=vision');
+    await page.keyboard.press('Alt+KeyN');
+    const focus = page.locator('#v-island-panel').getByRole('region', { name: 'Focus timer' });
+    const start = focus.getByRole('button', { name: 'Start' });
+    if (!(await start.count())) test.skip(true, 'nothing due today in the sample account');
+    await start.click();
+    await expect(focus.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('timer').first()).toBeAttached();
+  });
+
   test('the glass and the room follow Appearance, and edges line up', async ({ page }) => {
     await page.addInitScript(() =>
       localStorage.setItem('planner.appearance', JSON.stringify({ version: 2, visionClear: 100, visionBlur: 0, visionDim: 0 })),

@@ -223,6 +223,28 @@ textarea.well {
    disabled because it was drawn as one. The ember lives on a layer that fades
    in, so the change is opacity and scale only and plays rather than cuts
    (rule 12). */
+/* Speak instead of typing (MicButton): quiet until listening. */
+.capture-mic {
+  color: var(--text-low);
+}
+
+.capture-mic[data-listening] {
+  color: var(--accent);
+  animation: capture-listen 1.2s ease-in-out infinite;
+}
+
+@keyframes capture-listen {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capture-mic[data-listening] {
+    animation: none;
+  }
+}
+
 .capture-send {
   isolation: isolate;
   color: var(--text-mid);

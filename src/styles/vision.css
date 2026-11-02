@@ -227,10 +227,6 @@
 }
 
 .v-capture {
-  position: absolute;
-  left: 50%;
-  width: min(30rem, 40vw);
-  transform: translateX(-50%);
   color: var(--text-low);
   transition: box-shadow 260ms var(--v-ease);
 }
@@ -263,6 +259,199 @@
   color: var(--text-low);
   font: inherit;
   font-size: 0.6875rem;
+}
+
+/* ---- the island (VisionIsland): the capture box, opening into the day ---- */
+
+/* A row item in the bar (see "With search in it" below). Static, so the
+   panel and the note place themselves against the whole bar, centred on the
+   window, rather than against the pill. */
+.v-island {
+  position: static;
+  min-width: 0;
+  flex: 1 1 auto;
+  max-width: 30rem;
+}
+
+.v-island .v-capture {
+  width: 100%;
+}
+
+.v-island .v-mic,
+.v-island-toggle {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  height: 1.75rem;
+  min-width: 1.75rem;
+  border-radius: var(--r-pill);
+  color: var(--text-low);
+  transition: color 200ms var(--v-ease);
+}
+
+.v-island .v-mic[data-listening] {
+  color: var(--accent);
+  animation: v-listen 1.2s ease-in-out infinite;
+}
+
+@keyframes v-listen {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.v-island-toggle kbd {
+  /* inherits .v-capture kbd */
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v-island .v-mic:hover,
+  .v-island-toggle:hover {
+    color: var(--text-hi);
+  }
+}
+
+.v-island-note {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 50%;
+  translate: -50% 0;
+  border-radius: var(--r-pill);
+  padding: 0.25rem 0.75rem;
+  background: var(--v-glass);
+  text-align: center;
+  color: var(--text-mid);
+  font-size: 0.75rem;
+}
+
+/* Wider than the pill it drops from, centred under it, kept inside the window. */
+.v-island-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 50%;
+  width: min(60rem, calc(100vw - 3rem));
+  transform: translateX(-50%);
+}
+
+.v-island[data-open] .v-island-panel {
+  animation: v-island-drop 420ms var(--v-ease) both;
+}
+
+@keyframes v-island-drop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -0.75rem) scale(0.97);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+    filter: none;
+  }
+}
+
+:root[data-motion='calm'] .v-island[data-open] .v-island-panel {
+  animation-name: v-fade-only;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-island[data-open] .v-island-panel {
+    animation-name: v-fade-only;
+  }
+  .v-island .v-mic[data-listening] {
+    animation: none;
+  }
+}
+
+/* The tray the cards sit in: the theme's own ground, so the dashboard
+   behind never reads through two layers of glass. */
+.v-island-cards {
+  border-radius: calc(var(--r-card) + 0.5rem);
+  padding: 0.625rem;
+  background: var(--ink-800);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    0 30px 60px -24px rgb(var(--shadow-color) / 0.7);
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.v-island-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 1rem;
+  min-height: 13rem;
+}
+
+.v-island-card .type-quote {
+  font-size: 0.8125rem;
+}
+
+.v-island-more {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  align-self: flex-start;
+  color: var(--text-mid);
+  font-size: 0.75rem;
+}
+
+.v-island-ev-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding-block: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.v-island-focus {
+  align-items: stretch;
+}
+
+.v-island-matrix,
+.v-pip-inner .v-island-matrix {
+  display: block;
+  margin: 0.75rem auto 0.5rem;
+  color: var(--text-hi);
+}
+
+.v-island-matrix svg {
+  display: block;
+  height: 2.25rem;
+  width: auto;
+  margin-inline: auto;
+}
+
+.v-island-focus-title {
+  text-align: center;
+  color: var(--text-mid);
+  font-size: 0.75rem;
+}
+
+.v-island-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding-top: 0.75rem;
+}
+
+/* The popped-out timer window (Document Picture-in-Picture). */
+.v-pip {
+  display: grid;
+  min-height: 100vh;
+  margin: 0;
+  place-items: center;
+  background: var(--ink-900);
+  color: var(--text-hi);
+}
+
+.v-pip-inner {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
 }
 
 .v-top-end {
@@ -1624,13 +1813,6 @@
   justify-content: flex-start;
 }
 
-.v-top .v-capture {
-  position: static;
-  flex: 1 1 auto;
-  width: auto;
-  max-width: 30rem;
-  transform: none;
-}
 
 .v-top .v-top-end {
   margin-left: auto;

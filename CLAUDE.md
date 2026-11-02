@@ -1955,6 +1955,40 @@ lists keep 76rem, centred. From 112rem the root size grows with the window
 (to 22px), so a 27-inch screen shows the same dashboard larger rather than
 stretched. The header's three controls share one height.
 
+**The island and speaking, 1 Nov.** From NotchOwl (a Mac app that drops the
+day out of the notch), approved as items 1 and 2 of a three-part proposal;
+the third, a Claude connector, is deferred. Only ideas were taken: its terms
+exclude refunds to anyone who used it "to build your own version", so no
+asset, copy or code of it is here, and the app itself was never downloaded.
+
+- **The island** (`components/VisionIsland.tsx`, `lib/island.ts`): the top
+  bar's capture box opens on hover (220 ms beat), Alt+N (by `e.code`, since
+  Option+N is a dead key on a Mac) or its ⌥N toggle, into a tray of four
+  cards: work due today or late, the focus timer, the inbox, and what is
+  left of today's calendar. Escape and an outside click close it; Escape is
+  taken in the capture phase so it does not also send the app back to Today.
+  Every action is an existing one: a tick fires `FINISH_EVENT`, which Today
+  answers with its own `finish` (Undo and the actual-time chips included);
+  Start is `startSession` and Stop is `planner:focus-stop`, so FocusBar
+  still owns the session and offers the minutes. The timer counts up and is
+  drawn with the dot-matrix glyphs; NotchOwl's countdowns were not taken,
+  because lib/focus.ts is deliberately not a Pomodoro. Its Insights chart
+  (completed against planned per day) was not taken either: rule 3.
+- **Pop out** moves the timer into a Document Picture-in-Picture window,
+  above every app, with the page's stylesheets and root attributes copied
+  in. Chrome and Edge only; elsewhere the link is absent, not inert.
+- **Speak** (`lib/dictation.ts`, `components/MicButton.tsx`) in the island
+  and in Today's capture box: the browser's own recogniser, so no AI budget
+  and no dependency. Words land in the field and Enter still sends (rule 6).
+  No button where the browser has none (Firefox). Failures say what to do.
+- The tray is the theme's `--ink-800`, not glass: glass cards over a glass
+  dashboard read the dashboard through two layers.
+
+Verified in Chromium through e2e (island opens, a11y clean, a tick finishes
+through Today with Undo, Escape stays on Today, Start runs FocusBar's timer).
+Not verified: speech in Safari or on a phone, the pop-out window by hand,
+and the island in the signed-in live account.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:

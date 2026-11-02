@@ -664,6 +664,12 @@ export async function setActualMinutes(id: string, minutes: number | null): Prom
   await enqueue('assignments', 'update', { actual_minutes: minutes }, { id });
 }
 
+/**
+ * Asks Today to finish a piece of work by id (detail: the id), so a tick from
+ * elsewhere (Vision's island) gets Today's Undo and actual-time chips too.
+ */
+export const FINISH_EVENT = 'planner:finish';
+
 export async function setAssignmentStatus(
   id: string,
   status: Assignment['status'],

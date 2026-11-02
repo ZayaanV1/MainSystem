@@ -1,10 +1,9 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { NavItem } from './AppShell';
 import { followCapsule, moveCapsule, popIcon } from '../lib/motion';
 import { useAuth } from '../lib/auth';
-import { capture } from '../lib/planner';
-import { announce } from '../lib/announce';
+import type { TodayData } from '../lib/planner';
+import { VisionIsland } from './VisionIsland';
 import { useNow } from '../lib/useNow';
 
 /**
@@ -13,8 +12,9 @@ import { useNow } from '../lib/useNow';
  *
  * The dock holds every destination, exactly as the rail did. The top bar
  * deliberately does not repeat them: it holds what the dock cannot, which is
- * the time, a box to catch a thought from any screen, and three shortcuts
- * with something to say (the inbox's count, Abood, the account).
+ * the time, a box to catch a thought from any screen that opens into the
+ * day (VisionIsland), and three shortcuts with something to say (the inbox's
+ * count, Abood, the account).
  */
 export function VisionChrome<T extends string>({
   current,
@@ -22,6 +22,7 @@ export function VisionChrome<T extends string>({
   onNavigate,
   onPalette,
   full,
+  day,
 }: {
   current: T;
   items: NavItem<T>[];
@@ -29,10 +30,12 @@ export function VisionChrome<T extends string>({
   onPalette?: () => void;
   /** The full-height sidebar (Appearance > Vision) rather than the floating dock. */
   full: boolean;
+  /** The loaded day, for the island. */
+  day: TodayData | null;
 }) {
   return (
     <>
-      <TopBar items={items} onNavigate={onNavigate} onPalette={onPalette} />
+      <TopBar items={items} onNavigate={onNavigate} onPalette={onPalette} day={day} />
       <Dock current={current} items={items} onNavigate={onNavigate} full={full} />
     </>
   );
@@ -102,17 +105,17 @@ function TopBar<T extends string>({
   items,
   onNavigate,
   onPalette,
+  day,
 }: {
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
   onPalette?: () => void;
+  day: TodayData | null;
 }) {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
   const initial = (session?.user.email ?? '?').slice(0, 1).toUpperCase();
   const now = useNow();
-  const [text, setText] = useState('');
-  const [sent, setSent] = useState(false);
 
   const has = (id: string) => items.find((i) => i.id === id);
   const inbox = has('week')?.badge ?? 0;
@@ -120,17 +123,6 @@ function TopBar<T extends string>({
     const item = has(id);
     if (item) onNavigate(item.id);
   };
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    const body = text.trim();
-    if (!body || !userId) return;
-    setText('');
-    await capture(userId, body);
-    announce('Added to the inbox');
-    setSent(true);
-    setTimeout(() => setSent(false), 1600);
-  }
 
   return (
     <header className="vt-chrome v-top">
@@ -152,22 +144,7 @@ function TopBar<T extends string>({
         </button>
       )}
 
-      <form onSubmit={(e) => void submit(e)} className="v-pill v-capture">
-        <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        <label className="sr-only" htmlFor="v-capture">
-          Add something to the inbox
-        </label>
-        <input
-          id="v-capture"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={sent ? 'In the inbox' : 'Add something'}
-          autoComplete="off"
-        />
-        <kbd aria-hidden>Enter</kbd>
-      </form>
+      <VisionIsland userId={userId} day={day} onGo={(id) => go(id)} />
 
       <div className="v-top-end">
         {has('week') && (

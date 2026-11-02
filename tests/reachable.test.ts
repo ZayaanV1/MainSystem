@@ -196,6 +196,8 @@ describe('every primitive is on the specimen page', () => {
     VisionChrome: 'the dock and top bar AppShell draws in place of the rail on Vision\'s desk',
     AboodChannels: 'Abood\'s left panel on Vision\'s desk; reads the live channel state',
     AboodMemory: 'Abood\'s right panel on Vision\'s desk; reads the live memory',
+    VisionIsland: 'the centre of VisionChrome\'s top bar; reads the loaded day',
+    MicButton: 'drawn inside CaptureBox on the page, where the browser can recognise speech',
   };
 
   const specimen = readFileSync('src/routes/Specimen.tsx', 'utf8');

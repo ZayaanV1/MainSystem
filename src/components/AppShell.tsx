@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { TodayData } from '../lib/planner';
 import { followCapsule, moveCapsule, popClose, popIcon, popOpen } from '../lib/motion';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { StatusVeil } from './CompactBar';
@@ -47,6 +48,7 @@ export function AppShell<T extends string>({
   items,
   onNavigate,
   onPalette,
+  day = null,
   children,
 }: {
   current: T;
@@ -54,6 +56,8 @@ export function AppShell<T extends string>({
   onNavigate: (id: T) => void;
   /** Opens the command palette: Vision's top-bar search. */
   onPalette?: () => void;
+  /** The loaded day: Vision's island shows it. */
+  day?: TodayData | null;
   children: ReactNode;
 }) {
   const vision = useVisionDesk();
@@ -67,7 +71,7 @@ export function AppShell<T extends string>({
   return (
     <div className={`atmosphere lg:flex lg:min-h-svh ${vision ? 'vision-desk' : ''}`} data-dock={vision ? visionDock : undefined}>
       {vision ? (
-        <VisionChrome current={current} items={items} onNavigate={onNavigate} onPalette={onPalette} full={visionDock === 'full'} />
+        <VisionChrome current={current} items={items} onNavigate={onNavigate} onPalette={onPalette} full={visionDock === 'full'} day={day} />
       ) : (
         <Rail current={current} items={items} onNavigate={onNavigate} />
       )}

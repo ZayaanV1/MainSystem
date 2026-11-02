@@ -54,6 +54,7 @@ import {
   loadCalibrationPairs,
   setActualMinutes,
   completionSet,
+  FINISH_EVENT,
   loadToday,
   setAssignmentStatus,
   setCompletion,
@@ -268,6 +269,20 @@ export function Today({
     // Offered, never demanded. Marking done has to stay free.
     setAskingTime(finishing && a.effort_minutes !== null ? a : null);
   }
+
+  // Vision's island ticks work through this same finish (lib/planner FINISH_EVENT).
+  const finishRef = useRef(finish);
+  finishRef.current = finish;
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  useEffect(() => {
+    const onFinish = (e: Event) => {
+      const a = dataRef.current?.assignments.find((x) => x.id === (e as CustomEvent<string>).detail);
+      if (a) finishRef.current(a);
+    };
+    window.addEventListener(FINISH_EVENT, onFinish);
+    return () => window.removeEventListener(FINISH_EVENT, onFinish);
+  }, []);
 
   /*
    * How long things actually take, applied. The calibration was measured and
