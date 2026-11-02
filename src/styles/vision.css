@@ -2254,3 +2254,20 @@ button.v-pill {
   font: inherit;
   font-size: 0.6875rem;
 }
+
+/* The first run over the wallpaper. Its headings and paragraphs sit on the
+   photo with no card behind them, so the room dims further here, and the
+   bottom bar is a strip of glass so a step scrolling under it stays legible. */
+:root[data-look='glass'] .firstrun-room {
+  /* Redeclared here, not on :root: the veil is computed where it is declared. */
+  --v-veil: rgb(var(--v-veil-rgb) / max(var(--v-dim-eff), 0.6));
+}
+
+:root[data-look='glass'] .firstrun-bar {
+  margin-inline: -1rem;
+  /* Near-solid whatever the see-through setting: text scrolls under it. */
+  background: rgb(var(--v-glass-rgb) / 0.88);
+  -webkit-backdrop-filter: blur(var(--v-blur, 26px)) saturate(140%);
+  backdrop-filter: blur(var(--v-blur, 26px)) saturate(140%);
+  box-shadow: inset 0 1px 0 var(--glass-edge);
+}

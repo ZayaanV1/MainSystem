@@ -81,3 +81,37 @@ test('a new account starts on the Glass theme in Dusk', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-look', 'glass');
   await expect(page.locator('html')).toHaveAttribute('data-skin', 'vision');
 });
+
+// The first run sits over the wallpaper in Glass, with its headings on the
+// photo itself, so every step is scanned there, in both modes.
+for (const theme of ['light', 'dark'] as const) {
+  test.describe(`First run in Glass, ${theme}`, () => {
+    test.use({ colorScheme: theme });
+    test('every step has no WCAG A or AA violations', async ({ page }) => {
+      const found: string[] = [];
+      const scan = async (step: string) => {
+        await page.waitForTimeout(600);
+        found.push(...(await axeViolations(page)).map((v) => `${step}: ${v}`));
+      };
+      await page.goto('/?firstrun&skin=default');
+      await expect(page.getByText('Step 1 of 6')).toBeVisible();
+      await scan('welcome');
+      await page.getByRole('button', { name: 'Start' }).click();
+      await page.getByLabel('Course', { exact: true }).fill('Physics II');
+      await page.getByLabel('Code', { exact: true }).fill('PHYS 205');
+      await page.getByLabel('Code', { exact: true }).press('Enter');
+      await scan('courses');
+      await page.locator('.firstrun-next').click();
+      await scan('syllabus');
+      await page.locator('.firstrun-next').click();
+      await page.getByRole('button', { name: 'Plan tomorrow' }).click();
+      await page.getByRole('button', { name: 'Check course sites and email' }).click();
+      await scan('daily');
+      await page.locator('.firstrun-next').click();
+      await scan('tour');
+      await page.locator('.firstrun-next').click();
+      await scan('done');
+      expect(found).toEqual([]);
+    });
+  });
+}

@@ -211,7 +211,9 @@ export function Onboarding({ userId, onDone }: { userId: string; onDone: () => v
     }
   })();
 
+  // In the atmosphere like the app, so Glass shows its wallpaper from the first screen.
   return (
+    <div className="atmosphere firstrun-room">
     <main className="firstrun">
       <div className="firstrun-top">
         <div className="firstrun-progress" aria-hidden>
@@ -278,6 +280,7 @@ export function Onboarding({ userId, onDone }: { userId: string; onDone: () => v
         </Button>
       </div>
     </main>
+    </div>
   );
 }
 
@@ -635,7 +638,7 @@ function Daily({
       <div className="firstrun-preview">
         <span className="kicker">On Today</span>
         {selected.length ? (
-          <div className="tick-pills">
+          <div className="tick-pills firstrun-pills">
             {selected.map((t) => (
               <span key={t} className="tick-pill enter-fade">
                 <span className="tick" />
@@ -717,7 +720,7 @@ function Done({ courses, deadlines, daily, courseId }: { courses: Course[]; dead
         </div>
         <span className="well firstrun-today-capture">Capture anything</span>
         {daily.length > 0 && (
-          <div className="tick-pills">
+          <div className="tick-pills firstrun-pills">
             {daily.map((t) => (
               <span key={t} className="tick-pill">
                 <span className="tick" />

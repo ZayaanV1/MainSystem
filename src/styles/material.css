@@ -2023,6 +2023,15 @@ button.chip:active {
   color: var(--text-low);
 }
 
+/* The first run's previews wrap rather than scroll: they hold a few pills, and
+   a row that scrolls cut the second one off with no way to reach it by key. */
+.firstrun-pills {
+  flex-wrap: wrap;
+  overflow: visible;
+  margin-inline: 0;
+  padding-inline: 0;
+}
+
 .firstrun-courses {
   display: flex;
   min-height: 2.75rem;
