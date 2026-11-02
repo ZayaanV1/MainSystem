@@ -2022,6 +2022,47 @@ Verified in Chromium (e2e and measured in the harness): centring, the lens
 stretch, both dock modes, the gutter. Not verified on a phone, a real
 laptop's GPU, or in the signed-in live account.
 
+**The Claude connector, 2 Nov.** Item 3 of the NotchOwl proposal, approved
+with both recommended answers: sign in with the planner account, and changes
+saved at once but undoable.
+
+- **Sign-in** is Supabase Auth's OAuth 2.1 server (public beta), with dynamic
+  client registration on, so Claude's "Add custom connector" needs only the
+  address. The app hosts the consent page (`routes/OAuthConsent.tsx`, at
+  `/oauth/consent`, outside the shell and before onboarding): who is asking,
+  where it returns to, what it can and cannot do. The project already signs
+  with ES256, which the OAuth server's tokens need.
+- **The server** is `functions/mcp`, a hand-written stateless MCP server
+  (`_shared/mcp.ts`: initialize, tools/list, tools/call, ping; JSON only, no
+  SDK). It verifies the token with getUser, refuses any token without a
+  `client_id` claim (a session copied from a browser), and then queries with
+  that token, never the service role, so RLS bounds it. A missing or expired
+  token gets a 401 whose WWW-Authenticate points at
+  `/functions/v1/mcp/oauth-protected-resource` (RFC 9728).
+- **Tools** (`_shared/connector.ts`): get_today, list_work, list_schedule,
+  search, list_courses; add_work, add_event, add_to_inbox, set_work_done,
+  move_work. No delete; no Abood conversations or memory; no focus timer
+  (it lives on the device); mirrored calendar events are not editable. Dates
+  in and out are the account's zone, untimed work is due 23:59 and untimed
+  events start at midnight, the app's own rules. A course is named by id,
+  code or name, and ambiguity is told to the model with the choices.
+- **Rule 6, the exception.** The AI app's own allow prompt is the
+  confirmation. Every write records a `connector_changes` row (migration
+  0050) with the row's earlier values; if that record cannot be written the
+  change is rolled back, because an unrecorded change cannot be undone.
+  Settings > Connected apps lists apps (Disconnect revokes the grant and its
+  tokens) and every change with Undo, which goes through the outbox: a created
+  row is deleted, an inbox thought dismissed, a changed row restored, and a
+  deferral written by a move removed with it.
+- **Cost:** none to the shared AI budget. The model is the account's own
+  Claude plan, so this is the first AI feature that scales per account for
+  free.
+
+Not verified end to end: it needs the OAuth server switched on in the
+dashboard, migration 0050 applied and the function deployed, none of which
+this machine's CLI could do (no access token). Tested by unit tests, the
+migration suite and e2e against the mock (consent, undo, disconnect).
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
