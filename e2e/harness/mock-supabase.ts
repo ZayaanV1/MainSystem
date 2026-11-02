@@ -6,10 +6,12 @@
 // so a test that fixes the clock gets the same week every run.
 //
 // URL switches: ?signedout starts signed out, ?firstrun starts at the first
-// run, ?skin=<theme> picks a theme.
+// run, ?skin=<scheme> picks a colour scheme (and its usual theme), ?look=<theme> a theme,
+// ?skin=default leaves both unchosen, as a new account has them.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const params = new URLSearchParams(location.search);
+const fresh = params.get('skin') === 'default';
 const USER = 'c0ffee00-0000-4000-8000-000000000001';
 const TZ = 'America/Toronto';
 
@@ -54,7 +56,7 @@ const db: Record<string, any[]> = {
     user_id: USER, timezone: TZ, digest_hour: 7, digest_minute: 0, digest_enabled: true,
     assignment_window_days: 7, event_window_days: 14, weekly_review_enabled: true, weekly_review_weekday: 7,
     onboarded_at: params.has('firstrun') ? null : at(-20, 9), abood_checkins: true, abood_checkin_every_hours: null,
-    abood_checkin_from: 10, abood_checkin_until: 21, theme: params.get('skin'), today_order: null, today_hidden: null, modules_off: null, board: boardParam(),
+    abood_checkin_from: 10, abood_checkin_until: 21, theme: fresh ? null : params.get('skin') ?? 'cloisonne', look: fresh ? null : params.get('look') ?? ({ vision: 'glass', nothing: 'dots' } as Record<string, string>)[params.get('skin') ?? ''] ?? 'plain', today_order: null, today_hidden: null, modules_off: null, board: boardParam(),
   }],
   courses: [
     { id: C.coen231, user_id: USER, name: 'Computer Organization', code: 'COEN 231', colour_index: 3, archived: false },

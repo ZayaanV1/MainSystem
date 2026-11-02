@@ -74,12 +74,12 @@ export function AppShell<T extends string>({
 }) {
   const vision = useVisionDesk();
   // Vision's room: the account's own photo, when it chose one, at any width.
-  const { skin } = usePreferences();
+  const { look } = usePreferences();
   const { visionDock } = useAppearance();
   useEffect(() => {
-    if (skin !== 'vision') return;
+    if (look !== 'glass') return;
     void loadBackdrop().then(showBackdrop);
-  }, [skin]);
+  }, [look]);
   return (
     <div className={`atmosphere lg:flex lg:min-h-svh ${vision ? 'vision-desk' : ''}`} data-dock={vision ? visionDock : undefined}>
       {vision ? (

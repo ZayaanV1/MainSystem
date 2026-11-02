@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { SKINS, applySkin, type Skin } from '../lib/theme';
-import { saveSkin, usePreferences } from '../lib/preferences';
+import { LOOKS, SKINS, applyLook, applySkin, type Look, type Skin } from '../lib/theme';
+import { saveLook, saveSkin, usePreferences } from '../lib/preferences';
 import { sweepFrom } from '../lib/transition';
 import { Button } from './Button';
 import { Chip } from './Chip';
@@ -8,61 +8,106 @@ import { clearBackdrop, loadBackdrop, setBackdrop } from '../lib/backdrop';
 import { GLASS_PRESETS, setAppearance, useAppearance } from '../lib/appearance';
 
 /**
- * Choosing a theme.
+ * Choosing a theme, a colour scheme and a wallpaper.
  *
- * Each card holds a real miniature of Today drawn in that theme (the scoped
- * .skin-<name>.mode-<mode> token blocks in tokens.css), not a row of colour
- * swatches: a theme is its material and type as much as its colours, and a
- * swatch cannot show a serif or a square corner.
+ * Three separate choices since 2 Nov 2026. The theme is the material (Glass,
+ * Dot matrix or Plain), the colour scheme is the palette and type, and any
+ * theme takes any scheme. The wallpaper is what sits behind the glass.
  *
- * A tap previews the theme across the whole app at once, sweeping out from the
- * card. Keep it saves it to the account; leaving without keeping puts the
- * saved theme back, so trying one on is never a commitment.
+ * Each card holds a real miniature of Today drawn in that combination (the
+ * scoped .skin-<name>.look-<name>.mode-<mode> blocks), not a row of swatches:
+ * a scheme is its type as much as its colours, and a theme its material.
+ *
+ * A tap previews across the whole app at once, sweeping out from the card.
+ * Keep it saves to the account; leaving without keeping puts the saved
+ * choice back, so trying one on is never a commitment.
  */
 export function ThemePicker({ userId }: { userId: string }) {
   const prefs = usePreferences();
-  const [preview, setPreview] = useState<Skin | null>(null);
+  const [preview, setPreview] = useState<{ skin: Skin; look: Look } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const saved = useRef(prefs.skin);
-  saved.current = prefs.skin;
+  const saved = useRef({ skin: prefs.skin, look: prefs.look });
+  saved.current = { skin: prefs.skin, look: prefs.look };
   const mode = useResolvedMode();
 
-  // Leaving Settings while previewing: the saved theme comes back.
-  useEffect(() => () => applySkin(saved.current), []);
+  // Leaving Settings while previewing: the saved choice comes back.
+  useEffect(
+    () => () => {
+      applySkin(saved.current.skin);
+      applyLook(saved.current.look);
+    },
+    [],
+  );
 
-  const shown = preview ?? prefs.skin;
+  const shown = preview ?? { skin: prefs.skin, look: prefs.look };
 
-  function choose(skin: Skin, from: Element) {
-    if (skin === shown) return;
+  function choose(next: { skin: Skin; look: Look }, from: Element) {
+    if (next.skin === shown.skin && next.look === shown.look) return;
     setProblem(null);
     sweepFrom(from, () => {
-      applySkin(skin);
-      setPreview(skin === prefs.skin ? null : skin);
+      applySkin(next.skin);
+      applyLook(next.look);
+      setPreview(next.skin === prefs.skin && next.look === prefs.look ? null : next);
     });
   }
 
   async function keep() {
     if (!preview) return;
-    const skin = preview;
+    const next = preview;
     setPreview(null);
-    const { error } = await saveSkin(userId, skin);
+    const results = await Promise.all([
+      next.skin !== prefs.skin ? saveSkin(userId, next.skin) : null,
+      next.look !== prefs.look ? saveLook(userId, next.look) : null,
+    ]);
+    const error = results.find((r) => r?.error)?.error;
     if (error) setProblem(error);
   }
 
+  const previewName = preview
+    ? [
+        preview.look !== prefs.look ? LOOKS.find((l) => l.id === preview.look)?.name : null,
+        preview.skin !== prefs.skin ? SKINS.find((s) => s.id === preview.skin)?.name : null,
+      ]
+        .filter(Boolean)
+        .join(' in ')
+    : '';
+
   return (
     <div className="flex flex-col gap-3">
+      <p className="kicker">Theme</p>
       <div className="theme-cards" role="radiogroup" aria-label="Theme">
+        {LOOKS.map((l) => (
+          <button
+            key={l.id}
+            type="button"
+            role="radio"
+            aria-checked={shown.look === l.id}
+            data-saved={prefs.look === l.id || undefined}
+            className="theme-card"
+            onClick={(e) => choose({ skin: shown.skin, look: l.id }, e.currentTarget)}
+          >
+            <span aria-hidden className={`theme-mini skin-${shown.skin} look-${l.id} mode-${mode}`}>
+              <MiniToday />
+            </span>
+            <span className="theme-card-name">{l.name}</span>
+            <span className="type-note text-text-low">{l.line}</span>
+          </button>
+        ))}
+      </div>
+
+      <p className="kicker mt-4">Colour scheme</p>
+      <div className="theme-cards" role="radiogroup" aria-label="Colour scheme">
         {SKINS.map((s) => (
           <button
             key={s.id}
             type="button"
             role="radio"
-            aria-checked={shown === s.id}
+            aria-checked={shown.skin === s.id}
             data-saved={prefs.skin === s.id || undefined}
             className="theme-card"
-            onClick={(e) => choose(s.id, e.currentTarget)}
+            onClick={(e) => choose({ skin: s.id, look: shown.look }, e.currentTarget)}
           >
-            <span aria-hidden className={`theme-mini skin-${s.id} mode-${mode}`}>
+            <span aria-hidden className={`theme-mini skin-${s.id} look-${shown.look} mode-${mode}`}>
               <MiniToday />
             </span>
             <span className="kicker">{s.reference}</span>
@@ -75,7 +120,7 @@ export function ThemePicker({ userId }: { userId: string }) {
       {preview && (
         <div className="theme-preview-bar enter-fade" role="status">
           <span className="min-w-0 flex-1 type-note text-text-mid">
-            Previewing <b className="text-text-hi">{SKINS.find((s) => s.id === preview)?.name}</b> everywhere
+            Previewing <b className="text-text-hi">{previewName}</b> everywhere
           </span>
           <Button variant="primary" size="sm" onClick={() => void keep()}>
             Keep it
@@ -87,6 +132,7 @@ export function ThemePicker({ userId }: { userId: string }) {
               const from = e.currentTarget;
               sweepFrom(from, () => {
                 applySkin(prefs.skin);
+                applyLook(prefs.look);
                 setPreview(null);
               });
             }}
@@ -96,24 +142,26 @@ export function ThemePicker({ userId }: { userId: string }) {
         </div>
       )}
       {problem && <p className="type-note text-t-overdue">{problem}</p>}
-      {shown === 'vision' && <VisionRoom userId={userId} />}
-      <p className="type-note text-text-low">The theme follows your account, so your phone and laptop match.</p>
+      <p className="type-note text-text-low">The theme and colour scheme follow your account, so your phone and laptop match.</p>
+
+      <p className="kicker mt-4">Wallpaper</p>
+      <Wallpaper userId={userId} glass={shown.look === 'glass'} />
+      {shown.look === 'glass' && <GlassSettings />}
     </div>
   );
 }
 
 /**
- * Vision's own settings: the room behind the glass and the glass itself.
- * Shown while Vision is the theme on screen, since they mean nothing
- * elsewhere. The photo follows the account; the rest is per device, because
- * how clear and how frosted the glass can be is this device's GPU's say.
- * Every change shows at once behind this panel.
+ * The wallpaper behind the glass: the bundled room at dusk or the account's
+ * own photo, which follows the account. Only Glass draws one, so under the
+ * other themes it is kept and says so rather than disappearing.
  */
-function VisionRoom({ userId }: { userId: string }) {
+function Wallpaper({ userId, glass }: { userId: string; glass: boolean }) {
   const [path, setPath] = useState<string | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const look = useAppearance();
 
   useEffect(() => {
     void loadBackdrop().then(setPath);
@@ -138,12 +186,9 @@ function VisionRoom({ userId }: { userId: string }) {
     else setPath(null);
   }
 
-  const look = useAppearance();
-
   return (
     <div className="mat flex flex-col gap-2 p-4">
-      <span className="kicker">Vision</span>
-      <div role="radiogroup" aria-label="Background" className="flex flex-wrap gap-2">
+      <div role="radiogroup" aria-label="Wallpaper" className="flex flex-wrap gap-2">
         {(['photo', 'off'] as const).map((v) => (
           <Chip
             key={v}
@@ -152,10 +197,48 @@ function VisionRoom({ userId }: { userId: string }) {
             selected={look.visionBackground === v}
             onClick={() => setAppearance({ visionBackground: v })}
           >
-            {v === 'photo' ? 'Photo behind the glass' : 'No photo'}
+            {v === 'photo' ? 'Photo' : 'No wallpaper'}
           </Chip>
         ))}
       </div>
+      <p className="type-note text-text-mid">
+        {path === undefined ? 'Checking' : path ? 'Your own photo, on every device.' : 'A room at dusk, the default.'}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          aria-label="Choose a wallpaper photo"
+          onChange={(e) => void pick(e.target.files?.[0])}
+        />
+        <Button variant="secondary" size="sm" disabled={busy} onClick={() => input.current?.click()}>
+          {busy ? 'Saving' : path ? 'Change photo' : 'Use my own photo'}
+        </Button>
+        {path && (
+          <Button variant="quiet" size="sm" disabled={busy} onClick={() => void reset()}>
+            Use the default
+          </Button>
+        )}
+      </div>
+      {!glass && <p className="type-note text-text-low">The wallpaper shows behind the Glass theme. It is kept while you use another.</p>}
+      {problem && <p className="type-note text-t-overdue">{problem}</p>}
+    </div>
+  );
+}
+
+/**
+ * The Glass theme's own settings: the glass itself and the desk. Per device,
+ * because how clear and how frosted the glass can be is this device's GPU's
+ * say. Every change shows at once behind this panel.
+ */
+function GlassSettings() {
+  const look = useAppearance();
+
+  return (
+    <div className="mat flex flex-col gap-2 p-4">
+      <span className="kicker">Glass</span>
       <div role="radiogroup" aria-label="Glass" className="flex flex-wrap gap-2">
         {(['frost', 'smoke'] as const).map((g) => (
           <Chip
@@ -170,7 +253,7 @@ function VisionRoom({ userId }: { userId: string }) {
         ))}
       </div>
       <p className="type-note text-text-low">
-        {look.visionGlass === 'smoke' ? 'Darker, warmer glass, after the V7 dashboard.' : 'Light, frosty glass.'} The sliders below still move freely.
+        {look.visionGlass === 'smoke' ? 'Darker, warmer glass.' : 'Light, frosty glass.'} The sliders below still move freely.
       </p>
       <Slider
         label="See-through"
@@ -191,7 +274,7 @@ function VisionRoom({ userId }: { userId: string }) {
         onChange={(v) => setAppearance({ visionBlur: v })}
       />
       <Slider
-        label="Dim the room"
+        label="Dim the wallpaper"
         value={look.visionDim}
         max={100}
         step={5}
@@ -217,33 +300,9 @@ function VisionRoom({ userId }: { userId: string }) {
         />
       </label>
       <p className="type-note text-text-low">
-        The clearer the glass, the more the room dims behind it, so text always stays readable. These are
+        The clearer the glass, the more the wallpaper dims behind it, so text always stays readable. These are
         remembered on this device.
       </p>
-
-      <span className="kicker mt-3">Photo</span>
-      <p className="type-note text-text-mid">
-        {path === undefined ? 'Checking' : path ? 'Your own photo, behind the glass on every device.' : 'A room at dusk, the theme’s own.'}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <input
-          ref={input}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          aria-label="Choose a background photo"
-          onChange={(e) => void pick(e.target.files?.[0])}
-        />
-        <Button variant="secondary" size="sm" disabled={busy} onClick={() => input.current?.click()}>
-          {busy ? 'Saving' : path ? 'Change photo' : 'Use my own photo'}
-        </Button>
-        {path && (
-          <Button variant="quiet" size="sm" disabled={busy} onClick={() => void reset()}>
-            Use the default
-          </Button>
-        )}
-      </div>
-      {problem && <p className="type-note text-t-overdue">{problem}</p>}
     </div>
   );
 }

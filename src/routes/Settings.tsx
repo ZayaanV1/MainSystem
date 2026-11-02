@@ -852,7 +852,6 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
   return (
     <section className="mb-8">
       {!bare && <SectionHead title="Appearance" />}
-      <p className="kicker mb-3 px-4">Theme</p>
       <div className="mb-6 px-4">
         <ThemePicker userId={userId} />
       </div>
@@ -899,8 +898,8 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
         </div>
         <p className="type-note mt-3 text-text-low">{slipOptions.find((o) => o.value === look.slip)?.hint}</p>
 
-        <p className="kicker mt-6 mb-2">Glass</p>
-        <div role="radiogroup" aria-label="Glass" className="flex flex-wrap gap-2">
+        <p className="kicker mt-6 mb-2">Translucency</p>
+        <div role="radiogroup" aria-label="Translucency" className="flex flex-wrap gap-2">
           {glassOptions.map((o) => (
             <Chip
               key={o.value}

@@ -3985,35 +3985,35 @@ label.cell:active {
    by light; the action is the inverted surface; labels and buttons in mono
    capitals; display type and numbers on a dot matrix; a dot grid behind it
    all. Colour, and its one red dot, live in tokens.css. */
-:is(:root[data-skin='nothing'], .skin-nothing) .mat:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .mat:not(.theme-mini:not(.look-dots) *) {
   background:
     linear-gradient(var(--mat-wash), var(--mat-wash)),
     var(--ink-800);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .mat[data-block]:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .mat[data-block]:not(.theme-mini:not(.look-dots) *) {
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .mat:not(.theme-mini:not(.skin-nothing) *)::before {
+:is(:root[data-look='dots'], .look-dots) .mat:not(.theme-mini:not(.look-dots) *)::before {
   display: none;
 }
 /* The hero surface keeps a corner of the dot grid, fading in from top right,
    the way a Nothing widget carries its matrix. */
-:is(:root[data-skin='nothing'], .skin-nothing) .mat-hero:not(.theme-mini:not(.skin-nothing) *)::after {
+:is(:root[data-look='dots'], .look-dots) .mat-hero:not(.theme-mini:not(.look-dots) *)::after {
   opacity: 1;
   background: radial-gradient(circle, var(--dot-grid) 0 1px, transparent 1.5px) 0 0 / 10px 10px;
   -webkit-mask-image: radial-gradient(70% 90% at 100% 0%, var(--text-hi), transparent 70%);
   mask-image: radial-gradient(70% 90% at 100% 0%, var(--text-hi), transparent 70%);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.mat-raised, .mat-hero):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.mat-raised, .mat-hero):not(.theme-mini:not(.look-dots) *) {
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .mat-row + .mat-row:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .mat-row + .mat-row:not(.theme-mini:not(.look-dots) *) {
   box-shadow: inset 0 1px 0 var(--ink-700);
 }
 
 /* Buttons: a flat inverted slab with mono capitals, Nothing's "Discover". */
-:is(:root[data-skin='nothing'], .skin-nothing) .btn:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .btn:not(.theme-mini:not(.look-dots) *) {
   border-radius: var(--r-pill);
   font-family: var(--font-sans);
   font-size: 0.9375rem;
@@ -4021,78 +4021,78 @@ label.cell:active {
   letter-spacing: 0;
   text-transform: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .btn-primary:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .btn-primary:not(.theme-mini:not(.look-dots) *) {
   background: var(--accent);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .btn-secondary:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .btn-secondary:not(.theme-mini:not(.look-dots) *) {
   color: var(--text-hi);
   background: var(--ink-600);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .btn-quiet:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .btn-quiet:not(.theme-mini:not(.look-dots) *) {
   color: var(--text-hi);
   background: var(--ink-700);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .btn-icon:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .btn-icon:not(.theme-mini:not(.look-dots) *) {
   border-radius: var(--r-pill);
 }
 
 /* Pills: hairline outlines, no light. Selected is inverted. */
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.chip, .tick-pill, .nav-capsule, .style-seg):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.chip, .tick-pill, .nav-capsule, .style-seg):not(.theme-mini:not(.look-dots) *) {
   background: var(--ink-800);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .chip[aria-pressed='true']:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .chip[aria-pressed='true']:not(.theme-mini:not(.look-dots) *) {
   color: var(--on-accent);
   background: var(--accent);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .chip[data-block][aria-pressed='true']:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .chip[data-block][aria-pressed='true']:not(.theme-mini:not(.look-dots) *) {
   color: var(--text-hi);
   background: linear-gradient(var(--blk-wash-top), var(--blk-wash-top)), var(--ink-700);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .chip-dot:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .chip-dot:not(.theme-mini:not(.look-dots) *) {
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .style-opt:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .style-opt:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-sans);
   font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .style-opt-lit:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .style-opt-lit:not(.theme-mini:not(.look-dots) *) {
   background: var(--ink-500);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .nav-capsule > button:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .nav-capsule > button:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-sans);
   font-weight: 500;
   text-transform: none;
 }
 
 /* Fields: a flat well with a hairline, lit white (or black) when in use. */
-:is(:root[data-skin='nothing'], .skin-nothing) .well:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .well:not(.theme-mini:not(.look-dots) *) {
   border-color: transparent;
   background: var(--ink-800);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.well:focus, .well:focus-within):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.well:focus, .well:focus-within):not(.theme-mini:not(.look-dots) *) {
   border-color: var(--text-hi);
   box-shadow: none;
 }
 
 /* Ticks: a hairline ring, filled flat when done. */
-:is(:root[data-skin='nothing'], .skin-nothing) .tick:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .tick:not(.theme-mini:not(.look-dots) *) {
   border-width: 1.5px;
   border-color: var(--text-low);
   background: transparent;
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .tick[data-done]:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .tick[data-done]:not(.theme-mini:not(.look-dots) *) {
   border-color: var(--t-done);
   background: var(--t-done);
   box-shadow: none;
@@ -4100,96 +4100,96 @@ label.cell:active {
 
 /* The switch, as Nothing OS draws it: inverted track when on, a knob that
    is a dot. */
-:is(:root[data-skin='nothing'], .skin-nothing) .settings-switch:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .settings-switch:not(.theme-mini:not(.look-dots) *) {
   background: transparent;
   box-shadow: inset 0 0 0 1.5px var(--text-low);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .settings-switch:not(.theme-mini:not(.skin-nothing) *)::after {
+:is(:root[data-look='dots'], .look-dots) .settings-switch:not(.theme-mini:not(.look-dots) *)::after {
   background: var(--text-low);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .settings-switch:checked:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .settings-switch:checked:not(.theme-mini:not(.look-dots) *) {
   background: var(--accent);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .settings-switch:checked:not(.theme-mini:not(.skin-nothing) *)::after {
+:is(:root[data-look='dots'], .look-dots) .settings-switch:checked:not(.theme-mini:not(.look-dots) *)::after {
   background: var(--on-accent);
 }
 
 /* Labels: mono capitals. Small type a reader scans, never prose. */
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.kicker, .today-date, .tick-pill-meta, .section-count, .tab-label, .now-pill, .month-year):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.kicker, .today-date, .tick-pill-meta, .section-count, .tab-label, .now-pill, .month-year):not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-mono);
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .section-count:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .section-count:not(.theme-mini:not(.look-dots) *) {
   font-size: 0.8125rem;
   line-height: 1;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .bar-btn:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .bar-btn:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-mono);
   font-size: 0.875rem;
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
 }
-:root[data-skin='nothing'] .type-caption:not(.theme-mini:not(.skin-nothing) *) {
+:root[data-look='dots'] .type-caption:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-mono);
   font-weight: 500;
 }
 
 /* Display and numbers on the dot matrix. Doto's dots grow with weight; 800
    is where a 40 px weekday reads at arm's length on a phone. */
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.type-masthead, .page-title, .month-title, .signin-word, .firstrun-h1):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.type-masthead, .page-title, .month-title, .signin-word, .firstrun-h1):not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-dot);
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.numeral, .stub-n, .ws-n, .day-num, .ledger-head-num, .blk-num, .rb-time b, .ev-time b, .course-when b):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.numeral, .stub-n, .ws-n, .day-num, .ledger-head-num, .blk-num, .rb-time b, .ev-time b, .course-when b):not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-dot);
   font-weight: 800;
   letter-spacing: 0;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.section-title, .slip-title, .work-group-title):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.section-title, .slip-title, .work-group-title):not(.theme-mini:not(.look-dots) *) {
   font-weight: 500;
   letter-spacing: -0.01em;
 }
 
 /* Rules are dotted: a row of matrix dots instead of a line. */
-:is(:root[data-skin='nothing'], .skin-nothing) .section-rule:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .section-rule:not(.theme-mini:not(.look-dots) *) {
   height: 3px;
   background: radial-gradient(circle, var(--ink-500) 0 1px, transparent 1.3px) 0 50% / 6px 3px repeat-x;
 }
 
 /* Navigation: the frosted bar, quiet; where you are is a flat grey slab. */
-:is(:root[data-skin='nothing'], .skin-nothing) .tab-bar:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .tab-bar:not(.theme-mini:not(.look-dots) *) {
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .nav-lit:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .nav-lit:not(.theme-mini:not(.look-dots) *) {
   background: var(--glass-fill-hover);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .tab-label:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .tab-label:not(.theme-mini:not(.look-dots) *) {
   font-size: 0.625rem;
 }
 
 /* Now: the recording dot. A white (or black) pill with the one red dot. */
-:is(:root[data-skin='nothing'], .skin-nothing) .now-pill:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .now-pill:not(.theme-mini:not(.look-dots) *) {
   background: var(--accent);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .now-pill:not(.theme-mini:not(.skin-nothing) *)::before {
+:is(:root[data-look='dots'], .look-dots) .now-pill:not(.theme-mini:not(.look-dots) *)::before {
   background: var(--signal);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .bubble-progress:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .bubble-progress:not(.theme-mini:not(.look-dots) *) {
   background: var(--accent);
   box-shadow: none;
 }
 
 /* Conversation: your messages are a flat grey slab, as Nothing's are. */
-:is(:root[data-skin='nothing'], .skin-nothing) .chat-mine:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .chat-mine:not(.theme-mini:not(.look-dots) *) {
   background: var(--accent-2-mid);
   box-shadow: none;
 }
@@ -4254,7 +4254,7 @@ label.cell:active {
 }
 
 /* The ground: Nothing's dot grid, fixed, under everything. */
-:root[data-skin='nothing'] .atmosphere:not(.theme-mini:not(.skin-nothing) *)::before {
+:root[data-look='dots'] .atmosphere:not(.theme-mini:not(.look-dots) *)::before {
   background: radial-gradient(circle, var(--dot-grid) 0 1px, transparent 1.5px) 0 0 / 22px 22px;
 }
 
@@ -4410,7 +4410,7 @@ label.cell:active {
    tracking to borrow back, and the capsule's mono capitals are wider than the
    sans they replace, so the fit (see .month-title) reserves more and divides
    by more. Measured on a 375 px phone: 100cqi is 311 px, the capsule, year and gaps take 193 of it, and Doto runs 0.601em a letter, so OCTOBER sets at the clamp (27 px) and SEPTEMBER at 21 px without truncating. */
-:is(:root[data-skin='nothing'], .skin-nothing) .month-title:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .month-title:not(.theme-mini:not(.look-dots) *) {
   font-size: min(
     clamp(1.5rem, 1.2rem + 2vw, 2.75rem),
     calc((100cqi - 12.25rem) / (var(--len, 9) * 0.61))
@@ -4418,7 +4418,7 @@ label.cell:active {
 }
 
 @container (max-width: 18rem) {
-  :is(:root[data-skin='nothing'], .skin-nothing) .month-title:not(.theme-mini:not(.skin-nothing) *) {
+  :is(:root[data-look='dots'], .look-dots) .month-title:not(.theme-mini:not(.look-dots) *) {
     font-size: max(1.125rem, min(1.5rem, calc((100cqi - 10rem) / (var(--len, 9) * 0.62))));
   }
 }
@@ -4431,7 +4431,7 @@ label.cell:active {
 
 /* Group and section heads become widget labels: mono capitals, quiet, with
    the count on the matrix beside them. The work itself is what is large. */
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.work-group-title, .section-title):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.work-group-title, .section-title):not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-mono);
   font-size: 0.875rem;
   font-weight: 400;
@@ -4439,7 +4439,7 @@ label.cell:active {
   text-transform: none;
   color: var(--text-mid);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.work-group-toggle .section-count, .section-head .section-count):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.work-group-toggle .section-count, .section-head .section-count):not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-dot);
   font-size: 1rem;
   font-weight: 800;
@@ -4449,12 +4449,12 @@ label.cell:active {
 
 /* Specs, not prose: a row's course, length and weight in mono, and its "when"
    in mono too, so every figure on a row lines up the way a spec sheet does. */
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.lrow-meta, .tk-meta):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.lrow-meta, .tk-meta):not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 400;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .lrow-when:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .lrow-when:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 500;
@@ -4462,36 +4462,36 @@ label.cell:active {
 
 /* The week strip: each day's minutes as a column of matrix dots. The track is
    the unlit column and the bar lights it from the bottom. */
-:is(:root[data-skin='nothing'], .skin-nothing) .ws-track:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .ws-track:not(.theme-mini:not(.look-dots) *) {
   width: 0.375rem;
   border-radius: 0;
   background: var(--dot-off);
   -webkit-mask: radial-gradient(circle, var(--text-hi) 0 2.2px, transparent 2.6px) 50% 100% / 6px 6px repeat-y;
   mask: radial-gradient(circle, var(--text-hi) 0 2.2px, transparent 2.6px) 50% 100% / 6px 6px repeat-y;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .ws-bar:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .ws-bar:not(.theme-mini:not(.look-dots) *) {
   border-radius: 0;
   background: var(--text-low);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .ws-day[aria-current] .ws-bar:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .ws-day[aria-current] .ws-bar:not(.theme-mini:not(.look-dots) *) {
   background: var(--text-hi);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .ws-day[aria-current] .ws-n:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .ws-day[aria-current] .ws-n:not(.theme-mini:not(.look-dots) *) {
   background: var(--accent);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .ws-h:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .ws-h:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-mono);
   font-weight: 500;
 }
 
 /* Settings: monochrome glyphs in a hairline ring, as Nothing OS draws its
    settings, rather than coloured tiles. */
-:is(:root[data-skin='nothing'], .skin-nothing) .settings-ico:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .settings-ico:not(.theme-mini:not(.look-dots) *) {
   color: var(--text-hi);
   background: transparent;
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .settings-avatar:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .settings-avatar:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-dot);
   font-weight: 800;
   color: var(--text-hi);
@@ -4500,19 +4500,19 @@ label.cell:active {
 }
 
 /* Sheets: one flat surface with a hairline top edge, no light. */
-:is(:root[data-skin='nothing'], .skin-nothing) .sheet-panel:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .sheet-panel:not(.theme-mini:not(.look-dots) *) {
   background: var(--ink-800);
   box-shadow: none;
 }
 
 /* An empty slot is a dotted outline: a place on the matrix nothing is lit in. */
-:is(:root[data-skin='nothing'], .skin-nothing) .empty-slot:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .empty-slot:not(.theme-mini:not(.look-dots) *) {
   border: 2px dotted var(--ink-500);
   background: transparent;
 }
 
 /* Loading is a field of unlit dots, pulsing. */
-:root[data-skin='nothing'] .skeleton:not(.theme-mini:not(.skin-nothing) *) {
+:root[data-look='dots'] .skeleton:not(.theme-mini:not(.look-dots) *) {
   background: radial-gradient(circle, var(--ink-500) 0 1.5px, transparent 2px) 0 0 / 6px 6px;
 }
 
@@ -4524,38 +4524,38 @@ label.cell:active {
    group of work is one slab with its heading INSIDE it, rather than a heading
    above a list. Folded, the widget is just its name and count. Only for list
    rows (data-rows): a ticket or a glass slip is already its own object. */
-:is(:root[data-skin='nothing'], .skin-nothing) .work-group[data-rows]:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .work-group[data-rows]:not(.theme-mini:not(.look-dots) *) {
   gap: 0;
   overflow: hidden;
   border-radius: var(--r-card);
   background: var(--ink-800);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .work-group[data-rows] .work-group-head:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .work-group[data-rows] .work-group-head:not(.theme-mini:not(.look-dots) *) {
   padding: 0.375rem 1rem 0 1.125rem;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .work-group[data-rows] .work-group-toggle:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .work-group[data-rows] .work-group-toggle:not(.theme-mini:not(.look-dots) *) {
   min-height: var(--tap);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .work-group[data-rows] .lgroup:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .work-group[data-rows] .lgroup:not(.theme-mini:not(.look-dots) *) {
   border-radius: 0;
 }
 /* Capture: one filled pill, and a round grey send that turns white when
    there is something to send. */
-:is(:root[data-skin='nothing'], .skin-nothing) .capture-send:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .capture-send:not(.theme-mini:not(.look-dots) *) {
   color: var(--text-hi);
   background: var(--ink-700);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .capture-send:not(.theme-mini:not(.skin-nothing) *)::before {
+:is(:root[data-look='dots'], .look-dots) .capture-send:not(.theme-mini:not(.look-dots) *)::before {
   background: var(--accent);
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .capture-send[data-ready]:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .capture-send[data-ready]:not(.theme-mini:not(.look-dots) *) {
   box-shadow: none;
 }
 
 /* The date reads like a widget's dot-matrix date: "OCT 16". */
-:is(:root[data-skin='nothing'], .skin-nothing) .today-date:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .today-date:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-dot);
   font-size: 0.9375rem;
   font-weight: 800;
@@ -4565,19 +4565,19 @@ label.cell:active {
 }
 
 /* Ticks inside a filled pill are drawn on the pill, not on the ground. */
-:is(:root[data-skin='nothing'], .skin-nothing) .tick-pill:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .tick-pill:not(.theme-mini:not(.look-dots) *) {
   color: var(--text-hi);
 }
 
 /* Week's days and lists, as widgets too: the day names itself inside the
    slab in mono, its hours of work sit on the matrix at the right. */
-:is(:root[data-skin='nothing'], .skin-nothing) .lday:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .lday:not(.theme-mini:not(.look-dots) *) {
   gap: 0;
   overflow: hidden;
   border-radius: var(--r-card);
   background: var(--ink-800);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .lday-head:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .lday-head:not(.theme-mini:not(.look-dots) *) {
   align-items: center;
   min-height: var(--tap);
   padding: 0.375rem 1rem 0 1.125rem;
@@ -4587,23 +4587,23 @@ label.cell:active {
   letter-spacing: 0;
   color: var(--text-mid);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .lday-date:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .lday-date:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-mono);
   font-size: 0.875rem;
   font-weight: 400;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .lday-load:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .lday-load:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-dot);
   font-size: 0.9375rem;
   font-weight: 800;
   color: var(--text-hi);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .lday .lgroup:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .lday .lgroup:not(.theme-mini:not(.look-dots) *) {
   border-radius: 0;
 }
 
 /* The countdown on the now/next card: mono, as written, not shouted. */
-:is(:root[data-skin='nothing'], .skin-nothing) .rb-away:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .rb-away:not(.theme-mini:not(.look-dots) *) {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   font-weight: 400;
@@ -4613,34 +4613,34 @@ label.cell:active {
 }
 
 /* The tab bar: one frosted pill, no outline. */
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.tab-bar, .tab-menu):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.tab-bar, .tab-menu):not(.theme-mini:not(.look-dots) *) {
   border-color: transparent;
 }
 
 /* A pill on the ground is a card-coloured slab; inside a card or a sheet,
    where that colour is the surface itself, it steps to the lighter grey,
    as Nothing OS's inner pills do ("Day average" in the Away Time widget). */
-:is(:root[data-skin='nothing'], .skin-nothing) :is(.mat, .sheet-panel, .lday, .work-group) :is(.chip, .tick-pill, .nav-capsule, .style-seg):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) :is(.mat, .sheet-panel, .lday, .work-group) :is(.chip, .tick-pill, .nav-capsule, .style-seg):not(.theme-mini:not(.look-dots) *) {
   background: var(--ink-700);
 }
 
 /* Month as a Nothing calendar: bare numbers on round tiles, the chosen day a
    grey disc, today a flat inverted disc. No cells drawn around the days. */
-:is(:root[data-skin='nothing'], .skin-nothing) .day-tile:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .day-tile:not(.theme-mini:not(.look-dots) *) {
   border-radius: var(--r-pill);
   background: transparent;
   box-shadow: none;
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .day-tile[aria-pressed='true']:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .day-tile[aria-pressed='true']:not(.theme-mini:not(.look-dots) *) {
   background: var(--ink-800);
   box-shadow: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  :is(:root[data-skin='nothing'], .skin-nothing) .day-tile:hover:not(.theme-mini:not(.skin-nothing) *) {
+  :is(:root[data-look='dots'], .look-dots) .day-tile:hover:not(.theme-mini:not(.look-dots) *) {
     background: var(--ink-800);
   }
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .day-num[data-today]:not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .day-num[data-today]:not(.theme-mini:not(.look-dots) *) {
   background: var(--accent);
   box-shadow: none;
 }
@@ -4648,14 +4648,14 @@ label.cell:active {
 /* A block with no course is drawn in glass elsewhere (calendar/items.ts,
    tint). Here glass over a white slab lands on the ground's own grey, so a
    block with no course is simply the slab; a course still tints its own. */
-:is(:root[data-skin='nothing'], .skin-nothing) .mat[data-block]:not([style*='--b:']):not(.theme-mini:not(.skin-nothing) *) {
+:is(:root[data-look='dots'], .look-dots) .mat[data-block]:not([style*='--b:']):not(.theme-mini:not(.look-dots) *) {
   --mat-wash: transparent;
 }
 
 /* From lg the tiles are tall cells holding the day's titles (Month.tsx), and
    a pill radius on a tall cell is a lozenge. They take the card's corner. */
 @media (width >= 64rem) {
-  :is(:root[data-skin='nothing'], .skin-nothing) .day-tile:not(.theme-mini:not(.skin-nothing) *) {
+  :is(:root[data-look='dots'], .look-dots) .day-tile:not(.theme-mini:not(.look-dots) *) {
     border-radius: var(--r-card);
   }
 }

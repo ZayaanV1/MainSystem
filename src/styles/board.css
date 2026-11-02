@@ -140,7 +140,7 @@
   letter-spacing: 0;
   color: var(--text-mid);
 }
-:is(:root[data-skin='nothing'], .skin-nothing) .bw-num,
+:is(:root[data-look='dots'], .look-dots) .bw-num,
 .bw-num[data-face='dot'] {
   font-family: var(--font-dot, var(--font-mono));
   font-weight: 800;

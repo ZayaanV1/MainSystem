@@ -105,13 +105,16 @@ export function watchSystemTheme(onChange: () => void): () => void {
 }
 
 /* ============================================================================
-   Themes: a whole look, chosen per account.
+   Colour schemes: the palette and type, chosen per account.
 
-   Seventeen complete themes, each a designed dark and light pair (tokens.css,
-   THEMES). The theme follows the account so the phone and the laptop match;
-   light or dark (above) stays per device. The account's choice is cached here
-   so index.html can apply it before the first paint: a cached theme never
-   flashes, and a new device shows the default for one load at most.
+   Seventeen schemes, each a designed dark and light pair (tokens.css). Since
+   2 Nov 2026 a scheme is only colour and type; the material it is drawn in
+   (glass, dot matrix or plain) is the theme, below, and any theme takes any
+   scheme. Both follow the account so the phone and the laptop match; light
+   or dark (above) stays per device. Both are cached here so index.html can
+   apply them before the first paint.
+
+   The default is Dusk under Glass: a new account starts on the glass theme.
    ========================================================================= */
 
 export type Skin =
@@ -139,7 +142,7 @@ export const SKINS: { id: Skin; name: string; line: string; reference: string }[
   { id: 'instrument', name: 'Instrument', line: 'Amber phosphor on a black panel, square and exact', reference: 'A cockpit panel' },
   { id: 'fjord', name: 'Fjord', line: 'Fog, birch and fjord blue, soft and unhurried', reference: 'A Nordic morning' },
   { id: 'contrast', name: 'High contrast', line: 'Black, white and one bright colour, for any light', reference: 'Signage, and a face drawn for legibility' },
-  { id: 'nothing', name: 'Dot matrix', line: 'Black, white and one red dot, with a clock on Today', reference: 'After Nothing OS' },
+  { id: 'nothing', name: 'Mono', line: 'Black, white and one red dot', reference: 'After Nothing OS' },
   { id: 'arc', name: 'Arc', line: 'Violet over a soft gradient space, in a lively grotesque', reference: 'After the Arc browser' },
   { id: 'cupertino', name: 'Cupertino', line: 'Grouped grey, white cards and system blue, in the system font', reference: 'After iOS' },
   { id: 'field', name: 'Field kit', line: 'Aluminium grey and international orange, with mono labels', reference: 'After Teenage Engineering' },
@@ -150,8 +153,11 @@ export const SKINS: { id: Skin; name: string; line: string; reference: string }[
   { id: 'brass', name: 'Brass', line: 'Ash grey and antique brass on ivory', reference: 'Obsidian Ash, Antique Brass, Ivory Vapor' },
   { id: 'bronze', name: 'Bronze', line: 'Roasted bronze, cornsilk and glacial blue', reference: 'Sun-Roasted Bronze, Glacial Ether, Silk Cornsilk' },
   { id: 'velvet', name: 'Velvet', line: 'Ink black and almond, with velvet labels', reference: 'Obsidian Ink, Velvet Curfew, Almond Hearth' },
-  { id: 'vision', name: 'Vision', line: 'Frosted glass over a room at dusk, with a dock on the desk', reference: 'After visionOS' },
+  { id: 'vision', name: 'Dusk', line: 'Warm graphite, blue and emerald, in Poppins', reference: 'After visionOS' },
 ];
+
+/** The scheme an account has before it chooses one. */
+export const DEFAULT_SKIN: Skin = 'vision';
 
 const SKIN_KEY = 'planner.skin';
 
@@ -162,13 +168,13 @@ export function isSkin(v: unknown): v is Skin {
 export function readSkin(): Skin {
   try {
     const raw = localStorage.getItem(SKIN_KEY);
-    return isSkin(raw) ? raw : 'cloisonne';
+    return isSkin(raw) ? raw : DEFAULT_SKIN;
   } catch {
-    return 'cloisonne';
+    return DEFAULT_SKIN;
   }
 }
 
-/** Show a theme now. The default is the absence of the attribute, as for mode. */
+/** Show a scheme now. Cloisonné is the tokens' own :root, so it is the absence of the attribute. */
 export function applySkin(skin: Skin): void {
   const root = document.documentElement;
   if (skin === 'cloisonne') root.removeAttribute('data-skin');
@@ -176,13 +182,61 @@ export function applySkin(skin: Skin): void {
   syncChrome();
 }
 
-/** Remember a theme on this device, for the pre-paint script, and show it. */
+/** Remember a scheme on this device, for the pre-paint script, and show it. */
 export function cacheSkin(skin: Skin): void {
   try {
-    if (skin === 'cloisonne') localStorage.removeItem(SKIN_KEY);
-    else localStorage.setItem(SKIN_KEY, skin);
+    // Written even for Cloisonné: an empty key now means the default, Dusk.
+    localStorage.setItem(SKIN_KEY, skin);
   } catch {
     // Not fatal: the account still holds it, and it applies after load.
   }
   applySkin(skin);
+}
+
+/* ============================================================================
+   Themes: the material, chosen per account.
+
+   Glass is frosted panels over a wallpaper, with the desk dashboard on a
+   laptop (vision.css). Dot matrix is round-cornered slabs, dot numerals and a
+   clock on Today (material.css). Plain is the scheme's own material. Root
+   attribute `data-look`, absent for Plain.
+   ========================================================================= */
+
+export type Look = 'glass' | 'dots' | 'plain';
+
+export const LOOKS: { id: Look; name: string; line: string }[] = [
+  { id: 'glass', name: 'Glass', line: 'Frosted panels over a wallpaper, and a dashboard on a laptop' },
+  { id: 'dots', name: 'Dot matrix', line: 'Round slabs, dot numerals and a clock on Today' },
+  { id: 'plain', name: 'Plain', line: 'Just the colour scheme, on its own material' },
+];
+
+export const DEFAULT_LOOK: Look = 'glass';
+const LOOK_KEY = 'planner.look';
+
+export function isLook(v: unknown): v is Look {
+  return LOOKS.some((l) => l.id === v);
+}
+
+export function readLook(): Look {
+  try {
+    const raw = localStorage.getItem(LOOK_KEY);
+    return isLook(raw) ? raw : DEFAULT_LOOK;
+  } catch {
+    return DEFAULT_LOOK;
+  }
+}
+
+export function applyLook(look: Look): void {
+  const root = document.documentElement;
+  if (look === 'plain') root.removeAttribute('data-look');
+  else root.setAttribute('data-look', look);
+}
+
+export function cacheLook(look: Look): void {
+  try {
+    localStorage.setItem(LOOK_KEY, look);
+  } catch {
+    // Not fatal: the account still holds it.
+  }
+  applyLook(look);
 }

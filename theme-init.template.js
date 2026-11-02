@@ -6,8 +6,11 @@
     var c = localStorage.getItem('planner.theme');
     if (c === 'light' || c === 'dark') root.setAttribute('data-theme', c);
     var s = localStorage.getItem('planner.skin');
-    if (!GROUNDS[s] || s === 'cloisonne') s = 'cloisonne';
-    else root.setAttribute('data-skin', s);
+    if (!GROUNDS[s]) s = 'vision';
+    if (s !== 'cloisonne') root.setAttribute('data-skin', s);
+    var l = localStorage.getItem('planner.look');
+    if (l !== 'dots' && l !== 'plain') l = 'glass';
+    if (l !== 'plain') root.setAttribute('data-look', l);
     var dark =
       c === 'dark' ||
       (c !== 'light' && !window.matchMedia('(prefers-color-scheme: light)').matches);

@@ -14,7 +14,7 @@
 
 /* ---- the room ------------------------------------------------------------- */
 
-:root[data-skin='vision'] {
+:root[data-look='glass'] {
   /* Appearance > Vision (lib/appearance.ts). The room dims by the chosen
      amount, and never less than the glass in front of it needs: the clearer
      the panels, the darker the room, so text over it stays readable. */
@@ -23,7 +23,7 @@
   --v-glass: rgb(var(--v-glass-rgb) / var(--v-alpha, 0.45));
 }
 
-:root[data-skin='vision'] .atmosphere::before {
+:root[data-look='glass'] .atmosphere::before {
   /* The account's own photo, when it has one, arrives as --vision-photo. */
   background:
     linear-gradient(var(--v-veil), var(--v-veil)),
@@ -34,7 +34,7 @@
 }
 
 @media (width >= 64rem) {
-  :root[data-skin='vision'] .atmosphere::before {
+  :root[data-look='glass'] .atmosphere::before {
     background:
       linear-gradient(var(--v-veil), var(--v-veil)),
       linear-gradient(180deg, var(--veil-top) 0%, var(--veil-mid) 45%, var(--veil-bottom) 100%),
@@ -44,14 +44,14 @@
 }
 
 /* Background: Off. The theme's ground, lit as every other theme's is. */
-:root[data-skin='vision'][data-v-bg='off'] .atmosphere::before {
+:root[data-look='glass'][data-v-bg='off'] .atmosphere::before {
   background:
     radial-gradient(54% 40% at 92% 0%, var(--atmo-ember) 0%, transparent 70%),
     radial-gradient(150% 48% at 50% 102%, var(--atmo-phthalo) 0%, transparent 76%),
     var(--ink-900);
 }
 
-:root[data-skin='vision'] {
+:root[data-look='glass'] {
   --v-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -71,8 +71,8 @@
    the person's to choose (Appearance > Vision), per device, since blur is a
    cost to this device's GPU. Glass: Off still turns the blur off. */
 
-:root[data-skin='vision'] .mat,
-:root[data-skin='vision'] .v-card {
+:root[data-look='glass'] .mat,
+:root[data-look='glass'] .v-card {
   background:
     radial-gradient(120% 100% at 0% 0%, var(--mat-light, var(--glass-fill)), transparent 62%),
     linear-gradient(160deg, var(--glass-fill-hover), var(--glass-fill)),
@@ -91,22 +91,22 @@
   border-radius: var(--r-card);
 }
 
-:root[data-skin='vision'][data-glass='off'] .mat,
-:root[data-skin='vision'][data-glass='off'] .v-card {
+:root[data-look='glass'][data-glass='off'] .mat,
+:root[data-look='glass'][data-glass='off'] .v-card {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
 /* Very clear glass: text takes a soft shadow, so a bright patch of the room
    behind a label cannot take its contrast. */
-:root[data-skin='vision'][data-v-clear='high'] :is(.mat, .v-card, .v-head) {
+:root[data-look='glass'][data-v-clear='high'] :is(.mat, .v-card, .v-head) {
   text-shadow: 0 1px 3px rgb(var(--shadow-color) / 0.55);
 }
 
-:root[data-skin='vision'] .v-pill,
-:root[data-skin='vision'] .v-round,
-:root[data-skin='vision'] .v-sb,
-:root[data-skin='vision'] .v-seg {
+:root[data-look='glass'] .v-pill,
+:root[data-look='glass'] .v-round,
+:root[data-look='glass'] .v-sb,
+:root[data-look='glass'] .v-seg {
   background:
     radial-gradient(120% 140% at 0% 0%, var(--glass-fill-hover), transparent 70%),
     var(--v-glass);
@@ -1120,7 +1120,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root[data-skin='vision'] .atmosphere::before {
+  :root[data-look='glass'] .atmosphere::before {
     animation: none;
   }
   .vision-desk [data-rise],
@@ -2014,12 +2014,18 @@
   border-top: 1px solid var(--glass-edge);
 }
 
-/* The picker's miniature sits in the room too, or Vision's card would be the
-   one theme drawn without what makes it Vision. */
-.theme-mini.skin-vision {
+/* The picker's Glass miniature sits in the room too, in whatever scheme is
+   chosen, or Glass would be the one theme drawn without what makes it Glass. */
+.theme-mini.look-glass {
   background:
-    linear-gradient(180deg, var(--veil-top), var(--veil-bottom)),
+    linear-gradient(180deg, var(--veil-top, transparent), var(--veil-bottom, transparent)),
     url('/backdrops/vision-sm.webp') center / cover no-repeat;
+}
+
+.theme-mini.look-glass .mat {
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
 }
 
 /* Text that would otherwise sit straight on the photo gets glass under it. */
@@ -2077,7 +2083,7 @@
    scales it all, gutters included. Media queries read the default 16px, so
    this cannot move the breakpoint it sits behind. */
 @media (width >= 112rem) {
-  :root[data-skin='vision'] {
+  :root[data-look='glass'] {
     font-size: clamp(16px, 1.1vw, 22px);
   }
 }
@@ -2108,11 +2114,11 @@
 
 /* Smoke: V7's darker, browner glass. Only the glass's colour changes; how
    see-through and how frosted it is stay the sliders' (Smoke sets them). */
-:root[data-skin='vision'][data-v-glass='smoke'] {
+:root[data-look='glass'][data-v-glass='smoke'] {
   --v-glass-rgb: var(--v-smoke-rgb);
 }
 
-:root[data-skin='vision'][data-v-glass='smoke'] :is(.mat, .v-card) {
+:root[data-look='glass'][data-v-glass='smoke'] :is(.mat, .v-card) {
   background:
     radial-gradient(120% 100% at 0% 0%, var(--mat-light, var(--v-smoke-tint)), transparent 62%),
     linear-gradient(160deg, var(--v-smoke-tint), transparent),
@@ -2122,7 +2128,7 @@
 
 /* The featured card: Next due, in the accent's own glass. Blue, never an
    urgency colour: the colour law keeps urgency off fills. */
-:root[data-skin='vision'] .v-card.v-feat {
+:root[data-look='glass'] .v-card.v-feat {
   background:
     radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--accent-lit) 45%, transparent), transparent 70%),
     linear-gradient(160deg, color-mix(in srgb, var(--accent-lit) 38%, transparent), color-mix(in srgb, var(--accent-deep) 22%, transparent)),

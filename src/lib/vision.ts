@@ -2,9 +2,9 @@ import { useMediaQuery } from './useMediaQuery';
 import { usePreferences } from './preferences';
 
 /**
- * Vision on a desk: the theme's own layout.
+ * Glass on a desk: the theme's own layout.
  *
- * Vision is a theme like the others on a phone and an upright iPad. From
+ * Glass is a theme like the others on a phone and an upright iPad. From
  * 64rem, where the rail would appear, it swaps the rail for a floating dock
  * and a top bar, Today becomes a dashboard, and screens dissolve into one
  * another the way the glass dashboard it is drawn from does (Oct 2026).
@@ -12,15 +12,15 @@ import { usePreferences } from './preferences';
 export const DESK = '(min-width: 64rem)';
 
 export function useVisionDesk(): boolean {
-  const { skin } = usePreferences();
+  const { look } = usePreferences();
   const desk = useMediaQuery(DESK);
-  return skin === 'vision' && desk;
+  return look === 'glass' && desk;
 }
 
 function visionDesk(): boolean {
   return (
     typeof document !== 'undefined' &&
-    document.documentElement.dataset.skin === 'vision' &&
+    document.documentElement.dataset.look === 'glass' &&
     typeof matchMedia === 'function' &&
     matchMedia(DESK).matches
   );

@@ -467,7 +467,7 @@ export function Today({
       <>
       <header className="mb-3 px-4">
         <h1 className="sr-only">Today</h1>
-        {prefs.skin === 'nothing' ? (
+        {prefs.look === 'dots' ? (
           /*
             The Dot matrix theme's masthead, after a Nothing OS clock widget:
             the date and What now on a line of mono capitals, the weekday and

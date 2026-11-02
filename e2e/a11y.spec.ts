@@ -55,3 +55,29 @@ for (const skin of [
     });
   }
 }
+
+// Glass and Dot matrix are themes over any colour scheme (2 Nov 2026), so
+// each is scanned over every scheme, in both modes.
+for (const look of ['glass', 'dots'] as const) {
+  for (const skin of [
+    'cloisonne', 'letterpress', 'instrument', 'fjord', 'contrast', 'nothing', 'arc', 'cupertino', 'field', 'kraft',
+    'oxide', 'static', 'sangria', 'brass', 'bronze', 'velvet', 'vision',
+  ] as const) {
+    for (const theme of ['light', 'dark'] as const) {
+      test.describe(`${look} over ${skin}, ${theme}`, () => {
+        test.use({ colorScheme: theme });
+        test('Today has no WCAG A or AA violations', async ({ page }) => {
+          await openToday(page, `?skin=${skin}&look=${look}`);
+          await page.waitForTimeout(600);
+          expect(await axeViolations(page)).toEqual([]);
+        });
+      });
+    }
+  }
+}
+
+test('a new account starts on the Glass theme in Dusk', async ({ page }) => {
+  await openToday(page, '?skin=default');
+  await expect(page.locator('html')).toHaveAttribute('data-look', 'glass');
+  await expect(page.locator('html')).toHaveAttribute('data-skin', 'vision');
+});

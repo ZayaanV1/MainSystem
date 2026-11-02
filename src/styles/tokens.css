@@ -2412,6 +2412,44 @@
   color-scheme: light;
 }
 
+/* ---- Glass, over any scheme. ----
+   The Glass theme (vision.css) draws every panel from these. Dusk, the
+   scheme it was designed with, sets its own warm values below and wins on
+   specificity; every other scheme gets this neutral graphite in the dark and
+   clear white in the light, so its own text colours stay readable. */
+:root[data-look='glass'] {
+  --veil-top: rgb(10 10 12 / 0.45);
+  --veil-mid: rgb(14 14 16 / 0.12);
+  --veil-bottom: rgb(8 8 10 / 0.5);
+  --veil-tint: rgb(20 20 24 / 0.2);
+  --v-glass-rgb: 30 30 34;
+  --v-veil-rgb: 10 10 12;
+  --v-smoke-rgb: 20 20 22;
+  --v-smoke-tint: rgb(255 255 255 / 0.05);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-look='glass']:not([data-theme='dark']) {
+    --veil-top: rgb(248 248 250 / 0.38);
+    --veil-mid: rgb(248 248 250 / 0.12);
+    --veil-bottom: rgb(240 240 244 / 0.45);
+    --veil-tint: rgb(255 255 255 / 0.12);
+    --v-glass-rgb: 255 255 255;
+    --v-veil-rgb: 246 246 248;
+    --v-smoke-rgb: 228 228 232;
+    --v-smoke-tint: rgb(0 0 0 / 0.04);
+  }
+}
+:root[data-look='glass'][data-theme='light'] {
+  --veil-top: rgb(248 248 250 / 0.38);
+  --veil-mid: rgb(248 248 250 / 0.12);
+  --veil-bottom: rgb(240 240 244 / 0.45);
+  --veil-tint: rgb(255 255 255 / 0.12);
+  --v-glass-rgb: 255 255 255;
+  --v-veil-rgb: 246 246 248;
+  --v-smoke-rgb: 228 228 232;
+  --v-smoke-tint: rgb(0 0 0 / 0.04);
+}
+
 /* ---- Vision: frosted glass over a room at dusk. ----
    After visionOS. The photo behind the app is part of the theme (vision.css),
    so the grounds here are what the glass reads as, not a page colour: warm
@@ -2609,7 +2647,7 @@
   --r-slip: 12px;
 }
 
-:root[data-skin='nothing'], .skin-nothing {
+:root[data-look='dots'], .look-dots {
   /* Headings read in Geist; the dot face is kept for what is display-sized
      or a number (material.css, Nothing), where a dot matrix stays legible. */
   --font-display: 'Geist', ui-sans-serif, system-ui, sans-serif;

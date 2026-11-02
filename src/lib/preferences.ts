@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { supabase } from './supabase';
-import { cacheSkin, isSkin, readSkin, type Skin } from './theme';
+import { DEFAULT_LOOK, DEFAULT_SKIN, cacheLook, cacheSkin, isLook, isSkin, readLook, readSkin, type Look, type Skin } from './theme';
 
 /**
  * What the account has chosen about how the app looks and is arranged: the
@@ -37,6 +37,7 @@ export type Module = (typeof MODULES)[number];
 
 export interface Preferences {
   skin: Skin;
+  look: Look;
   order: TodaySection[];
   hidden: TodaySection[];
   modulesOff: Module[];
@@ -45,7 +46,7 @@ export interface Preferences {
 const KEY = 'planner.prefs';
 
 /** Keep only known names, in a valid order, with every section present once. */
-export function normalise(raw: Partial<{ order: unknown; hidden: unknown; modulesOff: unknown }>): Omit<Preferences, 'skin'> {
+export function normalise(raw: Partial<{ order: unknown; hidden: unknown; modulesOff: unknown }>): Omit<Preferences, 'skin' | 'look'> {
   const known = (v: unknown, list: readonly string[]) =>
     Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && list.includes(x)))] : [];
   const order = known(raw.order, TODAY_SECTIONS) as TodaySection[];
@@ -67,7 +68,7 @@ function readCache(): Preferences {
   } catch {
     // A bad or missing cache: the defaults.
   }
-  return { skin: readSkin(), ...normalise(raw) };
+  return { skin: readSkin(), look: readLook(), ...normalise(raw) };
 }
 
 let state: Preferences = readCache();
@@ -104,13 +105,16 @@ export const moduleOn = (m: Module, prefs: Preferences = state) => !prefs.module
 export async function adoptPreferences(): Promise<void> {
   const { data, error } = await supabase
     .from('app_settings')
-    .select('theme, today_order, today_hidden, modules_off')
+    .select('theme, look, today_order, today_hidden, modules_off')
     .limit(1);
   if (error || !data?.[0]) return;
-  const row = data[0] as { theme: string | null; today_order: unknown; today_hidden: unknown; modules_off: unknown };
-  const skin = isSkin(row.theme) ? row.theme : 'cloisonne';
+  const row = data[0] as { theme: string | null; look: string | null; today_order: unknown; today_hidden: unknown; modules_off: unknown };
+  // Null is "never chosen": a new account starts on Glass in Dusk.
+  const skin = isSkin(row.theme) ? row.theme : DEFAULT_SKIN;
+  const look = isLook(row.look) ? row.look : DEFAULT_LOOK;
   cacheSkin(skin);
-  set({ skin, ...normalise({ order: row.today_order, hidden: row.today_hidden, modulesOff: row.modules_off }) });
+  cacheLook(look);
+  set({ skin, look, ...normalise({ order: row.today_order, hidden: row.today_hidden, modulesOff: row.modules_off }) });
 }
 
 async function save(userId: string, patch: Record<string, unknown>): Promise<{ error: string | null }> {
@@ -121,7 +125,14 @@ async function save(userId: string, patch: Record<string, unknown>): Promise<{ e
 export async function saveSkin(userId: string, skin: Skin) {
   cacheSkin(skin);
   set({ ...state, skin });
-  return save(userId, { theme: skin === 'cloisonne' ? null : skin });
+  // Stored by name, Cloisonné too: null now means the default, Dusk.
+  return save(userId, { theme: skin });
+}
+
+export async function saveLook(userId: string, look: Look) {
+  cacheLook(look);
+  set({ ...state, look });
+  return save(userId, { look });
 }
 
 export async function saveTodayLayout(userId: string, order: TodaySection[], hidden: TodaySection[]) {

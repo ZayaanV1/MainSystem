@@ -51,7 +51,7 @@ function sections(aboodOn: boolean): Section[] {
           title: 'On a laptop, the sidebar',
           body: (
             <>
-              The sidebar runs down the left. In the Vision theme it is glass: closed it is a row of icons that name themselves on hover, and the toggle on its edge, or <Key>[</Key>, opens it into a labelled panel. It remembers which way you left it.
+              The sidebar runs down the left. In the Glass theme, the one every account starts on, it is glass too: closed it is a row of icons that name themselves on hover, and the toggle on its edge, or <Key>[</Key>, opens it into a labelled panel. It remembers which way you left it.
             </>
           ),
         },
@@ -98,7 +98,7 @@ function sections(aboodOn: boolean): Section[] {
           title: 'The command palette',
           body: (
             <>
-              <Key>⌘K</Key> or <Key>Ctrl K</Key> opens it from anywhere, even mid-sentence. Jump to a screen, a course, a piece of work or a setting, or start capturing. In Vision, the search pill in the top bar opens it too.
+              <Key>⌘K</Key> or <Key>Ctrl K</Key> opens it from anywhere, even mid-sentence. Jump to a screen, a course, a piece of work or a setting, or start capturing. In Glass, the search pill in the top bar opens it too.
             </>
           ),
         },
@@ -106,7 +106,7 @@ function sections(aboodOn: boolean): Section[] {
           title: 'The island',
           body: (
             <>
-              In Vision on a laptop, hover the search pill or press <Key>Alt N</Key> to drop down today’s work, the focus timer, the inbox and what is left of the day. <Key>Esc</Key> closes it.
+              In Glass on a laptop, hover the search pill or press <Key>Alt N</Key> to drop down today’s work, the focus timer, the inbox and what is left of the day. <Key>Esc</Key> closes it.
             </>
           ),
         },
@@ -183,8 +183,8 @@ function sections(aboodOn: boolean): Section[] {
       lead: 'All optional. The defaults work.',
       steps: [
         {
-          title: 'Themes',
-          body: 'Settings > Appearance has seventeen themes, each light and dark, plus glass and motion levels. Vision turns a laptop into a glass dashboard over a photo, which can be your own.',
+          title: 'Theme, colour scheme and wallpaper',
+          body: 'Settings > Appearance has three separate choices. The theme is the material: Glass, Dot matrix or Plain. The colour scheme is one of seventeen palettes, each light and dark, and any theme takes any scheme. The wallpaper sits behind the glass and can be your own photo.',
         },
         {
           title: 'Today and modules',
@@ -207,8 +207,8 @@ function sections(aboodOn: boolean): Section[] {
 const SHORTCUTS: [ReactNode, string][] = [
   [<Key>⌘K</Key>, 'Command palette'],
   [<Key>/</Key>, 'Search'],
-  [<Key>[</Key>, 'Open or close the Vision sidebar'],
-  [<Key>Alt N</Key>, 'Open the island (Vision)'],
+  [<Key>[</Key>, 'Open or close the glass sidebar'],
+  [<Key>Alt N</Key>, 'Open the island (Glass, on a laptop)'],
   [<Key>Esc</Key>, 'Close what is open, or go back to Today'],
 ];
 
