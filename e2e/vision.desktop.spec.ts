@@ -1,6 +1,6 @@
 import { test, expect, openToday, axeViolations } from './fixtures';
 
-// Vision on a desk (lib/vision.ts): the dock and top bar replace the rail,
+// Vision on a desk (lib/vision.ts): the sidebar and top bar replace the rail,
 // Today is the dashboard, and Abood and Courses take their desk layouts.
 
 test.describe('Vision on a desk', () => {
@@ -8,7 +8,7 @@ test.describe('Vision on a desk', () => {
     test(`Today is the dashboard, with no WCAG A or AA violations (${theme})`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: theme });
       await openToday(page, '?skin=vision');
-      await expect(page.locator('.v-dock')).toBeVisible();
+      await expect(page.locator('.v-sb')).toBeVisible();
       await expect(page.locator('.v-top')).toBeVisible();
       await expect(page.getByRole('region', { name: "This week's load" })).toBeVisible();
       await expect(page.getByRole('region', { name: "Today's timeline" })).toBeVisible();
@@ -107,7 +107,7 @@ test.describe('Vision on a desk', () => {
     // One gutter: content starts the same distance past the dock as it ends before the window's edge.
     // Measured once the entrance has settled, not mid-rise.
     await page.waitForTimeout(1500);
-    const dock = await page.locator('.v-dock').boundingBox();
+    const dock = await page.locator('.v-sb').boundingBox();
     const dash = await page.locator('.v-dash').boundingBox();
     // The page's own width: a scrollbar, when there is one, is not margin.
     const vw = await page.evaluate(() => document.documentElement.clientWidth);
@@ -148,8 +148,8 @@ test.describe('Vision on a desk', () => {
     );
     await openToday(page, '?skin=vision');
     await expect(page.locator('html')).toHaveAttribute('data-v-glass', 'smoke');
-    // The sidebar runs the window's height, with Settings at its foot.
-    const dock = (await page.locator('.v-dock').boundingBox())!;
+    // The sidebar runs the window's height, with the account (Settings) at its foot.
+    const dock = (await page.locator('.v-sb').boundingBox())!;
     const vh = page.viewportSize()!.height;
     expect(Math.round(dock.y)).toBe(24);
     expect(Math.round(vh - (dock.y + dock.height))).toBe(24);
@@ -168,6 +168,6 @@ test.describe('Vision on a desk', () => {
 
   test('other themes keep the rail', async ({ page }) => {
     await openToday(page);
-    await expect(page.locator('.v-dock')).toHaveCount(0);
+    await expect(page.locator('.v-sb')).toHaveCount(0);
   });
 });

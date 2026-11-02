@@ -1992,6 +1992,36 @@ through Today with Undo, Escape stays on Today, Start runs FocusBar's timer).
 Not verified: speech in Safari or on a phone, the pop-out window by hand,
 and the island in the signed-in live account.
 
+**The glass sidebar, 1 Nov.** From code.xr's "Glassy Sidebar V5", rebuilt
+standalone first (`~/Downloads/files/glassy-dashboard`), matched frame by
+frame, approved, and ported into VisionChrome as `Sidebar` in place of the
+dock. Original code; only the interaction design was taken.
+
+- **Closed** it is a 3.5rem rail: icons magnify like a dock under a real
+  pointer (1.4 under it, 1.18 a row away; full motion only) and name
+  themselves in light frosted bubbles. **Open** (the toggle straddling the
+  glass's edge, or `[`) it is a 15.5rem labelled panel, and the desk makes
+  room through `:has(.v-sb[data-open])`. Open or closed is remembered per
+  device (`planner.visionSide`).
+- **Hover is a soft fill; the current place wears a glass lens.** In the
+  panel one lens travels between rows, animated by its top and height, not
+  a scale, so its round ends and rim stay true: the edge in the direction of
+  travel leaves first and it spans both rows mid-way. Calm glides, None and
+  reduced motion jump. On the rail the current button draws the lens, so it
+  magnifies with the icon.
+- **Search** takes the field at the top and goes to the Search screen (the
+  top bar's pill is still the palette); **Settings** is the account row at
+  the foot. Floating hugs its content and stays clear of the top bar;
+  Full-height sidebar runs the window with the account at the bottom.
+- Rail buttons are 2.25rem to keep the tap floor (`--tap`); the 2rem glass
+  is drawn inside. Classes are `v-sb-*` because `.v-side` already belongs to
+  Abood's side cards. The inbox count is a dot on the rail and the count in
+  the panel; never orange, which is urgency's here.
+
+Verified in Chromium (e2e and measured in the harness): centring, the lens
+stretch, both dock modes, the gutter. Not verified on a phone, a real
+laptop's GPU, or in the signed-in live account.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:

@@ -57,6 +57,7 @@ export const EXPORTED: Record<string, string> = {
   imessage_links: '*',
   imessage_bridges: 'user_id,address,last_seen,created_at',
   ai_usage: '*',
+  connector_changes: '*',
 };
 
 export const NOT_EXPORTED = ['telegram_link_codes', 'imessage_outbox'] as const;

@@ -19,6 +19,9 @@ describe('every edge function authenticates its own callers', () => {
     // Public by design: a calendar app cannot present a login. The token is
     // the credential, and a miss is a bare 404.
     calendar: /ics_token/,
+    // AI apps: the account's own OAuth token, verified, and only one issued to
+    // a connected app (it must carry client_id).
+    mcp: /auth\.getUser\(token\)[\s\S]*client_id/,
   };
 
   const functions = readdirSync('supabase/functions', { withFileTypes: true })

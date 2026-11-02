@@ -95,6 +95,12 @@ const db: Record<string, any[]> = {
     { user_id: USER, item_id: id('i', 1), local_day: localDay(-1) },
     { user_id: USER, item_id: id('i', 2), local_day: localDay(-1) },
   ],
+  // One thought Claude put in the inbox through the connector and the account
+  // has since sorted: undoing it dismisses a row that is no longer listed, so
+  // the sample inbox other specs count stays as it was.
+  connector_changes: [
+    { id: id('x', 901), user_id: USER, client_id: 'claude-client', tool: 'add_to_inbox', target_table: 'inbox_items', target_id: id('i', 13), before: null, summary: 'Put “email the TA about office hours” in the inbox', created_at: at(0, 8), undone_at: null },
+  ],
   inbox_items: [
     { id: id('i', 11), user_id: USER, body: 'chem lab?? ask about the extension', source: 'app', created_at: at(0, 9), triaged_at: null, dismissed_at: null },
     { id: id('i', 12), user_id: USER, body: 'buy a scientific calculator before the midterm', source: 'telegram', created_at: at(-1, 22), triaged_at: null, dismissed_at: null },
@@ -271,6 +277,9 @@ const session = params.has('signedout')
   ? null
   : { access_token: 'sample', refresh_token: 'sample', expires_at: Date.now() / 1000 + 3600, user: { id: USER, email: 'student@example.com' } };
 let current: any = session;
+let grants: any[] = params.has('connected')
+  ? []
+  : [{ client: { id: 'claude-client', name: 'Claude' }, scopes: ['email'], granted_at: new Date().toISOString() }];
 const listeners = new Set<(e: string, s: any) => void>();
 
 export const isConfigured = true;
@@ -328,6 +337,23 @@ export const supabase: any = {
     // setSession announces SIGNED_IN (recovery is the app's own reading of the link).
     setSession: async (s: any) => { current = { expires_at: Date.now() / 1000 + 3600, ...s, user: { id: USER, email: 'student@example.com' } }; listeners.forEach((l) => l('SIGNED_IN', current)); return { data: { session: current }, error: null }; },
     exchangeCodeForSession: async () => ({ data: { session: current }, error: null }),
+    // Supabase Auth's OAuth server, as the consent page and Connected apps use it.
+    oauth: {
+      getAuthorizationDetails: async (authId: string) =>
+        authId === 'sample-auth'
+          ? { data: { authorization_id: authId, redirect_uri: 'https://claude.ai/api/mcp/auth_callback', client: { id: 'claude-client', name: 'Claude' }, user: current?.user, scope: 'email' }, error: null }
+          : { data: null, error: { message: 'Authorization not found' } },
+      approveAuthorization: async () => {
+        grants = [{ client: { id: 'claude-client', name: 'Claude' }, scopes: ['email'], granted_at: new Date().toISOString() }];
+        return { data: { redirect_url: '/?connected=allowed' }, error: null };
+      },
+      denyAuthorization: async () => ({ data: { redirect_url: '/?connected=denied' }, error: null }),
+      listGrants: async () => ({ data: grants, error: null }),
+      revokeGrant: async ({ clientId }: { clientId: string }) => {
+        grants = grants.filter((g) => g.client.id !== clientId);
+        return { data: {}, error: null };
+      },
+    },
   },
 };
 

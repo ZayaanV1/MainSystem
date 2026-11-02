@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { EASE } from '../lib/motion';
+import { announce } from '../lib/announce';
 import { sweepFrom } from '../lib/transition';
 import { ThemePicker } from '../components/ThemePicker';
 import { ArrangeToday } from '../components/ArrangeToday';
@@ -49,6 +50,14 @@ import {
   zoneAbbrev,
 } from '../lib/time';
 import { saveTimezone } from '../lib/planner';
+import {
+  disconnectApp,
+  loadConnectedApps,
+  loadConnectorChanges,
+  undoChange,
+  type ConnectedApp,
+  type ConnectorChange,
+} from '../lib/connections';
 
 /**
  * Settings.
@@ -341,6 +350,7 @@ export function Settings() {
         </>
       ),
     },
+    connected: { title: 'Connected apps', body: <ConnectedApps /> },
     data: {
       title: 'Your data',
       body: (
@@ -422,6 +432,10 @@ export function Settings() {
               </div>
 
               <div className="mat settings-rows">
+                <SettingsRow icon="link" label="Connected apps" value="Claude and other AI apps" onOpen={() => go('connected')} />
+              </div>
+
+              <div className="mat settings-rows">
                 <SettingsRow icon="box" tone="ink" label="Your data" value="Export JSON or CSV · delete the account" onOpen={() => go('data')} />
                 <SettingsRow icon="out" tone="ink" label="Sign out" value={email || null} onOpen={() => void signOut()} chevron={false} />
               </div>
@@ -441,8 +455,8 @@ export function Settings() {
   );
 }
 
-type PageId = 'notifications' | 'timezone' | 'appearance' | 'arrange' | 'calendar' | 'abood' | 'data';
-const PAGE_IDS: PageId[] = ['notifications', 'timezone', 'appearance', 'arrange', 'calendar', 'abood', 'data'];
+type PageId = 'notifications' | 'timezone' | 'appearance' | 'arrange' | 'calendar' | 'abood' | 'connected' | 'data';
+const PAGE_IDS: PageId[] = ['notifications', 'timezone', 'appearance', 'arrange', 'calendar', 'abood', 'connected', 'data'];
 
 /** What the arrangement row says: the usual, or how it differs. */
 function arrangeSummary(prefs: Preferences): string {
@@ -463,6 +477,7 @@ const GLYPHS: Record<string, string> = {
   chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.5A8 8 0 1 1 21 12',
   box: 'M21 8v12H3V8M1 3h22v5H1zM10 12h4',
   out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+  link: 'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7',
 };
 
 /**
@@ -1461,5 +1476,132 @@ function AboodTextsFirst({ userId }: { userId: string }) {
         )}
       </Card>
     </section>
+  );
+}
+
+/**
+ * AI apps signed in to the planner (functions/mcp), and what they changed.
+ *
+ * Their changes save at once, approved on the understanding that each one
+ * can be taken back here; so every change is listed with Undo, newest first,
+ * and an undone one stays in the list, marked, rather than vanishing.
+ */
+function ConnectedApps() {
+  const address = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/mcp`;
+  const [apps, setApps] = useState<ConnectedApp[] | null>(null);
+  const [changes, setChanges] = useState<ConnectorChange[] | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const load = useCallback(async () => {
+    const [a, c] = await Promise.all([loadConnectedApps(), loadConnectorChanges()]);
+    setApps(a.apps);
+    setChanges(c.changes);
+    setProblem(a.error || c.error ? `Could not load everything: ${a.error ?? c.error}. Reopen this page to try again.` : null);
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const nameOf = (clientId: string | null) => apps?.find((a) => a.clientId === clientId)?.name ?? 'A disconnected app';
+
+  async function disconnect(app: ConnectedApp) {
+    const error = await disconnectApp(app.clientId);
+    if (error) setProblem(`${app.name} is still connected: ${error}`);
+    else announce(`${app.name} disconnected`);
+    await load();
+  }
+
+  async function undo(change: ConnectorChange) {
+    await undoChange(change);
+    announce(`Undone: ${change.summary}`);
+    setChanges((all) => all?.map((c) => (c.id === change.id ? { ...c, undone_at: new Date().toISOString() } : c)) ?? null);
+  }
+
+  return (
+    <>
+      <section className="mb-8">
+        <SectionHead title="Connect an app" />
+        <Card className="flex flex-col gap-3 p-4">
+          <p className="type-body text-text-mid">
+            In Claude, open Settings, then Connectors, choose Add custom connector and paste this address. You sign in here to allow it.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="tag type-quote min-w-0 break-all">{address}</code>
+            <Button
+              size="sm"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(address);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1600);
+                } catch {
+                  setProblem('Copying was blocked by the browser. Select the address and copy it by hand.');
+                }
+              }}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+        </Card>
+      </section>
+
+      {problem && (
+        <p role="alert" className="type-note mb-6 px-4 text-text-hi">
+          {problem}
+        </p>
+      )}
+
+      <section className="mb-8">
+        <SectionHead title="Connected" />
+        <Card>
+          {apps === null ? (
+            <p className="type-note p-4 text-text-mid">Loading</p>
+          ) : apps.length === 0 ? (
+            <p className="type-note p-4 text-text-mid">No apps are connected.</p>
+          ) : (
+            apps.map((app) => (
+              <div key={app.clientId} className="flex items-center gap-3 border-b border-ink-600 px-4 py-3 last:border-b-0">
+                <div className="min-w-0 flex-1">
+                  <div className="type-label text-text-hi">{app.name}</div>
+                  <div className="type-note text-text-low">Allowed {formatDay(localDayKey(new Date(app.grantedAt)))}</div>
+                </div>
+                <Button size="sm" variant="quiet" onClick={() => void disconnect(app)}>
+                  Disconnect
+                </Button>
+              </div>
+            ))
+          )}
+        </Card>
+      </section>
+
+      <section className="mb-12">
+        <SectionHead title="What they changed" />
+        <Card>
+          {changes === null ? (
+            <p className="type-note p-4 text-text-mid">Loading</p>
+          ) : changes.length === 0 ? (
+            <p className="type-note p-4 text-text-mid">Nothing yet. Changes an app makes appear here, each with Undo.</p>
+          ) : (
+            changes.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 border-b border-ink-600 px-4 py-3 last:border-b-0">
+                <div className="min-w-0 flex-1">
+                  <div className={`type-body ${c.undone_at ? 'text-text-low line-through' : 'text-text-hi'}`}>{c.summary}</div>
+                  <div className="type-note text-text-low">
+                    {nameOf(c.client_id)} · {formatDay(localDayKey(new Date(c.created_at)))} {formatTime(new Date(c.created_at))}
+                    {c.undone_at ? ' · Undone' : ''}
+                  </div>
+                </div>
+                {!c.undone_at && (
+                  <Button size="sm" variant="quiet" onClick={() => void undo(c)}>
+                    Undo
+                  </Button>
+                )}
+              </div>
+            ))
+          )}
+        </Card>
+      </section>
+    </>
   );
 }

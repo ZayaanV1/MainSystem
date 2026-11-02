@@ -243,6 +243,7 @@ describe('migrations apply', () => {
       'checklist_completions',
       'checklist_items',
       'class_series',
+      'connector_changes',
       'course_pages',
       'courses',
       'daily_summaries',
@@ -527,6 +528,23 @@ describe('Phase 1 tables are private too', () => {
       db.query<{ body: string }>(`select body from public.inbox_items`),
     );
     expect(res.rows.map((r) => r.body)).not.toContain('B private thought');
+  });
+
+  it('keeps one account’s connector changes from another, and from forging them', async () => {
+    await db.exec(
+      `insert into public.connector_changes (user_id, tool, target_table, target_id, summary)
+       values ('${USER_B}', 'add_work', 'assignments', gen_random_uuid(), 'B secret change')`,
+    );
+    const res = await asUser(USER_A, () => db.query<{ summary: string }>(`select summary from public.connector_changes`));
+    expect(res.rows.map((r) => r.summary)).not.toContain('B secret change');
+    await expect(
+      asUser(USER_A, () =>
+        db.query(
+          `insert into public.connector_changes (user_id, tool, target_table, target_id, summary)
+           values ('${USER_B}', 'add_work', 'assignments', gen_random_uuid(), 'forged')`,
+        ),
+      ),
+    ).rejects.toThrow();
   });
 });
 

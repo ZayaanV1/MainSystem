@@ -39,6 +39,7 @@ import { formatDay, localDayKey, todayKey, type DayKey } from './lib/time';
 // Signed-in opens, which are nearly all of them, never show this.
 const SignIn = lazyRetry(() => import('./routes/SignIn'), (m) => m.SignIn);
 const NewPassword = lazyRetry(() => import('./routes/SignIn'), (m) => m.NewPassword);
+const OAuthConsent = lazyRetry(() => import('./routes/OAuthConsent'), (m) => m.OAuthConsent);
 const CommandPalette = lazyRetry(() => import('./components/CommandPalette'), (m) => m.CommandPalette);
 import { Today } from './routes/Today';
 
@@ -447,6 +448,15 @@ function Shell() {
     return (
       <Suspense fallback={null}>
         <SignIn />
+      </Suspense>
+    );
+
+  // An AI app asking to connect (functions/mcp): outside the shell, before
+  // onboarding, so the browser can go straight back to the app that asked.
+  if (location.pathname === '/oauth/consent')
+    return (
+      <Suspense fallback={null}>
+        <OAuthConsent />
       </Suspense>
     );
 

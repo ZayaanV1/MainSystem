@@ -35,3 +35,10 @@ verify_jwt = false
 [functions.checkin]
 # Called hourly by pg_cron with the shared cron secret.
 verify_jwt = false
+
+[functions.mcp]
+# AI apps sign in through Supabase Auth's OAuth 2.1 server and present the
+# account's access token. The function verifies it itself, so it can answer a
+# missing or expired one with the WWW-Authenticate challenge that tells the
+# app where to sign in, which the gateway's bare 401 would not.
+verify_jwt = false
