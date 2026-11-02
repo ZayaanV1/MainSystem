@@ -1729,17 +1729,8 @@ button.chip:active {
 }
 
 /* ---- a course's page --------------------------------------------------------
-   The course tile opens it. A header in the course's own material (its wash
+   A course's folder opens it. A header in the course's own material (its wash
    and rim, never a fill of its colour), then the page's sections. */
-.course-tile {
-  width: 100%;
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-
-.course-tile:active {
-  transform: scale(0.97);
-}
-
 .course-head {
   display: flex;
   flex-direction: column;

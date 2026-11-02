@@ -607,7 +607,16 @@ function Shell() {
           />
         );
       case 'plan':
-        return <Plan courses={data?.courses ?? []} assignments={data?.assignments} onBack={home} onChanged={bumped} onOpenWork={openWork} />;
+        return (
+          <Plan
+            courses={data?.courses ?? []}
+            assignments={data?.assignments}
+            onBack={home}
+            onChanged={bumped}
+            onOpenWork={openWork}
+            onAddWork={(courseId) => setNewWork({ ...blankAssignment(), course_id: courseId })}
+          />
+        );
       default:
         return null;
     }

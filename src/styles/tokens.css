@@ -5106,3 +5106,53 @@
   --blk-glow: rgb(var(--b) / var(--block-glow));
   --blk-mark: rgb(var(--b));
 }
+
+/* ---- Course folders (folders.css). ----
+   A course on the Courses tab is a folder: a back panel painted from the
+   course's own colour, a frosted front, and its open work as cards inside.
+   The course colour paints the cover because the cover IS the course, the
+   same reading the Week view's block wash takes; urgency stays on the cards'
+   text, never on the paint. Dark by default, light with the light mode. */
+:root {
+  --fold-face-rgb: 36 34 32;
+  --fold-cover-rgb: 20 18 17;
+  --fold-streak-rgb: 246 239 230;
+  --fold-deep-rgb: 22 19 18;
+  --fold-rim: rgb(255 255 255 / 0.16);
+  --fold-shadow: rgb(0 0 0 / 0.55);
+  --fold-paper-rgb: 34 32 30;
+  --fold-paper-line: rgb(255 255 255 / 0.1);
+  --fold-art-ink: #fbf8f4;
+  --fold-art-bar: rgb(10 9 8 / 0.42);
+  --fold-btn: #f4f1ec;
+  --fold-btn-ink: #141210;
+  --fold-dot: rgb(255 255 255 / 0.07);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --fold-face-rgb: 250 250 251;
+    --fold-cover-rgb: 228 226 224;
+    --fold-streak-rgb: 255 255 255;
+    --fold-deep-rgb: 40 30 30;
+    --fold-rim: rgb(255 255 255 / 0.95);
+    --fold-shadow: rgb(30 26 22 / 0.2);
+    --fold-paper-rgb: 255 255 255;
+    --fold-paper-line: rgb(0 0 0 / 0.07);
+    --fold-btn: #17171a;
+    --fold-btn-ink: #fafafa;
+    --fold-dot: rgb(0 0 0 / 0.1);
+  }
+}
+:root[data-theme='light'] {
+  --fold-face-rgb: 250 250 251;
+  --fold-cover-rgb: 228 226 224;
+  --fold-streak-rgb: 255 255 255;
+  --fold-deep-rgb: 40 30 30;
+  --fold-rim: rgb(255 255 255 / 0.95);
+  --fold-shadow: rgb(30 26 22 / 0.2);
+  --fold-paper-rgb: 255 255 255;
+  --fold-paper-line: rgb(0 0 0 / 0.07);
+  --fold-btn: #17171a;
+  --fold-btn-ink: #fafafa;
+  --fold-dot: rgb(0 0 0 / 0.1);
+}

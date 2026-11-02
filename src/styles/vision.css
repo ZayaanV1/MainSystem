@@ -160,7 +160,7 @@
 /* The dashboard screens use the whole desk, edge to edge between the dock
    and the window, as the glass dashboard does. Lists keep a reading width,
    centred in the room beside the dock. */
-.vision-desk .page-frame:has(.v-dash, .v-chat, .v-courses) {
+.vision-desk .page-frame:has(.v-dash, .v-chat, .fold-grid) {
   max-width: none;
   margin-inline: 0;
 }
@@ -1934,86 +1934,6 @@
   animation: v-rise 500ms var(--v-ease) both;
 }
 
-/* ============================================================================
-   Courses on the desk (routes/Plan.tsx, VisionCourses).
-   ========================================================================= */
-
-.v-courses {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: 1rem;
-}
-
-.v-course {
-  display: flex;
-  min-height: 13rem;
-  flex-direction: column;
-  padding: 0.5rem 0.5rem 0.875rem;
-}
-
-.v-course-head {
-  position: relative;
-  display: block;
-  height: 5.5rem;
-  border-radius: calc(var(--r-card) - 6px);
-}
-
-/* The course's glass, a little deeper than a Week block's: the card's whole
-   head is the course, as the dashboard's thumbnails are their kind. Derived
-   from the theme's own wash, so it stays the same glass, only thicker. */
-.vision-desk .v-course-head[data-block] {
-  background:
-    radial-gradient(120% 100% at 0% 0%, rgb(var(--b) / calc(var(--block-wash-top) * 1.9)), transparent 70%),
-    linear-gradient(135deg, rgb(var(--b) / calc(var(--block-wash-top) * 1.5)), rgb(var(--b) / calc(var(--block-wash) * 1.2))),
-    var(--surface-glass);
-}
-
-.v-course-head .chip-dot {
-  position: absolute;
-  left: 0.75rem;
-  top: 0.75rem;
-}
-
-.v-course-tag {
-  position: absolute;
-  right: 0.5rem;
-  bottom: 0.5rem;
-  border-radius: var(--r-pill);
-  padding: 0.125rem 0.55rem;
-  background: var(--scrim);
-  color: var(--text-hi);
-  font-size: 0.625rem;
-  font-weight: 600;
-}
-
-.v-course-code {
-  margin: 0.75rem 0.5rem 0;
-  font-family: var(--font-display);
-  font-size: 1.125rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text-hi);
-}
-
-.v-course-name {
-  margin: 0.125rem 0.5rem 0;
-  overflow: hidden;
-  color: var(--text-low);
-  font-size: 0.6875rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.v-course-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin: auto 0.5rem 0;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--glass-edge);
-}
-
 /* The picker's Glass miniature sits in the room too, in whatever scheme is
    chosen, or Glass would be the one theme drawn without what makes it Glass. */
 .theme-mini.look-glass {
@@ -2092,8 +2012,8 @@
    sections in a list (index.css, `main section`) shortened every <section>
    card by its margin, so rows ended 24px apart and stat cards at two heights.
    Found on a real laptop with a mouse (Oct 2026); emulated touch never ran it. */
-.vision-desk :is(.v-dash, .v-chat, .v-courses) section,
-.vision-desk :is(.v-dash, .v-chat, .v-courses) aside {
+.vision-desk :is(.v-dash, .v-chat, .fold-grid) section,
+.vision-desk :is(.v-dash, .v-chat, .fold-grid) aside {
   margin-bottom: 0;
 }
 

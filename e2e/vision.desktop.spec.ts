@@ -31,7 +31,7 @@ test.describe('Vision on a desk', () => {
     expect(await axeViolations(page)).toEqual([]);
 
     await dock.getByRole('button', { name: 'Courses' }).click();
-    await expect(page.locator('.v-course').first()).toBeVisible();
+    await expect(page.locator('.fold').first()).toBeVisible();
     await page.waitForTimeout(1200);
     expect(await axeViolations(page)).toEqual([]);
   });
@@ -138,7 +138,7 @@ test.describe('Vision on a desk', () => {
     expect(running).toBe(0);
     // A change of screen happens at once, with no dissolve in between.
     await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Courses' }).click();
-    await expect(page.locator('.v-course').first()).toBeVisible();
+    await expect(page.locator('.fold').first()).toBeVisible();
     expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0);
   });
 

@@ -1,0 +1,347 @@
+/*
+ * Course folders — the Courses tab's grid (components/CourseFolder.tsx).
+ *
+ * Every moving part reads one attribute, [data-state] on .fold, and shares
+ * one duration and one curve, so the front's lean, the cards' fan and the
+ * shadow can never drift out of step. Only transform and opacity animate.
+ *
+ * No backdrop-filter: under a 3D transform it flickers or drops the blur in
+ * Safari. The frost is a second copy of the cover, blurred once and moved as
+ * a texture, which is also what keeps the front opaque over the cards.
+ */
+
+.fold-grid {
+  --fold-dur: 640ms;
+  --fold-ease: cubic-bezier(0.2, 1.12, 0.32, 1);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(8.25rem, 100%), 1fr));
+  column-gap: 1rem;
+  padding: 0 1rem 0.5rem;
+  background-image: radial-gradient(var(--fold-dot) 1px, transparent 1.6px);
+  background-size: 16px 16px;
+  background-position: center;
+}
+@media (min-width: 1024px) {
+  .fold-grid {
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 16.5rem));
+    column-gap: 2.5rem;
+  }
+}
+
+.fold {
+  position: relative;
+  container-type: inline-size;
+  /* Room above for the cards to fan into. */
+  margin-top: 34%;
+  margin-bottom: 1.25rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.fold-body {
+  position: relative;
+  aspect-ratio: 5 / 4;
+  perspective: 700px;
+}
+
+/* The same paint for the cover, its frost and the cards' art. --fold-angle
+   is read per element, so each card gets its own sweep of the course. */
+.fold-paint {
+  background:
+    radial-gradient(60% 70% at 78% 18%, rgb(var(--b) / 1), transparent 70%),
+    radial-gradient(45% 55% at 18% 78%, rgb(var(--fold-streak-rgb) / 0.35), transparent 70%),
+    repeating-linear-gradient(
+      var(--fold-angle, 118deg),
+      rgb(var(--b)) 0 7%,
+      rgb(var(--fold-streak-rgb) / 0.85) 9.5% 11.5%,
+      rgb(var(--b) / 0.9) 14%,
+      rgb(var(--fold-deep-rgb) / 0.85) 18% 21%,
+      rgb(var(--b)) 25% 29%,
+      rgb(var(--fold-streak-rgb) / 0.5) 31.5% 33%,
+      rgb(var(--b)) 36%
+    ),
+    rgb(var(--fold-cover-rgb));
+}
+
+.fold-shadow {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -5%;
+  height: 20%;
+  border-radius: 50%;
+  background: var(--fold-shadow);
+  filter: blur(14px);
+  opacity: 0.7;
+  transform: translateZ(0);
+  transition:
+    transform var(--fold-dur) var(--fold-ease),
+    opacity var(--fold-dur) var(--fold-ease);
+}
+
+.fold-back {
+  position: absolute;
+  inset: 0;
+  clip-path: url(#fold-back);
+  overflow: hidden;
+  transform: translateZ(0);
+}
+.fold-back > .fold-paint {
+  position: absolute;
+  inset: -12%;
+  filter: blur(3px) saturate(1.7) contrast(1.05);
+}
+
+.fold-rim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.fold-rim path {
+  fill: none;
+  stroke: var(--fold-rim);
+  stroke-width: 1.25;
+}
+
+/* ---- Cards ---- */
+.fold-cards {
+  position: absolute;
+  inset: 0;
+}
+.fold-card {
+  position: absolute;
+  left: 14%;
+  top: 30%;
+  width: 72%;
+  height: 60%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: clamp(8px, 5cqw, 14px);
+  background: rgb(var(--fold-paper-rgb));
+  box-shadow: 0 10px 24px -10px var(--fold-shadow), 0 0 0 1px var(--fold-paper-line);
+  text-align: left;
+  pointer-events: none;
+  backface-visibility: hidden;
+  will-change: transform;
+  transform: translate3d(0, 0, 0) rotate(0deg);
+  transition: transform var(--fold-dur) var(--fold-ease);
+  transition-delay: var(--out);
+}
+.fold-card[data-art] {
+  color: var(--fold-art-ink);
+}
+.fold-card[data-art] > .fold-paint {
+  position: absolute;
+  inset: -10%;
+  filter: saturate(1.7) contrast(1.05);
+}
+.fold-card-head {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6%;
+  padding: 5% 7%;
+}
+.fold-card[data-art] .fold-card-head {
+  background: var(--fold-art-bar);
+}
+.fold-card-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: clamp(9px, 4.6cqw, 13px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.fold-card:not([data-art]) .fold-card-title {
+  color: var(--text-hi);
+}
+.fold-card-meta {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(7px, 3.2cqw, 10px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.fold-card:not([data-art]) .fold-card-meta {
+  color: var(--text-low);
+}
+.fold-card-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 9%;
+  padding: 2% 7%;
+  flex: 1;
+}
+.fold-card-lines > span {
+  height: clamp(4px, 2.6cqw, 7px);
+  border-radius: 99px;
+  background: var(--fold-paper-line);
+}
+.fold-card-lines > span:nth-child(1) { width: 92%; }
+.fold-card-lines > span:nth-child(2) { width: 70%; }
+.fold-card-lines > span:nth-child(3) { width: 82%; }
+
+/* ---- Front ---- */
+.fold-front {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 74.1%;
+  clip-path: url(#fold-front);
+  transform-origin: 50% 100%;
+  backface-visibility: hidden;
+  will-change: transform;
+  transform: rotateX(0deg);
+  transition: transform var(--fold-dur) var(--fold-ease);
+  transition-delay: var(--front-out, 0ms);
+}
+/* Lined up with the cover behind it, so the frost reads as that cover. */
+.fold-front > .fold-paint {
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  top: -51%;
+  bottom: -16%;
+  filter: blur(16px) saturate(1.8);
+}
+.fold-face {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--fold-face-rgb) / 0.22),
+    rgb(var(--fold-face-rgb) / 0.62) 45%,
+    rgb(var(--fold-face-rgb) / 0.9) 85%
+  );
+}
+
+.fold-open {
+  position: absolute;
+  left: 7%;
+  right: 30%;
+  bottom: 10%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15em;
+  text-align: left;
+  color: var(--text-hi);
+  outline: none;
+}
+/* The whole front is the tap target, not just its words. */
+.fold-open::after {
+  content: '';
+  position: absolute;
+  left: -12cqw;
+  right: -50cqw;
+  bottom: -12cqw;
+  top: -60cqw;
+}
+.fold-name {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  font-size: clamp(13px, 6.4cqw, 18px);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.fold-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.6em;
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 3.9cqw, 11px);
+  letter-spacing: 0.02em;
+  color: var(--text-low);
+}
+
+.fold-add {
+  position: absolute;
+  z-index: 1;
+  right: 6%;
+  bottom: 9%;
+  width: clamp(28px, 17cqw, 48px);
+  height: clamp(28px, 17cqw, 48px);
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 30%;
+  background: var(--fold-btn);
+  color: var(--fold-btn-ink);
+  box-shadow: 0 6px 14px -4px var(--fold-shadow);
+  transition: transform 180ms var(--fold-ease);
+}
+/* A finger-sized target around a button drawn at the reel's proportion. */
+.fold-add::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+.fold-add:active {
+  transform: scale(0.92);
+}
+.fold-add svg {
+  width: 42%;
+  height: 42%;
+}
+
+.fold-open:focus-visible .fold-name,
+.fold-add:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ---- States ---- */
+.fold[data-state='open'] .fold-front {
+  transform: rotateX(-30deg);
+  transition-delay: 0ms;
+}
+.fold[data-state='peek'] .fold-front {
+  transform: rotateX(-7deg);
+  transition-delay: 0ms;
+}
+.fold[data-state='open'] .fold-card {
+  transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--r));
+  transition-delay: var(--in);
+  pointer-events: auto;
+}
+.fold[data-state='peek'] .fold-card:last-child {
+  transform: translate3d(0, -26%, 0) rotate(1deg);
+  transition-delay: 0ms;
+}
+.fold[data-state='open'] .fold-shadow {
+  transform: translateZ(0) scale(1.06, 1.2);
+  opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No lean and no fan: the cards are simply there when the folder is open. */
+  .fold-front,
+  .fold-shadow {
+    transition: opacity 200ms ease;
+  }
+  .fold[data-state] .fold-front {
+    transform: none;
+  }
+  .fold-card {
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .fold[data-state='open'] .fold-card {
+    opacity: 1;
+  }
+}

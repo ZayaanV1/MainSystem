@@ -34,6 +34,7 @@ import { ArrangeToday } from '../components/ArrangeToday';
 import { Segmented } from '../components/Segmented';
 import { CommandPalette } from '../components/CommandPalette';
 import { Check, PopMenu } from '../components/PopMenu';
+import { CourseFolders } from '../components/CourseFolder';
 
 /**
  * The design system specimen. Development only — reached at /?specimen.
@@ -311,6 +312,19 @@ export function Specimen() {
           </Chip>
           <Chip onClick={() => {}}>Tappable</Chip>
         </div>
+      </Section>
+
+      <Section title="CourseFolders — Courses: point or tap to fan the work out, again to open">
+        <CourseFolders
+          courses={[
+            { id: 'f1', name: 'Waves and Optics', code: 'PHYS 205', colour_index: 2, archived: false },
+            { id: 'f2', name: 'Professional Practice', code: 'ENGR 201', colour_index: 5, archived: false },
+            { id: 'f3', name: 'Reading', code: null, colour_index: 7, archived: false },
+          ]}
+          assignments={sampleWork().map((a, i) => ({ ...a, course_id: i < 3 ? 'f1' : 'f2' }))}
+          onOpen={() => {}}
+          onAdd={() => {}}
+        />
       </Section>
 
       <Section title="Buttons">

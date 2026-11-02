@@ -12,6 +12,7 @@
 @import './styles/calendar.css';
 @import './styles/material.css';
 @import './styles/vision.css';
+@import './styles/folders.css';
 
 /* ============================================================================
    Fonts — self-hosted latin subsets. No runtime request to Google.
