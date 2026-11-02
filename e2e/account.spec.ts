@@ -22,16 +22,19 @@ test.describe('Signed out', () => {
   });
 });
 
-// F09: the first run, every step skippable, nothing pre-selected.
-test('the first run can be skipped all the way to Today', async ({ page }) => {
+// F09: the first run, every step skippable, nothing pre-selected, ending on the guide.
+test('the first run can be skipped through the guide to Today', async ({ page }) => {
   await page.goto('/?firstrun');
-  await expect(page.getByText('Step 1 of 5')).toBeVisible();
+  await expect(page.getByText('Step 1 of 6')).toBeVisible();
   await page.getByRole('button', { name: 'Start' }).click();
-  for (let i = 0; i < 6; i++) {
-    const skip = page.getByRole('button', { name: /^(Skip this step|Skip|Open my planner)$/ }).first();
+  for (let i = 0; i < 8; i++) {
+    const skip = page.getByRole('button', { name: /^(Skip this step|Skip|Continue|Open the guide)$/ }).first();
     if (!(await skip.isVisible().catch(() => false))) break;
     await skip.click();
   }
+  await expect(page.getByRole('heading', { name: 'How it works', level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(/\/settings\/help$/);
+  await page.getByRole('button', { name: 'Go to Today' }).click();
   await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
 });
 

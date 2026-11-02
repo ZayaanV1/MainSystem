@@ -39,6 +39,7 @@ import { fetchDeliveryLog, type DeliveryRow } from '../lib/health';
 import { pushStatus, subscribeToPush, type PushStatus } from '../lib/notifications';
 import { subscribeSw, type SwState } from '../lib/sw';
 import { DigestSettings } from './DigestSettings';
+import { Help } from './Help';
 import { calendarFeedUrl } from '../lib/planner';
 import { supabase } from '../lib/supabase';
 import {
@@ -233,6 +234,7 @@ export function Settings() {
    * built, with the AI keys between the delivery log and iMessage.
    */
   const pages: Record<PageId, { title: string; body: ReactNode }> = {
+    help: { title: 'How it works', body: <Help /> },
     notifications: {
       title: 'Notifications',
       body: (
@@ -411,6 +413,10 @@ export function Settings() {
 
             <div className="flex flex-col gap-4">
               <div className="mat settings-rows">
+                <SettingsRow icon="help" tone="ember" label="How it works" value="A guide to every feature" onOpen={() => go('help')} />
+              </div>
+
+              <div className="mat settings-rows">
                 <SettingsRow icon="bell" tone="ember" label="Notifications and digest" value={summary.notifications} onOpen={() => go('notifications')} />
                 <SettingsRow icon="globe" label="Time zone" value={`${activeTimezone().replace(/_/g, ' ')} (${zoneAbbrev()})`} onOpen={() => go('timezone')} />
               </div>
@@ -455,8 +461,8 @@ export function Settings() {
   );
 }
 
-type PageId = 'notifications' | 'timezone' | 'appearance' | 'arrange' | 'calendar' | 'abood' | 'connected' | 'data';
-const PAGE_IDS: PageId[] = ['notifications', 'timezone', 'appearance', 'arrange', 'calendar', 'abood', 'connected', 'data'];
+type PageId = 'help' | 'notifications' | 'timezone' | 'appearance' | 'arrange' | 'calendar' | 'abood' | 'connected' | 'data';
+const PAGE_IDS: PageId[] = ['help', 'notifications', 'timezone', 'appearance', 'arrange', 'calendar', 'abood', 'connected', 'data'];
 
 /** What the arrangement row says: the usual, or how it differs. */
 function arrangeSummary(prefs: Preferences): string {
@@ -477,6 +483,7 @@ const GLYPHS: Record<string, string> = {
   chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.5A8 8 0 1 1 21 12',
   box: 'M21 8v12H3V8M1 3h22v5H1zM10 12h4',
   out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+  help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01',
   link: 'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7',
 };
 

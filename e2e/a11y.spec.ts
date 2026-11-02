@@ -10,7 +10,8 @@ const screens: { name: string; open: (page: import('@playwright/test').Page) => 
   { name: 'Settings', open: async (p) => { await p.goto('/settings'); await expect(p.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible(); } },
   { name: 'Search', open: async (p) => { await p.goto('/search'); await expect(p.getByRole('heading', { name: 'Search', level: 1 })).toBeVisible(); } },
   { name: 'Sign in', open: async (p) => { await p.goto('/?signedout'); await expect(p.getByRole('heading', { name: 'Planner' })).toBeVisible(); } },
-  { name: 'First run', open: async (p) => { await p.goto('/?firstrun'); await expect(p.getByText('Step 1 of 5')).toBeVisible(); } },
+  { name: 'First run', open: async (p) => { await p.goto('/?firstrun'); await expect(p.getByText('Step 1 of 6')).toBeVisible(); } },
+  { name: 'How it works', open: async (p) => { await p.goto('/settings/help'); await expect(p.getByRole('heading', { name: 'How it works', level: 1 })).toBeVisible(); } },
   {
     name: 'Editor',
     open: async (p) => {

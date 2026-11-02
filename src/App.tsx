@@ -526,6 +526,8 @@ function Shell() {
             // The planner behind it is stale by definition — the first run
             // just created everything in it.
             setRevision((r) => r + 1);
+            // The first run ends on the guide, so the features are shown, not found.
+            routeTo('/settings/help');
           }}
         />
       </Suspense>

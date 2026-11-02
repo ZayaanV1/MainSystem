@@ -44,7 +44,7 @@ import { Tickets } from './SignIn';
  * added, when the button that says how many is pressed.
  */
 
-const STEPS = ['welcome', 'courses', 'syllabus', 'daily', 'done'] as const;
+const STEPS = ['welcome', 'courses', 'syllabus', 'daily', 'tour', 'done'] as const;
 
 /**
  * Suggestions, not defaults.
@@ -204,8 +204,10 @@ export function Onboarding({ userId, onDone }: { userId: string; onDone: () => v
         return daily.length
           ? { label: busy ? 'Adding' : 'Continue', quiet: false, run: () => void saveDaily() }
           : { label: 'Skip this step', quiet: true, run: () => go(4) };
+      case 'tour':
+        return { label: 'Continue', quiet: false, run: () => go(5) };
       default:
-        return { label: busy ? 'One moment' : 'Open my planner', quiet: false, run: () => void finish() };
+        return { label: busy ? 'One moment' : 'Open the guide', quiet: false, run: () => void finish() };
     }
   })();
 
@@ -255,6 +257,7 @@ export function Onboarding({ userId, onDone }: { userId: string; onDone: () => v
             }}
           />
         )}
+        {id === 'tour' && <Tour />}
         {id === 'done' && <Done courses={courses} deadlines={added} daily={savedDaily} courseId={syllabusCourse} />}
       </div>
 
@@ -291,7 +294,7 @@ function Welcome() {
   return (
     <>
       <Heading title="Let’s get your term in.">
-        Three short steps, each one skippable. What you enter shows up as you go, the way Today will show it.
+        Three short steps, each one skippable, then a quick look at where everything is. What you enter shows up as you go, the way Today will show it.
       </Heading>
       <div className="firstrun-art">
         <Tickets />
@@ -649,6 +652,48 @@ function Daily({
 }
 
 /**
+ * Where things are, before they go looking. Four places a new account would
+ * otherwise find by accident; the full guide follows on finishing.
+ */
+function Tour() {
+  return (
+    <>
+      <Heading title="Where things are.">The four things worth knowing on day one. A full guide opens when you finish, and stays in Settings.</Heading>
+      <ol className="firstrun-steps">
+        <li>
+          <span className="n">1</span>
+          <span>
+            <b>The sidebar, or the bar at the bottom</b>
+            <span>Today, Schedule, Month, Search, Abood, Courses and Settings. On a phone some sit under More.</span>
+          </span>
+        </li>
+        <li>
+          <span className="n">2</span>
+          <span>
+            <b>The + adds anything</b>
+            <span>An assignment from its PDF brief, a course outline, or a course. Or type into Capture on Today in plain words.</span>
+          </span>
+        </li>
+        <li>
+          <span className="n">3</span>
+          <span>
+            <b>Search finds everything</b>
+            <span>Work, events, the inbox and courses in one box. On a laptop, ⌘K or Ctrl K jumps anywhere.</span>
+          </span>
+        </li>
+        <li>
+          <span className="n">4</span>
+          <span>
+            <b>AI that asks first</b>
+            <span>Abood answers from your planner, outlines become deadlines, work breaks into first moves. Nothing is saved until you confirm it.</span>
+          </span>
+        </li>
+      </ol>
+    </>
+  );
+}
+
+/**
  * The end: their Today, assembled from what they entered, before they open
  * it. It states what is there rather than congratulating anyone for
  * arriving; praise for completing a setup form is praise for nothing.
@@ -663,7 +708,7 @@ function Done({ courses, deadlines, daily, courseId }: { courses: Course[]; dead
       <Heading title={any ? 'That’s your term.' : 'That’s it.'}>
         {any
           ? 'Here is Today with what you entered. Capture anything at the top and sort it later; it needs no date, course or category to be worth writing down.'
-          : 'Today shows what is due and what is left. Courses, syllabi and daily things can all be added later from Courses.'}
+          : 'Today shows what is due and what is left. Courses, outlines and daily things can all be added later with the +.'}
       </Heading>
       <div className="mat mat-raised firstrun-today" aria-label="A preview of Today">
         <div className="flex items-baseline justify-between gap-3">
