@@ -12,9 +12,9 @@ import { useNow } from '../lib/useNow';
  *
  * The dock holds every destination, exactly as the rail did. The top bar
  * deliberately does not repeat them: it holds what the dock cannot, which is
- * the time, a box to catch a thought from any screen that opens into the
- * day (VisionIsland), and three shortcuts with something to say (the inbox's
- * count, Abood, the account).
+ * the time, the search pill that also opens into the day (VisionIsland, where
+ * a thought is caught too), and three shortcuts with something to say (the
+ * inbox's count, Abood, the account).
  */
 export function VisionChrome<T extends string>({
   current,
@@ -134,17 +134,7 @@ function TopBar<T extends string>({
         </time>
       </p>
 
-      {onPalette && (
-        <button type="button" className="v-pill v-search" onClick={onPalette} aria-keyshortcuts="Meta+K Control+K">
-          <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35" />
-          </svg>
-          <span>Search work, classes, courses</span>
-          <kbd aria-hidden>⌘K</kbd>
-        </button>
-      )}
-
-      <VisionIsland userId={userId} day={day} onGo={(id) => go(id)} />
+      <VisionIsland userId={userId} day={day} onGo={(id) => go(id)} onPalette={onPalette} />
 
       <div className="v-top-end">
         {has('week') && (

@@ -1962,10 +1962,13 @@ exclude refunds to anyone who used it "to build your own version", so no
 asset, copy or code of it is here, and the app itself was never downloaded.
 
 - **The island** (`components/VisionIsland.tsx`, `lib/island.ts`): the top
-  bar's capture box opens on hover (220 ms beat), Alt+N (by `e.code`, since
-  Option+N is a dead key on a Mac) or its ⌥N toggle, into a tray of four
+  bar's search pill opens on hover (220 ms beat), Alt+N (by `e.code`, since
+  Option+N is a dead key on a Mac) or its chevron, into a tray of four
   cards: work due today or late, the focus timer, the inbox, and what is
-  left of today's calendar. Escape and an outside click close it; Escape is
+  left of today's calendar. A click on the pill is still search. The bar's
+  separate add box was removed the same day at the owner's request ("i
+  don't want my app to be too cluttered"); a thought is caught in the
+  Inbox card instead, which Alt+N focuses. Escape and an outside click close it; Escape is
   taken in the capture phase so it does not also send the app back to Today.
   Every action is an existing one: a tick fires `FINISH_EVENT`, which Today
   answers with its own `finish` (Undo and the actual-time chips included);

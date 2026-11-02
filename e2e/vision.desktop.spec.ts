@@ -36,8 +36,9 @@ test.describe('Vision on a desk', () => {
     expect(await axeViolations(page)).toEqual([]);
   });
 
-  test('a thought typed in the top bar lands in the inbox', async ({ page }) => {
+  test('a thought typed in the island lands in the inbox', async ({ page }) => {
     await openToday(page, '?skin=vision');
+    await page.keyboard.press('Alt+KeyN');
     const box = page.getByLabel('Add something to the inbox');
     await box.fill('Email the TA about the lab');
     await box.press('Enter');
@@ -47,6 +48,8 @@ test.describe('Vision on a desk', () => {
 
   test('the island opens into the day, ticks through Today, and closes', async ({ page }) => {
     await openToday(page, '?skin=vision');
+    // The bar has search and no separate add box.
+    await expect(page.locator('.v-top').getByLabel('Add something to the inbox')).toHaveCount(0);
     const toggle = page.getByRole('button', { name: 'Open today at a glance' });
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await page.keyboard.press('Alt+KeyN');
@@ -72,6 +75,9 @@ test.describe('Vision on a desk', () => {
     // Escape closes the island and does not navigate away from Today.
     await page.keyboard.press('Escape');
     await expect(panel).toBeHidden();
+    // Hovering the search pill opens it too.
+    await page.getByRole('button', { name: /Search work, classes, courses/ }).hover();
+    await expect(panel).toBeVisible();
     await expect(page.getByRole('region', { name: "Today's timeline" })).toBeVisible();
   });
 

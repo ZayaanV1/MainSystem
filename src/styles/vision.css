@@ -226,42 +226,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.v-capture {
-  color: var(--text-low);
-  transition: box-shadow 260ms var(--v-ease);
-}
-
-.v-capture:focus-within {
-  box-shadow:
-    inset 0 1px 0 var(--specular),
-    inset 0 0 0 1px var(--accent),
-    0 0 0 4px var(--selection),
-    0 6px 20px -8px rgb(var(--shadow-color) / 0.55);
-}
-
-.v-capture input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  color: var(--text-hi);
-  font: inherit;
-  outline: none;
-}
-
-.v-capture input::placeholder {
-  color: var(--text-low);
-}
-
-.v-capture kbd {
-  border-radius: var(--r-tight);
-  padding: 0.125rem 0.4rem;
-  background: var(--tag-surface);
-  color: var(--text-low);
-  font: inherit;
-  font-size: 0.6875rem;
-}
-
-/* ---- the island (VisionIsland): the capture box, opening into the day ---- */
+/* ---- the island (VisionIsland): the search pill, opening into the day ---- */
 
 /* A row item in the bar (see "With search in it" below). Static, so the
    panel and the note place themselves against the whole bar, centred on the
@@ -269,12 +234,65 @@
 .v-island {
   position: static;
   min-width: 0;
-  flex: 1 1 auto;
-  max-width: 30rem;
 }
 
-.v-island .v-capture {
-  width: 100%;
+/* The pill holds two buttons: search (the click) and the chevron (the panel). */
+.v-search {
+  padding-inline: 0 0.375rem;
+}
+
+.v-search-open {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: stretch;
+  padding-left: 1rem;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.v-island[data-open] .v-island-chev {
+  rotate: 180deg;
+}
+
+.v-island-chev {
+  transition: rotate 260ms var(--v-ease);
+}
+
+/* Catching a thought, in the Inbox card. */
+.v-island-catch {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.625rem;
+  border-radius: var(--r-pill);
+  padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+  background: var(--glass-fill);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  transition: box-shadow 220ms var(--v-ease);
+}
+
+.v-island-catch:focus-within {
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    0 0 0 3px var(--selection);
+}
+
+.v-island-catch input {
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 0.8125rem;
+  outline: none;
+}
+
+.v-island-catch input::placeholder {
+  color: var(--text-low);
 }
 
 .v-island .v-mic,
@@ -300,11 +318,6 @@
   }
 }
 
-.v-island-toggle kbd {
-  /* inherits .v-capture kbd */
-  pointer-events: none;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .v-island .v-mic:hover,
   .v-island-toggle:hover {
@@ -313,14 +326,7 @@
 }
 
 .v-island-note {
-  position: absolute;
-  top: calc(100% + 0.25rem);
-  left: 50%;
-  translate: -50% 0;
-  border-radius: var(--r-pill);
-  padding: 0.25rem 0.75rem;
-  background: var(--v-glass);
-  text-align: center;
+  margin-top: 0.375rem;
   color: var(--text-mid);
   font-size: 0.75rem;
 }

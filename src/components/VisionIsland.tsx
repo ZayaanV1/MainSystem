@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { capture, courseVar, FINISH_EVENT, type Assignment, type Course, type TodayData } from '../lib/planner';
 import { announce } from '../lib/announce';
@@ -12,13 +12,15 @@ import { useNow } from '../lib/useNow';
 import { MicButton } from './MicButton';
 
 /**
- * Vision's island: the top bar's capture box, which opens into the day.
+ * Vision's island: the top bar's search pill, which also opens into the day.
  *
  * From NotchOwl (Nov 2026), whose whole idea is that the day is one hover
  * away rather than a window you have to find. A web page cannot live in the
- * Mac's notch, so the centre of the top bar plays that part: hover it, or
- * press Alt+N anywhere, and four cards drop out of it. Today's work, the
- * focus timer, the inbox and what is left of today.
+ * Mac's notch, so the search pill plays that part: hover it, or press Alt+N
+ * anywhere, and four cards drop out of it. Today's work, the focus timer,
+ * the inbox (where a thought is caught, typed or spoken) and what is left of
+ * today. Clicking the pill still opens search; the bar carries no separate
+ * add box, at the owner's request, to keep it uncluttered.
  *
  * Every action is one the app already has. A tick finishes work through
  * Today's own finish (so it offers the actual-time chips and Undo exactly
@@ -37,16 +39,16 @@ export function VisionIsland({
   userId,
   day,
   onGo,
+  onPalette,
 }: {
   userId: string;
   day: TodayData | null;
   /** Opens Today ('today') or the inbox ('week'). */
   onGo: (id: 'today' | 'week') => void;
+  /** Opens the command palette: what a click on the pill does. */
+  onPalette?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState('');
-  const [sent, setSent] = useState(false);
-  const [micNote, setMicNote] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const hover = useRef<number | undefined>(undefined);
@@ -87,17 +89,6 @@ export function VisionIsland({
     return () => document.removeEventListener('pointerdown', onDown);
   }, [open, shut]);
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    const body = text.trim();
-    if (!body || !userId) return;
-    setText('');
-    await capture(userId, body);
-    announce('Added to the inbox');
-    setSent(true);
-    setTimeout(() => setSent(false), 1600);
-  }
-
   return (
     <div
       ref={root}
@@ -117,22 +108,15 @@ export function VisionIsland({
         hover.current = window.setTimeout(() => setOpen(false), 260);
       }}
     >
-      <form onSubmit={(e) => void submit(e)} className="v-pill v-capture">
-        <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        <label className="sr-only" htmlFor="v-capture">
-          Add something to the inbox
-        </label>
-        <input
-          id="v-capture"
-          ref={input}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={sent ? 'In the inbox' : 'Add something'}
-          autoComplete="off"
-        />
-        <MicButton value={text} onText={setText} onError={setMicNote} className="v-mic" />
+      <div className="v-pill v-search">
+        <button type="button" className="v-search-open" onClick={onPalette} aria-keyshortcuts="Meta+K Control+K">
+          <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35" />
+          </svg>
+          <span>Search work, classes, courses</span>
+          <kbd aria-hidden>⌘K</kbd>
+        </button>
+        {/* For touch and keyboards: hover is a mouse's way in, this is everyone else's. */}
         <button
           type="button"
           className="v-island-toggle"
@@ -140,25 +124,37 @@ export function VisionIsland({
           aria-controls="v-island-panel"
           aria-keyshortcuts="Alt+N"
           aria-label={open ? 'Close today at a glance' : 'Open today at a glance'}
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            setOpen((o) => {
+              if (!o) requestAnimationFrame(() => input.current?.focus());
+              return !o;
+            });
+          }}
         >
-          <kbd aria-hidden>⌥N</kbd>
+          <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="v-island-chev">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
         </button>
-      </form>
-      {micNote && (
-        <p className="v-island-note" role="status">
-          {micNote}
-        </p>
-      )}
+      </div>
 
       <div id="v-island-panel" className="v-island-panel" hidden={!open}>
-        {open && <Cards day={day} onGo={(id) => (shut(), onGo(id))} />}
+        {open && <Cards userId={userId} day={day} input={input} onGo={(id) => (shut(), onGo(id))} />}
       </div>
     </div>
   );
 }
 
-function Cards({ day, onGo }: { day: TodayData | null; onGo: (id: 'today' | 'week') => void }) {
+function Cards({
+  userId,
+  day,
+  input,
+  onGo,
+}: {
+  userId: string;
+  day: TodayData | null;
+  input: RefObject<HTMLInputElement | null>;
+  onGo: (id: 'today' | 'week') => void;
+}) {
   const now = useNow();
   const { due, events } = islandDay(day, now);
   const course = (id: string | null) => day?.courses.find((c) => c.id === id);
@@ -189,13 +185,10 @@ function Cards({ day, onGo }: { day: TodayData | null; onGo: (id: 'today' | 'wee
 
       <section className="v-card v-island-card" aria-label="Inbox">
         <Head title="Inbox" meta={day?.inbox.length ? `${day.inbox.length} to sort` : ''} />
-        {!day ? (
-          <p className="v-empty">Loading</p>
-        ) : day.inbox.length === 0 ? (
-          <p className="v-empty">Empty. Type or speak above to catch a thought.</p>
-        ) : (
+        <Catch userId={userId} input={input} />
+        {day && day.inbox.length > 0 && (
           <ul className="v-rows">
-            {day.inbox.slice(0, 3).map((i) => (
+            {day.inbox.slice(0, 2).map((i) => (
               <li key={i.id}>
                 <span className="type-quote truncate">{i.body}</span>
               </li>
@@ -238,6 +231,48 @@ function Cards({ day, onGo }: { day: TodayData | null; onGo: (id: 'today' | 'wee
         )}
       </section>
     </div>
+  );
+}
+
+/** A thought into the inbox, typed or spoken. Enter sends; nothing is written before that. */
+function Catch({ userId, input }: { userId: string; input: RefObject<HTMLInputElement | null> }) {
+  const [text, setText] = useState('');
+  const [sent, setSent] = useState(false);
+  const [micNote, setMicNote] = useState<string | null>(null);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const body = text.trim();
+    if (!body || !userId) return;
+    setText('');
+    await capture(userId, body);
+    announce('Added to the inbox');
+    setSent(true);
+    setTimeout(() => setSent(false), 1600);
+  }
+
+  return (
+    <>
+      <form onSubmit={(e) => void submit(e)} className="v-island-catch">
+        <label className="sr-only" htmlFor="v-capture">
+          Add something to the inbox
+        </label>
+        <input
+          id="v-capture"
+          ref={input}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={sent ? 'In the inbox' : 'Add something'}
+          autoComplete="off"
+        />
+        <MicButton value={text} onText={setText} onError={setMicNote} className="v-mic" />
+      </form>
+      {micNote && (
+        <p className="v-island-note" role="status">
+          {micNote}
+        </p>
+      )}
+    </>
   );
 }
 
