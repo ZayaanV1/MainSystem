@@ -1,4 +1,4 @@
-import { test, expect, openSchedule, axeViolations } from './fixtures';
+import { test, expect, openSchedule, openToday, toSchedule, row, axeViolations } from './fixtures';
 
 /** A one-page PDF with a line of text, small enough to write by hand. */
 function tinyPdf(text: string): Buffer {
@@ -96,6 +96,33 @@ test.describe('Work page', () => {
     await page.getByRole('link', { name: /WeBWorK set 5/ }).first().click();
     await page.getByLabel('Choose a PDF').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
     await expect(page.getByRole('alert').filter({ hasText: 'Only PDF files can be attached.' })).toBeVisible();
+  });
+
+  test('the + adds work from a brief, with its date read as a suggestion', async ({ page }) => {
+    await openToday(page);
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('menuitem', { name: /Assignment/ }).click();
+    await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    await page.getByLabel('Choose the brief as a PDF').setInputFiles({
+      name: 'A3_brief.pdf',
+      mimeType: 'application/pdf',
+      buffer: tinyPdf('Problem set 1'),
+    });
+    // The reader's first dated item fills the empty title and date, and says where they came from.
+    await expect(page.getByText(/read from the brief\. Check it before saving\./)).toBeVisible();
+    await expect(page.getByLabel('Title')).toHaveValue('Problem set 1');
+    if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
+
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByRole('button', { name: 'Save' })).toBeHidden();
+
+    // It is real work now, with the brief attached to it.
+    await toSchedule(page);
+    await row(page, 'Problem set 1').first().click();
+    await page.getByRole('link', { name: /Brief and guide/ }).click();
+    await expect(page.getByRole('heading', { name: 'Problem set 1', level: 1 })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'A3 brief' })).toBeVisible();
   });
 
   test('a link that names nothing real opens Today', async ({ page }) => {

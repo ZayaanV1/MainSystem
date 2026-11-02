@@ -527,6 +527,8 @@ export async function calendarFeedUrl(rotate = false): Promise<string | null> {
 export async function addAssignment(
   userId: string,
   fields: {
+    /** Chosen by the caller when it must refer to the row before it syncs: the new-work sheet attaches a PDF to it. */
+    id?: string;
     title: string;
     course_id?: string | null;
     due_at?: string | null;
@@ -539,6 +541,7 @@ export async function addAssignment(
   },
 ): Promise<void> {
   await enqueue('assignments', 'insert', {
+    ...(fields.id ? { id: fields.id } : {}),
     user_id: userId,
     title: fields.title.trim(),
     course_id: fields.course_id ?? null,

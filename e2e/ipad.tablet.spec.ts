@@ -43,7 +43,8 @@ test.describe('upright', () => {
   test('the tab bar holds every destination, centred, with no More', async ({ page }) => {
     await openToday(page);
     const bar = page.locator('nav[aria-label="Main"]:visible');
-    await expect(bar.getByRole('button')).toHaveText(['Today', /Schedule/, 'Month', 'Search', 'Abood', 'Courses', 'Settings']);
+    // Destinations only: the + sits in the bar too, and is not a place.
+    await expect(bar.locator('button[data-slot]')).toHaveText(['Today', /Schedule/, 'Month', 'Search', 'Abood', 'Courses', 'Settings']);
     const box = (await bar.boundingBox())!;
     const width = page.viewportSize()!.width;
     expect(box.width).toBeLessThanOrEqual(640);
@@ -106,7 +107,7 @@ test.describe('on its side', () => {
     await openToday(page);
     const nav = page.locator('nav[aria-label="Main"]:visible');
     await expect(nav).toHaveCount(1);
-    await expect(nav.getByRole('button')).toHaveCount(7);
+    await expect(nav.locator('button[data-slot]')).toHaveCount(7);
     expect((await nav.boundingBox())!.height).toBeGreaterThan(700);
     for (const screen of SCREENS) {
       await page.goto(screen);

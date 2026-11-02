@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lazyRetry } from './lib/lazyRetry';
-import { AppShell, Page, type NavItem } from './components/AppShell';
+import { AppShell, Page, type AddKind, type NavItem } from './components/AppShell';
 import { keepFeedsLive } from './lib/feeds';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SheetPresence } from './components/Sheet';
@@ -57,6 +57,27 @@ const Specimen = lazyRetry(() => import('./routes/Specimen'), (m) => m.Specimen)
 const Onboarding = lazyRetry(() => import('./routes/Onboarding'), (m) => m.Onboarding);
 // Already in the first chunk, because Today renders it; static here too.
 const Triage = lazyRetry(() => import('./routes/Triage'), (m) => m.Triage);
+const SyllabusImport = lazyRetry(() => import('./routes/SyllabusImport'), (m) => m.SyllabusImport);
+
+/** Work that does not exist yet, for the editor's new mode. Its id is made here so the PDF can point at it. */
+function blankAssignment(): Assignment {
+  return {
+    id: crypto.randomUUID(),
+    course_id: null,
+    title: '',
+    due_at: null,
+    due_has_time: false,
+    effort_minutes: null,
+    actual_minutes: null,
+    status: 'todo',
+    notes: null,
+    start_by_override: null,
+    remind_at: null,
+    weight_percent: null,
+    grade_percent: null,
+    link: null,
+  };
+}
 import { useHotkeys } from './lib/useHotkeys';
 import { FocusBar } from './components/FocusBar';
 import { FocusResult } from './components/FocusResult';
@@ -189,6 +210,17 @@ function Shell() {
   const [data, setData] = useState<TodayData | null>(null);
   const [openAssignment, setOpenAssignment] = useState<Assignment | null>(null);
   const [openInbox, setOpenInbox] = useState<InboxItem | null>(null);
+  // The +: a blank piece of work for the editor, or the outline importer.
+  const [newWork, setNewWork] = useState<Assignment | null>(null);
+  const [importingOutline, setImportingOutline] = useState(false);
+  const add = useCallback(
+    (kind: AddKind) => {
+      if (kind === 'work') setNewWork(blankAssignment());
+      else if (kind === 'outline') setImportingOutline(true);
+      else navigate('plan');
+    },
+    [navigate],
+  );
 
   /** Open a piece of work by id: from the loaded day, or read on its own. */
   const openWork = useCallback(
@@ -396,6 +428,20 @@ function Shell() {
         },
       },
       {
+        id: 'do-add-work',
+        group: 'Do',
+        label: 'Add an assignment',
+        keywords: 'new work brief pdf upload homework',
+        run: () => add('work'),
+      },
+      {
+        id: 'do-add-outline',
+        group: 'Do',
+        label: 'Import a course outline',
+        keywords: 'syllabus deadlines pdf',
+        run: () => add('outline'),
+      },
+      {
         id: 'do-mode',
         group: 'Do',
         label: 'Switch light or dark',
@@ -438,7 +484,7 @@ function Shell() {
     for (const c of courses)
       list.push({ id: `course-${c.id}`, group: 'Courses', label: c.code ?? c.name, keywords: c.name, hint: c.code ? c.name : undefined, run: () => navigate('plan', { course: c.id }) });
     return list;
-  }, [palette, nav, prefs, data, navigate, openWork]);
+  }, [palette, nav, prefs, data, navigate, openWork, add]);
 
   // Nothing is rendered until the stored session has been read back, so the
   // sign-in screen does not flash on every launch.
@@ -566,7 +612,7 @@ function Shell() {
   }
 
   return (
-    <AppShell current={screen === 'work' ? 'week' : screen} items={nav} onNavigate={navigate} onPalette={() => setPalette(true)} day={data}>
+    <AppShell current={screen === 'work' ? 'week' : screen} items={nav} onNavigate={navigate} onPalette={() => setPalette(true)} onAdd={add} day={data}>
       <SyncBanner />
 
       {palette && (
@@ -641,6 +687,34 @@ function Shell() {
             userId={session.user.id}
             onClose={() => setOpenAssignment(null)}
             onSaved={() => setRevision((r) => r + 1)}
+          />
+        </Suspense>
+      )}
+      </SheetPresence>
+      <SheetPresence>
+      {newWork && (
+        <Suspense fallback={null}>
+          <AssignmentEditor
+            open
+            isNew
+            assignment={newWork}
+            courses={data?.courses ?? []}
+            userId={session.user.id}
+            onClose={() => setNewWork(null)}
+            onSaved={() => setRevision((r) => r + 1)}
+          />
+        </Suspense>
+      )}
+      </SheetPresence>
+      <SheetPresence>
+      {importingOutline && (
+        <Suspense fallback={null}>
+          <SyllabusImport
+            open
+            userId={session.user.id}
+            courses={data?.courses ?? []}
+            onClose={() => setImportingOutline(false)}
+            onImported={() => setRevision((r) => r + 1)}
           />
         </Suspense>
       )}

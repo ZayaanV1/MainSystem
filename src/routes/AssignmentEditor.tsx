@@ -1,12 +1,14 @@
-import { useEffect, useId, useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { rememberOpened } from '../lib/recent';
 import { afterSettled } from '../lib/history';
 import { goTo, workHref } from '../lib/mentions';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Sheet } from '../components/Sheet';
-import { breakDownTask } from '../lib/assist';
+import { breakDownTask, readFile, readSyllabus } from '../lib/assist';
+import { flush } from '../lib/outbox';
 import {
+  addAssignment,
   addSubtask,
   assignmentDueAt,
   courseVar,
@@ -19,7 +21,7 @@ import {
   type Course,
   type Subtask,
 } from '../lib/planner';
-import { formatDay, localDayKey, localHourMinute, todayKey, wallClockToUTC, type DayKey } from '../lib/time';
+import { addDays, formatDay, localDayKey, localHourMinute, todayKey, wallClockToUTC, type DayKey } from '../lib/time';
 import { durationLabel } from '../lib/blocks';
 import {
   REMINDER_CHOICES,
@@ -109,10 +111,19 @@ export function AssignmentEditor({
   onClose,
   onSaved,
   url,
+  isNew = false,
 }: {
   /** The address while open: "?work=<id>" on the current screen. */
   url?: string;
   open: boolean;
+  /**
+   * Work that does not exist yet, from the tab bar's +. The same sheet, so a
+   * new piece of work offers exactly what editing one does, plus the brief:
+   * pick the PDF and its title and due date are read off it as a suggestion.
+   * Nothing is written until Save. First moves, the work page and Delete
+   * need a stored row, so they wait until it is one.
+   */
+  isNew?: boolean;
   assignment: Assignment;
   courses: Course[];
   subtasks?: Subtask[];
@@ -124,14 +135,23 @@ export function AssignmentEditor({
   // Offered back by an empty Search. Recorded here because every way into a
   // piece of work, from any screen, comes through this sheet.
   useEffect(() => {
-    rememberOpened({ id: assignment.id, title: assignment.title });
-  }, [assignment.id, assignment.title]);
+    if (!isNew) rememberOpened({ id: assignment.id, title: assignment.title });
+  }, [assignment.id, assignment.title, isNew]);
   const [fields, setFields] = useState<AssignmentFields>(opened);
   const gradesOn = moduleOn('grades', usePreferences());
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // Due, opened in place: the quick days and the date and time fields.
-  const [dueOpen, setDueOpen] = useState(false);
+  // Open from the start on new work: the date is the one detail nearly
+  // everyone sets, so it is one tap rather than two.
+  const [dueOpen, setDueOpen] = useState(isNew);
+  const [brief, setBrief] = useState<File | null>(null);
+  const [briefNote, setBriefNote] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  // Set once the insert is queued, so retrying a failed attach does not insert twice.
+  const inserted = useRef(false);
+  const picker = useRef<HTMLInputElement>(null);
+  const reading = useRef<File | null>(null);
   const [remind, setRemind] = useState<ReminderMode>(() => reminderMode(assignment.remind_at, fields.due_day));
   const formId = useId();
 
@@ -171,13 +191,79 @@ export function AssignmentEditor({
     if (!canSave) return;
 
     setSaving(true);
+    setProblem(null);
     try {
+      if (isNew && !inserted.current) {
+        await addAssignment(userId, { id: assignment.id, title: fields.title });
+        inserted.current = true;
+      }
       await updateAssignment(assignment.id, fields);
+      if (isNew && brief) {
+        // The file's row points at the work, so the work has to land first.
+        await flush();
+        const { attachFile } = await import('../lib/workFiles');
+        const r = await attachFile(userId, assignment.id, brief);
+        if (r.error) {
+          onSaved();
+          setProblem(`The work is saved, but the PDF didn’t attach. ${r.error} Save again to retry, or remove the PDF.`);
+          return;
+        }
+      }
       onSaved();
       onClose();
     } finally {
       setSaving(false);
     }
+  }
+
+  /**
+   * Keeps the PDF to attach on Save, and reads its title and due date as a
+   * suggestion. A suggestion only fills what is still empty, never what was
+   * chosen by hand, and it says where it came from so it gets checked.
+   */
+  async function pickBrief(file: File | undefined) {
+    if (!file) return;
+    const { checkFile, displayName } = await import('../lib/workFiles');
+    const bad = checkFile(file);
+    if (bad) {
+      setProblem(bad);
+      return;
+    }
+    setProblem(null);
+    setBrief(file);
+    reading.current = file;
+    const named = displayName(file.name);
+    setFields((f) => (f.title.trim() ? f : { ...f, title: named }));
+
+    setBriefNote('Reading the brief for a due date');
+    const pdf = await readFile(file);
+    // A date outside this window is nearly always a year the model guessed.
+    const result = pdf
+      ? await readSyllabus({ pdf, termFrom: addDays(today, -30), termTo: addDays(today, 365) })
+      : null;
+    // Removed or replaced while it was being read: this answer is for a file no longer here.
+    if (reading.current !== file) return;
+    if (!result?.ok) {
+      setBriefNote('Couldn’t read a date from the brief. Pick one above.');
+      return;
+    }
+    const found = result.items.find((i) => i.due_date) ?? result.items[0];
+    if (!found) {
+      setBriefNote('The brief doesn’t name a deliverable. Pick a date above.');
+      return;
+    }
+    setFields((f) => ({
+      ...f,
+      title: f.title === named ? found.title : f.title,
+      due_day: f.due_day ?? found.due_date,
+      due_time: f.due_day ? f.due_time : found.due_time,
+      weight_percent: f.weight_percent ?? found.weight_percent,
+    }));
+    setBriefNote(
+      found.due_date
+        ? `Due ${formatDay(found.due_date)}${found.due_time ? ` at ${timeLabel(found.due_time)}` : ''}, read from the brief. Check it before saving.`
+        : 'The brief doesn’t state a date. Pick one above.',
+    );
   }
 
   async function remove() {
@@ -204,11 +290,11 @@ export function AssignmentEditor({
       dock
       open={open}
       onClose={onClose}
-      title={assignment.title || 'Edit work'}
+      title={isNew ? 'New assignment' : assignment.title || 'Edit work'}
       // The title is edited where it is read: the row's title flies into
       // this field (Phase B), and there is no second Title field below it.
       titleInput={{ value: fields.title, onChange: (v) => set('title', v), label: 'Title' }}
-      flightFrom={`[data-row="${CSS.escape(assignment.id)}"] .slip-title`}
+      flightFrom={isNew ? undefined : `[data-row="${CSS.escape(assignment.id)}"] .slip-title`}
       url={url}
       bar={
         <button type="submit" form={formId} className="bar-btn" data-tone="strong" disabled={!canSave}>
@@ -217,6 +303,56 @@ export function AssignmentEditor({
       }
     >
       <form id={formId} onSubmit={submit} className="flex flex-col gap-5">
+        {isNew && (
+          <div className="cells">
+            <button type="button" className="cell" onClick={() => picker.current?.click()}>
+              Brief
+              <span className="cell-v" data-tone={brief ? undefined : 'low'}>
+                {brief ? brief.name : 'Upload a PDF'}
+              </span>
+              {chevron}
+            </button>
+            <input
+              ref={picker}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Choose the brief as a PDF"
+              onChange={(e) => {
+                void pickBrief(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            {brief && (
+              <div className="cell-x">
+                {briefNote && (
+                  <p className="type-note text-text-mid" aria-live="polite">
+                    {briefNote}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="bar-btn self-start"
+                  onClick={() => {
+                    reading.current = null;
+                    setBrief(null);
+                    setBriefNote(null);
+                    setProblem(null);
+                  }}
+                >
+                  Remove the PDF
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {problem && (
+          <p role="alert" className="type-note text-t-overdue">
+            {problem}
+          </p>
+        )}
+
         <div className="cells">
           {courses.length > 0 && (
             <label className="cell">
@@ -345,15 +481,20 @@ export function AssignmentEditor({
           )}
         </div>
 
-        <Subtasks
-          assignmentId={assignment.id}
-          userId={userId}
-          subtasks={subtasks}
-          title={fields.title}
-          courseName={course?.name ?? null}
-          notes={fields.notes}
-          onChanged={onSaved}
-        />
+        {/* A ternary, not &&: Subtasks shares a file with a Sheet, and the
+            motion test reads `&& (<Name` there as a sheet shown without
+            SheetPresence. It is a list, not a sheet. */}
+        {isNew ? null : (
+          <Subtasks
+            assignmentId={assignment.id}
+            userId={userId}
+            subtasks={subtasks}
+            title={fields.title}
+            courseName={course?.name ?? null}
+            notes={fields.notes}
+            onChanged={onSaved}
+          />
+        )}
 
         {/*
           Effort, weight and mark are all optional: the weight usually arrives
@@ -460,7 +601,7 @@ export function AssignmentEditor({
           {/* The page for this work: its details, the brief as a PDF and a
               guide to it. Closing this sheet and opening that page is one
               move, so the sheet's history entry is let go of first. */}
-          <a
+          {!isNew && <a
             className="cell"
             href={workHref(assignment.id)}
             onClick={(e) => {
@@ -475,7 +616,7 @@ export function AssignmentEditor({
               PDF, AI guide
             </span>
             {chevron}
-          </a>
+          </a>}
         </div>
 
         <div className="flex flex-col">
@@ -496,7 +637,7 @@ export function AssignmentEditor({
 
         {/* Two taps, because this one cannot be undone. Not a modal on top of
             a modal — the confirmation replaces the row in place. */}
-        <div className="cells">
+        {!isNew && <div className="cells">
           {confirmingDelete ? (
             <>
               <button type="button" className="cell cell-end" onClick={() => void remove()}>
@@ -511,7 +652,7 @@ export function AssignmentEditor({
               Delete
             </button>
           )}
-        </div>
+        </div>}
       </form>
     </Sheet>
   );

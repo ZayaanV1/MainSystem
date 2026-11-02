@@ -43,17 +43,29 @@ export interface NavItem<T extends string> {
   badge?: number;
 }
 
+/** What the + adds. Each opens the sheet that already makes that thing. */
+export type AddKind = 'work' | 'outline' | 'course';
+
+const ADD_CHOICES: { kind: AddKind; label: string; hint: string }[] = [
+  { kind: 'work', label: 'Assignment', hint: 'Upload the brief or type it in' },
+  { kind: 'outline', label: 'Course outline', hint: 'Every deadline in it, checked first' },
+  { kind: 'course', label: 'Course', hint: 'Name and code' },
+];
+
 export function AppShell<T extends string>({
   current,
   items,
   onNavigate,
   onPalette,
+  onAdd,
   day = null,
   children,
 }: {
   current: T;
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
+  /** The + in the bar. Absent where nothing can be added (the specimen). */
+  onAdd?: (kind: AddKind) => void;
   /** Opens the command palette: Vision's top-bar search. */
   onPalette?: () => void;
   /** The loaded day: Vision's island shows it. */
@@ -73,7 +85,7 @@ export function AppShell<T extends string>({
       {vision ? (
         <VisionChrome current={current} items={items} onNavigate={onNavigate} onPalette={onPalette} full={visionDock === 'full'} day={day} />
       ) : (
-        <Rail current={current} items={items} onNavigate={onNavigate} />
+        <Rail current={current} items={items} onNavigate={onNavigate} onAdd={onAdd} />
       )}
 
       {/* min-w-0 so a wide child (a long title, a table) shrinks instead of
@@ -87,7 +99,7 @@ export function AppShell<T extends string>({
       <div data-recede className="min-w-0 flex-1 overflow-x-clip">{children}</div>
 
       <StatusVeil />
-      <TabBar current={current} items={items} onNavigate={onNavigate} />
+      <TabBar current={current} items={items} onNavigate={onNavigate} onAdd={onAdd} />
     </div>
   );
 }
@@ -117,12 +129,16 @@ function TabBar<T extends string>({
   current,
   items,
   onNavigate,
+  onAdd,
 }: {
   current: T;
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
+  onAdd?: (kind: AddKind) => void;
 }) {
-  const [moreState, setMore] = useState(false);
+  // More and + open the same kind of menu from the same bar, one at a time.
+  const [menuOf, setMenuOf] = useState<'more' | 'add' | null>(null);
+  const setMore = (on: boolean) => setMenuOf(on ? 'more' : null);
   const menu = useRef<HTMLDivElement>(null);
   const scrim = useRef<HTMLDivElement>(null);
   const lit = useRef<HTMLSpanElement>(null);
@@ -132,9 +148,11 @@ function TabBar<T extends string>({
   // Turning the iPad with More open must not leave its scrim over the page
   // once the menu is gone.
   useEffect(() => {
-    if (roomy) setMore(false);
+    if (roomy) setMenuOf((m) => (m === 'more' ? null : m));
   }, [roomy]);
-  const more = moreState && !roomy;
+  const more = menuOf === 'more' && !roomy;
+  const adding = menuOf === 'add';
+  const menuOpen = more || adding;
 
   const shown = roomy ? items : items.slice(0, PRIMARY);
   const rest = roomy ? [] : items.slice(PRIMARY);
@@ -160,11 +178,11 @@ function TabBar<T extends string>({
   // The More menu opens from its button and closes back into it, instead of
   // appearing and vanishing.
   useLayoutEffect(() => {
-    if (more) {
+    if (menuOpen) {
       popOpen(menu.current, '100% 100%');
       scrim.current?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' });
     }
-  }, [more]);
+  }, [menuOpen]);
   const closing = useRef(false);
   async function closeMore() {
     if (closing.current) return;
@@ -177,13 +195,38 @@ function TabBar<T extends string>({
 
   return (
     <>
-      {more && (
+      {menuOpen && (
         <div
           ref={scrim}
           className="sheet-scrim fixed inset-0 z-40 lg:hidden"
           onClick={() => void closeMore()}
           aria-hidden
         />
+      )}
+
+      {adding && onAdd && (
+        <div
+          ref={menu}
+          role="menu"
+          aria-label="Add"
+          className="fx-glass tab-menu fixed inset-x-3 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom)+var(--sp-6))] z-50 overflow-hidden rounded-sheet border border-ink-600 md:mx-auto md:max-w-160 lg:hidden"
+        >
+          {ADD_CHOICES.map((c) => (
+            <button
+              key={c.kind}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                void closeMore();
+                onAdd(c.kind);
+              }}
+              className="press-row flex min-h-[var(--tap)] w-full flex-col items-start justify-center border-b border-ink-600 px-4 py-2 text-left last:border-b-0"
+            >
+              <span className="type-label text-text-hi">{c.label}</span>
+              <span className="type-note text-text-mid">{c.hint}</span>
+            </button>
+          ))}
+        </div>
       )}
 
       {more && (
@@ -232,7 +275,7 @@ function TabBar<T extends string>({
               data-slot
               type="button"
               onClick={(e) => {
-                if (more) void closeMore();
+                if (menuOpen) void closeMore();
                 if (!active) popIcon(e.currentTarget.querySelector('svg'));
                 onNavigate(item.id);
               }}
@@ -278,6 +321,26 @@ function TabBar<T extends string>({
             <span className="tab-label">More</span>
           </button>
         )}
+
+        {/* The one filled control in the bar, in the accent: adding is the
+            action the bar is for, so it does not hide among the places. Not a
+            data-slot, so the lit capsule never lands on it. */}
+        {onAdd && (
+          <span className="relative z-10 flex shrink-0 items-center px-1">
+            <button
+              type="button"
+              onClick={() => (adding ? void closeMore() : setMenuOf('add'))}
+              aria-expanded={adding}
+              aria-haspopup="menu"
+              aria-label="Add"
+              className="btn btn-primary tab-add"
+            >
+              <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round">
+                <path d={adding ? 'M6 6l12 12M18 6L6 18' : 'M12 5v14M5 12h14'} />
+              </svg>
+            </button>
+          </span>
+        )}
       </nav>
     </>
   );
@@ -287,11 +350,14 @@ function Rail<T extends string>({
   current,
   items,
   onNavigate,
+  onAdd,
 }: {
   current: T;
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
+  onAdd?: (kind: AddKind) => void;
 }) {
+  const [adding, setAdding] = useState(false);
   const lit = useRef<HTMLSpanElement>(null);
   const rail = useRef<HTMLElement>(null);
   const index = items.findIndex((i) => i.id === current);
@@ -321,6 +387,28 @@ function Rail<T extends string>({
       <div className="mb-6 px-3">
         <span className="type-h2 text-text-hi">Planner</span>
       </div>
+
+      {onAdd && (
+        <div className="mb-4 flex flex-col gap-1">
+          <button type="button" className="btn btn-primary px-4" aria-expanded={adding} onClick={() => setAdding(!adding)}>
+            Add
+          </button>
+          {adding &&
+            ADD_CHOICES.map((c) => (
+              <button
+                key={c.kind}
+                type="button"
+                onClick={() => {
+                  setAdding(false);
+                  onAdd(c.kind);
+                }}
+                className="flex min-h-[var(--tap)] items-center rounded-card px-3 text-left text-text-mid hover:text-text-hi"
+              >
+                <span className="type-label">{c.label}</span>
+              </button>
+            ))}
+        </div>
+      )}
 
       <div className="relative flex flex-col gap-1">
         <span ref={lit} aria-hidden className="nav-lit pointer-events-none absolute inset-x-0 top-0 rounded-card" style={{ opacity: 0 }} />

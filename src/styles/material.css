@@ -2962,6 +2962,14 @@ label.arrange-row {
   transition: color var(--dur-sheet) var(--ease-out);
 }
 
+/* The bar's +: a round accent button, sized to the tap floor so it sits
+   inside the pill without growing it. */
+.tab-add {
+  width: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+}
+
 /* Sentence case, as everywhere else: the uppercase caption made five
    one-word labels the loudest type on the screen. */
 .tab-label {
