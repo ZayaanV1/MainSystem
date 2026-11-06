@@ -23,6 +23,7 @@ import {
   daysBetween,
   endOfDayUTC,
   formatDay,
+  formatTime,
   localDayKey,
   startOfDayUTC,
   type DayKey,
@@ -82,7 +83,7 @@ export async function collectSections(
   const assignmentEnd = endOfDayUTC(addDays(localDay, settings.assignment_window_days), tz).toISOString();
   const eventEnd = endOfDayUTC(addDays(localDay, settings.event_window_days), tz).toISOString();
 
-  const [assignments, events, items, completions] = await Promise.all([
+  const [assignments, events, items, completions, blocks] = await Promise.all([
     db
       .from('assignments')
       .select('title, due_at, course_id')
@@ -107,6 +108,16 @@ export async function collectSections(
       .select('item_id')
       .eq('user_id', userId)
       .eq('local_day', localDay),
+
+    // Today's work plan (Autoplan): when the work is meant to happen.
+    db
+      .from('planned_blocks')
+      .select('starts_at, minutes, assignments(title)')
+      .eq('user_id', userId)
+      .eq('state', 'planned')
+      .gte('starts_at', dayStart)
+      .lte('starts_at', endOfDayUTC(localDay, tz).toISOString())
+      .order('starts_at', { ascending: true }),
   ]);
 
   const sections: DigestSection[] = [];
@@ -137,6 +148,19 @@ export async function collectSections(
       kind: 'events',
       heading: `Coming up in ${settings.event_window_days} days`,
       items: upcomingEvents.map((e) => `${e.title} — ${relativeDay(e.starts_at, localDay, tz)}`),
+    });
+  }
+
+  const planned = (blocks?.data ?? []) as { starts_at: string; minutes: number; assignments?: { title?: string } | null }[];
+  if (planned.length) {
+    sections.push({
+      kind: 'plan',
+      heading: 'Work planned today',
+      items: planned.map((b) => {
+        const start = new Date(b.starts_at);
+        const end = new Date(start.getTime() + b.minutes * 60_000);
+        return `${b.assignments?.title ?? 'work'}, ${formatTime(start, tz)} – ${formatTime(end, tz)}`;
+      }),
     });
   }
 

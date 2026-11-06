@@ -97,7 +97,7 @@ export function clampBytes(text: string, max: number): string {
   return `${out}…`;
 }
 
-export type SectionKind = 'overdue' | 'due' | 'events' | 'today';
+export type SectionKind = 'overdue' | 'due' | 'events' | 'today' | 'plan';
 
 export interface FitSection {
   kind: SectionKind;
@@ -106,7 +106,8 @@ export interface FitSection {
 }
 
 /** Which list gives up items first. Today's checklist is the last to shrink. */
-const SHRINK_ORDER: SectionKind[] = ['events', 'due', 'overdue', 'today'];
+// The plan shrinks first: it is a suggestion, and the app shows it in full.
+const SHRINK_ORDER: SectionKind[] = ['plan', 'events', 'due', 'overdue', 'today'];
 
 /** The number of items hidden behind "and N more" in one section. */
 const more = (n: number) => `and ${n} more`;

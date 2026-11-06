@@ -135,7 +135,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const from = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString();
   const to = new Date(Date.now() + LOOKAHEAD_DAYS * 86_400_000).toISOString();
 
-  const [assignments, events] = await Promise.all([
+  const [assignments, events, blocks] = await Promise.all([
     admin
       .from('assignments')
       .select('id, title, due_at, due_has_time, status, courses(code, name)')
@@ -153,6 +153,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // a duplicate of each meeting that no longer changes when the original
       // does. The app republishes what it owns, and only that.
       .is('feed_id', null)
+      .gte('starts_at', from)
+      .lte('starts_at', to),
+    // The work plan, so blocks sit in the phone's own calendar beside classes.
+    admin
+      .from('planned_blocks')
+      .select('id, starts_at, minutes, assignments(title, courses(code, name))')
+      .eq('user_id', userId)
+      .eq('state', 'planned')
       .gte('starts_at', from)
       .lte('starts_at', to),
   ]);
@@ -194,6 +202,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       end: e.ends_at ? new Date(e.ends_at) : null,
       allDay: Boolean(e.all_day),
       summary: titled(course, e.title),
+      description: null,
+    });
+  }
+
+  // deno-lint-ignore no-explicit-any
+  for (const b of (blocks.data ?? []) as any[]) {
+    const start = new Date(b.starts_at);
+    ics.push({
+      uid: `block-${b.id}@life-planner`,
+      start,
+      end: new Date(start.getTime() + b.minutes * 60_000),
+      allDay: false,
+      summary: `Work: ${titled(courseOf(b.assignments ?? {}), b.assignments?.title ?? 'work')}`,
       description: null,
     });
   }

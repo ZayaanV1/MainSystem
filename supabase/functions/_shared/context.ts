@@ -40,12 +40,20 @@ export interface ContextInput {
     /** Share of the course grade, when known. Lets "what matters most" be answered. */
     weight_percent?: number | null;
   }[];
-  events: { id: string; title: string; kind: string; starts_at: string; all_day: boolean; course?: string | null }[];
+  events: { id: string; title: string; kind: string; starts_at: string; all_day: boolean; course?: string | null; from_calendar?: boolean }[];
   checklist: { id: string; title: string; done_today: boolean; doses_remaining: number | null }[];
   /** Academic standing per course: weight decided against weight on the calendar. */
   grades?: { course: string; weightKnown: number; weightMarked: number; earned: number }[];
   /** What the person wrote on each course's page: office hours, contacts, links. */
   coursePages?: { course: string; office_hours: string; contacts: string; links: { label: string; url: string }[] }[];
+  /** Courses, so Abood can change one by its label. */
+  courses?: { id: string; name: string; code: string | null; archived: boolean }[];
+  /** The work plan's blocks ahead (Autoplan). */
+  blocks?: { id: string; title: string; starts_at: string; minutes: number; pinned: boolean; reason: string | null }[];
+  /** Work the plan cannot fit before its deadline. */
+  atRisk?: { title: string; short: number }[];
+  inbox?: { id: string; body: string }[];
+  goals?: { id: string; title: string; have: number; target: number; unit: string }[];
 }
 
 export interface BuiltContext {
@@ -273,10 +281,40 @@ export function buildContext(input: ContextInput, opts: BuildOptions = {}): Buil
     for (const e of events) {
       const id = label(e.id, 'e', e.title);
       const when = localStamp(e.starts_at, !e.all_day, input.timezone, input.today);
-      lines.push(`  [${id}] ${e.title} — ${e.kind}, ${when}${e.course ? `, course ${e.course}` : ''}`);
+      lines.push(`  [${id}] ${e.title} — ${e.kind}, ${when}${e.course ? `, course ${e.course}` : ''}${e.from_calendar ? ', from a subscribed calendar (cannot be changed here)' : ''}`);
     }
   }
   lines.push('');
+
+  if (input.blocks) {
+    lines.push('WORK PLAN (time the planner set aside for work; it re-plans itself as things change)');
+    if (input.blocks.length === 0) lines.push('  (nothing planned)');
+    for (const b of input.blocks) {
+      const end = new Date(Date.parse(b.starts_at) + b.minutes * 60_000).toISOString();
+      const endClock = localStamp(end, true, input.timezone).split(' ')[2];
+      lines.push(`  [${label(b.id, 'b', b.title)}] ${b.title} — ${localStamp(b.starts_at, true, input.timezone, input.today)} to ${endClock}${b.pinned ? ', pinned' : ''}${b.reason ? `; why: ${b.reason}` : ''}`);
+    }
+    for (const r of input.atRisk ?? []) lines.push(`  CANNOT FIT: ${r.title} needs ${r.short} min more than is free before it is due`);
+    lines.push('');
+  }
+
+  if (input.courses?.length) {
+    lines.push('COURSES');
+    for (const c of input.courses) lines.push(`  [${label(c.id, 'k', c.code ?? c.name)}] ${c.code ? `${c.code} ` : ''}${c.name}${c.archived ? ' (archived)' : ''}`);
+    lines.push('');
+  }
+
+  if (input.inbox?.length) {
+    lines.push('INBOX (thoughts not sorted yet)');
+    for (const i of input.inbox) lines.push(`  [${label(i.id, 'i', oneLine(i.body).slice(0, 60))}] ${oneLine(i.body)}`);
+    lines.push('');
+  }
+
+  if (input.goals?.length) {
+    lines.push('GOALS');
+    for (const g of input.goals) lines.push(`  [${label(g.id, 'g', g.title)}] ${g.title} — ${g.have} of ${g.target}${g.unit ? ` ${g.unit}` : ''}`);
+    lines.push('');
+  }
 
   }
 

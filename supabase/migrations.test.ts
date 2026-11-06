@@ -257,6 +257,7 @@ describe('migrations apply', () => {
       'inbox_items',
       'memory_facts',
       'notification_channels',
+      'planned_blocks',
       'push_subscriptions',
       'subtasks',
       'telegram_link_codes',

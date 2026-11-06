@@ -1,5 +1,8 @@
 import { supabase } from './supabase';
-import { enqueue, type OutboxOp } from './outbox';
+import { enqueue } from './outbox';
+import { undoSteps, type ChangeRow } from '../../supabase/functions/_shared/undo';
+
+export { undoSteps };
 
 /**
  * Apps connected to the planner, and what they changed (Nov 2026;
@@ -16,17 +19,8 @@ export interface ConnectedApp {
   grantedAt: string;
 }
 
-export interface ConnectorChange {
-  id: string;
-  client_id: string | null;
-  tool: string;
-  target_table: 'assignments' | 'events' | 'inbox_items';
-  target_id: string;
-  before: Record<string, unknown> | null;
-  summary: string;
-  created_at: string;
-  undone_at: string | null;
-}
+/** A change an AI made: the app's name for the shared row. */
+export type ConnectorChange = ChangeRow;
 
 export async function loadConnectedApps(): Promise<{ apps: ConnectedApp[]; error: string | null }> {
   const { data, error } = await supabase.auth.oauth.listGrants();
@@ -49,37 +43,6 @@ export async function loadConnectorChanges(limit = 30): Promise<{ changes: Conne
     .order('created_at', { ascending: false })
     .limit(limit);
   return { changes: (data ?? []) as ConnectorChange[], error: error?.message ?? null };
-}
-
-export interface UndoStep {
-  table: string;
-  op: OutboxOp;
-  payload: Record<string, unknown>;
-  match: Record<string, unknown>;
-}
-
-/**
- * What taking a change back writes. A row the app created is removed, except
- * an inbox thought, which is dismissed as the inbox's own Dismiss does; a
- * changed row gets its earlier values back, and a deferral the move wrote is
- * removed with it, so an undone move leaves no trace in the stuck-work count.
- */
-export function undoSteps(change: ConnectorChange, now: Date = new Date()): UndoStep[] {
-  const steps: UndoStep[] = [];
-  const target = { id: change.target_id };
-  if (change.before === null) {
-    steps.push(
-      change.target_table === 'inbox_items'
-        ? { table: 'inbox_items', op: 'update', payload: { dismissed_at: now.toISOString() }, match: target }
-        : { table: change.target_table, op: 'delete', payload: {}, match: target },
-    );
-  } else {
-    const { deferral_id, ...fields } = change.before;
-    steps.push({ table: change.target_table, op: 'update', payload: fields, match: target });
-    if (typeof deferral_id === 'string') steps.push({ table: 'deferrals', op: 'delete', payload: {}, match: { id: deferral_id } });
-  }
-  steps.push({ table: 'connector_changes', op: 'update', payload: { undone_at: now.toISOString() }, match: { id: change.id } });
-  return steps;
 }
 
 /** Through the outbox, like every other write: undo works offline and shows at once. */

@@ -20,8 +20,12 @@
  *   real ones. This is the mechanism that actually stops a confidently wrong
  *   deadline, and it is the reason `referenced` is required rather than nice.
  *
- * Actions are proposals. Nothing is written until it is confirmed, same as
- * syllabus dates and everything else.
+ * Changes (6 Nov 2026): "he should be an ai assistant … edit any assignment
+ * course or item in the app". Abood calls the same tools a connected AI app
+ * does, and they save at once, each recorded with Undo — the rule the
+ * connector was approved under. A delete, or more than five changes at once,
+ * waits for a yes. Every id in a call is still checked against what Abood was
+ * shown, so it cannot change something it made up.
  */
 
 export type ChatActionKind =
@@ -34,9 +38,17 @@ export interface ChatAction {
   [key: string]: unknown;
 }
 
+/** A planner change Abood asked for: a tool from _shared/tools.ts, with real ids. */
+export interface ToolCall {
+  tool: string;
+  args: Record<string, unknown>;
+}
+
 export interface ChatReply {
   reply: string;
+  /** Legacy single proposals (add_assignment, complete_checklist_item). Always null now; old messages keep theirs. */
   action: ChatAction | null;
+  actions: ToolCall[];
   referenced: string[];
   warnings: string[];
   /** Facts about the person worth keeping, as the model offered them. Checked again before storing. */
@@ -56,20 +68,16 @@ export const CHAT_SCHEMA = {
     // conclude there was nothing to remember.
     remember: { type: 'array', items: { type: 'string' } },
     needs_planner: { type: 'boolean' },
-    action: {
-      type: 'object',
-      nullable: true,
-      properties: {
-        kind: {
-          type: 'string',
-          enum: ['add_assignment', 'complete_checklist_item'],
-        },
-        title: { type: 'string', nullable: true },
-        due_date: { type: 'string', nullable: true },
-        due_time: { type: 'string', nullable: true },
-        item_id: { type: 'string', nullable: true },
+    // Planner changes, as calls to the shared tools (_shared/tools.ts). Args are
+    // a JSON object written as text: a free-form object is not something every
+    // provider's structured output accepts.
+    actions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { tool: { type: 'string' }, args: { type: 'string' } },
+        required: ['tool', 'args'],
       },
-      required: ['kind'],
     },
   },
   required: ['reply', 'referenced'],
@@ -161,7 +169,9 @@ export const CHAT_INSTRUCTION = [
   'subject.',
   '',
   'WHAT YOU CAN AND CANNOT DO. You can answer, advise, remember what they',
-  'tell you, and propose planner changes for them to confirm. You text first',
+  'tell you, and change anything in their planner when they ask: work, steps,',
+  'courses, course pages, events they added, the checklist, the inbox, goals,',
+  'the work plan and how it is made, the digest. You text first',
   'on your own — when they go quiet, or on a rhythm they set in the app under',
   'Settings, Abood texts first — but you cannot change that rhythm, set',
   'reminders or schedule anything yourself. Never promise to do something',
@@ -214,17 +224,26 @@ export const CHAT_INSTRUCTION = [
   'short; you will be asked again with the full planner. Otherwise false.',
   '',
   'Items in the data carry short labels in brackets like [w2]. Those are for',
-  '"referenced" and "action" only: in the reply, always call things by their',
+  '"referenced" and "actions" only: in the reply, always call things by their',
   'names, never by a label.',
   '',
   'OUTPUT. List in "referenced" the id of every planner item your answer',
   'relies on, copied exactly from the data; an empty list is fine for',
   'conversation. Never invent an id.',
-  'Set "action" only when they clearly asked you to change something in the',
-  'planner. An action is a proposal they will confirm, so describe it in the',
-  'reply too. Use add_assignment with a title and optional due_date',
-  '(YYYY-MM-DD) and due_time (HH:MM). Use complete_checklist_item with the',
-  'item_id. Otherwise set action to null.',
+  'CHANGES. When they ask you to change, add, move, finish, delete, plan or',
+  'undo something, put one entry per change in "actions": "tool" is a name from',
+  'TOOLS and "args" is a JSON object as text, using the labels from the data',
+  'for ids (e.g. {"id":"w2","due_date":"2026-11-12"}) and course codes for',
+  'courses. Dates are YYYY-MM-DD and times HH:MM, their local time. Changes',
+  'save straight away and the app adds a line saying what changed, so your',
+  'reply says what you are doing in a few words, not that it is done. Deletes',
+  'and more than five changes wait for them to say yes. To find something not',
+  'in the data (finished work, steps, a far date), use a read tool such as',
+  'list_work, search, list_steps or list_schedule: you will be asked again with',
+  'the result. Move a deadline only when they ask for that; to make time for',
+  'work, use the plan tools. Never guess what they meant: if a change is',
+  'unclear, ask instead and leave "actions" empty. With no change asked for,',
+  '"actions" is empty.',
   'Return only the JSON.',
 ].join(' ');
 
@@ -330,6 +349,8 @@ export function validateChat(
   aliases?: Map<string, string>,
   /** Short label -> item name, to put right a label that leaked into the reply. */
   titles?: Map<string, string>,
+  /** Names of the tools Abood may call. */
+  tools: Set<string> = new Set(),
 ): ChatReply {
   const root = raw as {
     reply?: unknown;
@@ -337,6 +358,7 @@ export function validateChat(
     referenced?: unknown;
     remember?: unknown;
     needs_planner?: unknown;
+    actions?: unknown;
   };
 
   const warnings: string[] = [];
@@ -350,8 +372,8 @@ export function validateChat(
   if (titles?.size) {
     // A label in brackets is a citation tacked on after the name ("WeBWorK 3 on friday (w3)"); it goes, rather than
     // becoming the name twice.
-    reply = reply.replace(/\s*\(\[?[wec]\d{1,3}\]?\)/g, '');
-    reply = reply.replace(/\[?\b([wec]\d{1,3})\b\]?/g, (whole, l: string) => titles.get(l) ?? whole);
+    reply = reply.replace(/\s*\(\[?[wecbkig]\d{1,3}\]?\)/g, '');
+    reply = reply.replace(/\[?\b([wecbkig]\d{1,3})\b\]?/g, (whole, l: string) => titles.get(l) ?? whole);
   }
 
   const referenced: string[] = [];
@@ -364,6 +386,7 @@ export function validateChat(
   }
 
   const action = validateAction(root?.action, knownIds, warnings);
+  const actions = validateCalls(root?.actions, knownIds, aliases, tools, warnings);
 
   // Labels back to real ids, AFTER validation against what was shown — so an
   // id the model was never given is refused exactly as before, whatever its
@@ -378,6 +401,7 @@ export function validateChat(
   return {
     reply,
     action,
+    actions,
     referenced: [...new Set(referenced)].map(real),
     warnings,
     remember,
@@ -434,4 +458,62 @@ function validateAction(
   }
 
   return null;
+}
+
+const LABEL = /^[wecbkig]\d{1,3}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The changes, checked before any can run: a known tool, arguments that are
+ * an object, and every id one Abood was actually shown — labels translated to
+ * the real ids here, after the check, exactly as for "referenced".
+ */
+export function validateCalls(
+  raw: unknown,
+  knownIds: Set<string>,
+  aliases: Map<string, string> | undefined,
+  tools: Set<string>,
+  warnings: string[],
+): ToolCall[] {
+  if (!Array.isArray(raw)) return [];
+  const calls: ToolCall[] = [];
+  for (const entry of raw.slice(0, 12)) {
+    const e = entry as { tool?: unknown; args?: unknown };
+    const tool = typeof e?.tool === 'string' ? e.tool.trim() : '';
+    if (!tools.has(tool)) {
+      warnings.push('A change was asked of something this app cannot do, so it was dropped.');
+      continue;
+    }
+    let args: unknown = e.args ?? {};
+    if (typeof args === 'string') {
+      try {
+        args = args.trim() ? JSON.parse(args) : {};
+      } catch {
+        warnings.push('A change came back unreadable, so it was dropped.');
+        continue;
+      }
+    }
+    if (!args || typeof args !== 'object' || Array.isArray(args)) {
+      warnings.push('A change came back unreadable, so it was dropped.');
+      continue;
+    }
+    let unknown = false;
+    const real: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(args as Record<string, unknown>)) {
+      if (typeof v === 'string' && (LABEL.test(v.trim()) || UUID.test(v.trim()))) {
+        const id = v.trim();
+        if (!knownIds.has(id) && !knownIds.has(id.toLowerCase())) {
+          unknown = true;
+          break;
+        }
+        real[k] = aliases?.get(id) ?? id.toLowerCase();
+      } else real[k] = v;
+    }
+    if (unknown) {
+      warnings.push('A change named something that is not in your planner, so it was dropped.');
+      continue;
+    }
+    calls.push({ tool, args: real });
+  }
+  return calls;
 }

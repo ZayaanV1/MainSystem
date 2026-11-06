@@ -1252,7 +1252,7 @@ Arfumg86zW1HUMTeyLMw8C), approved whole and shipped in five pushes,
   files on the course it names. Abood and Search read the pages.
 - **Phase E.** Plain-language capture on the device (`lib/quickParse.ts`);
   command palette (cmd/ctrl+K); exam prep plans; blocks in free time
-  (`lib/suggestBlocks.ts`); drag to reschedule in Week and Month with undo;
+  (`lib/suggestBlocks.ts`, replaced by Autoplan on 6 Nov 2026); drag to reschedule in Week and Month with undo;
   Week's Select for bulk move and done; Today's Defer has undo; home-screen
   badge (today's open work only, never overdue).
 
@@ -2062,6 +2062,66 @@ Not verified end to end: it needs the OAuth server switched on in the
 dashboard, migration 0050 applied and the function deployed, none of which
 this machine's CLI could do (no access token). Tested by unit tests, the
 migration suite and e2e against the mock (consent, undo, disconnect).
+
+### Autoplan, and Abood edits anything — 6 Nov 2026
+
+Asked for: "calendar optimization and planning ai similar to reclaim.ai", then
+"allow abood to change anything … edit any assignment course or item in the
+app". Proposed from a teardown of Reclaim's public docs (git-ignored
+`replica/reclaim.md`) and approved as "Build it all".
+
+**Autoplan** (`_shared/autoplan.ts`, migration 0052). Work with an estimate
+gets `planned_blocks` in free study hours over the next 14 days, and the plan
+re-places itself on every Schedule load and after every AI change. It replaces
+`suggestBlocks`, whose kept blocks became plain "Work on:" events that knew
+nothing about their work. Its rules:
+- Every timed event is busy, with 10 minutes either side.
+- The least room to spare goes first, not the soonest due date.
+- Up next beats everything, and "start after" is honoured.
+- One block per work per day, unless that would miss the deadline.
+- Blocks are 30 to 90 minutes, under a daily cap.
+- Estimates are scaled by the calibration median, from five samples and
+  bounded to 0.5-2.5.
+- Pinned blocks, blocks under way and blocks within 2 hours never move.
+- Done blocks count as progress. Passed, undone blocks simply go and their
+  minutes are planned again: never a miss.
+
+What can't fit is said in minutes ("needs 2 h 30 more than is free before …").
+Unestimated work is counted, never invented. A replan that moved something
+offers Undo, which puts the old blocks back pinned. Blocks are drawn in every
+week style as "Work: …" events, acted on in Schedule's Plan section (Start
+focus, Done, Skip, Pin), and appear in the digest ("Work planned today") and
+the .ics feed. Study hours, days off, the day cap and an on/off switch are in
+Schedule > ⋯ > Plan settings.
+
+**One tool layer** (`_shared/tools.ts`). The connector's tools plus edit tools
+for work, steps, courses, course pages, own events, the checklist, the inbox,
+goals, blocks, plan settings, digest settings and undo. Abood and the Claude
+connector use the same tools.
+- Every write is recorded in `connector_changes`. A delete records the whole
+  row plus restore steps (subtasks, files, relinked course ids), so Undo puts
+  everything back (`_shared/undo.ts`, shared with Settings).
+- Every query filters by user_id, because Abood runs as the service role.
+- Left out on purpose:
+  - Feed events: the next sync reverts them.
+  - Account, keys, channels and linked chats: Abood is reachable over
+    Telegram and iMessage.
+  - Changing a repeating series as a whole: single occurrences only.
+
+**Abood** returns `actions: [{tool, args}]`, with args as JSON text because
+not every provider accepts a free-form object.
+- `validateCalls` drops unknown tools, and any id he was not shown, before
+  translating labels.
+- Writes save at once, and the reply gets a "Changed: …" line from the undo
+  log, never from the model.
+- A delete, or more than five changes, waits: the next "yes" on any door runs
+  it, "no" leaves it, "undo" takes the last change back, all without a model
+  call.
+- Read tools let him look something up and be asked once more.
+- The tool menu (about 900 tokens) is sent only outside confide mode.
+
+This changes rule 6 for Abood from "confirm before" to "visible and reversible
+after", the rule the connector was already approved under.
 
 ## Phase 0 — done, verified 17 Aug 2026
 

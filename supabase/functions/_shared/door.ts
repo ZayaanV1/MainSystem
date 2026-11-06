@@ -20,7 +20,6 @@ import { localDayKey } from './time.ts';
 type Admin = any;
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
-const APP_URL = env('APP_URL');
 const MAX_MESSAGE = 2_000;
 
 export type Via = 'telegram' | 'imessage';
@@ -171,20 +170,18 @@ export async function converse(opts: {
     return;
   }
 
-  const content = result.warnings.length ? `${result.reply}\n\n${result.warnings.join(' ')}` : result.reply;
+  const content = [result.reply, result.warnings.join(' '), result.outcome].filter(Boolean).join('\n\n');
   await admin.from('chat_messages').insert({
     user_id: userId,
     role: 'assistant',
     content,
-    proposed_action: result.action,
+    // Changes waiting for a yes; the next "yes" on any door runs them.
+    proposed_action: result.pending,
     referenced_ids: result.referenced,
     via,
   });
 
   for (const text of textsOf(content)) await send(text);
-  if (result.action) {
-    await send(`nothing changes until you confirm it in the planner${APP_URL ? `: ${APP_URL}` : ''}`);
-  }
 
   // Learned after answering, and said out loud: memory that grows in secret
   // is memory nobody can correct.

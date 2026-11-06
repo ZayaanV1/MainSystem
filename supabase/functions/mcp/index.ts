@@ -18,7 +18,8 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { handleRpc } from '../_shared/mcp.ts';
-import { CONNECTOR_TOOLS, connectorInstructions, type ConnectorCtx } from '../_shared/connector.ts';
+import { connectorInstructions, type ConnectorCtx } from '../_shared/connector.ts';
+import { ALL_TOOLS } from '../_shared/tools.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? '';
@@ -97,7 +98,7 @@ Deno.serve(async (req) => {
   const tz = ((settings?.timezone as string | null) ?? 'UTC').trim() || 'UTC';
 
   const ctx: ConnectorCtx = { db, userId: userData.user.id, clientId, tz, now: new Date() };
-  const response = await handleRpc(message, CONNECTOR_TOOLS, ctx, {
+  const response = await handleRpc(message, ALL_TOOLS, ctx, {
     name: 'student-planner',
     version: '1.0.0',
     instructions: connectorInstructions(tz),

@@ -141,6 +141,10 @@ export interface ChatResponse {
   ok: true;
   reply: string;
   action: Record<string, unknown> | null;
+  /** What Abood actually changed, or could not, as a line after the reply. */
+  outcome: string;
+  /** Changes waiting for a yes (a delete, or more than five at once). */
+  pending: { kind: 'tools'; calls: unknown[]; summary: string[] } | null;
   referenced: string[];
   warnings: string[];
   /** Facts Abood learned from this message, said out loud rather than kept quietly. */
@@ -157,6 +161,8 @@ export async function askChat(message: string): Promise<ChatResponse | AssistFai
     ok: true,
     reply: String(body.reply ?? ''),
     action: (body.action ?? null) as Record<string, unknown> | null,
+    outcome: String(body.outcome ?? ''),
+    pending: (body.pending ?? null) as ChatResponse['pending'],
     referenced: (body.referenced ?? []) as string[],
     warnings: (body.warnings ?? []) as string[],
     learned: (Array.isArray(body.learned) ? body.learned : []) as string[],

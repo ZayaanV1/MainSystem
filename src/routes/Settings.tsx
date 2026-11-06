@@ -1509,7 +1509,8 @@ function ConnectedApps() {
     void load();
   }, [load]);
 
-  const nameOf = (clientId: string | null) => apps?.find((a) => a.clientId === clientId)?.name ?? 'A disconnected app';
+  const nameOf = (clientId: string | null) =>
+    clientId === 'abood' ? 'Abood' : (apps?.find((a) => a.clientId === clientId)?.name ?? 'A disconnected app');
 
   async function disconnect(app: ConnectedApp) {
     const error = await disconnectApp(app.clientId);

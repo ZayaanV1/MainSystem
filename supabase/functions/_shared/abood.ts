@@ -1,3 +1,5 @@
+import { replan } from './autoplan.ts';
+import { asPending, describeCall, isNo, isRead, isUndo, isYes, needsYes, outcomeText, runCalls, TOOL_NAMES, toolMenu, type PendingChange } from './aboodtools.ts';
 import { buildContext, type BuildOptions, type Scope } from './context.ts';
 import { CHAT_INSTRUCTION, CHAT_SCHEMA, scripted, validateChat, type ChatReply } from './chat.ts';
 import type { LlmProvider } from './llm/types.ts';
@@ -55,7 +57,12 @@ const EMBED_DIMS = 768;
 export async function gatherContext(admin: any, userId: string, today: string, tz: string, opts: BuildOptions = {}) {
   const monthOut = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [assignments, events, checklist, completions, weighted, weightedEvents, pages] =
+  // The plan is brought up to date for a planner question, so what Abood reads
+  // about blocks is what the app will show. Never for a confidence or a snapshot.
+  const wantsPlan = !opts.bare && !(opts.scopes && opts.scopes.size === 0) && (!opts.scopes || opts.scopes.has('work'));
+  const plan = wantsPlan ? await replan(admin, userId, tz).catch(() => null) : null;
+
+  const [assignments, events, checklist, completions, weighted, weightedEvents, pages, courses, inbox, goals] =
     await Promise.all([
       admin
         .from('assignments')
@@ -66,7 +73,7 @@ export async function gatherContext(admin: any, userId: string, today: string, t
         .limit(60),
       admin
         .from('events')
-        .select('id, title, kind, starts_at, all_day, courses(code, name)')
+        .select('id, title, kind, starts_at, all_day, feed_id, courses(code, name)')
         .eq('user_id', userId)
         .lte('starts_at', monthOut)
         .gte('starts_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
@@ -102,6 +109,16 @@ export async function gatherContext(admin: any, userId: string, today: string, t
         .select('office_hours, contacts, links, courses(code, name)')
         .eq('user_id', userId)
         .limit(40),
+      admin.from('courses').select('id, name, code, archived').eq('user_id', userId).order('name').limit(60),
+      admin
+        .from('inbox_items')
+        .select('id, body')
+        .eq('user_id', userId)
+        .is('triaged_at', null)
+        .is('dismissed_at', null)
+        .order('created_at')
+        .limit(20),
+      admin.from('goals').select('id, title, have, target, unit').eq('user_id', userId).order('created_at').limit(20),
     ]);
 
   const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
@@ -161,6 +178,7 @@ export async function gatherContext(admin: any, userId: string, today: string, t
       starts_at: e.starts_at,
       all_day: e.all_day,
       course: courseOf(e),
+      from_calendar: Boolean(e.feed_id),
     })),
     // deno-lint-ignore no-explicit-any
     checklist: ((checklist.data ?? []) as any[]).map((c) => ({
@@ -184,6 +202,26 @@ export async function gatherContext(admin: any, userId: string, today: string, t
         contacts: String(p.contacts ?? ''),
         links: Array.isArray(p.links) ? p.links.filter((l: { url?: unknown }) => typeof l?.url === 'string') : [],
       })),
+    courses: (courses.data ?? []) as { id: string; name: string; code: string | null; archived: boolean }[],
+    inbox: (inbox.data ?? []) as { id: string; body: string }[],
+    goals: (goals.data ?? []) as { id: string; title: string; have: number; target: number; unit: string }[],
+    ...(plan
+      ? {
+          blocks: plan.blocks
+            .filter((b) => b.state === 'planned')
+            .slice(0, 30)
+            .map((b) => ({
+              id: b.id,
+              // deno-lint-ignore no-explicit-any
+              title: ((assignments.data ?? []) as any[]).find((a) => a.id === b.assignment_id)?.title ?? 'work',
+              starts_at: b.starts_at,
+              minutes: b.minutes,
+              pinned: b.pinned,
+              reason: b.reason ?? null,
+            })),
+          atRisk: plan.atRisk.map((r) => ({ title: r.title, short: r.short })),
+        }
+      : {}),
   }, opts);
 }
 
@@ -364,7 +402,14 @@ export function courseForFact(fact: string, courses: CourseRef[]): string | null
    ========================================================================= */
 
 export type AskResult =
-  | ({ ok: true; provider: string } & ChatReply)
+  | ({
+      ok: true;
+      provider: string;
+      /** What actually changed, or did not, appended after the reply. Empty when nothing was asked. */
+      outcome: string;
+      /** Changes waiting for a yes, stored on the reply's message. */
+      pending: PendingChange | null;
+    } & ChatReply)
   | { ok: false; failure: string; message: string };
 
 /* ============================================================================
@@ -372,7 +417,7 @@ export type AskResult =
    ========================================================================= */
 
 const WORK =
-  /\b(due|deadlines?|assignments?|homework|hw|quiz(zes)?|exams?|midterms?|finals?|tests?|labs?|lectures?|class(es)?|tutorials?|courses?|projects?|essays?|papers?|reports?|submit\w*|stud(y|ying|ied)|work|busy|free|schedule\w*|calendar|plan\w*|week\w*|today|tonight|tomorrow|yesterday|mon(day)?|tue(s(day)?)?|wed(nesday)?|thu(rs(day)?)?|fri(day)?|sat(urday)?|sun(day)?|next|when|late|overdue|behind|grade\w*|marks?|semester|term|prof(essor)?s?|school|uni(versity)?|campus|room|what now|what's on|agenda|remind\w*|add|ticked|done)\b|\b[A-Z]{3,4}\s?\d{3}\b/i;
+  /\b(due|deadlines?|assignments?|homework|hw|quiz(zes)?|exams?|midterms?|finals?|tests?|labs?|lectures?|class(es)?|tutorials?|courses?|projects?|essays?|papers?|reports?|submit\w*|stud(y|ying|ied)|work|busy|free|schedule\w*|calendar|plan\w*|week\w*|today|tonight|tomorrow|yesterday|mon(day)?|tue(s(day)?)?|wed(nesday)?|thu(rs(day)?)?|fri(day)?|sat(urday)?|sun(day)?|next|when|late|overdue|behind|grade\w*|marks?|semester|term|prof(essor)?s?|school|uni(versity)?|campus|room|what now|what's on|agenda|remind\w*|add|ticked|done|move|change|edit|rename|delete|remove|archive|undo|pin|skip|goals?|inbox|blocks?|study|hours|estimate)\b|\b[A-Z]{3,4}\s?\d{3}\b/i;
 const CHECKLIST =
   /\b(checklist|meds?|medication|pills?|doses?|adderall|creatine|vitamins?|supplements?|habits?|routine|took|take|ticked|tick)\b/i;
 
@@ -462,7 +507,7 @@ export async function askAbood(opts: {
   const [history, memory] = await Promise.all([
     admin
       .from('chat_messages')
-      .select('role, content')
+      .select('id, role, content, proposed_action, action_taken')
       .eq('user_id', userId)
       .eq('failed', false)
       .order('created_at', { ascending: false })
@@ -470,7 +515,52 @@ export async function askAbood(opts: {
     recall(admin, userId, message, geminiKey, embedMeter),
   ]);
 
-  const turns = (((history as { data: unknown }).data ?? []) as { role: string; content: string }[]).reverse();
+  type Turn = { id: string; role: string; content: string; proposed_action: unknown; action_taken: boolean };
+  const turns = (((history as { data: unknown }).data ?? []) as Turn[]).reverse();
+
+  /*
+   * An answer to the last reply rather than a new question: a yes to changes
+   * that were waiting, a no, or "undo". Handled here with no model call, on
+   * every door alike.
+   */
+  const lastReply = [...turns].reverse().find((t) => t.role === 'assistant');
+  const waiting = lastReply && !lastReply.action_taken ? asPending(lastReply.proposed_action) : null;
+  const quick = (reply: string, outcome = ''): AskResult => ({
+    ok: true,
+    provider: 'none',
+    reply,
+    outcome,
+    pending: null,
+    action: null,
+    actions: [],
+    referenced: [],
+    warnings: [],
+    remember: [],
+    needsPlanner: false,
+  });
+  if (waiting && isYes(message)) {
+    const r = await runCalls(admin, userId, tz, waiting.calls);
+    await admin.from('chat_messages').update({ action_taken: true }).eq('user_id', userId).eq('id', lastReply!.id);
+    return quick(r.failed.length && !r.done.length ? 'that did not go through.' : 'done.', outcomeText(r));
+  }
+  if (waiting && isNo(message)) {
+    await admin.from('chat_messages').update({ action_taken: true }).eq('user_id', userId).eq('id', lastReply!.id);
+    return quick('ok, left it as it is.');
+  }
+  if (isUndo(message)) {
+    const r = await runCalls(admin, userId, tz, [{ tool: 'undo_last_change', args: { count: 1 } }]);
+    const { data: last } = await admin
+      .from('connector_changes')
+      .select('summary')
+      .eq('user_id', userId)
+      .not('undone_at', 'is', null)
+      .order('undone_at', { ascending: false })
+      .limit(1);
+    return r.failed.length
+      ? quick('could not undo that.', outcomeText(r))
+      : quick(last?.[0] ? `undone: ${String(last[0].summary).replace(/^./, (c: string) => c.toLowerCase())}.` : 'there was nothing to undo.');
+  }
+
   // The newest stored turn is usually this very message, already saved by
   // the caller; it is said once, below, not twice.
   if (turns.length && turns[turns.length - 1].role === 'user' && turns[turns.length - 1].content === message) turns.pop();
@@ -501,7 +591,7 @@ export async function askAbood(opts: {
       '',
       memoryBlock,
       priorTurns ? `EARLIER IN THIS CONVERSATION\n${priorTurns}\n` : '',
-      mode === 'confide' ? `${CONFIDE_NOTE}\n` : '',
+      mode === 'confide' ? `${CONFIDE_NOTE}\n` : `${toolMenu()}\n`,
       `THEY NOW SAY: ${message}`,
       redo,
     ].join('\n');
@@ -542,7 +632,7 @@ export async function askAbood(opts: {
   // planner, once. Rare by design, and it costs one extra call only when a
   // conversation turned out to need the planner.
   if (result.ok && scopes.size === 0 && mode !== 'planner') {
-    const first = validateChat(result.value, context.knownIds, context.aliases, context.titles);
+    const first = validateChat(result.value, context.knownIds, context.aliases, context.titles, TOOL_NAMES);
     if (first.needsPlanner) {
       used = [undefined, false];
       ({ result, context } = await ask(...used));
@@ -550,7 +640,7 @@ export async function askAbood(opts: {
   }
 
   if (!result.ok) return { ok: false, failure: result.failure, message: result.message };
-  let reply = validateChat(result.value, context.knownIds, context.aliases, context.titles);
+  let reply = validateChat(result.value, context.knownIds, context.aliases, context.titles, TOOL_NAMES);
 
   /*
    * A reply that reads like a script is rewritten once, with the model told
@@ -573,7 +663,7 @@ export async function askAbood(opts: {
       ].join('\n');
       const second = await ask(...used, redo);
       if (second.result.ok) {
-        const retried = validateChat(second.result.value, second.context.knownIds, second.context.aliases, second.context.titles);
+        const retried = validateChat(second.result.value, second.context.knownIds, second.context.aliases, second.context.titles, TOOL_NAMES);
         if (scripted(retried.reply, earlier).length < problems.length) {
           reply = retried;
           result = second.result;
@@ -581,5 +671,39 @@ export async function askAbood(opts: {
       }
     }
   }
-  return { ok: true, provider: result.provider, ...reply };
+  /*
+   * A look-up first: Abood asked to read something he was not shown (finished
+   * work, steps, a far date). It is read, and he is asked once more with the
+   * result; the ids in it become ones he may act on.
+   */
+  const reads = reply.actions.filter(isRead).slice(0, 3);
+  if (reads.length) {
+    const looked = await runCalls(admin, userId, tz, reads);
+    const seen = looked.read.join('\n\n');
+    const again = await ask(...used, `\nYOU LOOKED THIS UP (ids here may be used in actions as they are):\n${seen || looked.failed.join(' ')}\nNow answer them.`);
+    if (again.result.ok) {
+      for (const id of seen.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? []) again.context.knownIds.add(id.toLowerCase());
+      reply = validateChat(again.result.value, again.context.knownIds, again.context.aliases, again.context.titles, TOOL_NAMES);
+      context = again.context;
+      result = again.result;
+    }
+  }
+
+  // The changes. Real ids by now; names for the yes question come from the context's labels.
+  const writes = reply.actions.filter((c) => !isRead(c));
+  const names = new Map<string, string>();
+  for (const [label, id] of context.aliases ?? []) {
+    const t = context.titles?.get(label);
+    if (t) names.set(id, t);
+  }
+  let outcome = '';
+  let pending: PendingChange | null = null;
+  if (writes.length && needsYes(writes)) {
+    const summary = writes.map((c) => describeCall(c, names));
+    pending = { kind: 'tools', calls: writes, summary };
+    outcome = `Waiting for a yes: ${summary.join('; ')}. Say yes to go ahead, or no to leave it.`;
+  } else if (writes.length) {
+    outcome = outcomeText(await runCalls(admin, userId, tz, writes));
+  }
+  return { ok: true, provider: result.ok ? result.provider : 'none', ...reply, outcome, pending };
 }

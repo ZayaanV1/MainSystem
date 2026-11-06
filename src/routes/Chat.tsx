@@ -24,9 +24,11 @@ import { AboodChannels, AboodMemory } from '../components/VisionAbood';
  * user's rows, it must cite the ids it used, and ids it was never given are
  * dropped before this screen sees them.
  *
- * Nothing is written without confirmation. An action arrives as a proposal
- * with a button, exactly like an extracted syllabus date, and
- * declining leaves the proposal in the transcript rather than erasing it.
+ * Changes save at once and say so (6 Nov 2026): Abood edits through the same
+ * tools as a connected AI app, each change recorded with Undo. A delete, or
+ * more than five changes at once, arrives as a proposal with a Yes button,
+ * the same as saying yes on Telegram, and declining leaves the proposal in
+ * the transcript rather than erasing it.
  */
 /** The questions people ask first, offered on an empty conversation. */
 const STARTERS = [
@@ -124,15 +126,21 @@ export function Chat({ courses, mentions, onBack, onChanged }: {
       );
     }
 
+    // A yes or no answers the change that was waiting; the server marked it.
+    const answered = /^(y|ya|yes|yeah|yep|yup|sure|ok|okay|do it|go ahead|confirm|go for it|please do|yes please|n|no|nope|nah|cancel|don'?t|stop|leave it)[\s.!]*$/i.test(text);
     const theirs = await saveMessage(userId, {
       role: 'assistant',
-      content: result.warnings.length
-        ? `${result.reply}\n\n${result.warnings.join(' ')}`
-        : result.reply,
-      proposed_action: result.action,
+      content: [result.reply, result.warnings.join(' '), result.outcome].filter(Boolean).join('\n\n'),
+      proposed_action: result.pending ?? result.action,
       referenced_ids: result.referenced,
     });
-    if (theirs) setMessages((m) => [...(m ?? []), theirs]);
+    if (theirs)
+      setMessages((m) => [
+        ...(m ?? []).map((x) => (answered && x.proposed_action?.kind === 'tools' ? { ...x, action_taken: true } : x)),
+        theirs,
+      ]);
+    // Abood changed something: the rest of the app reads it again.
+    if (result.outcome.startsWith('Changed') || answered) onChanged();
   }
 
   /**
@@ -145,6 +153,11 @@ export function Chat({ courses, mentions, onBack, onChanged }: {
   async function carryOut(message: ChatMessage) {
     const action = message.proposed_action;
     if (!action || doing) return;
+    // Changes Abood is waiting on are answered the way they are on Telegram: with a yes.
+    if (action.kind === 'tools') {
+      void send('yes');
+      return;
+    }
 
     setDoing(message.id);
     setProblem(null);
@@ -303,10 +316,10 @@ export function Chat({ courses, mentions, onBack, onChanged }: {
 
             {m.proposed_action && (
               <div className="mat mat-raised mt-2 flex flex-col gap-2 p-4">
-                <p className="kicker">{m.action_taken ? 'Done' : 'Proposed'}</p>
+                <p className="kicker">{m.action_taken ? (m.proposed_action.kind === 'tools' ? 'Answered' : 'Done') : 'Waiting for a yes'}</p>
                 {(m.action_taken || ACTIONABLE.has(m.proposed_action.kind as string)) && (
                   <p className="type-note text-text-low">
-                    {m.action_taken ? 'Done.' : 'Nothing is saved until you tap this.'}
+                    {m.action_taken ? 'Answered.' : 'Nothing is saved until you tap this or say yes.'}
                   </p>
                 )}
                 <p className="type-body text-text-hi">{describe(m.proposed_action, courses)}</p>
@@ -317,7 +330,7 @@ export function Chat({ courses, mentions, onBack, onChanged }: {
                       disabled={doing === m.id}
                       onClick={() => void carryOut(m)}
                     >
-                      {doing === m.id ? 'Doing it' : 'Do it'}
+                      {doing === m.id ? 'Doing it' : m.proposed_action.kind === 'tools' ? 'Yes, do it' : 'Do it'}
                     </Button>
                   </div>
                 )}
@@ -415,7 +428,7 @@ export function Chat({ courses, mentions, onBack, onChanged }: {
  * food and weight proposals from before the diet tracker was removed; they stay
  * readable, but without a button that would do nothing.
  */
-const ACTIONABLE = new Set(['add_assignment', 'complete_checklist_item']);
+const ACTIONABLE = new Set(['add_assignment', 'complete_checklist_item', 'tools']);
 
 /**
  * A proposed due date the way a person checks one: with its weekday.
@@ -439,6 +452,7 @@ function describe(action: Record<string, unknown>, courses: Course[]): string {
     return `Add "${action.title}"${dueWords(action.due_date, action.due_time)}.`;
   }
   if (kind === 'complete_checklist_item') return 'Tick that off for today.';
+  if (kind === 'tools') return `${((action.summary as string[] | undefined) ?? []).join('; ').replace(/^./, (c) => c.toUpperCase())}.`;
   if (!ACTIONABLE.has(kind)) return 'An older suggestion. That kind of change is no longer part of the app.';
 
   void courses;

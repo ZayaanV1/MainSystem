@@ -38,14 +38,14 @@ const EVENT_KINDS = ['exam', 'lab', 'presentation', 'other'] as const;
 
 /* ---- shaping what the model reads ---------------------------------------- */
 
-interface CourseRow {
+export interface CourseRow {
   id: string;
   name: string;
   code: string | null;
   archived: boolean;
 }
 
-function when(iso: string | null, hasTime: boolean, tz: string): string | null {
+export function when(iso: string | null, hasTime: boolean, tz: string): string | null {
   if (!iso) return null;
   const at = new Date(iso);
   return hasTime ? `${localDayKey(at, tz)} ${formatTime(at, tz)}` : localDayKey(at, tz);
@@ -57,7 +57,7 @@ function courseLabel(courses: CourseRow[], id: string | null): string | null {
 }
 
 // deno-lint-ignore no-explicit-any
-function workOut(a: any, courses: CourseRow[], tz: string) {
+export function workOut(a: any, courses: CourseRow[], tz: string) {
   return {
     id: a.id,
     title: a.title,
@@ -70,7 +70,7 @@ function workOut(a: any, courses: CourseRow[], tz: string) {
 }
 
 // deno-lint-ignore no-explicit-any
-function eventOut(e: any, courses: CourseRow[], tz: string) {
+export function eventOut(e: any, courses: CourseRow[], tz: string) {
   const start = new Date(e.starts_at);
   return {
     id: e.id,
@@ -84,16 +84,16 @@ function eventOut(e: any, courses: CourseRow[], tz: string) {
   };
 }
 
-const json = (v: unknown) => JSON.stringify(v, null, 1);
+export const json = (v: unknown) => JSON.stringify(v, null, 1);
 
 // deno-lint-ignore no-explicit-any
-async function must(q: PromiseLike<{ data: any; error: { message: string } | null }>): Promise<any> {
+export async function must(q: PromiseLike<{ data: any; error: { message: string } | null }>): Promise<any> {
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   return data;
 }
 
-async function loadCourses(ctx: ConnectorCtx, withArchived = false): Promise<CourseRow[]> {
+export async function loadCourses(ctx: ConnectorCtx, withArchived = false): Promise<CourseRow[]> {
   let q = ctx.db.from('courses').select('id, name, code, archived').eq('user_id', ctx.userId).order('name');
   if (!withArchived) q = q.eq('archived', false);
   return (await must(q)) ?? [];
@@ -121,7 +121,7 @@ export function dueInstant(dayKey: DayKey, hhmm: string | null, tz: string): str
   return wallClockToUTC(dayKey, h, m, 0, tz).toISOString();
 }
 
-async function record(ctx: ConnectorCtx, tool: string, table: string, id: string, before: unknown, summary: string) {
+export async function record(ctx: ConnectorCtx, tool: string, table: string, id: string, before: unknown, summary: string) {
   const { error } = await ctx.db.from('connector_changes').insert({
     user_id: ctx.userId,
     client_id: ctx.clientId,
@@ -497,7 +497,8 @@ export function connectorInstructions(tz: string): string {
   return [
     "This is the user's student planner. Every date and time you read or write is in their time zone, " + tz + '.',
     'Read before you write: use get_today, list_work or search to find ids. Changes save immediately and the user can undo them in the app, under Settings, Connected apps.',
-    'Nothing can be deleted through this connection; if the user wants something removed, tell them to do it in the app.',
+    'Anything can be changed: work and its steps, courses and course pages, events the user added, the checklist, the inbox, goals, the work plan and its settings. Deleting asks the user first in your app; Undo in the planner restores what a delete removed.',
+    'Events from a subscribed calendar, the account itself, AI keys and notification channels cannot be changed here.',
     'Never invent a deadline. If a date is unclear, ask the user or put the thought in the inbox.',
   ].join(' ');
 }

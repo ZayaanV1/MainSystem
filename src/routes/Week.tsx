@@ -16,6 +16,7 @@ import {
   type Assignment,
   type Course,
   type InboxItem,
+  type PlannerEvent,
   type TodayData,
   loadCalibrationPairs,
 } from '../lib/planner';
@@ -35,9 +36,11 @@ import { UndoBar } from '../components/UndoBar';
 import { useDragToDay } from '../lib/useDragToDay';
 import { useAuth } from '../lib/auth';
 import { monthDay, weekdayShort } from '../lib/rowWhen';
+import { useAutoplan } from '../lib/autoplan';
+import { PlanSection } from './PlanSection';
 
-// Loaded on the tap: the block arithmetic is not needed to draw the week.
-const PlanBlocks = lazyRetry(() => import('./PlanBlocks'), (m) => m.PlanBlocks);
+// Loaded on the tap: plan settings are not needed to draw the week.
+const PlanSettingsSheet = lazyRetry(() => import('./PlanSettings'), (m) => m.PlanSettingsSheet);
 
 /**
  * Schedule — everything dated, and the week at a glance.
@@ -76,11 +79,11 @@ export function Week({
   onOpenInbox: (item: InboxItem) => void;
   /** Takes you where work is added. Used only by the empty state. */
   onPlan: () => void;
-  /** Something was added here (suggested blocks) that the day should re-read. */
+  /** Something was changed here that the day should re-read. */
   onChanged?: () => void;
 }) {
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
-  const [planning, setPlanning] = useState(false);
+  const [planSettings, setPlanSettings] = useState(false);
   // The ⋯ menu, open at the button it was opened from (the title row's, or
   // the compact bar's once the title has scrolled away).
   const [menuAt, setMenuAt] = useState<HTMLElement | null>(null);
@@ -92,6 +95,8 @@ export function Week({
    * bar takes it back exactly, deferral record and all.
    */
   const { session } = useAuth();
+  // The work plan, re-placed whenever the day's data is read again.
+  const plan = useAutoplan(session?.user.id ?? null, data);
   const page = useRef<HTMLElement>(null);
   const [moved, setMoved] = useState<{ message: string; undo: () => Promise<void> } | null>(null);
   /*
@@ -200,13 +205,34 @@ export function Week({
     const keep = <T extends { course_id: string | null }>(rows: T[]) =>
       courseFilter ? rows.filter((r) => r.course_id === courseFilter) : rows;
 
+    // Planned blocks are drawn as events, in every style, beside what they were fitted around.
+    const blocks: PlannerEvent[] = plan.blocks
+      .filter((b) => b.state === 'planned')
+      .flatMap((b) => {
+        const a = data?.assignments.find((x) => x.id === b.assignment_id);
+        if (!a) return [];
+        return [
+          {
+            id: `block:${b.id}`,
+            course_id: a.course_id,
+            title: `Work: ${a.title}`,
+            kind: 'other' as const,
+            starts_at: b.starts_at,
+            ends_at: new Date(Date.parse(b.starts_at) + b.minutes * 60_000).toISOString(),
+            all_day: false,
+            location: null,
+            source: 'Work plan',
+          },
+        ];
+      });
+
     return groupWeek(
       keep(data?.assignments ?? []),
-      keep(data?.events ?? []),
+      keep([...(data?.events ?? []), ...blocks].sort((x, y) => x.starts_at.localeCompare(y.starts_at))),
       today,
       WEEK_DAYS,
     );
-  }, [data, courseFilter, today]);
+  }, [data, courseFilter, today, plan.blocks]);
 
   const courseFor = (id: string | null) => courses.find((c) => c.id === id);
   const progressFor = (id: string) => subtaskProgress(data?.subtasks ?? [], id);
@@ -259,7 +285,6 @@ export function Week({
     grouping.days.every((d) => d.assignments.length === 0 && d.events.length === 0);
 
   const canSelect = Boolean(data?.assignments.some((a) => a.status !== 'done'));
-  const canPlan = Boolean(data?.assignments.some((a) => a.status !== 'done' && a.due_at));
   const listStyle = style === 'list';
 
   const menuButton = (
@@ -355,9 +380,9 @@ export function Week({
       </div>
 
       <SheetPresence>
-        {planning && data && (
+        {planSettings && session && (
           <Suspense fallback={null}>
-            <PlanBlocks data={data} onClose={() => setPlanning(false)} onAdded={() => onChanged?.()} />
+            <PlanSettingsSheet userId={session.user.id} onClose={() => setPlanSettings(false)} onSaved={plan.refresh} />
           </Suspense>
         )}
       </SheetPresence>
@@ -395,11 +420,12 @@ export function Week({
       )}
 
       <UndoBar
-        message={moved?.message ?? null}
-        onDismiss={() => setMoved(null)}
+        message={moved?.message ?? plan.moved?.message ?? null}
+        onDismiss={() => (moved ? setMoved(null) : plan.clearMoved())}
         onUndo={() => {
-          const m = moved;
-          setMoved(null);
+          const m = moved ?? plan.moved;
+          if (moved) setMoved(null);
+          else plan.clearMoved();
           void m?.undo();
         }}
       />
@@ -456,6 +482,26 @@ export function Week({
         </div>
       )}
 
+      {session && data && !courseFilter && (
+        <PlanSection
+          userId={session.user.id}
+          blocks={plan.blocks}
+          atRisk={plan.atRisk}
+          unsized={plan.unsized}
+          disabled={plan.disabled}
+          error={plan.error}
+          assignments={data.assignments}
+          courses={courses}
+          onOpenAssignment={onOpenAssignment}
+          onSettings={() => setPlanSettings(true)}
+          onChanged={() => {
+            plan.refresh();
+            onChanged?.();
+          }}
+          onUndoable={(message, undo) => setMoved({ message, undo })}
+        />
+      )}
+
       {grouping.later.length > 0 && workList('Later', grouping.later)}
 
       {grouping.undated.length > 0 &&
@@ -485,12 +531,10 @@ export function Week({
                 Select
               </button>
             )}
-            {canPlan && (
-              <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => setPlanning(true))}>
-                Find time for this week’s work
-              </button>
-            )}
-            {(canSelect || canPlan) && <div role="separator" className="pop-sep" />}
+            <button type="button" role="menuitem" className="pop-item" onClick={() => choose(() => setPlanSettings(true))}>
+              Plan settings
+            </button>
+            <div role="separator" className="pop-sep" />
 
             <p className="pop-label" role="presentation">
               Style

@@ -33,6 +33,7 @@ export const EXPORTED: Record<string, string> = {
     'weekly_review_enabled', 'weekly_review_weekday', 'onboarded_at', 'abood_checkins',
     'abood_checkin_every_hours', 'abood_checkin_from', 'abood_checkin_until',
     'theme', 'today_order', 'today_hidden', 'modules_off', 'board', 'backdrop',
+    'study_hours', 'plan_off_days', 'plan_day_cap', 'autoplan',
   ].join(','),
   courses: '*',
   course_pages: '*',
@@ -58,6 +59,7 @@ export const EXPORTED: Record<string, string> = {
   imessage_bridges: 'user_id,address,last_seen,created_at',
   ai_usage: '*',
   connector_changes: '*',
+  planned_blocks: '*',
 };
 
 export const NOT_EXPORTED = ['telegram_link_codes', 'imessage_outbox'] as const;

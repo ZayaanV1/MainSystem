@@ -22,6 +22,8 @@ export interface ToolDef<C> {
   inputSchema: Record<string, unknown>;
   /** Changes nothing: lets apps skip their allow prompt for it. */
   readOnly: boolean;
+  /** Removes something: apps ask before it, and Abood confirms first. */
+  destructive?: boolean;
   run: (args: Record<string, unknown>, ctx: C) => Promise<string>;
 }
 
@@ -77,7 +79,7 @@ export async function handleRpc<C>(
           name: t.name,
           description: t.description,
           inputSchema: t.inputSchema,
-          annotations: { readOnlyHint: t.readOnly, destructiveHint: false },
+          annotations: { readOnlyHint: t.readOnly, destructiveHint: Boolean(t.destructive) },
         })),
       });
     case 'tools/call': {

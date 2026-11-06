@@ -103,6 +103,22 @@ describe('the real digest', () => {
       checklist_completions: [{ user_id: USER, item_id: 'cre', local_day: DAY }],
     });
 
+  it('lists the work planned today, in local time, and only planned blocks', async () => {
+    const s = await collectSections(
+      fakeDb({
+        planned_blocks: [
+          { user_id: USER, state: 'planned', starts_at: '2026-09-14T18:00:00.000Z', minutes: 90, assignments: { title: 'Essay draft' } },
+          { user_id: USER, state: 'done', starts_at: '2026-09-14T14:00:00.000Z', minutes: 60, assignments: { title: 'Done already' } },
+          { user_id: USER, state: 'planned', starts_at: '2026-09-15T18:00:00.000Z', minutes: 60, assignments: { title: 'Tomorrow' } },
+        ],
+      }),
+      USER,
+      SETTINGS,
+      DAY,
+    );
+    expect(s).toEqual([{ kind: 'plan', heading: 'Work planned today', items: ['Essay draft, 2:00 p.m. – 3:30 p.m.'] }]);
+  });
+
   it('calls overdue work out first', async () => {
     const s = await collectSections(db(), USER, SETTINGS, DAY);
     expect(s[0].heading).toBe('Overdue');
