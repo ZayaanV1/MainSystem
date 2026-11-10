@@ -20,8 +20,8 @@ let pending: Promise<Result> | null = null;
 export function startupSettings(): Promise<Result> {
   if (!pending) {
     // A real promise, not the query builder: awaiting a builder twice sends the request twice.
-    pending = read().then((r) => r);
+    pending = Promise.resolve(read());
     setTimeout(() => (pending = null), 2000);
   }
-  return pending;
+  return pending as Promise<Result>;
 }
