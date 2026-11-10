@@ -7,7 +7,6 @@ const from = (origin?: string) => new Request('https://x.test/fn', { headers: or
 describe('corsFor', () => {
   it.each([
     APP,
-    'https://my-branch-abc123.vercel.app',
     'http://localhost:5173',
     'http://127.0.0.1:5199',
     'capacitor://localhost',
@@ -15,7 +14,7 @@ describe('corsFor', () => {
     expect(corsFor(from(origin), APP)['Access-Control-Allow-Origin']).toBe(origin);
   });
 
-  it.each(['https://evil.example', 'https://vercel.app.evil.example', 'http://localhost.evil.example', 'null'])(
+  it.each(['https://evil.example', 'https://someone-elses-site.vercel.app', 'https://vercel.app.evil.example', 'http://localhost.evil.example', 'null'])(
     'answers %s with the app’s own address, so its browser refuses',
     (origin) => {
       expect(corsFor(from(origin), APP)['Access-Control-Allow-Origin']).toBe(APP);

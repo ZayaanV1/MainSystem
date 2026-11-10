@@ -8,7 +8,7 @@
  * with the only difference, the extra headers a function accepts, as an
  * argument.
  *
- * Allowed: the app's own address, any *.vercel.app preview, localhost for
+ * Allowed: the app's own address (not any *.vercel.app: anyone can host there), localhost for
  * development, and the native shell's scheme. Anything else is told the app's
  * address and so is refused by its own browser, which is the point.
  *
@@ -27,7 +27,6 @@ export function corsFor(req: Request, appUrl: string, extraHeaders = ''): Record
   const origin = req.headers.get('Origin') ?? '';
   const allowed =
     origin === appUrl ||
-    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
     /^http:\/\/localhost(:\d+)?$/i.test(origin) ||
     /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
     // The native iOS shell (Capacitor) loads the bundle from this scheme.

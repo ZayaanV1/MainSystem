@@ -2147,6 +2147,17 @@ and built first:
   and the litmus script were replaced with invented ones. They are still in
   the git history; rewriting it is a separate, destructive decision.
 
+Then, the same day: the Content-Security-Policy is enforced (no violations
+on Today, Schedule, Month or Settings in Chrome first); functions no longer
+accept every `*.vercel.app` origin, only `APP_URL`; the undo log is pruned at
+90 days (0053); the board's tick has a 44 by 30 px target, the most the row
+pitch allows; and App's start-up effects key on the account id, not the
+session object, which a token refresh replaces and which re-ran three
+settings reads and a second load of Today on every open.
+
+Docker is not running on the owner's Mac, so functions deploy with
+`npx supabase functions deploy --use-api`.
+
 **Needs the owner:** `npx supabase functions deploy`, since none of the
 three server fixes is live until then. The litmus script has not been
 re-run against the changed prompt.

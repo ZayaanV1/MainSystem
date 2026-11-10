@@ -153,6 +153,10 @@ function changeScreen(
 
 function Shell() {
   const { session, loading, recovering } = useAuth();
+  // Effects key on the account, not the session object: a token refresh or a
+  // return to the tab hands over a new object for the same person, and that
+  // re-ran the whole start-up (three settings reads and a reload of the day).
+  const userId = session?.user.id;
   const [screen, setScreen] = useState<Screen>(() => currentRoute().screen);
   /** The piece of work whose page is open, when the screen is 'work'. */
   const [workId, setWorkId] = useState<string | null>(() => currentRoute().item ?? null);
@@ -358,13 +362,13 @@ function Shell() {
   // Writes are tagged with the account that queued them, so a shared device
   // never replays one account's changes as another's.
   useEffect(() => {
-    void setOutboxOwner(session?.user.id ?? null);
-  }, [session]);
+    void setOutboxOwner(userId ?? null);
+  }, [userId]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!userId) return;
 
-    void adoptAccountTimezone(session.user.id).finally(() => setZoneReady(true));
+    void adoptAccountTimezone(userId).finally(() => setZoneReady(true));
     // The account's theme, Today's arrangement and its modules; cached, so
     // this only corrects a device that has not seen the latest choice.
     void adoptPreferences();
@@ -375,7 +379,7 @@ function Shell() {
     // iOS invalidates push subscriptions while the app is closed and says
     // nothing. Re-subscribing on every launch is the only defence.
     void refreshSubscription();
-  }, [session]);
+  }, [userId]);
 
   /*
    * Subscribed calendars, kept current while the app is in front.
@@ -388,9 +392,9 @@ function Shell() {
   const prefs = usePreferences();
   const feedsOn = moduleOn('feeds', prefs);
   useEffect(() => {
-    if (!session || !zoneReady || !feedsOn) return;
+    if (!userId || !zoneReady || !feedsOn) return;
     return keepFeedsLive();
-  }, [session, zoneReady, feedsOn]);
+  }, [userId, zoneReady, feedsOn]);
 
   // Today's count on the home-screen icon (lib/badge.ts), kept current as
   // the day loads and as work is ticked off.
