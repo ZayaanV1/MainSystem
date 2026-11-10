@@ -242,12 +242,11 @@ function TabBar<T extends string>({
                 onNavigate(item.id);
                 void closeMore();
               }}
-              className={[
-                'press-row flex min-h-[var(--tap)] w-full items-center gap-3 border-b border-ink-600 px-4 text-left last:border-b-0',
-                item.id === current ? 'text-text-hi' : 'text-text-mid',
-              ].join(' ')}
+              aria-current={item.id === current ? 'page' : undefined}
+              // Labels stay text-hi: over the dimmed page the glass is mid-grey, and text-mid measured about 3:1 there.
+              className="press-row flex min-h-[var(--tap)] w-full items-center gap-3 border-b border-ink-600 px-4 text-left text-text-hi last:border-b-0"
             >
-              <span aria-hidden className="shrink-0 text-text-low">{item.icon}</span>
+              <span aria-hidden className={['shrink-0', item.id === current ? 'text-text-hi' : 'text-text-mid'].join(' ')}>{item.icon}</span>
               <span className="type-label">{item.label}</span>
             </button>
           ))}
