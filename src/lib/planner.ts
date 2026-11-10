@@ -1,3 +1,4 @@
+import { startupSettings } from './startupSettings';
 import { supabase } from './supabase';
 import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
@@ -204,7 +205,7 @@ export const EVENT_WINDOW_DAYS = 60;
  * Called once from the shell, awaited before the first render.
  */
 export async function adoptAccountTimezone(userId: string): Promise<string> {
-  const { data, error } = await supabase.from('app_settings').select('timezone').limit(1);
+  const { data, error } = await startupSettings();
 
   /*
    * A failed read is not an answer. It used to read as "nobody has chosen",
@@ -901,7 +902,7 @@ export async function finishOnboarding(userId: string): Promise<void> {
  * a choice, and showing it again next launch would be the app overruling them.
  */
 export async function needsOnboarding(): Promise<boolean> {
-  const { data, error } = await supabase.from('app_settings').select('onboarded_at').limit(1);
+  const { data, error } = await startupSettings();
   /*
    * A failed read is not an answer. It read as "never onboarded" — `data` is
    * null on error — so an existing account whose token was mid-refresh at

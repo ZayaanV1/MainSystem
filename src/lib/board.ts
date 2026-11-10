@@ -1,3 +1,4 @@
+import { startupSettings } from './startupSettings';
 import { useSyncExternalStore } from 'react';
 import { supabase } from './supabase';
 
@@ -267,7 +268,7 @@ export function useBoard(): Widget[] {
  */
 export async function adoptBoard(): Promise<void> {
   if (adopted) return;
-  const { data, error } = await supabase.from('app_settings').select('board').limit(1);
+  const { data, error } = await startupSettings();
   if (error || !data?.[0]) return;
   adopted = true;
   set(normaliseBoard((data[0] as { board: unknown }).board));

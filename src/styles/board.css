@@ -300,7 +300,9 @@
 /* The tick finishes work while the row opens it, so it needs its own target:
    44 px wide, and as tall as the 31 px row pitch allows without two ticks'
    targets overlapping. */
-.bw-tick::before { content: ''; position: absolute; inset: -4px -11px; }
+.bw-tick::before { content: ''; position: absolute; inset: -4px -10px -4px -11px; }
+/* The list clips its rows; this moves the clip edge out so the tick's target reaches left of it. */
+.bw-rows:has(.bw-tick) { margin-inline-start: -11px; padding-inline-start: 11px; }
 .bw-tick[aria-pressed='true'] { background: var(--t-done); border-color: var(--t-done); }
 .bw-tick[aria-pressed='true']::after { opacity: 1; transform: translate(-50%, -50%) rotate(-45deg) scale(1); }
 .bw-tick:active { scale: 0.88; }

@@ -302,7 +302,8 @@ export function Today({
   // without a refresh. Cheap: at most sixty rows of two integers. Keyed on the
   // READ, not the optimistic view, which changes on every tap.
   useEffect(() => {
-    void loadCalibrationPairs().then(setPairs);
+    // Not before the day has loaded once: that was a second, identical request.
+    if (loaded) void loadCalibrationPairs().then(setPairs);
   }, [loaded]);
 
   /*

@@ -1,3 +1,4 @@
+import { startupSettings } from './startupSettings';
 import { useSyncExternalStore } from 'react';
 import { supabase } from './supabase';
 import { DEFAULT_LOOK, DEFAULT_SKIN, cacheLook, cacheSkin, isLook, isSkin, readLook, readSkin, type Look, type Skin } from './theme';
@@ -103,10 +104,7 @@ export const moduleOn = (m: Module, prefs: Preferences = state) => !prefs.module
  * nothing: the cached choices stand rather than being replaced by defaults.
  */
 export async function adoptPreferences(): Promise<void> {
-  const { data, error } = await supabase
-    .from('app_settings')
-    .select('theme, look, today_order, today_hidden, modules_off')
-    .limit(1);
+  const { data, error } = await startupSettings();
   if (error || !data?.[0]) return;
   const row = data[0] as { theme: string | null; look: string | null; today_order: unknown; today_hidden: unknown; modules_off: unknown };
   // Null is "never chosen": a new account starts on Glass in Dusk.
