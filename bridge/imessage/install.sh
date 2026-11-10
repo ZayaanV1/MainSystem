@@ -35,7 +35,8 @@ if [ -z "$SECRET" ]; then
   exit 1
 fi
 
-node -e 'const [p,u,s,a]=process.argv.slice(1); require("fs").writeFileSync(p, JSON.stringify({url:u,secret:s,address:a||null},null,2))' "$CONFIG" "$URL" "$SECRET" "$ADDRESS"
+# Keeps anything else in the config, such as the Claude block from `bridge.mjs use-claude`.
+node -e 'const fs=require("fs");const [p,u,s,a]=process.argv.slice(1);let c={};try{c=JSON.parse(fs.readFileSync(p,"utf8"))}catch{};fs.writeFileSync(p, JSON.stringify({...c,url:u,secret:s,address:a||null},null,2))' "$CONFIG" "$URL" "$SECRET" "$ADDRESS"
 chmod 600 "$CONFIG"
 
 echo "✓ bridge key saved for this Mac"

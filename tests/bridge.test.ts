@@ -67,3 +67,32 @@ describe('what may leave the Mac', () => {
     expect(normaliseHandle('+1 (514) 555-0100')).toBe('+15145550100');
   });
 });
+
+describe('Claude on the Mac', () => {
+  it('asks Claude Code for one structured answer with no tools, settings or saved session', async () => {
+    const { claudeArgs } = await import('../bridge/imessage/bridge.mjs');
+    const args = claudeArgs({}, { instruction: 'You are Abood.', schema: { type: 'object' }, reasoning: 'medium' });
+    expect(args).toEqual(expect.arrayContaining(['-p', '--no-session-persistence', '--strict-mcp-config']));
+    expect(args[args.indexOf('--model') + 1]).toBe('sonnet');
+    expect(args[args.indexOf('--effort') + 1]).toBe('medium');
+    expect(args[args.indexOf('--tools') + 1]).toBe('');
+    expect(args[args.indexOf('--system-prompt') + 1]).toBe('You are Abood.');
+  });
+
+  it('reads the structured answer, and refuses an error rather than sending it as a text', async () => {
+    const { readClaude } = await import('../bridge/imessage/bridge.mjs');
+    expect(readClaude(JSON.stringify({ is_error: false, structured_output: { reply: 'FIRST 10K??' } }))).toEqual({ reply: 'FIRST 10K??' });
+    expect(readClaude(JSON.stringify({ is_error: false, result: '```json\n{"reply":"yo"}\n```' }))).toEqual({ reply: 'yo' });
+    expect(() => readClaude(JSON.stringify({ is_error: true, result: 'Failed to authenticate' }))).toThrow(/authenticate/);
+  });
+});
+
+describe('the relayed model', () => {
+  it('replays the answers it was given, then asks for the next one with the exact request', async () => {
+    const { relayProvider, NeedModel } = await import('../supabase/functions/_shared/llm/relay');
+    const p = relayProvider([{ reply: 'one' }]);
+    const req = { instruction: 'i', input: 'in', schema: {} };
+    expect(await p.complete(req)).toEqual({ ok: true, value: { reply: 'one' }, provider: 'claude' });
+    await expect(p.complete(req)).rejects.toBeInstanceOf(NeedModel);
+  });
+});

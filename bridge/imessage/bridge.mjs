@@ -245,6 +245,94 @@ async function linkedHandles(config) {
   return linkedCache.handles;
 }
 
+/**
+ * Abood's answer, written by Claude on this Mac when the config has a
+ * "claude" block, otherwise by the planner's free models.
+ *
+ * The planner builds the prompt and checks the result (ids, deadlines, a yes
+ * before changes); only the model call happens here, on the owner's own
+ * subscription. The planner answers either with the texts to send or with the
+ * next request for the model, and each answer is sent back with all the
+ * earlier ones. Anything that goes wrong here falls back to the free models,
+ * so a message is never left unanswered because Claude was unavailable.
+ */
+async function answer(config, handle, text) {
+  if (!config.claude) return post(config, { kind: 'message', handle, text });
+  const relayed = [];
+  for (let pass = 0; pass < 5; pass++) {
+    const res = await post(config, { kind: 'message', handle, text, relayed: JSON.stringify(relayed) });
+    if (!res.model) return res;
+    try {
+      relayed.push(await think(config.claude, res.model));
+    } catch (e) {
+      log('claude unavailable, using the free models:', String(e.message).slice(0, 300));
+      break;
+    }
+  }
+  return post(config, { kind: 'message', handle, text });
+}
+
+const CLAUDE_TIMEOUT_MS = 120_000;
+
+/** Where Claude Code lives: the config's path, the installer's default, or PATH. */
+export function claudeBin(claude) {
+  if (claude.bin) return claude.bin;
+  const local = join(HOME, '.local', 'bin', 'claude');
+  return existsSync(local) ? local : 'claude';
+}
+
+/** The arguments for one structured answer from Claude Code, with no tools, settings or saved session. */
+export function claudeArgs(claude, model) {
+  return [
+    '-p',
+    '--model', claude.model || 'sonnet',
+    '--effort', model.reasoning === 'high' ? 'high' : model.reasoning === 'medium' ? 'medium' : 'low',
+    '--system-prompt', model.instruction,
+    '--json-schema', JSON.stringify(model.schema),
+    '--output-format', 'json',
+    '--tools', '',
+    '--strict-mcp-config',
+    '--setting-sources', '',
+    '--no-session-persistence',
+  ];
+}
+
+/** The structured answer out of Claude Code's JSON result, or an error saying why there is none. */
+export function readClaude(stdout) {
+  const out = JSON.parse(stdout);
+  if (out.is_error) throw new Error(String(out.result || out.subtype || 'claude failed'));
+  if (out.structured_output && typeof out.structured_output === 'object') return out.structured_output;
+  const text = String(out.result ?? '').replace(/^```(?:json)?\s*|\s*```$/g, '');
+  return JSON.parse(text);
+}
+
+/** One model call through Claude Code, the input on stdin so nothing in it is ever read as a flag. */
+function think(claude, model) {
+  return new Promise((resolve, reject) => {
+    const env = { ...process.env };
+    if (claude.token) env.CLAUDE_CODE_OAUTH_TOKEN = claude.token;
+    const child = spawn(claudeBin(claude), claudeArgs(claude, model), { cwd: CONFIG_DIR, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => child.kill('SIGKILL'), CLAUDE_TIMEOUT_MS);
+    child.stdout.on('data', (d) => (stdout += d));
+    child.stderr.on('data', (d) => (stderr += d));
+    child.on('error', (e) => {
+      clearTimeout(timer);
+      reject(e);
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      try {
+        resolve(readClaude(stdout));
+      } catch (e) {
+        reject(new Error(`${e.message}${code ? ` (exit ${code})` : ''} ${stderr.trim()}`.trim()));
+      }
+    });
+    child.stdin.end(model.input);
+  });
+}
+
 async function post(config, body) {
   const res = await fetch(config.url, {
     method: 'POST',
@@ -304,7 +392,7 @@ async function main() {
         // A link code changes who is linked; ask again next time.
         if (LINK_CODE.test(text)) linkedCache.at = 0;
 
-        const { replies = [] } = await post(config, { kind: 'message', handle: m.handle, text });
+        const { replies = [] } = await answer(config, m.handle, text);
         await sendAll(m.handle, replies, config.address);
         if (replies.length) {
           log(`answered ${m.handle.replace(/.(?=.{4})/g, '•')}`);
@@ -318,4 +406,28 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+/**
+ *   node bridge.mjs use-claude <token from `claude setup-token`> [model]
+ *   node bridge.mjs use-free
+ * Switches who writes Abood's answers, then restarts the bridge to pick it up.
+ */
+async function configure(command, token, model) {
+  const config = JSON.parse(readFileSync(CONFIG, 'utf8'));
+  if (command === 'use-free') delete config.claude;
+  else {
+    if (!token || !/^sk-ant-/.test(token)) {
+      console.log('Usage: node bridge.mjs use-claude <token> [sonnet|opus|haiku]\nMake the token with: claude setup-token');
+      process.exit(1);
+    }
+    config.claude = { token, model: model || 'sonnet' };
+  }
+  writeFileSync(CONFIG, JSON.stringify(config, null, 2), { mode: 0o600 });
+  await run('/bin/launchctl', ['kickstart', '-k', `gui/${process.getuid()}/com.planner.abood-bridge`]).catch(() => null);
+  console.log(command === 'use-free' ? 'Abood answers with the free models.' : `Abood answers with Claude (${config.claude.model}) on this Mac.`);
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const [command, ...rest] = process.argv.slice(2);
+  if (command === 'use-claude' || command === 'use-free') configure(command, ...rest);
+  else main();
+}

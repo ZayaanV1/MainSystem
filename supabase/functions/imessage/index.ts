@@ -34,6 +34,7 @@
 
 import { readBody } from '../_shared/body.ts';
 import { sameSecret } from '../_shared/secret.ts';
+import { NeedModel } from '../_shared/llm/relay.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { HELP, converse } from '../_shared/door.ts';
@@ -133,8 +134,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       address: { type: 'string', max: 500 },
       handle: { type: 'string', max: 500 },
       text: { type: 'string', max: 20_000 },
+      // Answers from Claude on the account's Mac so far, as a JSON array (llm/relay.ts).
+      relayed: { type: 'string', max: 200_000 },
     },
-    64 * 1024,
+    256 * 1024,
   );
   if (!read.ok) return new Response(read.error, { status: read.status });
   const body = read.body;
@@ -220,6 +223,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   if (!text) return reply(['I can only read text for now.']);
 
+  let relayed: unknown[] | undefined;
+  if (body.relayed !== undefined) {
+    try {
+      relayed = JSON.parse(body.relayed);
+    } catch {
+      relayed = undefined;
+    }
+    if (!Array.isArray(relayed) || relayed.length > 6) return new Response('bad relayed answers', { status: 400 });
+  }
+
   const replies: string[] = [];
   try {
     await converse({
@@ -227,11 +240,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       userId: ownerId,
       text,
       via: 'imessage',
+      relayed,
       send: async (t) => {
         replies.push(t);
       },
     });
   } catch (e) {
+    // The next model call is the Mac's to make: hand it the exact request.
+    if (e instanceof NeedModel) {
+      const { instruction, input, schema, reasoning } = e.request;
+      return new Response(JSON.stringify({ model: { instruction, input, schema, reasoning: reasoning ?? 'low' } }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    }
     console.error('[imessage]', e);
     replies.push('I could not answer that just now. Try again in a minute.');
   }

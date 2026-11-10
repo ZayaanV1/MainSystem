@@ -2,6 +2,7 @@ import { askAbood, learn } from './abood.ts';
 import { geminiProvider } from './llm/gemini.ts';
 import { groqProvider } from './llm/groq.ts';
 import { withFallback } from './llm/chain.ts';
+import { relayProvider } from './llm/relay.ts';
 import { meterFor, release, reserve, standDownMessage } from './budget.ts';
 import { localDayKey } from './time.ts';
 
@@ -56,8 +57,14 @@ export async function converse(opts: {
   via: Via;
   send: (text: string) => Promise<unknown>;
   typing?: () => Promise<unknown>;
+  /**
+   * Answers from the account's own Claude, run on its Mac (llm/relay.ts).
+   * Present means: no shared budget, and the turn is saved only on the pass
+   * that finishes, since earlier passes stop at NeedModel.
+   */
+  relayed?: unknown[];
 }): Promise<void> {
-  const { admin, userId, text, via, send, typing } = opts;
+  const { admin, userId, text, via, send, typing, relayed } = opts;
 
   // ---- commands ----------------------------------------------------------
   if (/^\/?help$/i.test(text)) {
@@ -120,16 +127,22 @@ export async function converse(opts: {
   const geminiKey = ownGemini ?? env('GEMINI_API_KEY');
   const gemini = geminiProvider(geminiKey);
   const groqKey = ownGroq ?? env('GROQ_API_KEY');
-  const provider = groqKey ? withFallback(groqProvider(groqKey, env('GROQ_MODEL') || undefined), gemini) : gemini;
+  const provider = relayed
+    ? relayProvider(relayed)
+    : groqKey
+      ? withFallback(groqProvider(groqKey, env('GROQ_MODEL') || undefined), gemini)
+      : gemini;
   const onOwnKey = Boolean(ownGroq || (!groqKey && ownGemini));
 
   // The same daily budget as the app's chat, so a second door is not a way
   // round it.
   // A slot is taken in one step before the model is called, so messages sent
   // together cannot all be handed the last one.
-  const slot = await reserve(admin, userId, 'chat', today, onOwnKey);
+  // Their own subscription pays for a relayed answer, so it takes no slot.
+  const slot = await reserve(admin, userId, 'chat', today, onOwnKey || Boolean(relayed));
 
-  await admin.from('chat_messages').insert({ user_id: userId, role: 'user', content: message, via });
+  const saveQuestion = () => admin.from('chat_messages').insert({ user_id: userId, role: 'user', content: message, via });
+  if (!relayed) await saveQuestion();
 
   if (!slot.allowed) {
     const reason =
@@ -170,6 +183,7 @@ export async function converse(opts: {
     return;
   }
 
+  if (relayed) await saveQuestion();
   const content = [result.reply, result.warnings.join(' '), result.outcome].filter(Boolean).join('\n\n');
   await admin.from('chat_messages').insert({
     user_id: userId,
