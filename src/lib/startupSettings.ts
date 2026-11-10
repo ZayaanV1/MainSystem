@@ -14,11 +14,13 @@ const read = () =>
     .select('timezone, onboarded_at, theme, look, today_order, today_hidden, modules_off, board')
     .limit(1);
 
-let pending: ReturnType<typeof read> | null = null;
+type Result = Awaited<ReturnType<typeof read>>;
+let pending: Promise<Result> | null = null;
 
-export function startupSettings(): ReturnType<typeof read> {
+export function startupSettings(): Promise<Result> {
   if (!pending) {
-    pending = read();
+    // A real promise, not the query builder: awaiting a builder twice sends the request twice.
+    pending = read().then((r) => r);
     setTimeout(() => (pending = null), 2000);
   }
   return pending;
