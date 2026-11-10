@@ -2194,6 +2194,22 @@ prompt.
   first): network-first was chosen after a broken build kept being served
   from cache; the 2 second wait only bites on a weak connection.
 
+**Third pass, 10 Nov.** Two changes from the user walk-through.
+
+- **Capture leads the phone's + menu.** The same `CaptureBox` as Today, with its
+  own id (`capture-add`), above Assignment, Course outline and Course. Both boxes
+  add through one function, `addFromCapture`, so a thought typed in either becomes
+  the same work, exam or inbox item. No Event row was added: the capture field
+  already makes exams and presentations from typed text, and a separate event form
+  does not exist in the app.
+- **The checklist leads Today by default** (`TODAY_SECTIONS`). A saved order is
+  kept, so an account that arranged Today itself is unchanged; the new order
+  reached the owner's account, so theirs was not saved explicitly.
+- **Verified on the iPhone simulator, live, dark:** both render as intended. NOT
+  verified: typing into the new field, the keyboard covering the menu, and saving
+  from it. The simulator's text injection does not reach web fields (it failed in
+  Search too), so that check needs a real phone.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
