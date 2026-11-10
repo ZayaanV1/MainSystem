@@ -45,26 +45,15 @@
      RANGE above is what declares this variable, not the format string. */
   src: url('/fonts/SchibstedGrotesk-var.woff2') format('woff2');
 }
+/* One variable file. It used to be declared three times under three names,
+   so the same 26 KB could download three times. Range kept at 400-600 so
+   bolder text renders as it did. */
 @font-face {
   font-family: 'Public Sans';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 400 600;
   font-display: swap;
-  src: url('/fonts/PublicSans-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Public Sans';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/PublicSans-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Public Sans';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/PublicSans-600.woff2') format('woff2');
+  src: url('/fonts/PublicSans-var.woff2') format('woff2');
 }
 
 /* The themes' own faces. Declared, never preloaded: a face downloads only when

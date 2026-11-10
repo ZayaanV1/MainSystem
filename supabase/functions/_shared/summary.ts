@@ -27,7 +27,7 @@ export interface SummaryItem {
 /** Something on today's timetable: attended, not submitted. */
 export interface SummaryClass {
   title: string;
-  /** Local wall-clock start, 'HH:MM'. */
+  /** Local wall-clock start as the app shows it, '1:30 p.m.'. */
   at: string;
 }
 

@@ -32,7 +32,7 @@ import {
   type SummaryClass,
   DUE_EVENT_KINDS,
 } from '../_shared/summary.ts';
-import { addDays, endOfDayUTC, localDayKey, localHourMinute, startOfDayUTC } from '../_shared/time.ts';
+import { addDays, endOfDayUTC, formatTime, localDayKey, startOfDayUTC } from '../_shared/time.ts';
 import { readBody } from '../_shared/body.ts';
 import { meterFor, release, reserve, standDownMessage, type AiKind, type Reservation } from '../_shared/budget.ts';
 import { groqProvider } from '../_shared/llm/groq.ts';
@@ -161,8 +161,8 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
 
   // deno-lint-ignore no-explicit-any
   const classes: SummaryClass[] = ((classEvents.data ?? []) as any[]).map((e) => {
-    const { hour, minute } = localHourMinute(new Date(e.starts_at), tz);
-    return { title: e.title, at: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}` };
+    // The app's own time format: the model repeats what it is given, and "13:30" read oddly beside "1:30 p.m.".
+    return { title: e.title, at: formatTime(new Date(e.starts_at), tz) };
   });
 
   const done = new Set(((completions.data ?? []) as { item_id: string }[]).map((c) => c.item_id));
@@ -172,9 +172,7 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
 
   return {
     today,
-    now: new Date().toLocaleTimeString('en-CA', {
-      timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
-    }),
+    now: formatTime(new Date(), tz),
     dueToday,
     dueSoon,
     overdue,

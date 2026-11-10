@@ -1,5 +1,5 @@
 import { replan } from './autoplan.ts';
-import { asPending, describeCall, isNo, isRead, isUndo, isYes, needsYes, outcomeText, runCalls, TOOL_NAMES, toolMenu, type PendingChange } from './aboodtools.ts';
+import { asPending, describeCall, isNo, isRead, isUndo, isYes, needsYes, outcomeText, outsideTextInFront, runCalls, TOOL_NAMES, toolMenu, type PendingChange } from './aboodtools.ts';
 import { buildContext, type BuildOptions, type Scope } from './context.ts';
 import { CHAT_INSTRUCTION, CHAT_SCHEMA, scripted, validateChat, type ChatReply } from './chat.ts';
 import type { LlmProvider } from './llm/types.ts';
@@ -226,8 +226,6 @@ export async function gatherContext(admin: any, userId: string, today: string, t
 }
 
 
-/** A message longer than this is treated as pasted text, not typed. */
-export const PASTE_CHARS = 600;
 
 /* ============================================================================
    Memory
@@ -705,8 +703,7 @@ export async function askAbood(opts: {
   // Text other people wrote (a subscribed calendar) or a long paste was in
   // front of the model: any change it asks for waits for a yes, so words in
   // that text cannot change the planner on their own.
-  const outsideText = context.text.includes('from a subscribed calendar') || message.length > PASTE_CHARS;
-  if (writes.length && (needsYes(writes) || outsideText)) {
+  if (writes.length && (needsYes(writes) || outsideTextInFront(context.text, message))) {
     const summary = writes.map((c) => describeCall(c, names));
     pending = { kind: 'tools', calls: writes, summary };
     outcome = `Waiting for a yes: ${summary.join('; ')}. Say yes to go ahead, or no to leave it.`;

@@ -2166,6 +2166,34 @@ course folder's 28 pt "+" was left alone: `.fold-add::before` already gives it
 a 44 pt target. The litmus script has not been re-run against the changed
 prompt.
 
+**Second pass, 10 Nov.** The rest of the review's fixes, all measured or tested.
+
+- **U2.** The briefing was handed class times as `13:30` and repeated them;
+  it now gets the app's own `formatTime`, so it reads "1:30 p.m." like
+  everything else. Needs a functions deploy.
+- **P2.** `VisionChrome` and the island load on demand: they are drawn only on
+  the wide Glass desk, and every phone was downloading them. Eager JavaScript
+  went from about 160 KB to 154.5 KB gzip. Still 4.5 KB over the 150 budget;
+  what is left in the entry is React, the outbox, capture and Today itself,
+  and loading capture late would add a wait to the one action that must not
+  have one.
+- **P3.** No limits were added to `loadToday`: every read is already bounded
+  by a filter, and a limit is how the history grid once drew blanks. Instead a
+  read that comes back with the server's full 1,000 rows is reported like a
+  failed read, since that is the only way a silent cut-off can happen.
+- **P6.** Public Sans was one variable file (wght 100-900) saved under three
+  names and declared three times. One file, one face, range 400-600.
+- **P7.** The frame meter exists: add `?frames` to the address, tap to record,
+  tap to stop, read median and worst 1%. Loaded only on request. No numbers
+  have been taken with it yet; they have to come from the owner's phone.
+- **S3** has a unit test now (`outsideTextInFront`), still none against a live
+  model.
+- **Not done, on purpose.** P4 (one stylesheet per theme): the three themes
+  share most rules, a split risks a flash on theme change, and no measurement
+  shows the 48 KB stylesheet is what delays first paint. P5 (cached shell
+  first): network-first was chosen after a broken build kept being served
+  from cache; the 2 second wait only bites on a weak connection.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { validateCalls } from '../../supabase/functions/_shared/chat';
-import { describeCall, isNo, isUndo, isYes, needsYes, toolMenu, TOOL_NAMES } from '../../supabase/functions/_shared/aboodtools';
+import { describeCall, isNo, isUndo, isYes, needsYes, outsideTextInFront, PASTE_CHARS, toolMenu, TOOL_NAMES } from '../../supabase/functions/_shared/aboodtools';
 import { ALL_TOOLS } from '../../supabase/functions/_shared/tools';
 import { applyUndo, undoSteps, type ChangeRow } from '../../supabase/functions/_shared/undo';
 
@@ -137,5 +137,13 @@ describe('undo run by the server', () => {
     const second = fakeDb();
     await applyUndo(second.db, 'me', forged({ title: 'old', user_id: 'someone-else' }));
     expect(second.calls[0]).toEqual({ table: 'assignments', op: 'update', row: { title: 'old' } });
+  });
+});
+
+describe('text the user did not write', () => {
+  it('holds changes when a subscribed calendar or a long paste was in front of the model', () => {
+    expect(outsideTextInFront('Lecture (from a subscribed calendar)', 'move my lab')).toBe(true);
+    expect(outsideTextInFront('', 'x'.repeat(PASTE_CHARS + 1))).toBe(true);
+    expect(outsideTextInFront('Lab 3, due Friday', 'move my lab to Friday')).toBe(false);
   });
 });

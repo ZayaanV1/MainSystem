@@ -39,6 +39,16 @@ export function toolMenu(): string {
 
 export const isRead = (call: ToolCall) => byName.get(call.tool)?.readOnly === true;
 
+/** A message longer than this is treated as a paste: text the user may not have written. */
+export const PASTE_CHARS = 600;
+
+/**
+ * Whether the model was shown text other people wrote: a subscribed calendar
+ * in the context, or a long paste. Any change it then asks for waits for a yes.
+ */
+export const outsideTextInFront = (contextText: string, message: string) =>
+  contextText.includes('from a subscribed calendar') || message.length > PASTE_CHARS;
+
 /** Whether these changes wait for a yes. */
 export function needsYes(calls: ToolCall[]): boolean {
   return calls.length > MAX_UNASKED || calls.some((c) => byName.get(c.tool)?.destructive);

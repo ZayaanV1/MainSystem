@@ -1,10 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { TodayData } from '../lib/planner';
 import { followCapsule, moveCapsule, popClose, popIcon, popOpen } from '../lib/motion';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { StatusVeil } from './CompactBar';
-import { VisionChrome } from './VisionChrome';
+import { lazyRetry } from '../lib/lazyRetry';
+
+// Drawn only on the wide Glass desk, so a phone never downloads it.
+// The cast keeps the component's generic id type, which lazy() drops.
+const VisionChrome = lazyRetry(() => import('./VisionChrome'), (m) => m.VisionChrome) as unknown as typeof import('./VisionChrome').VisionChrome;
 import { cascade, useVisionDesk } from '../lib/vision';
 import { usePreferences } from '../lib/preferences';
 import { loadBackdrop, showBackdrop } from '../lib/backdrop';
@@ -83,7 +87,9 @@ export function AppShell<T extends string>({
   return (
     <div className={`atmosphere lg:flex lg:min-h-svh ${vision ? 'vision-desk' : ''}`} data-dock={vision ? visionDock : undefined}>
       {vision ? (
-        <VisionChrome current={current} items={items} onNavigate={onNavigate} onPalette={onPalette} full={visionDock === 'full'} day={day} />
+        <Suspense fallback={null}>
+          <VisionChrome current={current} items={items} onNavigate={onNavigate} onPalette={onPalette} full={visionDock === 'full'} day={day} />
+        </Suspense>
       ) : (
         <Rail current={current} items={items} onNavigate={onNavigate} onAdd={onAdd} />
       )}

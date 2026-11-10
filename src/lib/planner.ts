@@ -275,6 +275,9 @@ export async function saveTimezone(userId: string, zone: string): Promise<{ erro
   return { error: null };
 }
 
+/** PostgREST's row cap on this project (Supabase's default). */
+export const SERVER_MAX_ROWS = 1000;
+
 export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> {
   // Completions are fetched for the full HISTORY window, not the five days the
   // day-strip shows. Fetching only five made the history grid draw every older
@@ -364,8 +367,11 @@ export async function loadToday(today: DayKey = todayKey()): Promise<TodayData> 
    * thing, not the table, because it is shown to them.
    */
   const failed: string[] = [];
-  const check = (label: string, r: { error: unknown }) => {
-    if (r.error) failed.push(label);
+  // The server returns at most 1,000 rows and says nothing when it cuts a list
+  // off, so a full page is reported like a failed read rather than shown as
+  // the whole day. A limit here would only move the silent cut-off.
+  const check = (label: string, r: { error: unknown; data: unknown[] | null }) => {
+    if (r.error || (r.data?.length ?? 0) >= SERVER_MAX_ROWS) failed.push(label);
   };
   check('your checklist', items);
   check('your checklist history', completions);

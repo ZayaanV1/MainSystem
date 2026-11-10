@@ -27,3 +27,6 @@ createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </StrictMode>,
 );
+
+// The frame meter, on request only (CLAUDE.md, performance budget).
+if (new URLSearchParams(location.search).has('frames')) void import('./lib/frames').then((m) => m.startFrameMeter());
