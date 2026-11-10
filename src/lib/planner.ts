@@ -1,4 +1,5 @@
 import { startupSettings } from './startupSettings';
+import type { QuickRead } from './quickParse';
 import { supabase } from './supabase';
 import { enqueue } from './outbox';
 import { recentDays, type ChecklistItem } from './checklist';
@@ -955,6 +956,19 @@ export async function capture(userId: string, body: string): Promise<void> {
     body: text,
     source: 'app',
   });
+}
+
+/** Add what the capture field read: work, or an exam or presentation as an event. */
+export function addFromCapture(userId: string, r: QuickRead): Promise<unknown> {
+  return r.kind === 'work'
+    ? addAssignment(userId, {
+        title: r.title,
+        course_id: r.course?.id ?? null,
+        due_at: assignmentDueAt(r.day, r.time),
+        due_has_time: Boolean(r.time),
+        notes: r.original,
+      })
+    : addEvent(userId, { title: r.title, kind: r.kind, day: r.day, time: r.time, course_id: r.course?.id ?? null, notes: r.original });
 }
 
 /**

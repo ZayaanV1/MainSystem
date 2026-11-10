@@ -11,9 +11,12 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { isConfigured } from './lib/supabase';
 import { setOutboxOwner, startOutbox } from './lib/outbox';
 import { SyncBanner } from './components/SyncBanner';
+import { CaptureBox } from './components/CaptureBox';
 import { refreshSubscription } from './lib/notifications';
 import {
+  addFromCapture,
   adoptAccountTimezone,
+  capture,
   loadAssignment,
   needsOnboarding,
   type Assignment,
@@ -225,6 +228,17 @@ function Shell() {
     },
     [navigate],
   );
+
+  // Today's own capture box, again in the + menu, so a thought never needs a scroll.
+  const addCapture = userId ? (
+    <CaptureBox
+      id="capture-add"
+      className=""
+      send={(body) => capture(userId, body)}
+      courses={data?.courses ?? []}
+      addWork={(r) => addFromCapture(userId, r)}
+    />
+  ) : undefined;
 
   /** Open a piece of work by id: from the loaded day, or read on its own. */
   const openWork = useCallback(
@@ -627,7 +641,7 @@ function Shell() {
   }
 
   return (
-    <AppShell current={screen === 'work' ? 'week' : screen} items={nav} onNavigate={navigate} onPalette={() => setPalette(true)} onAdd={add} day={data}>
+    <AppShell current={screen === 'work' ? 'week' : screen} items={nav} onNavigate={navigate} onPalette={() => setPalette(true)} onAdd={add} capture={addCapture} day={data}>
       <SyncBanner />
 
       {palette && (

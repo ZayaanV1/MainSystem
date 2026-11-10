@@ -46,9 +46,7 @@ import { describeHealth, fetchHealth, type NotificationHealth } from '../lib/hea
 import { subscribeOutbox } from '../lib/outbox';
 import { adjustedEstimate, calibration } from '../lib/intelligence';
 import {
-  addAssignment,
-  addEvent,
-  assignmentDueAt,
+  addFromCapture,
   capture,
   completionKey,
   loadCalibrationPairs,
@@ -348,17 +346,7 @@ export function Today({
         className=""
         send={(body) => capture(userId, body)}
         courses={data?.courses ?? []}
-        addWork={(r) =>
-          r.kind === 'work'
-            ? addAssignment(userId, {
-                title: r.title,
-                course_id: r.course?.id ?? null,
-                due_at: assignmentDueAt(r.day, r.time),
-                due_has_time: Boolean(r.time),
-                notes: r.original,
-              })
-            : addEvent(userId, { title: r.title, kind: r.kind, day: r.day, time: r.time, course_id: r.course?.id ?? null, notes: r.original })
-        }
+        addWork={(r) => addFromCapture(userId, r)}
       />
     ),
     checklist: (

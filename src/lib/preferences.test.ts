@@ -12,8 +12,8 @@ describe('normalise', () => {
   it('keeps a saved order and drops names it does not know', () => {
     const order = ['checklist', 'capture', 'gremlins'];
     // The board is missing from this saved order, so it takes its default
-    // place at the top rather than being dropped.
-    expect(normalise({ order }).order).toEqual(['board', 'checklist', 'capture']);
+    // place, after the checklist, rather than being dropped.
+    expect(normalise({ order }).order).toEqual(['checklist', 'board', 'capture']);
   });
 
   it('drops the sections that moved to Schedule from an order saved before', () => {

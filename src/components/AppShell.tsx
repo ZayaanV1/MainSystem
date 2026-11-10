@@ -62,6 +62,7 @@ export function AppShell<T extends string>({
   onNavigate,
   onPalette,
   onAdd,
+  capture,
   day = null,
   children,
 }: {
@@ -70,6 +71,8 @@ export function AppShell<T extends string>({
   onNavigate: (id: T) => void;
   /** The + in the bar. Absent where nothing can be added (the specimen). */
   onAdd?: (kind: AddKind) => void;
+  /** The capture field, drawn first in the phone's + menu. */
+  capture?: ReactNode;
   /** Opens the command palette: Vision's top-bar search. */
   onPalette?: () => void;
   /** The loaded day: Vision's island shows it. */
@@ -105,7 +108,7 @@ export function AppShell<T extends string>({
       <div data-recede className="min-w-0 flex-1 overflow-x-clip">{children}</div>
 
       <StatusVeil />
-      <TabBar current={current} items={items} onNavigate={onNavigate} onAdd={onAdd} />
+      <TabBar current={current} items={items} onNavigate={onNavigate} onAdd={onAdd} capture={capture} />
     </div>
   );
 }
@@ -136,11 +139,14 @@ function TabBar<T extends string>({
   items,
   onNavigate,
   onAdd,
+  capture,
 }: {
   current: T;
   items: NavItem<T>[];
   onNavigate: (id: T) => void;
   onAdd?: (kind: AddKind) => void;
+  /** The capture field, drawn first in the phone's + menu. */
+  capture?: ReactNode;
 }) {
   // More and + open the same kind of menu from the same bar, one at a time.
   const [menuOf, setMenuOf] = useState<'more' | 'add' | null>(null);
@@ -213,10 +219,12 @@ function TabBar<T extends string>({
       {adding && onAdd && (
         <div
           ref={menu}
-          role="menu"
-          aria-label="Add"
           className="fx-glass tab-menu fixed inset-x-3 bottom-[calc(var(--tab-bar)+env(safe-area-inset-bottom)+var(--sp-6))] z-50 overflow-hidden rounded-sheet border border-ink-600 md:mx-auto md:max-w-160 lg:hidden"
         >
+          {/* First, because a thought is the thing most often added and the
+              one that cannot wait for a form. */}
+          {capture && <div className="border-b border-ink-600 p-2">{capture}</div>}
+          <div role="menu" aria-label="Add">
           {ADD_CHOICES.map((c) => (
             <button
               key={c.kind}
@@ -229,9 +237,10 @@ function TabBar<T extends string>({
               className="press-row flex min-h-[var(--tap)] w-full flex-col items-start justify-center border-b border-ink-600 px-4 py-2 text-left last:border-b-0"
             >
               <span className="type-label text-text-hi">{c.label}</span>
-              <span className="type-note text-text-mid">{c.hint}</span>
+              <span className="type-note text-text-hi">{c.hint}</span>
             </button>
           ))}
+          </div>
         </div>
       )}
 

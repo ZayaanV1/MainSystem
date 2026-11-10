@@ -25,7 +25,10 @@ export function CaptureBox({
   courses = [],
   addWork,
   className = 'mb-8 px-4',
+  id = 'capture',
 }: {
+  /** The field's id: a second box on the page (the + menu) needs its own. */
+  id?: string;
   send: (body: string) => Promise<unknown>;
   /** Courses a capture can name, by code. */
   courses?: CourseRef[];
@@ -77,7 +80,7 @@ export function CaptureBox({
 
   return (
     <form onSubmit={submit} className={`relative ${className}`}>
-      <label htmlFor="capture" className="sr-only">
+      <label htmlFor={id} className="sr-only">
         Capture a thought
       </label>
       {/*
@@ -87,7 +90,7 @@ export function CaptureBox({
       */}
       <div className="well capture-well capture-shell flex items-center gap-1.5 py-1.5 pr-1.5 pl-[1.125rem]">
         <input
-          id="capture"
+          id={id}
           ref={input}
           value={text}
           onChange={(e) => {
@@ -97,7 +100,7 @@ export function CaptureBox({
           placeholder="Capture anything"
           autoComplete="off"
           enterKeyHint="done"
-          aria-describedby={read ? 'capture-read' : undefined}
+          aria-describedby={read ? `${id}-read` : undefined}
           className="capture-input min-w-0 flex-1 bg-transparent type-body"
         />
         {/* Speaking fills the field; Enter still sends (rule 6). */}
@@ -123,7 +126,7 @@ export function CaptureBox({
       </div>
 
       {read ? (
-        <div id="capture-read" className="capture-read enter-fade" aria-live="polite">
+        <div id={`${id}-read`} className="capture-read enter-fade" aria-live="polite">
           <span className="capture-read-label">
             {read.kind === 'work' ? 'Adds as work' : read.kind === 'exam' ? 'Adds as an exam' : 'Adds as a presentation'}
           </span>

@@ -23,7 +23,9 @@ import { DEFAULT_LOOK, DEFAULT_SKIN, cacheLook, cacheSkin, isLook, isSkin, readL
  * sort into it) lives on Schedule. A saved order naming those sections simply
  * drops them (normalise keeps known names only).
  */
-export const TODAY_SECTIONS = ['board', 'capture', 'checklist'] as const;
+// The checklist leads since 10 Nov 2026: its ticks (medication among them) are
+// the time-sensitive part of the day and were a screen and a half down.
+export const TODAY_SECTIONS = ['checklist', 'board', 'capture'] as const;
 export type TodaySection = (typeof TODAY_SECTIONS)[number];
 
 /**
