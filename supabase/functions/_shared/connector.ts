@@ -497,7 +497,7 @@ export function connectorInstructions(tz: string): string {
   return [
     "This is the user's student planner. Every date and time you read or write is in their time zone, " + tz + '.',
     'Read before you write: use get_today, list_work or search to find ids. Changes save immediately and the user can undo them in the app, under Settings, Connected apps.',
-    'Anything can be changed: work and its steps, courses and course pages, events the user added, the checklist, the inbox, goals, the work plan and its settings. Deleting asks the user first in your app; Undo in the planner restores what a delete removed.',
+    'Anything can be changed: work and its steps, courses and course pages, events the user added, the checklist, the inbox, goals, the work plan and its settings. Nothing can be deleted through this connection; if the user wants something removed, tell them to do it in the app.',
     'Events from a subscribed calendar, the account itself, AI keys and notification channels cannot be changed here.',
     'Never invent a deadline. If a date is unclear, ask the user or put the thought in the inbox.',
   ].join(' ');

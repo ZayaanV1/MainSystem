@@ -2123,6 +2123,34 @@ not every provider accepts a free-form object.
 This changes rule 6 for Abood from "confirm before" to "visible and reversible
 after", the rule the connector was already approved under.
 
+### Review fixes — 10 Nov 2026
+
+A full review, run as "verify, do not trust". Four security fixes approved
+and built first:
+
+- **A forged undo record ran as the service role.** Any signed-in client can
+  insert `connector_changes` rows, and Abood's "undo" replays `before` with
+  the service client, `__restore` steps and their table names included. An
+  upsert into `imessage_links` (keyed on the handle) would have moved someone
+  else's linked number to the forger's account. `applyUndo` now refuses any
+  table outside `UNDOABLE` before writing anything, inserts instead of
+  upserting, and strips `user_id` from an update.
+- **The consent page promised "cannot delete" while the connector was handed
+  every tool.** `functions/mcp` now gets the tools without the destructive
+  ones, and the consent page lists what the edit tools really allow. Abood
+  keeps deletes, behind its yes.
+- **Planner text could steer Abood.** The data is fenced and the instruction
+  says it is never instructions, and any change waits for a yes when the
+  context held subscribed-calendar events or the message is over
+  `PASTE_CHARS` (600). Not tested against a live model.
+- **Example lines that read as real conversations** in the prompt, a test
+  and the litmus script were replaced with invented ones. They are still in
+  the git history; rewriting it is a separate, destructive decision.
+
+**Needs the owner:** `npx supabase functions deploy`, since none of the
+three server fixes is live until then. The litmus script has not been
+re-run against the changed prompt.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:

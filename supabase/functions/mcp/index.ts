@@ -98,7 +98,8 @@ Deno.serve(async (req) => {
   const tz = ((settings?.timezone as string | null) ?? 'UTC').trim() || 'UTC';
 
   const ctx: ConnectorCtx = { db, userId: userData.user.id, clientId, tz, now: new Date() };
-  const response = await handleRpc(message, ALL_TOOLS, ctx, {
+  // No deletes here: the consent page promises a connected app cannot delete.
+  const response = await handleRpc(message, ALL_TOOLS.filter((t) => !t.destructive), ctx, {
     name: 'student-planner',
     version: '1.0.0',
     instructions: connectorInstructions(tz),

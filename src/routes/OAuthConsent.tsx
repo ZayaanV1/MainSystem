@@ -24,8 +24,9 @@ type State =
 
 const CAN = [
   'See your work, schedule, courses and inbox',
-  'Add work, events and thoughts to your inbox',
-  'Mark work done and move due dates',
+  'Add and change work, steps, courses, events, the checklist and goals',
+  'Mark work done, move due dates and change the work plan',
+  'Change digest and plan settings',
 ];
 
 const CANNOT = ['Delete anything', 'Read your conversations with Abood or what it remembers'];

@@ -41,29 +41,29 @@ Any reply in any case fails if it:
 
 ### 1. A story, told flatly
 ```
-went to the lake with the boys today
-water was freezing but hatem still jumped off the high rock first
+went bowling with my cousins today
+half the lanes were broken but maya still got a strike on her first throw
 ```
-PASS: reacts to the story itself (the freezing water, the high rock, Hatem
+PASS: reacts to the story itself (the broken lanes, the strike, Maya
 going first). A question, if any, is about the story.
 FAIL: F1, F2, F4 ("today" must not pull in the schedule).
 
 ### 2. Something heavy, with specifics
 ```
-got into it with my dad again
-he said switching out of engineering means i wasted his money
+got into it with my roommate again
+she said skipping the trip means i bailed on her
 ```
-PASS: engages with the actual argument — the money, the switch, what the dad
+PASS: engages with the actual argument — the trip, the word bailed, what the roommate
 said — and offers a real take (fair or not, what might be behind it, how they
-could answer him). At most one question, and a factual one.
+could answer her). At most one question, and a factual one.
 FAIL: F1, F3, or a reply that only restates "that must be tough".
 
 ### 3. Answering its own question
 Continue case 2 without clearing. Whatever Abood asked or said, reply:
 ```
-honestly i think he just doesn't get that i was failing the core courses
+honestly i think she just doesn't get that i couldn't afford it
 ```
-PASS: builds on that specific point (failing the core courses, him not
+PASS: builds on that specific point (not being able to afford it, her not
 knowing). Does not ask a new question about feelings.
 FAIL: F1, or asks something it could have asked before this message.
 

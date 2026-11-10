@@ -67,15 +67,41 @@ export function undoSteps(change: ChangeRow, now: Date = new Date()): UndoStep[]
 // deno-lint-ignore no-explicit-any
 type Db = any;
 
+/**
+ * The only tables an undo may touch. A signed-in client can insert its own
+ * connector_changes rows, so `before` is not trusted: without this list a
+ * forged row could have the service role write to any table (Nov 2026).
+ */
+export const UNDOABLE = new Set([
+  'assignments', 'events', 'inbox_items', 'courses', 'course_pages', 'subtasks',
+  'checklist_items', 'checklist_completions', 'goals', 'planned_blocks',
+  'app_settings', 'class_series', 'assignment_series',
+  'deferrals', 'assignment_files', 'connector_changes',
+]);
+
 /** Run undo steps directly, scoped to the account (the server's service client bypasses RLS). */
 export async function applyUndo(db: Db, userId: string, change: ChangeRow, now: Date = new Date()): Promise<void> {
-  for (const s of undoSteps(change, now)) {
+  const steps = undoSteps(change, now);
+  // Checked before anything runs, so a refused record changes nothing.
+  for (const s of steps) {
+    if (!UNDOABLE.has(s.table) || !['insert', 'update', 'upsert', 'delete'].includes(s.op)) {
+      throw new Error('This change cannot be undone here.');
+    }
+  }
+  for (const s of steps) {
     let q;
     if (s.op === 'insert' || s.op === 'upsert') {
-      const row = { ...s.payload, user_id: userId };
-      q = s.op === 'insert' ? db.from(s.table).insert(row) : db.from(s.table).upsert(row);
+      // Always an insert: a restored row was deleted, so it cannot exist, and
+      // an upsert would take over a row with the same key in another account.
+      q = db.from(s.table).insert({ ...s.payload, user_id: userId });
+    } else if (s.op === 'delete') {
+      q = db.from(s.table).delete();
+      q = q.eq('user_id', userId);
+      for (const [k, v] of Object.entries(s.match)) q = q.eq(k, v);
     } else {
-      q = s.op === 'delete' ? db.from(s.table).delete() : db.from(s.table).update(s.payload);
+      // A row never changes owner through an undo.
+      const { user_id: _owner, ...fields } = s.payload;
+      q = db.from(s.table).update(fields);
       q = q.eq('user_id', userId);
       for (const [k, v] of Object.entries(s.match)) q = q.eq(k, v);
     }

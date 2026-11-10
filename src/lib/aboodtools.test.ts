@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { validateCalls } from '../../supabase/functions/_shared/chat';
 import { describeCall, isNo, isUndo, isYes, needsYes, toolMenu, TOOL_NAMES } from '../../supabase/functions/_shared/aboodtools';
 import { ALL_TOOLS } from '../../supabase/functions/_shared/tools';
-import { undoSteps } from '../../supabase/functions/_shared/undo';
+import { applyUndo, undoSteps, type ChangeRow } from '../../supabase/functions/_shared/undo';
 
 const REAL = '11111111-2222-3333-4444-555555555555';
 
@@ -97,5 +97,45 @@ describe('undo of a delete', () => {
       before: { plan_day_cap: 240 }, summary: 'x', created_at: '', undone_at: null,
     });
     expect(first.match).toEqual({ user_id: 'u1' });
+  });
+});
+
+describe('undo run by the server', () => {
+  // A client can insert its own connector_changes rows, so `before` is forged here.
+  const forged = (before: Record<string, unknown>): ChangeRow => ({
+    id: 'c9', client_id: 'x', tool: 'delete_work', target_table: 'assignments', target_id: 'a1',
+    before, summary: 'x', created_at: '', undone_at: null,
+  });
+  const fakeDb = () => {
+    const calls: { table: string; op: string; row?: Record<string, unknown> }[] = [];
+    const chain = { eq: () => chain, then: (ok: (v: { error: null }) => void) => ok({ error: null }) };
+    const db = {
+      from: (table: string) => ({
+        insert: (row: Record<string, unknown>) => (calls.push({ table, op: 'insert', row }), chain),
+        update: (row: Record<string, unknown>) => (calls.push({ table, op: 'update', row }), chain),
+        delete: () => (calls.push({ table, op: 'delete' }), chain),
+      }),
+    };
+    return { db, calls };
+  };
+
+  it('refuses a table outside the list, before anything is written', async () => {
+    const { db, calls } = fakeDb();
+    const change = forged({
+      __deleted: { id: 'a1', title: 'Lab' },
+      __restore: [{ table: 'imessage_links', op: 'upsert', payload: { handle: '+15145550100' }, match: {} }],
+    });
+    await expect(applyUndo(db, 'me', change)).rejects.toThrow('cannot be undone');
+    expect(calls).toEqual([]);
+  });
+
+  it('inserts rather than upserts, and never hands a row to another account', async () => {
+    const { db, calls } = fakeDb();
+    await applyUndo(db, 'me', forged({ __deleted: { id: 'a1', user_id: 'someone-else' } }));
+    expect(calls[0]).toEqual({ table: 'assignments', op: 'insert', row: { id: 'a1', user_id: 'me' } });
+
+    const second = fakeDb();
+    await applyUndo(second.db, 'me', forged({ title: 'old', user_id: 'someone-else' }));
+    expect(second.calls[0]).toEqual({ table: 'assignments', op: 'update', row: { title: 'old' } });
   });
 });

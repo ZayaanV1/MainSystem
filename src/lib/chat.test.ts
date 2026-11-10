@@ -150,9 +150,9 @@ describe('a label that leaks into the reply', () => {
 describe('catching a reply that sounds like a script', () => {
   it('flags the lines a tester failed Abood on, verbatim', async () => {
     const { scripted } = await import('../../supabase/functions/_shared/chat');
-    expect(scripted('i hear you ran into your dad again.\n\nwhat part of that sticks with you the most?')).not.toEqual([]);
-    expect(scripted("freezing water, huh? how did that make you feel watching him?")).not.toEqual([]);
-    expect(scripted("what's coming up for you when you hear that you've 'wasted' his money?")).not.toEqual([]);
+    expect(scripted('i hear you ran into your roommate again.\n\nwhat part of that sticks with you the most?')).not.toEqual([]);
+    expect(scripted("a strike, huh? how did that make you feel watching her?")).not.toEqual([]);
+    expect(scripted("what's coming up for you when you hear that you 'bailed' on her?")).not.toEqual([]);
     expect(scripted('nice one, 94 is solid. you must be feeling good about that.')).not.toEqual([]);
     expect(scripted('have you tried bringing it up before? how did they react?')).toEqual([
       'asks 2 questions; at most one',
@@ -182,7 +182,7 @@ describe('catching a reply that sounds like a script', () => {
     expect(scripted('94?? on the 212 final? bro that is huge')).toEqual([]);
     expect(
       scripted(
-        "honestly that's rough from your own dad.\n\nyou weren't wasting his money, you were failing courses that weren't working for you. switching was the responsible move.",
+        "honestly that's rough from your own roommate.\n\nyou weren't dodging the bill, you were covering one that wasn't yours. saying so was the fair move.",
         ['damn, again? what set it off this time?'],
       ),
     ).toEqual([]);
