@@ -17,6 +17,8 @@ import {
   saveCheckins,
   type CheckinSettings,
   loadMemory,
+  loadShareAbood,
+  saveShareAbood,
   telegramLink,
   telegramLinked,
   unlinkHandle,
@@ -352,7 +354,7 @@ export function Settings() {
         </>
       ),
     },
-    connected: { title: 'Connected apps', body: <ConnectedApps /> },
+    connected: { title: 'Connected apps', body: <ConnectedApps userId={userId} /> },
     data: {
       title: 'Your data',
       body: (
@@ -1492,12 +1494,26 @@ function AboodTextsFirst({ userId }: { userId: string }) {
  * can be taken back here; so every change is listed with Undo, newest first,
  * and an undone one stays in the list, marked, rather than vanishing.
  */
-function ConnectedApps() {
+function ConnectedApps({ userId }: { userId: string }) {
   const address = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/mcp`;
   const [apps, setApps] = useState<ConnectedApp[] | null>(null);
   const [changes, setChanges] = useState<ConnectorChange[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [share, setShare] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void loadShareAbood().then(setShare);
+  }, []);
+
+  async function toggleShare(on: boolean) {
+    setShare(on);
+    if (await saveShareAbood(userId, on)) announce(on ? 'Connected apps can use Abood' : 'Abood is private to the planner again');
+    else {
+      setShare(!on);
+      setProblem('That did not save. Check the connection and try again.');
+    }
+  }
 
   const load = useCallback(async () => {
     const [a, c] = await Promise.all([loadConnectedApps(), loadConnectorChanges()]);
@@ -1550,6 +1566,25 @@ function ConnectedApps() {
               {copied ? 'Copied' : 'Copy'}
             </Button>
           </div>
+        </Card>
+      </section>
+
+      <section className="mb-8">
+        <SectionHead title="Abood" />
+        <Card className="p-4">
+          <label className="flex min-h-[var(--tap)] items-center justify-between gap-4">
+            <span className="type-label text-text-hi">Share Abood with connected apps</span>
+            <input
+              type="checkbox"
+              className="settings-switch"
+              checked={share ?? false}
+              disabled={share === null}
+              onChange={(e) => void toggleShare(e.target.checked)}
+            />
+          </label>
+          <p className="type-note text-text-low">
+            Lets an app like Claude read what Abood remembers and your recent texts with him, add to his memory, and text you as him. Off, they see only the planner.
+          </p>
         </Card>
       </section>
 

@@ -157,3 +157,14 @@ export async function saveCheckins(userId: string, s: CheckinSettings): Promise<
     .eq('user_id', userId);
   return !error;
 }
+
+/** Whether a connected AI app may use Abood's memory and text as him (migration 0054). */
+export async function loadShareAbood(): Promise<boolean | null> {
+  const { data, error } = await supabase.from('app_settings').select('share_abood').maybeSingle();
+  return error || !data ? null : Boolean(data.share_abood);
+}
+
+export async function saveShareAbood(userId: string, on: boolean): Promise<boolean> {
+  const { error } = await supabase.from('app_settings').update({ share_abood: on }).eq('user_id', userId);
+  return !error;
+}

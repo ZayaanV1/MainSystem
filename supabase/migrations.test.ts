@@ -1555,3 +1555,20 @@ describe('attached files are held to their owner (0046)', () => {
     await expect(add(`${U}/${W}/four.pdf`)).rejects.toThrow(/three files/i);
   });
 });
+
+describe('sharing Abood with a connected app (0054)', () => {
+  it('refuses memory and texts while the switch is off, and takes them once it is on', async () => {
+    await expect(asUser(USER_A, () => db.query(`select public.connector_remember('Ran a first 10k on Sunday.')`))).rejects.toThrow(/off/);
+    await expect(asUser(USER_A, () => db.query(`select public.connector_text_me(array['yo'], 'telegram')`))).rejects.toThrow(/off/);
+    await asUser(USER_A, async () => {
+      await db.exec(`update public.app_settings set share_abood = true where user_id = '${USER_A}'`);
+      const r = await db.query<{ kept: boolean }>(`select public.connector_remember('Ran a first 10k on Sunday.') as kept`);
+      expect(r.rows[0].kept).toBe(true);
+      await db.exec(`select public.connector_text_me(array['yo', 'it worked'], 'telegram')`);
+      const f = await db.query<{ source: string }>(`select source from public.memory_facts where user_id = '${USER_A}' and fact like 'Ran a first 10k%'`);
+      expect(f.rows[0].source).toBe('claude');
+      const m = await db.query<{ content: string }>(`select content from public.chat_messages where user_id = '${USER_A}' and via = 'telegram' order by created_at desc limit 1`);
+      expect(m.rows[0].content).toBe('yo\n\nit worked');
+    });
+  });
+});

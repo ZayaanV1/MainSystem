@@ -13,8 +13,9 @@ import { addDays, endOfDayUTC, formatTime, localDayKey, localHourMinute, startOf
  *
  * Deliberately absent:
  *   - Deleting anything. The one action Undo cannot cover.
- *   - Abood's conversations and memory. That is the account's confidant, and
- *     handing it to another AI is not what it was built for.
+ *   - Abood's conversations and memory, unless the account turns on
+ *     "Share Abood" (off by default, migration 0054, _shared/shareAbood.ts).
+ *     That is the account's confidant, so it is opt-in, never assumed.
  *   - The focus timer. It lives on the device (lib/focus.ts), on purpose.
  *   - Editing events mirrored from a subscribed calendar: the next sync would
  *     overwrite them, and they are not the account's to change here.
@@ -500,5 +501,6 @@ export function connectorInstructions(tz: string): string {
     'Anything can be changed: work and its steps, courses and course pages, events the user added, the checklist, the inbox, goals, the work plan and its settings. Nothing can be deleted through this connection; if the user wants something removed, tell them to do it in the app.',
     'Events from a subscribed calendar, the account itself, AI keys and notification channels cannot be changed here.',
     'Never invent a deadline. If a date is unclear, ask the user or put the thought in the inbox.',
+    "recall_memory, remember, recent_conversation and text_me reach Abood, the planner's texting companion, and work only if the user has turned on sharing in Settings, Connected apps.",
   ].join(' ');
 }

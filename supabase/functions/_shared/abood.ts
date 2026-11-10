@@ -298,6 +298,15 @@ export async function recall(
       const { data: dated } = await admin.from('memory_facts').select('fact, created_at').eq('user_id', userId).in('fact', facts);
       const when = new Map(((dated ?? []) as { fact: string; created_at: string }[]).map((r) => [r.fact, r.created_at]));
       rows = facts.map((fact) => ({ fact, created_at: when.get(fact) ?? '' }));
+      // Facts saved by a connected app carry no embedding, so matching never finds them; the newest few ride along.
+      const { data: plain } = await admin
+        .from('memory_facts')
+        .select('fact, created_at')
+        .eq('user_id', userId)
+        .is('embedding', null)
+        .order('created_at', { ascending: false })
+        .limit(4);
+      rows.push(...((plain ?? []) as { fact: string; created_at: string }[]).filter((r) => !facts.includes(r.fact)));
     }
   }
   if (!rows.length) {
