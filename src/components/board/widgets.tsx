@@ -52,6 +52,8 @@ export interface WidgetContext {
   onToggleItem: (id: string) => void;
   onFinish: (a: Assignment) => void;
   onOpen: (a: Assignment) => void;
+  /** Opens the Month screen on this day. */
+  onOpenDay: (day: DayKey) => void;
   sized: (minutes: number | null) => number | null;
   capture: (body: string) => Promise<void>;
   /** Null while loading. */
@@ -466,6 +468,7 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
             const items = byDay.get(d) ?? [];
             return (
               <li key={d} data-today={i === 0 || undefined}>
+                <button type="button" className="bw-dayhit" aria-label={`Open ${formatDay(d)}`} onClick={() => ctx.onOpenDay(d)} />
                 <span className="bw-dn"><span className="bw-num">{Number(d.slice(8))}</span><small>{weekday(d, 'short')}</small></span>
                 <span className="bw-its">
                   {items.length ? items.slice(0, 2).map((t) => (
@@ -481,13 +484,13 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
   const strip = (
     <div className="bw-wk">
       {days.map((d, i) => (
-        <div key={d} data-today={i === 0 || undefined}>
+        <button key={d} type="button" data-today={i === 0 || undefined} aria-label={`Open ${formatDay(d)}`} onClick={() => ctx.onOpenDay(d)}>
           <span className="bw-wk-d">{weekday(d, 'narrow')}</span>
           <span className="bw-wk-n bw-num">{Number(d.slice(8))}</span>
           <span className="bw-wk-dots">
             {(byDay.get(d) ?? []).slice(0, 3).map((t) => <Dot key={t.key} course={t.course} />)}
           </span>
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -549,7 +552,9 @@ function Month({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
             data-today={c.isToday || undefined}
             aria-pressed={c.day === sel}
             aria-label={`${formatDay(c.day)}${things.length ? `, ${things.length} due` : ''}`}
-            onClick={() => setSel(c.day)}
+            // Small has no room to list a day, so a tap opens it; elsewhere the
+            // first tap lists the day below and a second opens it.
+            onClick={() => (w.size === 's' || c.day === sel ? ctx.onOpenDay(c.day) : setSel(c.day))}
           >
             {Number(c.day.slice(8))}
             {things.length > 0 && (
@@ -628,7 +633,8 @@ function Exams({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         {exams.slice(0, 3).map((x) => {
           const n = daysUntil(new Date(x.starts_at), ctx.now);
           return (
-            <li key={x.id} className="bw-row bw-center">
+            <li key={x.id} className="bw-row bw-center bw-rel">
+              <button type="button" className="bw-dayhit" aria-label={`Open ${formatDay(localDayKey(new Date(x.starts_at)))}`} onClick={() => ctx.onOpenDay(localDayKey(new Date(x.starts_at)))} />
               <span className="bw-num bw-n-m bw-daycol tabular-nums">{n}<small>d</small></span>
               <span className="bw-row-main">
                 <span className="bw-row-t">{x.title}</span>

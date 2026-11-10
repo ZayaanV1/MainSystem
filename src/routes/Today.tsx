@@ -94,9 +94,12 @@ import { useVisionDesk } from '../lib/vision';
  */
 export function Today({
   onData,
+  onOpenDay,
   refresh = 0,
 }: {
   onData?: (d: TodayData) => void;
+  /** A calendar widget's day, opened on Month. */
+  onOpenDay: (day: DayKey) => void;
   /** Bumped by the shell after another screen writes, to re-read in place. */
   refresh?: number;
 }) {
@@ -322,6 +325,7 @@ export function Today({
           onToggleItem={(id) => void toggle(id, today)}
           onFinish={finish}
           onOpen={setOpenAssignment}
+          onOpenDay={onOpenDay}
           sized={sized}
           onUndoable={setUndoable}
         />

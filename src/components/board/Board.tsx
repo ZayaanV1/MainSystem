@@ -70,6 +70,7 @@ export interface BoardProps {
   onToggleItem: (id: string) => void;
   onFinish: (a: Assignment) => void;
   onOpen: (a: Assignment) => void;
+  onOpenDay: (day: DayKey) => void;
   sized: (minutes: number | null) => number | null;
   onUndoable: (u: { message: string; undo: () => void }) => void;
 }
@@ -208,6 +209,7 @@ export function Board(props: BoardProps) {
       onToggleItem: props.onToggleItem,
       onFinish: props.onFinish,
       onOpen: props.onOpen,
+      onOpenDay: props.onOpenDay,
       sized: props.sized,
       capture: (body) => capture(userId, body),
       goals,
@@ -219,7 +221,7 @@ export function Board(props: BoardProps) {
       gradesOn: moduleOn('grades', prefs),
       still: false,
     }),
-    [userId, today, now, data, props.checklist, props.isDone, props.onToggleItem, props.onFinish, props.onOpen, props.sized, goals, goalsFailed, stepGoal, grades, term, prefs],
+    [userId, today, now, data, props.checklist, props.isDone, props.onToggleItem, props.onFinish, props.onOpen, props.onOpenDay, props.sized, goals, goalsFailed, stepGoal, grades, term, prefs],
   );
   const stillCtx = useMemo(() => ({ ...ctx, still: true }), [ctx]);
 
