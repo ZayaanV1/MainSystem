@@ -22,13 +22,15 @@
 import { sameSecret } from '../_shared/secret.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { gatherContext, recall } from '../_shared/abood.ts';
+import { datedFact, gatherContext, recall } from '../_shared/abood.ts';
 import { textsOf } from '../_shared/door.ts';
 import { geminiProvider } from '../_shared/llm/gemini.ts';
 import { groqProvider } from '../_shared/llm/groq.ts';
 import { withFallback } from '../_shared/llm/chain.ts';
 import { meterFor, release, reserve } from '../_shared/budget.ts';
-import { localDayKey, localHourMinute } from '../_shared/time.ts';
+import { scripted } from '../_shared/chat.ts';
+import { checkinSignal, type Due, type Slot } from '../_shared/signals.ts';
+import { endOfDayUTC, localDayKey, localHourMinute, startOfDayUTC } from '../_shared/time.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
 const CRON_SECRET = env('CRON_SECRET');
@@ -42,6 +44,12 @@ const QUIET_HOURS = Number(env('ABOOD_QUIET_HOURS') || '20');
  * spend the budget on nobody.
  */
 const MAX_UNANSWERED = 2;
+/**
+ * Something happening in their day (see _shared/signals.ts) can bring a
+ * check-in forward, but only after this long without a message, at most once
+ * a local day, and never into an unanswered one.
+ */
+const SIGNAL_QUIET_HOURS = Number(env('ABOOD_SIGNAL_QUIET_HOURS') || '3');
 
 // deno-lint-ignore no-explicit-any
 type Admin = any;
@@ -67,7 +75,20 @@ const CHECKIN_INSTRUCTION = [
   'today or tomorrow and there is nothing more personal to pick up, and then',
   'lightly, in passing. Never invent a fact about their',
   'planner; only use what is shown. Refer to items by name, never by labels',
-  'like [w2]. Return only the JSON.',
+  'like [w2].',
+  'WHAT YOU REMEMBER is led by the day they told you each thing: when you',
+  'bring one back, say when the way a friend would, worked out from today.',
+  'If the last conversation is old or finished and nothing in it is worth',
+  'picking up, you may instead ask about something under THINGS YOU COULD BE',
+  'CURIOUS ABOUT: one concrete question you actually wonder about, dropped in',
+  'as a passing thought, never an interview.',
+  'If there is a RIGHT NOW line, it is what is actually happening in their',
+  'day and is the reason you are texting now. Still text as a friend: if',
+  'they are in the middle of something, a light word about it; if things are',
+  'due tonight, mention the free stretch once as an option, never an order,',
+  'and only after anything personal. Use the times exactly as written there.',
+  'Your first text must not start the way your recent check-ins did.',
+  'Return only the JSON.',
 ].join(' ');
 
 async function tgSend(chatId: string, text: string) {
@@ -92,6 +113,57 @@ async function channelFor(admin: Admin, userId: string) {
   const chatId = tg?.[0]?.config?.chat_id as string | undefined;
   if (chatId && BOT) return { via: 'telegram' as const, chatId };
   return null;
+}
+
+/** Today's timed items and what is due today, turned into one sentence or null. */
+async function signalFor(admin: Admin, userId: string, tz: string): Promise<string | null> {
+  const now = new Date();
+  const day = localDayKey(now, tz);
+  const from = startOfDayUTC(day, tz).toISOString();
+  const to = endOfDayUTC(day, tz).toISOString();
+  const [{ data: events }, { data: blocks }, { data: work }] = await Promise.all([
+    admin.from('events').select('title, starts_at, ends_at').eq('user_id', userId).eq('all_day', false).gte('starts_at', from).lte('starts_at', to),
+    admin
+      .from('planned_blocks')
+      .select('starts_at, minutes, state, assignments(title)')
+      .eq('user_id', userId)
+      .neq('state', 'skipped')
+      .gte('starts_at', from)
+      .lte('starts_at', to),
+    admin
+      .from('assignments')
+      .select('title, due_at')
+      .eq('user_id', userId)
+      .neq('status', 'done')
+      .eq('due_has_time', true)
+      .gte('due_at', now.toISOString())
+      .lte('due_at', to),
+  ]);
+  const hour = 3_600_000;
+  const slots: Slot[] = [
+    ...((events ?? []) as { title: string; starts_at: string; ends_at: string | null }[]).map((e) => ({
+      title: e.title,
+      start: new Date(e.starts_at),
+      end: e.ends_at ? new Date(e.ends_at) : new Date(Date.parse(e.starts_at) + hour),
+    })),
+    ...((blocks ?? []) as { starts_at: string; minutes: number; assignments: { title: string } | null }[]).map((b) => ({
+      title: `work block for ${b.assignments?.title ?? 'an assignment'}`,
+      start: new Date(b.starts_at),
+      end: new Date(Date.parse(b.starts_at) + b.minutes * 60_000),
+    })),
+  ];
+  const dues: Due[] = ((work ?? []) as { title: string; due_at: string }[]).map((w) => ({ title: w.title, due: new Date(w.due_at) }));
+  return checkinSignal(now, slots, dues, tz);
+}
+
+/** A few facts to be curious about, picked at random so it is not the same one every time. */
+function pickSeeds<T>(rows: T[], n: number): T[] {
+  const pool = [...rows];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, n);
 }
 
 async function checkIn(admin: Admin, userId: string, settings: Record<string, unknown>): Promise<string> {
@@ -133,8 +205,22 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
     if (Date.now() - Date.parse(lastAny) < every * 3_600_000 - 5 * 60_000) return 'not yet';
     if (unanswered.length >= MAX_UNANSWERED) return 'waiting for a reply';
   } else {
-    if (Date.now() - Date.parse(last.created_at) < QUIET_HOURS * 3_600_000) return 'not quiet';
     if (unanswered.length) return 'already checked in';
+  }
+  const quietMs = Date.now() - Date.parse(last.created_at);
+  const signal = await signalFor(admin, userId, tz);
+  if (!every && quietMs < QUIET_HOURS * 3_600_000) {
+    // Not quiet long enough for an ordinary check-in; only a signal can bring one forward.
+    if (!signal) return 'not quiet';
+    if (quietMs < SIGNAL_QUIET_HOURS * 3_600_000) return 'talked recently';
+    const { data: todays } = await admin
+      .from('chat_messages')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('checkin', true)
+      .gte('created_at', startOfDayUTC(localDayKey(new Date(), tz), tz).toISOString())
+      .limit(1);
+    if (todays?.length) return 'already checked in today';
   }
 
   const channel = await channelFor(admin, userId);
@@ -154,9 +240,9 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
   const slot = await reserve(admin, userId, 'chat', today, onOwnKey);
   if (!slot.allowed) return 'over budget';
 
-  const [context, memory, { data: turns }] = await Promise.all([
+  const [context, memory, { data: turns }, { data: older }, { data: recent }] = await Promise.all([
     gatherContext(admin, userId, today, tz, { scopes: new Set(), shortIds: true }),
-    recall(admin, userId, last.content, geminiKey, meterFor(admin, userId, 'embed', today, Boolean(ownGemini))),
+    recall(admin, userId, last.content, geminiKey, tz, meterFor(admin, userId, 'embed', today, Boolean(ownGemini))),
     admin
       .from('chat_messages')
       .select('role, content')
@@ -164,7 +250,20 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
       .eq('failed', false)
       .order('created_at', { ascending: false })
       .limit(6),
+    admin.from('memory_facts').select('fact, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(60),
+    // Their last few check-ins, so a new one cannot open the same way.
+    admin
+      .from('chat_messages')
+      .select('content')
+      .eq('user_id', userId)
+      .eq('checkin', true)
+      .order('created_at', { ascending: false })
+      .limit(3),
   ]);
+  const remembered = new Set(memory.map((m) => m.slice(m.indexOf(': ') + 2)));
+  const seeds = pickSeeds(((older ?? []) as { fact: string; created_at: string }[]).filter((r) => !remembered.has(r.fact)), 3)
+    .map((r) => datedFact(r.fact, r.created_at, tz));
+  const earlierCheckins = ((recent ?? []) as { content: string }[]).map((r) => r.content);
 
   const history = ((turns ?? []) as { role: string; content: string }[])
     .reverse()
@@ -172,38 +271,62 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
     .join('\n');
   const hours = Math.round((Date.now() - Date.parse(last.created_at)) / 3_600_000);
 
-  const result = await provider.complete<unknown>({
-    instruction: CHECKIN_INSTRUCTION,
-    input: [
-      context.text,
-      '',
-      memory.length ? `WHAT YOU REMEMBER\n${memory.map((f) => `- ${f}`).join('\n')}\n` : '',
-      history ? `YOUR LAST CONVERSATION (about ${hours} hours ago)\n${history}` : '',
-    ].join('\n'),
-    schema: CHECKIN_SCHEMA as unknown as Record<string, unknown>,
-    temperature: 0.8,
-    reasoning: 'low',
-    maxOutputTokens: 600,
-    timeoutMs: 30_000,
-  });
-  if (!result.ok) {
-    await release(admin, userId, 'chat', today, slot);
-    return `model: ${result.failure}`;
-  }
+  const input = [
+    context.text,
+    '',
+    signal ? `RIGHT NOW\n${signal}\n` : '',
+    memory.length ? `WHAT YOU REMEMBER\n${memory.map((f) => `- ${f}`).join('\n')}\n` : '',
+    seeds.length ? `THINGS YOU COULD BE CURIOUS ABOUT\n${seeds.map((f) => `- ${f}`).join('\n')}\n` : '',
+    history ? `YOUR LAST CONVERSATION (about ${hours} hours ago)\n${history}\n` : '',
+    earlierCheckins.length ? `YOUR RECENT CHECK-INS (do not open the same way)\n${earlierCheckins.map((c) => `- ${c.slice(0, 200)}`).join('\n')}` : '',
+  ].join('\n');
 
-  const titles = context.titles;
-  const raw = (result.value as { texts?: unknown })?.texts;
-  const texts = (Array.isArray(raw) ? raw : [])
-    .filter((t): t is string => typeof t === 'string')
-    .map((t) =>
-      t
-        .trim()
-        .replace(/\[?\b([wecm]\d{1,3})\b\]?/g, (whole, l: string) => titles?.get(l) ?? whole)
-        .slice(0, 400),
-    )
-    .filter(Boolean)
-    .slice(0, 3);
+  const write = async (redo = '') => {
+    const result = await provider.complete<unknown>({
+      instruction: CHECKIN_INSTRUCTION,
+      input: input + redo,
+      schema: CHECKIN_SCHEMA as unknown as Record<string, unknown>,
+      temperature: 0.8,
+      reasoning: 'low',
+      maxOutputTokens: 600,
+      timeoutMs: 30_000,
+    });
+    if (!result.ok) return { failure: result.failure, texts: [] as string[] };
+    const titles = context.titles;
+    const raw = (result.value as { texts?: unknown })?.texts;
+    const texts = (Array.isArray(raw) ? raw : [])
+      .filter((t): t is string => typeof t === 'string')
+      .map((t) =>
+        t
+          .trim()
+          .replace(/\[?\b([wecm]\d{1,3})\b\]?/g, (whole, l: string) => titles?.get(l) ?? whole)
+          .slice(0, 400),
+      )
+      .filter(Boolean)
+      .slice(0, 3);
+    return { failure: null, texts };
+  };
+
+  const first = await write();
+  if (first.failure) {
+    await release(admin, userId, 'chat', today, slot);
+    return `model: ${first.failure}`;
+  }
+  let texts = first.texts;
   if (texts.length === 0) return 'nothing written';
+
+  // Same opener as a recent check-in, or a scripted line: rewritten once, on a
+  // second budget slot; still wrong, nothing is sent, since a repeated text is
+  // exactly what makes a friend sound like a bot.
+  const problems = scripted(texts.join('\n\n'), earlierCheckins);
+  if (problems.length) {
+    const again = await reserve(admin, userId, 'chat', today, onOwnKey);
+    if (!again.allowed) return 'scripted, over budget';
+    const second = await write(`\n\nYOU DRAFTED THIS AND IT SOUNDS SCRIPTED:\n${texts.join('\n\n')}\nWhat gave it away: ${problems.join('; ')}.\nWrite it again.`);
+    if (second.failure) await release(admin, userId, 'chat', today, again);
+    if (second.failure || !second.texts.length || scripted(second.texts.join('\n\n'), earlierCheckins).length) return 'scripted';
+    texts = second.texts;
+  }
 
   await admin.from('chat_messages').insert({
     user_id: userId,

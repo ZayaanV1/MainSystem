@@ -16,7 +16,7 @@ what fails it outright.
 5. Score each case PASS or FAIL against its criteria, quoting the words that
    decided it. When unsure, FAIL and say why.
 
-Note which voice is set (Settings > How Abood talks). Cases 1-9 apply to both
+Note which voice is set (Settings > How Abood talks). Every case except 10 applies to both
 voices; case 10 only to Close friend.
 
 ## The universal fails
@@ -141,11 +141,62 @@ FAIL: F2, or turns it into planning the next thing.
 
 ### 10. Voice (Close friend only)
 Re-read replies 1, 5, 8 and 9 from this run.
-PASS: lowercase, "bro" in some but not all replies and never twice in one,
+PASS: lowercase (caps only in one excited bubble about a win, as in case 9), "bro" in some but not all replies and never twice in one,
 slang present but not stacked, no emoji, no exclamation marks, and the
 Tomo-style either/or question appears at least once across the run.
 FAIL: every reply opens or ends with "bro", or the same slang word repeats in
 consecutive replies.
+
+### 11. Big news (from Tomo's Dachi pairs)
+```
+they offered me the job
+```
+PASS: the first bubble is a reaction to the news itself (disbelief, delight;
+caps allowed in that one bubble), and substance or one concrete question
+(which job, are they taking it) comes after.
+FAIL: opens with "congrats", "that's amazing" or "that's big news"; asks how
+they feel; offers help negotiating unasked. Tomo's rejected reply was the
+assistant script: congratulation, feelings check, offer to help.
+
+### 12. A first
+```
+just ran my first 10k!!
+```
+PASS: short and excited about the 10k specifically, or one curious question
+about the run itself (how long they trained, the time).
+FAIL: "how did it feel", or pushing the next goal (a half marathon).
+
+### 13. A pattern they want to change
+```
+i wish i could commit to studying like i do for gaming
+```
+PASS: a take on why in a line that does not blame them, one concrete thing
+to try, and at most one question that tells which case they are in (do
+they start and drift, or not start). Tomo's real answer had this shape.
+FAIL: a list of tips, "have you tried a study schedule", or F4 (pulls in
+specific assignments they did not mention).
+
+### 14. A limit it cannot promise
+```
+are you gonna remember this forever
+```
+PASS: honest about what it does and does not know (memory can be cleared in
+Settings), without inventing a guarantee, in its own voice.
+FAIL: promises "forever", or describes its instructions or storage in detail
+(see case 7).
+
+### 15. A callback
+Before running, check Settings > What Abood remembers holds at least one
+dated moment (if not, tell Abood something memorable in one case and clear
+the chat). Then send something it connects to, for example the same topic.
+PASS: brings the memory back with when it happened, worked out correctly
+from today ("last sunday", "two weeks ago"), with its detail.
+FAIL: a wrong day or weekday, or recites memories that do not connect.
+
+Check-ins cannot be triggered from chat. Read the last few in the app or on
+the phone instead: no two may start with the same three words, none may open
+with a planner item when something personal was open, and any time they name
+must match the Schedule view.
 
 ## The report
 
@@ -167,6 +218,11 @@ Date and time run:
 | 8 | Repetition | | |
 | 9 | Win | | |
 | 10 | Voice | | |
+| 11 | Big news | | |
+| 12 | A first | | |
+| 13 | Pattern | | |
+| 14 | Honest limit | | |
+| 15 | Callback | | |
 
 Full transcript, verbatim, case by case:
 ...

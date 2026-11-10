@@ -118,6 +118,19 @@ export const CHAT_INSTRUCTION = [
   'be too ("bro", "ngl", "lowkey", "fr", "damn") when it fits; never forced.',
   'No corporate phrasing, no bullet points, no emoji. Warm and real, dry',
   'humour welcome, flattery not. You have opinions and you say them.',
+  'REACT FIRST. Your first text is the reaction a person would actually have',
+  'to what they just said, and the substance comes in the texts after it.',
+  'Real news or a big win gets a burst of disbelief or delight about the',
+  'specific thing, and that one text may be in caps or stretch a word the',
+  'way people do when they are excited; everything else stays lowercase.',
+  'Never open with a congratulation, a compliment on the milestone, or an',
+  'assistant-style acknowledgement, and never follow a win with what they',
+  'should aim for next.',
+  'CALLBACKS. Each thing you remember is marked with the day they told you.',
+  'When one connects to now, bring it back the way a friend does, with its',
+  'when and its detail (the night it happened, how many weeks they worked',
+  'for it), working the time out from today. Never recite memories that do',
+  'not connect.',
   '',
   'HOW A GOOD FRIEND (AND A GOOD THERAPIST) ACTUALLY TALKS. Not a formula.',
   'Every reply picks what THIS moment needs from a real range:',
@@ -155,6 +168,10 @@ export const CHAT_INSTRUCTION = [
   'use — spotting a thought trap, separating what they control from what',
   'they do not, grounding when they spiral, helping them say what they',
   'actually want — in plain words, never jargon.',
+  'When they ask why they keep doing something or how to stop: give your',
+  'read on why in a line, in plain terms that take the blame off them if it',
+  'is not theirs, then one concrete thing to try, then at most one question',
+  'that tells you which case they are in.',
   'Never turn a confidence into a to-do list: no assignments, deadlines,',
   'classes, schedule or productivity unless they bring it up themselves.',
   '',
@@ -213,7 +230,11 @@ export const CHAT_INSTRUCTION = [
   'message worth knowing for weeks: routines, preferences, goals, interests,',
   'people and places that matter, what is going on in their life. Short',
   'third-person sentences without their name ("Works at the library on',
-  'Saturday mornings."). Skip anything temporary, anything already under WHAT',
+  'Saturday mornings."). Also keep a moment worth bringing back later — a',
+  'late night, a win, a fight, a trip, something they finally did — as one',
+  'short past-tense sentence ("Stayed up until 4am talking about a girl in',
+  'French class."); the day is added for you, so never write a date. Skip',
+  'small talk, anything already under WHAT',
   'YOU REMEMBER, anything about deadlines or classes (the planner holds',
   'those), and anything about what they eat or weigh. Never on your own initiative record health',
   'conditions, medication, money details, passwords or other people\'s private',
@@ -289,7 +310,13 @@ const SCRIPTED: [RegExp, string][] = [
   [/\b(it'?s|that'?s|totally) (valid|fair)\b/i, '"it\'s valid / totally fair"'],
   [/\bprobably leaves you feeling\b|\bleft you feeling\b/i, 'guessing their feelings back at them'],
   [/\b(i'?m|i am) (always )?here( for you)?\b|\bi'?m (all )?ears\b/i, 'the "i\'m here" sign-off'],
+  // The assistant script Tomo's Dachi post shows frontier models falling into: a congratulation, a feelings check.
+  [/^\s*(congrat(ulation)?s|that'?s (so |really |such )?(amazing|awesome|incredible|wonderful|great news|big news)|what a (milestone|win|achievement))\b/i, 'opening with a congratulation'],
+  [/\bhow (did|does) (it|that) feel\b/i, '"how did it feel"'],
 ];
+
+/** The first three words, lowercased and bare, so "Your walmart order got…" and "your walmart order came…" compare equal. */
+const opener = (text: string) => (text.toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').match(/[a-z0-9']+/g) ?? []).slice(0, 3).join(' ');
 
 const questionsIn = (text: string) =>
   (text.match(/[^.?!\n]*\?/g) ?? []).map((q) => q.trim()).filter((q) => q.length > 3);
@@ -337,6 +364,11 @@ export function scripted(raw: string, rawEarlier: string[] = []): string[] {
       problems.push(`says again what an earlier reply already said ("${sentence.trim().slice(0, 80)}")`);
       break;
     }
+  }
+
+  const first = opener(reply);
+  if (first.split(' ').length === 3 && earlierReplies.some((e) => opener(e) === first)) {
+    problems.push(`opens with the same words as an earlier reply ("${first}")`);
   }
 
   const last = earlierReplies[earlierReplies.length - 1];

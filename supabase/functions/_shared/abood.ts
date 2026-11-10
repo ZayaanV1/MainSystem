@@ -3,6 +3,7 @@ import { asPending, describeCall, isNo, isRead, isUndo, isYes, needsYes, outcome
 import { buildContext, type BuildOptions, type Scope } from './context.ts';
 import { CHAT_INSTRUCTION, CHAT_SCHEMA, scripted, validateChat, type ChatReply } from './chat.ts';
 import type { LlmProvider } from './llm/types.ts';
+import { formatDay, localDayKey } from './time.ts';
 
 /**
  * Abood — the conversation, wherever it happens.
@@ -270,14 +271,20 @@ export async function embed(text: string, apiKey: string, allow?: () => Promise<
 
 const vectorLiteral = (v: number[]) => `[${v.join(',')}]`;
 
-/** The facts most relevant to a message, or the most recent when that fails. */
+/**
+ * The facts most relevant to a message, or the most recent when that fails,
+ * each led by the day it was told ("Sat, Oct 11: Stayed up until 4am…") so a
+ * callback can say when — "that was a saturday", "three weeks of prep".
+ */
 export async function recall(
   admin: Admin,
   userId: string,
   message: string,
   geminiKey: string,
+  tz: string,
   allow?: () => Promise<boolean>,
 ): Promise<string[]> {
+  let rows: { fact: string; created_at: string }[] = [];
   const v = await embed(message, geminiKey, allow);
   if (v) {
     const { data, error } = await admin.rpc('match_memory_facts', {
@@ -286,18 +293,33 @@ export async function recall(
       p_count: RECALL,
     });
     if (!error && Array.isArray(data) && data.length > 0) {
-      return (data as { fact: string }[]).map((r) => r.fact);
+      const facts = (data as { fact: string }[]).map((r) => r.fact);
+      // The match function returns no dates; one read for them, kept in match order.
+      const { data: dated } = await admin.from('memory_facts').select('fact, created_at').eq('user_id', userId).in('fact', facts);
+      const when = new Map(((dated ?? []) as { fact: string; created_at: string }[]).map((r) => [r.fact, r.created_at]));
+      rows = facts.map((fact) => ({ fact, created_at: when.get(fact) ?? '' }));
     }
   }
-  const { data } = await admin
-    .from('memory_facts')
-    .select('fact')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(RECALL);
-  return ((data ?? []) as { fact: string }[]).map((r) => r.fact);
+  if (!rows.length) {
+    const { data } = await admin
+      .from('memory_facts')
+      .select('fact, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(RECALL);
+    rows = (data ?? []) as { fact: string; created_at: string }[];
+  }
+  return rows.map((r) => datedFact(r.fact, r.created_at, tz));
 }
 
+/** "Sat, Oct 11: fact", in their zone; the bare fact when the date is missing. */
+export function datedFact(fact: string, createdAt: string, tz: string): string {
+  const at = createdAt ? new Date(createdAt) : null;
+  return at && !Number.isNaN(at.getTime()) ? `${formatDay(localDayKey(at, tz), tz)}: ${fact}` : fact;
+}
+
+/** A date a model copied from WHAT YOU REMEMBER into a new fact; the store adds its own. */
+const DATE_LEAD = /^(mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+[a-z]{3,9}\.?\s+\d{1,2}\s*:\s*/i;
 
 /** Facts from what they said, checked for shape and for repeats. */
 export function validateFacts(raw: unknown, known: string[]): string[] {
@@ -310,7 +332,7 @@ export function validateFacts(raw: unknown, known: string[]): string[] {
   const out: string[] = [];
   for (const f of facts) {
     if (typeof f !== 'string') continue;
-    const clean = f.replace(/\s+/g, ' ').trim().replace(/^[-*•]\s*/, '');
+    const clean = f.replace(/\s+/g, ' ').trim().replace(/^[-*•]\s*/, '').replace(DATE_LEAD, '');
     if (clean.length < 8 || clean.length > 200) continue;
     if (seen.has(key(clean))) continue;
     seen.add(key(clean));
@@ -513,7 +535,7 @@ export async function askAbood(opts: {
       .eq('failed', false)
       .order('created_at', { ascending: false })
       .limit(HISTORY_TURNS + 1),
-    recall(admin, userId, message, geminiKey, embedMeter),
+    recall(admin, userId, message, geminiKey, tz, embedMeter),
   ]);
 
   type Turn = { id: string; role: string; content: string; proposed_action: unknown; action_taken: boolean };
@@ -573,7 +595,7 @@ export async function askAbood(opts: {
     .join('\n');
 
   const memoryBlock = memory.length
-    ? `WHAT YOU REMEMBER ABOUT THEM (from earlier conversations; use it to be helpful, never recite it)\n${memory.map((f) => `- ${f}`).join('\n')}\n`
+    ? `WHAT YOU REMEMBER ABOUT THEM (from earlier conversations, each led by the day they told you; use it to be helpful, never recite it)\n${memory.map((f) => `- ${f}`).join('\n')}\n`
     : '';
 
   const mode = modeFor(message, previousQuestion);

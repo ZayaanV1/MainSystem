@@ -2210,6 +2210,39 @@ prompt.
   from it. The simulator's text injection does not reach web fields (it failed in
   Search too), so that check needs a real phone.
 
+### Abood after the Tomo teardown — 10 Nov 2026
+
+Asked for: Abood with Tomo's personality, improved on. The teardown is in
+the git-ignored `replica/tomo.md` (it quotes a private transcript). All six
+proposals approved and built:
+
+- **React first.** The first text is a person's reaction; real news gets one
+  excited bubble, caps allowed, then substance. `scripted()` now catches a
+  congratulation opener, "how did it feel", and a reply opening with the
+  same three words as a recent one.
+- **Dated memory.** `recall` leads each fact with the day it was told, in the
+  account's zone (`datedFact`), so callbacks can say when. Memory may hold
+  short past-tense moments, not only traits; a date a model copies into a new
+  fact is stripped. No migration: the dates were already in `created_at`.
+- **Check-ins from the day.** `_shared/signals.ts` works out, in code, two or
+  more things due today with the free stretch before them, or something that
+  has just started. That can bring a check-in forward after 3 quiet hours
+  (`ABOOD_SIGNAL_QUIET_HOURS`), once a local day, never into an unanswered
+  one. The model is handed the times as sentences and never computes one.
+- **Curiosity.** A check-in may ask about one of three random remembered
+  facts when the last conversation has nothing to pick up.
+- **No repeated openers.** A check-in that opens like one of the last three,
+  or sounds scripted, is rewritten once on a second budget slot, and not sent
+  if it still fails.
+- **Litmus.** Cases 11-15 in `docs/abood-litmus.md`, from Tomo's own chosen
+  and rejected replies.
+
+Not taken from Tomo, on purpose: its streak flame, upsell and invite cards,
+email and shopping integrations, voice calls, group chats.
+
+Not verified: no live model run of the new prompt, and no check-in has fired
+with a signal. The litmus has not been re-run.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
