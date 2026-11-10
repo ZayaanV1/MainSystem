@@ -682,7 +682,7 @@ function Shell() {
         {/* Re-read in place when another screen writes, never remounted: a
             remount threw away anything half-typed in the capture box. */}
         <ErrorBoundary>
-          <Today refresh={revision} onData={setData} onOpenDay={(day) => navigate('month', { day })} />
+          <Today refresh={revision} onData={setData} onOpenDay={(day) => navigate('month', { day })} onOpenCourse={(course) => navigate('plan', { course })} />
         </ErrorBoundary>
       </div>
 

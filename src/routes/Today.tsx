@@ -95,11 +95,14 @@ import { useVisionDesk } from '../lib/vision';
 export function Today({
   onData,
   onOpenDay,
+  onOpenCourse,
   refresh = 0,
 }: {
   onData?: (d: TodayData) => void;
   /** A calendar widget's day, opened on Month. */
   onOpenDay: (day: DayKey) => void;
+  /** A course from the marks widget, opened on its page. */
+  onOpenCourse: (id: string) => void;
   /** Bumped by the shell after another screen writes, to re-read in place. */
   refresh?: number;
 }) {
@@ -327,6 +330,7 @@ export function Today({
           onFinish={finish}
           onOpen={setOpenAssignment}
           onOpenDay={onOpenDay}
+          onOpenCourse={onOpenCourse}
           sized={sized}
           onUndoable={setUndoable}
         />

@@ -54,6 +54,8 @@ export interface WidgetContext {
   onOpen: (a: Assignment) => void;
   /** Opens the Month screen on this day. */
   onOpenDay: (day: DayKey) => void;
+  /** Opens a course's page. */
+  onOpenCourse: (id: string) => void;
   sized: (minutes: number | null) => number | null;
   capture: (body: string) => Promise<void>;
   /** Null while loading. */
@@ -85,6 +87,16 @@ function Dot({ course }: { course: Course | undefined }) {
   const v = courseVar(course?.colour_index);
   return <i aria-hidden className="bw-dot" style={{ '--cc': v ? `var(${v})` : 'var(--text-low)' } as CSSProperties} />;
 }
+
+/**
+ * A tap target laid over a row or a whole widget that has nothing else to
+ * press, so what it shows can be opened. Its parent must be positioned.
+ */
+function Hit({ label, onClick }: { label: string; onClick: () => void }) {
+  return <button type="button" className="bw-hit" aria-label={label} onClick={onClick} />;
+}
+
+const dayOf = (iso: string) => localDayKey(new Date(iso));
 
 /** Loading is not empty: a quiet bar, never an invitation or a clear day. */
 function Waiting() {
@@ -179,6 +191,7 @@ function Due({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
       <>
         <span className="bw-num bw-peg-num tabular-nums">{left.d > 0 ? left.d : left.h}</span>
         <span className="bw-peglbl" style={tone}>{left.d > 0 ? 'days' : 'hours'}</span>
+        <Hit label={`Open ${a.title}`} onClick={() => ctx.onOpen(a)} />
       </>
     );
   if (w.size === 'strip')
@@ -186,6 +199,7 @@ function Due({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
       <>
         <div className="bw-strip-main"><Head>Next due</Head><span className="bw-row-t">{a.title}</span></div>
         <div className="bw-strip-end"><span className="bw-n-m">{big}</span><span className="bw-urg" style={tone}>{u.label}</span></div>
+        <Hit label={`Open ${a.title}`} onClick={() => ctx.onOpen(a)} />
       </>
     );
   const course = courseOf(ctx, a.course_id);
@@ -214,7 +228,7 @@ function Due({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         <button type="button" className="bw-link bw-t2" onClick={() => ctx.onOpen(a)}>{a.title}</button>
         <span className="bw-meta"><Dot course={course} /><span>{course?.code ?? course?.name ?? 'No course'}</span></span>
         <span className="bw-meta"><span className="bw-urg" style={tone}>{u.label}</span><span>{afterLabel(a, ctx)}</span></span>
-        {then && <span className="bw-meta bw-rule"><span>Then: {then.title}</span></span>}
+        {then && <button type="button" className="bw-meta bw-rule bw-link" onClick={() => ctx.onOpen(then)}><span>Then: {then.title}</span></button>}
       </div>
     </div>
   );
@@ -233,7 +247,9 @@ function Work({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         <div className="bw-grow" />
         <ul className="bw-rows bw-compact">
           {list.slice(0, 2).map((a) => (
-            <li key={a.id} className="bw-meta"><Dot course={courseOf(ctx, a.course_id)} /><span>{a.title}</span></li>
+            <li key={a.id}>
+              <button type="button" className="bw-meta bw-link" onClick={() => ctx.onOpen(a)}><Dot course={courseOf(ctx, a.course_id)} /><span>{a.title}</span></button>
+            </li>
           ))}
         </ul>
       </>
@@ -381,11 +397,13 @@ function ClassW({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
   const head = live ? 'In class now' : label;
   const course = courseOf(ctx, e.course_id);
   const when = `${daysBetween(ctx.today, localDayKey(start)) === 0 ? '' : `${formatDay(localDayKey(start)).split(',')[0]} `}${formatTimeRange(start, e.ends_at ? new Date(e.ends_at) : null)}`;
+  const hit = <Hit label={`Open ${formatDay(dayOf(e.starts_at))}`} onClick={() => ctx.onOpenDay(dayOf(e.starts_at))} />;
   if (w.size === 'strip')
     return (
       <>
         <div className="bw-strip-main"><Head>{head}</Head><span className="bw-row-t">{e.title}{e.location ? `, ${e.location}` : ''}</span></div>
         <div className="bw-strip-end"><span className="bw-num bw-n-m">{rel}</span><span className="bw-unit">{until}</span></div>
+        {hit}
       </>
     );
   const block = (
@@ -400,9 +418,10 @@ function ClassW({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
       <span className="bw-meta"><Dot course={course} /><span>{[e.location, when].filter(Boolean).join(', ')}</span></span>
     </>
   );
-  if (w.size === 's') return <><Head>{head}</Head>{block}<div className="bw-grow" />{what}</>;
+  if (w.size === 's') return <><Head>{head}</Head>{block}<div className="bw-grow" />{what}{hit}</>;
   return (
     <div className="bw-split bw-split-even">
+      {hit}
       <div className="bw-col"><Head>{head}</Head>{block}<div className="bw-grow" />{what}</div>
       <div className="bw-col bw-end bw-aside">
         {after ? (
@@ -468,7 +487,7 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
             const items = byDay.get(d) ?? [];
             return (
               <li key={d} data-today={i === 0 || undefined}>
-                <button type="button" className="bw-dayhit" aria-label={`Open ${formatDay(d)}`} onClick={() => ctx.onOpenDay(d)} />
+                <Hit label={`Open ${formatDay(d)}`} onClick={() => ctx.onOpenDay(d)} />
                 <span className="bw-dn"><span className="bw-num">{Number(d.slice(8))}</span><small>{weekday(d, 'short')}</small></span>
                 <span className="bw-its">
                   {items.length ? items.slice(0, 2).map((t) => (
@@ -503,7 +522,8 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
       {strip}
       <ul className="bw-wklist">
         {list.length ? list.map(({ d, t }) => (
-          <li key={t.key}>
+          <li key={t.key} className="bw-rel">
+            <Hit label={t.work ? `Open ${t.title}` : `Open ${formatDay(d)}`} onClick={() => (t.work ? ctx.onOpen(t.work) : ctx.onOpenDay(d))} />
             <span className="bw-unit">{weekday(d, 'short')}</span>
             <span className="bw-meta bw-strong"><Dot course={t.course} /><span>{t.exam ? `Exam: ${t.title}` : t.title}</span></span>
             <span className="bw-unit">{formatTime(t.at)}</span>
@@ -575,7 +595,7 @@ function Month({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
           {t.work ? (
             <button type="button" className="bw-link bw-strong" onClick={() => ctx.onOpen(t.work!)}>{t.title}</button>
           ) : (
-            <span className="bw-strong">Exam: {t.title}</span>
+            <button type="button" className="bw-link bw-strong" onClick={() => ctx.onOpenDay(sel)}>Exam: {t.title}</button>
           )}
           <em>{formatTime(t.at)}</em>
         </li>
@@ -623,6 +643,7 @@ function Exams({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         <span className="bw-baseline"><span className="bw-num bw-n-xl tabular-nums">{days}</span><span className="bw-unit">{days === 1 ? 'day' : 'days'}</span></span>
         <div className="bw-grow" />
         <span className="bw-t2">{e.title}</span>
+        <Hit label={`Open ${formatDay(dayOf(e.starts_at))}`} onClick={() => ctx.onOpenDay(dayOf(e.starts_at))} />
         <span className="bw-meta"><Dot course={courseOf(ctx, e.course_id)} /><span>{days < 7 ? `${weekday(localDayKey(new Date(e.starts_at)), 'short')} ${formatTime(new Date(e.starts_at))}` : formatDay(localDayKey(new Date(e.starts_at)))}</span></span>
       </>
     );
@@ -634,7 +655,7 @@ function Exams({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
           const n = daysUntil(new Date(x.starts_at), ctx.now);
           return (
             <li key={x.id} className="bw-row bw-center bw-rel">
-              <button type="button" className="bw-dayhit" aria-label={`Open ${formatDay(localDayKey(new Date(x.starts_at)))}`} onClick={() => ctx.onOpenDay(localDayKey(new Date(x.starts_at)))} />
+              <Hit label={`Open ${formatDay(dayOf(x.starts_at))}`} onClick={() => ctx.onOpenDay(dayOf(x.starts_at))} />
               <span className="bw-num bw-n-m bw-daycol tabular-nums">{n}<small>d</small></span>
               <span className="bw-row-main">
                 <span className="bw-row-t">{x.title}</span>
@@ -653,7 +674,7 @@ function Exams({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
 /** What is left of today: timed events not yet over and today's deadlines, topped up from tomorrow. */
 function restOfDay(ctx: WidgetContext, n: number) {
   const t = ctx.now.getTime();
-  const rows: { key: string; at: Date; title: string; course: Course | undefined; live?: boolean; due?: boolean; tomorrow?: boolean }[] = [];
+  const rows: { key: string; at: Date; title: string; course: Course | undefined; live?: boolean; due?: boolean; tomorrow?: boolean; work?: Assignment }[] = [];
   for (const e of ctx.events ?? []) {
     if (e.all_day) continue;
     const s = new Date(e.starts_at);
@@ -662,7 +683,7 @@ function restOfDay(ctx: WidgetContext, n: number) {
     if (day === ctx.today && end > t) rows.push({ key: e.id, at: s, title: e.title, course: courseOf(ctx, e.course_id), live: s.getTime() <= t });
   }
   for (const a of open(ctx)) {
-    if (a.due_at && localDayKey(new Date(a.due_at)) === ctx.today) rows.push({ key: a.id, at: new Date(a.due_at), title: `Due: ${a.title}`, course: courseOf(ctx, a.course_id), due: true });
+    if (a.due_at && localDayKey(new Date(a.due_at)) === ctx.today) rows.push({ key: a.id, at: new Date(a.due_at), title: `Due: ${a.title}`, course: courseOf(ctx, a.course_id), due: true, work: a });
   }
   rows.sort((a, b) => a.at.getTime() - b.at.getTime());
   if (rows.length < n) {
@@ -677,6 +698,12 @@ function restOfDay(ctx: WidgetContext, n: number) {
 
 function DayRows({ ctx, n, stack = false }: { ctx: WidgetContext; n: number; stack?: boolean }) {
   const rows = restOfDay(ctx, n);
+  const hit = (r: (typeof rows)[number]) => (
+    <Hit
+      label={r.work ? `Open ${r.work.title}` : `Open ${formatDay(localDayKey(r.at))}`}
+      onClick={() => (r.work ? ctx.onOpen(r.work) : ctx.onOpenDay(localDayKey(r.at)))}
+    />
+  );
   if (!rows.length) return <p className="bw-unit">Nothing else today.</p>;
   // Beside a clock face the column is too narrow for time and title on one
   // line, so the time goes above and the title gets the whole width.
@@ -684,7 +711,8 @@ function DayRows({ ctx, n, stack = false }: { ctx: WidgetContext; n: number; sta
     return (
       <ul className="bw-rows bw-compact bw-stack">
         {rows.map((r) => (
-          <li key={r.key}>
+          <li key={r.key} className="bw-rel">
+            {hit(r)}
             <span className="bw-meta">
               <Dot course={r.course} />
               <span className="bw-timecol" data-live={r.live || undefined}>{r.tomorrow ? 'Tomorrow' : formatTime(r.at)}</span>
@@ -698,7 +726,8 @@ function DayRows({ ctx, n, stack = false }: { ctx: WidgetContext; n: number; sta
   return (
     <ul className="bw-rows bw-compact">
       {rows.map((r) => (
-        <li key={r.key} className="bw-row bw-center">
+        <li key={r.key} className="bw-row bw-center bw-rel">
+          {hit(r)}
           <span className="bw-timecol" data-live={r.live || undefined}>{r.tomorrow ? 'Tmrw' : formatTime(r.at).replace(/\s?[ap]\.m\./u, '')}</span>
           <Dot course={r.course} />
           <span className="bw-row-t" data-due={r.due || undefined}>{r.title}</span>
@@ -742,6 +771,7 @@ function Timeline({ ctx, span, every }: { ctx: WidgetContext; span: number; ever
           const v = courseVar(courseOf(ctx, e.course_id)?.colour_index);
           return (
             <div key={e.id} className="bw-tl-b" style={{ top: `${a}%`, height: `${Math.max(b - a, 5)}%`, '--cc': v ? `var(${v})` : 'var(--text-low)' } as CSSProperties}>
+              <Hit label={`Open ${formatDay(ctx.today)}`} onClick={() => ctx.onOpenDay(ctx.today)} />
               <b>{e.title}</b>
               {e.location && <span>{e.location}</span>}
             </div>
@@ -759,7 +789,7 @@ function Timeline({ ctx, span, every }: { ctx: WidgetContext; span: number; ever
         {nh >= h0 && nh <= h1 && <div className="bw-tl-now" style={{ top: `${pos(ctx.now)}%` }} aria-label="Now" />}
       </div>
       {later[0] && (
-        <span className="bw-meta bw-tl-foot"><Dot course={courseOf(ctx, later[0].course_id)} /><span>Later: {later[0].title}, {formatTime(new Date(later[0].due_at!))}</span></span>
+        <button type="button" className="bw-meta bw-tl-foot bw-link" onClick={() => ctx.onOpen(later[0])}><Dot course={courseOf(ctx, later[0].course_id)} /><span>Later: {later[0].title}, {formatTime(new Date(later[0].due_at!))}</span></button>
       )}
     </>
   );
@@ -1139,7 +1169,8 @@ function Grades({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
         <Head>Marks so far</Head>
         <ul className="bw-rows bw-compact">
           {per.slice(0, 4).map(({ c, g }) => (
-            <li key={c.id} className="bw-row bw-center">
+            <li key={c.id} className="bw-row bw-center bw-rel">
+              <Hit label={`Open ${c.code ?? c.name}`} onClick={() => ctx.onOpenCourse(c.id)} />
               <Dot course={c} />
               <span className="bw-row-t bw-flex">{c.code ?? c.name}</span>
               <span className="bw-num bw-mark tabular-nums">{running(g)}<small>%</small></span>
@@ -1153,7 +1184,8 @@ function Grades({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
       <Head right={<span className="bw-unit">On marked work</span>}>Marks so far</Head>
       <ul className="bw-rows bw-compact bw-marks">
         {per.slice(0, 5).map(({ c, g }) => (
-          <li key={c.id}>
+          <li key={c.id} className="bw-rel">
+            <Hit label={`Open ${c.code ?? c.name}`} onClick={() => ctx.onOpenCourse(c.id)} />
             <span className="bw-meta bw-strong"><Dot course={c} /><span>{c.code ?? c.name}</span></span>
             <span className="bw-unit bw-trunc">{`${g.weightMarked}% marked`}</span>
             <span className="bw-num bw-mark tabular-nums">{running(g)}<small>%</small></span>

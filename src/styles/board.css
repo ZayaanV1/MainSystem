@@ -367,7 +367,7 @@
 .bw-wk > button { display: grid; justify-items: center; gap: 2px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; }
 /* A whole row as one tap target, under its text, for rows with nothing else to press. */
 .bw-wkv li, .bw-rel { position: relative; }
-.bw-dayhit { position: absolute; inset: 0; z-index: 1; padding: 0; border: 0; border-radius: 8px; background: transparent; }
+.bw-hit { position: absolute; inset: 0; z-index: 1; padding: 0; border: 0; border-radius: 8px; background: transparent; }
 .bw-wk-d { font-size: 0.6875rem; font-weight: 600; color: var(--text-low); }
 .bw-wk-n { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: 1.0625rem; font-variant-numeric: tabular-nums; }
 .bw-wk [data-today] .bw-wk-n { background: var(--accent); color: var(--on-accent); }
@@ -754,7 +754,7 @@ body > div:has(.bw-gallery) { transition: visibility 0s; }
 /* The app's 44 px tap floor is for free-standing controls. These sit inside
    a widget whose whole surface is the target, and the floor stretched every
    round tick and day cell into a tall pill. */
-:is(.bw-tick, .bw-dy, .bw-dayhit, .bw-wk > button, .bw-inc, .bw-mini, .bw-mnav button, .bw-link, .bw-tl-due, .bw-fill-btn, .bw-rm, .bw-dots button) {
+:is(.bw-tick, .bw-dy, .bw-hit, .bw-wk > button, .bw-inc, .bw-mini, .bw-mnav button, .bw-link, .bw-tl-due, .bw-fill-btn, .bw-rm, .bw-dots button) {
   min-height: 0;
 }
 
@@ -811,3 +811,6 @@ body > div:has(.bw-gallery) { transition: visibility 0s; }
 /* The urgency label is the signal and never truncates; the time beside it
    gives way first ("Due today · End of d…", never "Due tod… End of day"). */
 .bw-meta > .bw-urg { flex-shrink: 0; overflow: visible; }
+
+/* Rows that became buttons keep their row layout. */
+.bw-meta.bw-link { display: flex; }
