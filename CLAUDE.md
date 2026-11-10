@@ -2158,9 +2158,13 @@ settings reads and a second load of Today on every open.
 Docker is not running on the owner's Mac, so functions deploy with
 `npx supabase functions deploy --use-api`.
 
-**Needs the owner:** `npx supabase functions deploy`, since none of the
-three server fixes is live until then. The litmus script has not been
-re-run against the changed prompt.
+**All live, 10 Nov.** The owner deployed the functions and pushed 0053; the
+origin rule was checked from outside (a foreign vercel.app origin is not
+echoed back). The More menu's labels moved to `text-text-hi`, because over
+the dimmed page the glass is mid-grey and `text-mid` read about 3:1. The
+course folder's 28 pt "+" was left alone: `.fold-add::before` already gives it
+a 44 pt target. The litmus script has not been re-run against the changed
+prompt.
 
 ## Phase 0 — done, verified 17 Aug 2026
 
