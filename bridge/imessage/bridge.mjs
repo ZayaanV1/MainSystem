@@ -266,6 +266,12 @@ async function answer(config, handle, text) {
       relayed.push(await think(config.claude, res.model));
     } catch (e) {
       log('claude unavailable, using the free models:', String(e.message).slice(0, 300));
+      // The request that failed, kept on this Mac only, so the cause can be read rather than guessed. Overwritten each time.
+      try {
+        writeFileSync(join(CONFIG_DIR, 'last-claude-failure.json'), JSON.stringify({ at: new Date().toISOString(), error: String(e.message), model: res.model }, null, 2), { mode: 0o600 });
+      } catch {
+        /* nothing to keep */
+      }
       break;
     }
   }
@@ -281,11 +287,14 @@ export function claudeBin(claude) {
   return existsSync(local) ? local : 'claude';
 }
 
+/** The aliases resolve to whatever Claude Code ships with, which lagged a version; these are exact. */
+const MODELS = { sonnet: 'claude-sonnet-5-5', opus: 'claude-opus-5-5', haiku: 'claude-haiku-5-5' };
+
 /** The arguments for one structured answer from Claude Code, with no tools, settings or saved session. */
 export function claudeArgs(claude, model) {
   return [
     '-p',
-    '--model', claude.model || 'sonnet',
+    '--model', MODELS[claude.model] ?? claude.model ?? MODELS.sonnet,
     '--effort', model.reasoning === 'high' ? 'high' : model.reasoning === 'medium' ? 'medium' : 'low',
     '--system-prompt', model.instruction,
     '--json-schema', JSON.stringify(model.schema),

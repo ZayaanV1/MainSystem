@@ -73,7 +73,7 @@ describe('Claude on the Mac', () => {
     const { claudeArgs } = await import('../bridge/imessage/bridge.mjs');
     const args = claudeArgs({}, { instruction: 'You are Abood.', schema: { type: 'object' }, reasoning: 'medium' });
     expect(args).toEqual(expect.arrayContaining(['-p', '--no-session-persistence', '--strict-mcp-config']));
-    expect(args[args.indexOf('--model') + 1]).toBe('sonnet');
+    expect(args[args.indexOf('--model') + 1]).toBe('claude-sonnet-5-5');
     expect(args[args.indexOf('--effort') + 1]).toBe('medium');
     expect(args[args.indexOf('--tools') + 1]).toBe('');
     expect(args[args.indexOf('--system-prompt') + 1]).toBe('You are Abood.');
