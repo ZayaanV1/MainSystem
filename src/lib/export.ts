@@ -62,7 +62,8 @@ export const EXPORTED: Record<string, string> = {
   planned_blocks: '*',
 };
 
-export const NOT_EXPORTED = ['telegram_link_codes', 'imessage_outbox'] as const;
+// Transient queues and one-time codes the app cannot read (no RLS policy): nothing in them outlives a minute.
+export const NOT_EXPORTED = ['telegram_link_codes', 'imessage_outbox', 'telegram_inbox'] as const;
 
 export interface ExportBundle {
   exportedAt: string;
