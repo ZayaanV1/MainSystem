@@ -511,7 +511,7 @@ export function modeFor(message: string, previous?: string | null): Mode {
   return scopesFor(message, previous).size ? 'planner' : 'chat';
 }
 
-const CONFIDE_NOTE = [
+export const CONFIDE_NOTE = [
   'MODE: THEY ARE TALKING, NOT PLANNING.',
   'Be a friend, not a worksheet: react to what they actually said, give your honest take, and answer any question',
   'they asked. A question from you is optional, never a formula. Leave assignments, deadlines, classes, their',
