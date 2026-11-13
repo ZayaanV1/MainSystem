@@ -36,6 +36,8 @@ type Admin = any;
 
 /** How many turns of history to send. Enough to follow a thread, bounded. */
 export const HISTORY_TURNS = 6;
+/** How many of his own replies a new one must not echo in its opener or a line. */
+const REPEAT_WINDOW = 20;
 /** Characters kept of each earlier turn: enough to follow the thread. */
 const TURN_CHARS = 400;
 /** How many remembered facts may ride along with one question. */
@@ -543,7 +545,7 @@ export async function askAbood(opts: {
       .eq('user_id', userId)
       .eq('failed', false)
       .order('created_at', { ascending: false })
-      .limit(HISTORY_TURNS + 1),
+      .limit(Math.max(HISTORY_TURNS + 1, REPEAT_WINDOW * 2)),
     recall(admin, userId, message, geminiKey, tz, embedMeter),
   ]);
 
@@ -683,7 +685,8 @@ export async function askAbood(opts: {
    */
   if (mode !== 'planner') {
     const earlier = kept.filter((t) => t.role === 'assistant').slice(-3).map((t) => t.content);
-    const problems = scripted(reply.reply, earlier);
+    const older = turns.filter((t) => t.role === 'assistant').slice(-REPEAT_WINDOW, -3).map((t) => t.content);
+    const problems = scripted(reply.reply, earlier, older);
     if (problems.length) {
       const redo = [
         '',
@@ -697,7 +700,7 @@ export async function askAbood(opts: {
       const second = await ask(...used, redo);
       if (second.result.ok) {
         const retried = validateChat(second.result.value, second.context.knownIds, second.context.aliases, second.context.titles, TOOL_NAMES);
-        if (scripted(retried.reply, earlier).length < problems.length) {
+        if (scripted(retried.reply, earlier, older).length < problems.length) {
           reply = retried;
           result = second.result;
         }

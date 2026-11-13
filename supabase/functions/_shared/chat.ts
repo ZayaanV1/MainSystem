@@ -162,6 +162,21 @@ export const CHAT_INSTRUCTION = [
   'story. Heavy stuff gets honesty and presence, not a worksheet.',
   'Do not bring up sensitive things you remember (substances, health,',
   'family fights, money) unless they raise them first.',
+  'MEET THEIR MOOD. Hyped gets hype back, matched fully. Low gets met where',
+  'they are, not mirrored lower and not cheered up: quieter, shorter, steady,',
+  'their register. Being relatable helps here: say what most people would',
+  'feel in their spot ("mondays after a night like that are brutal", "nobody',
+  'is fine after a call like that"), so they feel understood, not handled.',
+  'Never invent experiences of your own to relate ("same, i failed one',
+  'too"): you have not lived it, and they would know. One relatable line,',
+  'then back to them.',
+  'DROP IT WHEN THEY DO. If they deflect or close a topic ("idk", "can we',
+  'not", "anyway", "it\'s whatever", a one-word answer to your question, or a',
+  'change of subject), let it go completely: do not ask again, do not circle',
+  'back later in the conversation, and do not raise it in later',
+  'conversations unless they do. Put it in "remember" as "Did not want to',
+  'talk about <topic>." so you keep that across days, naming the topic',
+  'broadly ("their family", "the exam") and never the private detail.',
   'Do not jump to fixing when they are venting; when you cannot tell whether',
   'they want advice, it is fine to ask once, plainly ("want my honest take',
   'or just need to vent?"). When they do want help, use what good therapists',
@@ -220,8 +235,10 @@ export const CHAT_INSTRUCTION = [
   '',
   'STYLE. Plain text, no markdown, no emoji. Write it the way people text:',
   'as one to four separate messages, each a sentence or two, with a blank',
-  'line between messages — never one long block. A quick answer is one',
-  'message. Something personal can be two to four short ones.',
+  'line between messages — never one long block. Match their length: a',
+  'short text from them ("mhm", "lol", "yeah man", one line) gets ONE short',
+  'message back, two at most. Two to four only when they wrote a lot or',
+  'are really opening up.',
   'When they ask what they have on a day, list every item in order with its',
   'start time (travel blocks can be folded in briefly), including late-night',
   'items — never summarise a schedule as "classes in the morning".',
@@ -328,11 +345,17 @@ const words = (text: string) =>
   new Set((text.toLowerCase().replace(/'s\b/g, '').match(/[a-z']{3,}/g) ?? []).filter((w) => !FILLER.has(w)));
 
 /** What makes this reply sound scripted, given what was said before. Empty is good. */
-export function scripted(raw: string, rawEarlier: string[] = []): string[] {
+/**
+ * `rawEarlier` is the last few replies (questions, closings, everything);
+ * `rawOlder` reaches further back and is checked only for a repeated opener or
+ * line, since asking how the gym went again on another day is fine.
+ */
+export function scripted(raw: string, rawEarlier: string[] = [], rawOlder: string[] = []): string[] {
   // Models write curly apostrophes as often as straight ones; "i’m here" must not slip past "i'm here".
   const plain = (t: string) => t.replace(/[\u2018\u2019\u02bc]/g, "'");
   const reply = plain(raw);
   const earlierReplies = rawEarlier.map(plain);
+  const olderReplies = [...rawOlder, ...rawEarlier].map(plain);
   const problems = SCRIPTED.filter(([re]) => re.test(reply)).map(([, name]) => `uses ${name}`);
   const questions = questionsIn(reply);
   if (questions.length > 1) problems.push(`asks ${questions.length} questions; at most one`);
@@ -351,7 +374,7 @@ export function scripted(raw: string, rawEarlier: string[] = []): string[] {
       break;
     }
   }
-  const said = earlierReplies.flatMap((r) => r.split(/(?<=[.?!])\s+|\n+/)).map(words).filter((w) => w.size >= 3);
+  const said = olderReplies.flatMap((r) => r.split(/(?<=[.?!])\s+|\n+/)).map(words).filter((w) => w.size >= 3);
   for (const sentence of reply.split(/(?<=[.?!])\s+|\n+/)) {
     const w = words(sentence);
     if (w.size < 3 || questionsIn(sentence).length) continue;
@@ -367,7 +390,9 @@ export function scripted(raw: string, rawEarlier: string[] = []): string[] {
   }
 
   const first = opener(reply);
-  if (first.split(' ').length === 3 && earlierReplies.some((e) => opener(e) === first)) {
+  // An opening question may come back on another day; an opening line may not.
+  const openers = questionsIn(reply.split(/(?<=[.?!])\s+|\n+/)[0] ?? '').length ? earlierReplies : olderReplies;
+  if (first.split(' ').length === 3 && openers.some((e) => opener(e) === first)) {
     problems.push(`opens with the same words as an earlier reply ("${first}")`);
   }
 
@@ -552,4 +577,13 @@ export function validateCalls(
     calls.push({ tool, args: real });
   }
   return calls;
+}
+
+/**
+ * How many texts a reply may take, by what they sent. "mhm" answered with
+ * three bubbles, three times running, was nine texts in a minute (13 Nov).
+ */
+export function bubblesFor(message: string): number {
+  const words = message.trim().split(/\s+/).filter(Boolean).length;
+  return words <= 8 ? 2 : 4;
 }

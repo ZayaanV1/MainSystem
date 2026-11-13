@@ -5,6 +5,7 @@ import { withFallback } from './llm/chain.ts';
 import { relayProvider } from './llm/relay.ts';
 import { meterFor, release, reserve, standDownMessage } from './budget.ts';
 import { localDayKey } from './time.ts';
+import { bubblesFor } from './chat.ts';
 
 /**
  * A door into Abood from outside the app — Telegram, iMessage.
@@ -195,12 +196,10 @@ export async function converse(opts: {
     via,
   });
 
-  for (const text of textsOf(content)) await send(text);
+  for (const text of textsOf(content, bubblesFor(message))) await send(text);
 
-  // Learned after answering, and said out loud: memory that grows in secret
-  // is memory nobody can correct.
-  const learned = await learn(admin, userId, result.remember, geminiKey, via, embedMeter).catch(() => []);
-  if (learned.length) {
-    await send(`Noted: ${learned.join(' ')}`);
-  }
+  // Learned quietly: a "noted: ..." after replies read like a bot filing
+  // paperwork (13 Nov). It stays correctable: "memory" lists it, the app edits it.
+  await learn(admin, userId, result.remember, geminiKey, via, embedMeter).catch(() => []);
 }
+

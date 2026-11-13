@@ -28,6 +28,12 @@ describe('the assistant script', () => {
     expect(scripted('your walmart order came in, doordash this time', earlier).join()).toMatch(/same words/);
     expect(scripted('yo, how was the gym', earlier)).toEqual([]);
   });
+
+  it('remembers its own lines further back, but lets an old question be asked again', () => {
+    const older = ['ngl that professor sounds exhausting to deal with', 'how was the gym today?'];
+    expect(scripted('ngl that professor sounds exhausting to deal with fr', [], older).join()).toMatch(/says again|same words/);
+    expect(scripted('how was the gym today?', [], older)).toEqual([]);
+  });
 });
 
 describe('dated memory', () => {
@@ -78,5 +84,14 @@ describe('check-in signals', () => {
     expect(checkinSignal(at('10:00'), [], [dues[0]], TZ)).toBeNull();
     const busy = [{ title: 'Lab', start: at('10:00'), end: at('23:59') }];
     expect(checkinSignal(at('10:20'), busy, dues, TZ)).toMatch(/right now they are at: Lab/);
+  });
+});
+
+describe('how many texts a reply takes', () => {
+  it('answers a short text with at most two', async () => {
+    const { bubblesFor } = await import('../../supabase/functions/_shared/chat');
+    expect(bubblesFor('Mhm')).toBe(2);
+    expect(bubblesFor('Lowk yeah man')).toBe(2);
+    expect(bubblesFor('so my roommate keeps eating my food and i do not know how to bring it up without it getting weird')).toBe(4);
   });
 });
