@@ -200,10 +200,22 @@ async function sendAll(handle, texts, address) {
   }
 }
 
-/** Collects anything Abood started (check-ins) and sends it. */
+let draining = false;
+
+/**
+ * Collects anything Abood started (check-ins) and sends it, and answers the
+ * Telegram messages the planner queued for this Mac. Saying relay: 'claude'
+ * is what makes Telegram queue them; stop polling and it answers itself again.
+ */
 async function drainOutbox(config) {
+  if (draining) return;
+  draining = true;
   try {
-    const { outbox = [] } = await post(config, { kind: 'outbox' });
+    const { outbox = [], telegram = [] } = await post(config, { kind: 'outbox', ...(config.claude ? { relay: 'claude' } : {}) });
+    for (const id of telegram) {
+      await answer(config, { kind: 'telegram', id });
+      log('answered on Telegram');
+    }
     const byHandle = new Map();
     for (const o of outbox) byHandle.set(o.handle, [...(byHandle.get(o.handle) ?? []), o.text]);
     for (const [handle, texts] of byHandle) {
@@ -212,6 +224,8 @@ async function drainOutbox(config) {
     }
   } catch (e) {
     log('outbox:', String(e.stderr || e.message).trim());
+  } finally {
+    draining = false;
   }
 }
 
@@ -256,11 +270,11 @@ async function linkedHandles(config) {
  * earlier ones. Anything that goes wrong here falls back to the free models,
  * so a message is never left unanswered because Claude was unavailable.
  */
-async function answer(config, handle, text) {
-  if (!config.claude) return post(config, { kind: 'message', handle, text });
+async function answer(config, base) {
+  if (!config.claude) return post(config, base);
   const relayed = [];
   for (let pass = 0; pass < 5; pass++) {
-    const res = await post(config, { kind: 'message', handle, text, relayed: JSON.stringify(relayed) });
+    const res = await post(config, { ...base, relayed: JSON.stringify(relayed) });
     if (!res.model) return res;
     try {
       relayed.push(await think(config.claude, res.model));
@@ -275,7 +289,7 @@ async function answer(config, handle, text) {
       break;
     }
   }
-  return post(config, { kind: 'message', handle, text });
+  return post(config, base);
 }
 
 const CLAUDE_TIMEOUT_MS = 120_000;
@@ -383,8 +397,9 @@ async function main() {
   const hello = () => post(config, { kind: 'hello', address: config.address }).catch((e) => log('heartbeat failed:', e.message));
   await hello();
   setInterval(hello, HEARTBEAT_MS);
-  // Check-ins are rare, so a slow poll is plenty and costs the server little.
-  setInterval(() => void drainOutbox(config), 30_000);
+  // Check-ins are rare, so a slow poll is plenty. On Claude it also answers
+  // Telegram, so it runs faster: about 260k calls a month, inside the free tier.
+  setInterval(() => void drainOutbox(config), config.claude ? 10_000 : 30_000);
   log(`bridge up, watching after message ${state.last}${config.address ? ` for ${config.address}` : ''}`);
 
   for (;;) {
@@ -401,7 +416,7 @@ async function main() {
         // A link code changes who is linked; ask again next time.
         if (LINK_CODE.test(text)) linkedCache.at = 0;
 
-        const { replies = [] } = await answer(config, m.handle, text);
+        const { replies = [] } = await answer(config, { kind: 'message', handle: m.handle, text });
         await sendAll(m.handle, replies, config.address);
         if (replies.length) {
           log(`answered ${m.handle.replace(/.(?=.{4})/g, '•')}`);

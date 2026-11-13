@@ -42,6 +42,8 @@ import { HELP, converse } from '../_shared/door.ts';
 const env = (k: string): string => Deno.env.get(k) ?? '';
 /** A queued check-in older than this is expired rather than delivered. */
 const CHECKIN_FRESH_MS = 6 * 60 * 60 * 1000;
+/** How long one poll keeps Telegram queueing for this Mac: a few missed polls, then Telegram answers itself. */
+const RELAY_FRESH_MS = 45_000;
 
 /** The shared secret from before bridges belonged to accounts. See above. */
 const LEGACY_SECRET = env('IMESSAGE_BRIDGE_SECRET');
@@ -136,6 +138,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       text: { type: 'string', max: 20_000 },
       // Answers from Claude on the account's Mac so far, as a JSON array (llm/relay.ts).
       relayed: { type: 'string', max: 200_000 },
+      // 'claude' while this Mac answers with Claude: Telegram then queues for it.
+      relay: { type: 'string', max: 10 },
+      // A queued Telegram message (telegram_inbox.id) the bridge is answering.
+      id: { type: 'string', max: 20 },
     },
     256 * 1024,
   );
@@ -192,9 +198,72 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const queued = ((data ?? []) as { handle: string; body: string; created_at: string }[]).sort((x, y) =>
       x.created_at.localeCompare(y.created_at),
     );
-    return new Response(JSON.stringify({ outbox: queued.map((q) => ({ handle: q.handle, text: q.body })) }), {
-      headers: { 'content-type': 'application/json' },
-    });
+    await admin
+      .from('imessage_bridges')
+      .update({ relay_until: body.relay === 'claude' ? new Date(Date.now() + RELAY_FRESH_MS).toISOString() : null })
+      .eq('user_id', ownerId);
+    const { data: waiting } = await admin.from('telegram_inbox').select('id').eq('user_id', ownerId).order('id').limit(10);
+    return new Response(
+      JSON.stringify({
+        outbox: queued.map((q) => ({ handle: q.handle, text: q.body })),
+        telegram: ((waiting ?? []) as { id: number }[]).map((w) => String(w.id)),
+      }),
+      {
+        headers: { 'content-type': 'application/json' },
+      },
+    );
+  }
+
+  let relayed: unknown[] | undefined;
+  if (body.relayed !== undefined) {
+    try {
+      relayed = JSON.parse(body.relayed);
+    } catch {
+      relayed = undefined;
+    }
+    if (!Array.isArray(relayed) || relayed.length > 6) return new Response('bad relayed answers', { status: 400 });
+  }
+
+  /** One turn of Abood: the texts, or the next request for the Mac's Claude. */
+  const turn = async (text: string, via: 'imessage' | 'telegram'): Promise<string[] | Response> => {
+    const replies: string[] = [];
+    try {
+      await converse({ admin, userId: ownerId, text, via, relayed, send: async (t) => void replies.push(t) });
+    } catch (e) {
+      // The next model call is the Mac's to make: hand it the exact request.
+      if (e instanceof NeedModel) {
+        const { instruction, input, schema, reasoning } = e.request;
+        return new Response(JSON.stringify({ model: { instruction, input, schema, reasoning: reasoning ?? 'low' } }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      console.error(`[imessage] ${via}`, e);
+      replies.push('I could not answer that just now. Try again in a minute.');
+    }
+    return replies;
+  };
+
+  // A Telegram message queued for this Mac: answered here, sent by the bot.
+  if (body.kind === 'telegram' && body.id) {
+    const { data: row } = await admin
+      .from('telegram_inbox')
+      .select('id, chat_id, text')
+      .eq('id', body.id)
+      .eq('user_id', ownerId)
+      .maybeSingle();
+    if (!row) return reply([]);
+    const out = await turn(row.text, 'telegram');
+    if (out instanceof Response) return out;
+    await admin.from('telegram_inbox').delete().eq('id', row.id);
+    for (const [i, t] of out.entries()) {
+      if (i > 0) await new Promise((r) => setTimeout(r, 500 + Math.min(t.length * 15, 1_500)));
+      await fetch(`https://api.telegram.org/bot${env('TELEGRAM_BOT_TOKEN')}/sendMessage`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ chat_id: row.chat_id, text: t.slice(0, 4000), disable_web_page_preview: true }),
+      }).catch((e) => console.error('[imessage] telegram send', e));
+    }
+    return reply([]);
   }
 
   if (body.kind !== 'message' || !body.handle) return reply([]);
@@ -223,38 +292,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   if (!text) return reply(['I can only read text for now.']);
 
-  let relayed: unknown[] | undefined;
-  if (body.relayed !== undefined) {
-    try {
-      relayed = JSON.parse(body.relayed);
-    } catch {
-      relayed = undefined;
-    }
-    if (!Array.isArray(relayed) || relayed.length > 6) return new Response('bad relayed answers', { status: 400 });
-  }
-
-  const replies: string[] = [];
-  try {
-    await converse({
-      admin,
-      userId: ownerId,
-      text,
-      via: 'imessage',
-      relayed,
-      send: async (t) => {
-        replies.push(t);
-      },
-    });
-  } catch (e) {
-    // The next model call is the Mac's to make: hand it the exact request.
-    if (e instanceof NeedModel) {
-      const { instruction, input, schema, reasoning } = e.request;
-      return new Response(JSON.stringify({ model: { instruction, input, schema, reasoning: reasoning ?? 'low' } }), {
-        headers: { 'content-type': 'application/json' },
-      });
-    }
-    console.error('[imessage]', e);
-    replies.push('I could not answer that just now. Try again in a minute.');
-  }
-  return reply(replies);
+  const out = await turn(text, 'imessage');
+  return out instanceof Response ? out : reply(out);
 });

@@ -260,6 +260,7 @@ describe('migrations apply', () => {
       'planned_blocks',
       'push_subscriptions',
       'subtasks',
+      'telegram_inbox',
       'telegram_link_codes',
     ]);
   });

@@ -165,6 +165,18 @@ async function handle(admin: Admin, update: Update): Promise<void> {
     return;
   }
 
+  // The account's Mac answers with Claude while its bridge keeps relay_until
+  // ahead of now (migration 0055). If the queue cannot be written, answer here.
+  const { data: bridge } = await admin.from('imessage_bridges').select('relay_until').eq('user_id', userId).maybeSingle();
+  if (bridge?.relay_until && Date.parse(bridge.relay_until) > Date.now()) {
+    const { error } = await admin.from('telegram_inbox').insert({ user_id: userId, chat_id: String(chatId), text: text.slice(0, 4000) });
+    if (!error) {
+      await tg('sendChatAction', { chat_id: chatId, action: 'typing' });
+      return;
+    }
+    console.error('[telegram] queue', error);
+  }
+
   let sent = 0;
   await converse({
     admin,
