@@ -19,6 +19,16 @@ printf 'Paste the Claude token (from claude setup-token), then Return: '
 stty -echo; read -r TOKEN; stty echo; echo
 case "$TOKEN" in sk-ant-*) ;; *) echo "That does not look like a Claude token (sk-ant-...)."; exit 1 ;; esac
 
+# One tiny call before saving: a bad token otherwise only shows up as every
+# reply quietly falling back to the free models (13 Nov).
+printf 'Checking the token with Claude... '
+if ! CLAUDE_CODE_OAUTH_TOKEN="$TOKEN" "$OWNER_HOME/.local/bin/claude" -p --model claude-haiku-5-5 --tools "" \
+  --strict-mcp-config --setting-sources "" --no-session-persistence "reply with ok" >/dev/null 2>&1; then
+  echo "rejected. Make a fresh one with: $OWNER_HOME/.local/bin/claude setup-token"
+  exit 1
+fi
+echo ok
+
 mkdir -p "$DEST"
 cp "$SRC/bridge.mjs" "$DEST/bridge.mjs"
 node -e 'const fs=require("fs");const [p,t,b]=process.argv.slice(1);const c=JSON.parse(fs.readFileSync(p,"utf8"));c.claude={token:t,model:"sonnet",bin:b};fs.writeFileSync(p,JSON.stringify(c,null,2),{mode:0o600})' \
