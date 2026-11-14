@@ -42,3 +42,8 @@ verify_jwt = false
 # missing or expired one with the WWW-Authenticate challenge that tells the
 # app where to sign in, which the gateway's bare 401 would not.
 verify_jwt = false
+
+[functions.gmail]
+# Google's consent redirect arrives with no login, so the function checks the
+# signed state itself; the app's own calls carry a JWT it verifies.
+verify_jwt = false

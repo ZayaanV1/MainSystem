@@ -22,6 +22,9 @@ describe('every edge function authenticates its own callers', () => {
     // AI apps: the account's own OAuth token, verified, and only one issued to
     // a connected app (it must carry client_id).
     mcp: /auth\.getUser\(token\)[\s\S]*client_id/,
+    // The app's calls carry a JWT; Google's consent redirect carries none, so
+    // it is accepted only with a state this server signed for that user.
+    gmail: /sameSecret\(mac, await sign\([\s\S]*auth\.getUser\(/,
   };
 
   const functions = readdirSync('supabase/functions', { withFileTypes: true })

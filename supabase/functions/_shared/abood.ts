@@ -713,9 +713,11 @@ export async function askAbood(opts: {
    * result; the ids in it become ones he may act on.
    */
   const reads = reply.actions.filter(isRead).slice(0, 3);
+  let lookedUp = '';
   if (reads.length) {
     const looked = await runCalls(admin, userId, tz, reads);
     const seen = looked.read.join('\n\n');
+    lookedUp = seen;
     const again = await ask(...used, `\nYOU LOOKED THIS UP (ids here may be used in actions as they are):\n${seen || looked.failed.join(' ')}\nNow answer them.`);
     if (again.result.ok) {
       for (const id of seen.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? []) again.context.knownIds.add(id.toLowerCase());
@@ -737,7 +739,7 @@ export async function askAbood(opts: {
   // Text other people wrote (a subscribed calendar) or a long paste was in
   // front of the model: any change it asks for waits for a yes, so words in
   // that text cannot change the planner on their own.
-  if (writes.length && (needsYes(writes) || outsideTextInFront(context.text, message))) {
+  if (writes.length && (needsYes(writes) || outsideTextInFront(context.text, message, lookedUp))) {
     const summary = writes.map((c) => describeCall(c, names));
     pending = { kind: 'tools', calls: writes, summary };
     outcome = `Waiting for a yes: ${summary.join('; ')}. Say yes to go ahead, or no to leave it.`;

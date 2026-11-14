@@ -37,6 +37,7 @@ import { setAppearance, useAppearance, type GlassLevel, type MotionLevel, type S
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../lib/auth';
 import { exportCsv, exportJson } from '../lib/export';
+import { connectGmail, disconnectGmail, gmailStatus, type GmailStatus } from '../lib/gmail';
 import { fetchDeliveryLog, type DeliveryRow } from '../lib/health';
 import { pushStatus, subscribeToPush, type PushStatus } from '../lib/notifications';
 import { subscribeSw, type SwState } from '../lib/sw';
@@ -348,6 +349,7 @@ export function Settings() {
               <TextAbood userId={userId} />
               <IMessageAbood userId={userId} />
               <AboodTextsFirst userId={userId} />
+              <GmailAccess />
               <AboodMemory />
             </>
           )}
@@ -1208,6 +1210,94 @@ function TextAbood({ userId }: { userId: string }) {
  * that could not be inspected or corrected would be the app keeping notes on
  * you, which is not the same thing as remembering.
  */
+/**
+ * Read-only Gmail for Abood, so "check my email for the confirmation" works.
+ * Connecting leaves the app for Google's consent screen and comes back here
+ * with ?gmail=<result>, which is announced once and taken off the address.
+ */
+const GMAIL_RESULT: Record<string, string> = {
+  connected: 'Gmail connected. Abood can search it now.',
+  declined: 'Gmail was not connected: Google did not grant read access.',
+  expired: 'That took too long. Connect again.',
+  failed: 'Google did not finish connecting. Try again.',
+};
+
+function GmailAccess() {
+  const [status, setStatus] = useState<GmailStatus | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const s = await gmailStatus();
+    if (typeof s === 'string') setProblem(s);
+    else setStatus(s);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('gmail');
+    if (result) {
+      if (result === 'connected') announce(GMAIL_RESULT.connected);
+      else setProblem(GMAIL_RESULT[result] ?? GMAIL_RESULT.failed);
+      params.delete('gmail');
+      const rest = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''));
+    }
+    void load();
+  }, [load]);
+
+  async function connect() {
+    setBusy(true);
+    const reason = await connectGmail();
+    if (reason) {
+      setProblem(reason);
+      setBusy(false);
+    }
+  }
+
+  async function disconnect() {
+    setBusy(true);
+    const reason = await disconnectGmail();
+    setBusy(false);
+    if (reason) setProblem(reason);
+    else announce('Gmail disconnected');
+    await load();
+  }
+
+  if (status && !status.configured && !status.connected) return null;
+  return (
+    <section className="mb-8">
+      <SectionHead title="Gmail" />
+      <Card className="flex flex-col gap-3 p-4">
+        <p className="type-body text-text-mid">
+          Lets Abood search your email when you ask, for a booking, a confirmation or a time someone sent. Read only: he cannot send, delete or change anything.
+        </p>
+        {status === null ? (
+          <p className="type-note text-text-low">Loading</p>
+        ) : status.connected ? (
+          <div className="flex items-center gap-3">
+            <span className="type-label min-w-0 flex-1 break-all text-text-hi">{status.email ?? 'Connected'}</span>
+            <Button size="sm" variant="quiet" disabled={busy} onClick={() => void disconnect()}>
+              Disconnect
+            </Button>
+          </div>
+        ) : (
+          <div>
+            <Button size="sm" disabled={busy} onClick={() => void connect()}>
+              Connect Gmail
+            </Button>
+          </div>
+        )}
+        {problem && (
+          <p role="alert" className="type-note text-text-hi">
+            {problem}
+          </p>
+        )}
+      </Card>
+    </section>
+  );
+}
+
 function AboodMemory() {
   const [facts, setFacts] = useState<MemoryFact[] | null>(null);
   const [failed, setFailed] = useState(false);

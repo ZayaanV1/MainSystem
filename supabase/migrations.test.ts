@@ -250,6 +250,7 @@ describe('migrations apply', () => {
       'deferrals',
       'delivery_log',
       'events',
+      'gmail_links',
       'goals',
       'imessage_bridges',
       'imessage_links',

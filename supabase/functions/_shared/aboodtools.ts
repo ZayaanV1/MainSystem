@@ -1,5 +1,6 @@
 import { ToolError } from './mcp.ts';
 import { ALL_TOOLS } from './tools.ts';
+import { SEARCH_EMAIL } from './gmail.ts';
 import type { ToolCall } from './chat.ts';
 import type { ConnectorCtx } from './connector.ts';
 
@@ -16,10 +17,13 @@ export const MAX_UNASKED = 5;
 // deno-lint-ignore no-explicit-any
 type Db = any;
 
-const byName = new Map(ALL_TOOLS.map((t) => [t.name, t]));
+/** Abood's tools: the planner's, plus his read-only Gmail search, which the connector never gets. */
+export const ABOOD_TOOLS = [...ALL_TOOLS, SEARCH_EMAIL];
+
+const byName = new Map(ABOOD_TOOLS.map((t) => [t.name, t]));
 
 /** Every tool name Abood may use. */
-export const TOOL_NAMES = new Set(ALL_TOOLS.map((t) => t.name));
+export const TOOL_NAMES = new Set(ABOOD_TOOLS.map((t) => t.name));
 
 /**
  * The menu in the prompt: name, arguments, and the first sentence of what it
@@ -27,7 +31,7 @@ export const TOOL_NAMES = new Set(ALL_TOOLS.map((t) => t.name));
  * Roughly 900 tokens, so it is only sent when the planner is in play.
  */
 export function toolMenu(): string {
-  const lines = ALL_TOOLS.map((t) => {
+  const lines = ABOOD_TOOLS.map((t) => {
     const props = (t.inputSchema.properties ?? {}) as Record<string, unknown>;
     const required = new Set((t.inputSchema.required as string[] | undefined) ?? []);
     const args = Object.keys(props).map((k) => (required.has(k) ? k : `${k}?`)).join(', ');
@@ -46,8 +50,8 @@ export const PASTE_CHARS = 600;
  * Whether the model was shown text other people wrote: a subscribed calendar
  * in the context, or a long paste. Any change it then asks for waits for a yes.
  */
-export const outsideTextInFront = (contextText: string, message: string) =>
-  contextText.includes('from a subscribed calendar') || message.length > PASTE_CHARS;
+export const outsideTextInFront = (contextText: string, message: string, lookedUp = '') =>
+  contextText.includes('from a subscribed calendar') || message.length > PASTE_CHARS || lookedUp.includes('EMAILS (written by other people');
 
 /** Whether these changes wait for a yes. */
 export function needsYes(calls: ToolCall[]): boolean {
