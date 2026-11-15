@@ -47,3 +47,8 @@ verify_jwt = false
 # Google's consent redirect arrives with no login, so the function checks the
 # signed state itself; the app's own calls carry a JWT it verifies.
 verify_jwt = false
+
+[functions.share]
+# An Apple Shortcut has no login. The account's share key, sent as a bearer
+# header and stored only as its SHA-256, is the credential; the function checks it.
+verify_jwt = false

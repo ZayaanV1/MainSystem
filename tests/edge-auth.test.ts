@@ -25,6 +25,9 @@ describe('every edge function authenticates its own callers', () => {
     // The app's calls carry a JWT; Google's consent redirect carries none, so
     // it is accepted only with a state this server signed for that user.
     gmail: /sameSecret\(mac, await sign\([\s\S]*auth\.getUser\(/,
+    // A Shortcut has no login: the account's share key, compared by its
+    // SHA-256 against the stored hash, before anything is written.
+    share: /share_token_hash[\s\S]*if \(!owner\) return denied\(\)[\s\S]*from\('inbox_items'\)/,
   };
 
   const functions = readdirSync('supabase/functions', { withFileTypes: true })

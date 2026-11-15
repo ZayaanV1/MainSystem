@@ -378,7 +378,7 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
         </>
       ),
     },
-    connected: { title: 'Connected apps', body: <ConnectedApps userId={userId} /> },
+    connected: { title: 'Connected apps', body: <><ShareFromPhone userId={userId} /><ConnectedApps userId={userId} /></> },
     data: {
       title: 'Account',
       body: (
@@ -1617,6 +1617,97 @@ function AboodTextsFirst({ userId }: { userId: string }) {
             {note && <p className="type-note text-text-mid">{note}</p>}
           </div>
         )}
+      </Card>
+    </section>
+  );
+}
+
+/**
+ * Sharing into the inbox from any app on an iPhone, through an Apple Shortcut
+ * (functions/share). The key is shown once, when made; only its hash is kept,
+ * so a lost key is replaced, never shown again.
+ */
+function ShareFromPhone({ userId }: { userId: string }) {
+  const address = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/share`;
+  const [on, setOn] = useState<boolean | null>(null);
+  const [key, setKey] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    void supabase
+      .from('app_settings')
+      .select('share_token_hash')
+      .maybeSingle()
+      .then(({ data, error }) => setOn(error ? null : Boolean(data?.share_token_hash)));
+  }, []);
+
+  async function issue() {
+    setBusy(true);
+    setNote(null);
+    const { data, error } = await supabase.rpc('issue_share_token');
+    setBusy(false);
+    if (error || typeof data !== 'string') return setNote('Couldn’t make a key. Check the connection and try again.');
+    setKey(data);
+    setOn(true);
+  }
+
+  async function turnOff() {
+    setBusy(true);
+    const { error } = await supabase.from('app_settings').update({ share_token_hash: null }).eq('user_id', userId);
+    setBusy(false);
+    if (error) return setNote('That did not save. Try again.');
+    setKey(null);
+    setOn(false);
+    announce('Sharing from your phone is off');
+  }
+
+  async function copy(text: string, what: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setNote(`${what} copied.`);
+    } catch {
+      setNote('Couldn’t copy. Select the text and copy it instead.');
+    }
+  }
+
+  return (
+    <section className="mb-8">
+      <SectionHead title="Share from your iPhone" />
+      <Card className="flex flex-col gap-3 p-4">
+        <p className="type-body text-text-mid">
+          Send text or a link from any app’s Share button straight to your inbox, through a Shortcut.
+        </p>
+        {key ? (
+          <>
+            <p className="type-note text-text-mid">Shown once. Set the Shortcut up now; a lost key is replaced, not shown again.</p>
+            <ol className="type-note flex list-decimal flex-col gap-1 pl-5 text-text-hi">
+              <li>In Shortcuts, make a new Shortcut and turn on Show in Share Sheet.</li>
+              <li>Add Get Contents of URL with the address below, Method POST.</li>
+              <li>Add a header: Authorization, with the value below.</li>
+              <li>Request Body JSON, with a Text field named text set to Shortcut Input.</li>
+            </ol>
+            <input readOnly className="well px-3 type-quote" value={address} aria-label="Shortcut address" onFocus={(e) => e.currentTarget.select()} />
+            <input readOnly className="well px-3 type-quote" value={`Bearer ${key}`} aria-label="Authorization header value" onFocus={(e) => e.currentTarget.select()} />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => void copy(address, 'Address')}>Copy address</Button>
+              <Button onClick={() => void copy(`Bearer ${key}`, 'Key')}>Copy key</Button>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <Button variant={on ? 'quiet' : 'primary'} disabled={busy || on === null} onClick={() => void issue()}>
+              {on ? 'Replace the key' : 'Make a share key'}
+            </Button>
+            {on && (
+              <Button variant="quiet" disabled={busy} onClick={() => void turnOff()}>
+                Turn off
+              </Button>
+            )}
+          </div>
+        )}
+        {on === null && !key && <p className="type-note text-text-mid">Couldn’t check whether sharing is set up.</p>}
+        {note && <p role="status" className="type-note text-text-mid">{note}</p>}
       </Card>
     </section>
   );
