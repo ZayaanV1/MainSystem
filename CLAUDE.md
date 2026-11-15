@@ -2253,6 +2253,33 @@ is spent or the model fails, the plain digest goes instead. It is stored as a
 check-in, so the ordinary check-in waits for a reply rather than stacking.
 Migration 0057. Not yet seen arriving on a phone.
 
+**Walk-through, finished 15 Nov.**
+
+- **Cut widget lists say how many more.** `fitRows` shows a `.bw-more` line
+  ("10 more") in the room a cut row leaves, opening Schedule. Assignments and
+  Exams carry one.
+- **The Schedule briefing shows whole**; Less still folds it.
+- **Month marks deadlines only:** work due and exams or presentations.
+  Classes get no mark and are counted as events, not "due".
+- **Abood:** chat shows a time after any hour of quiet; a check-in rhythm stops
+  after ONE unanswered text (was two).
+- **Settings regrouped:** Account (time zone, export, delete), Calendars
+  (subscribed calendars moved here from Courses, plus the outgoing feed), AI
+  keys on their own page, "Today and modules" renamed Features, the delivery
+  log folded under Troubleshoot.
+- **Tabs:** Today, Schedule, Courses, Abood in the bar; Month, Search and
+  Settings under More. Month was NOT merged into Schedule: a much larger change.
+- **Planned now widget** (`plan`): the Autoplan block for now or next today,
+  read from `planned_blocks`, never replanned from the board.
+- **Track as work:** a subscribed-calendar event that reads like a deadline
+  ("is due", "closes", "quiz") offers one tap to become work, until the same
+  title and due time exist.
+- **Not built, on purpose.** Study blocks for exams already exist (Exam prep on
+  a course page). Series editing is ruled out in `SeriesList.tsx`. Clearing
+  the backlog by proposing new due dates would make deadlines false; Autoplan
+  already schedules overdue work. iOS share through a Shortcut waits for the
+  owner: it is a new token-authenticated endpoint.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
