@@ -56,6 +56,8 @@ export interface WidgetContext {
   onOpenDay: (day: DayKey) => void;
   /** Opens a course's page. */
   onOpenCourse: (id: string) => void;
+  /** Opens Schedule, where every dated thing is listed in full. */
+  onOpenSchedule: () => void;
   sized: (minutes: number | null) => number | null;
   capture: (body: string) => Promise<void>;
   /** Null while loading. */
@@ -73,6 +75,19 @@ export interface WidgetContext {
 }
 
 /* ------------------------------------------------------------- pieces --- */
+
+/**
+ * "N more" under a list, shown by WidgetFrame only when rows were cut or
+ * left out, and opening Schedule where the whole list is. `extra` counts the
+ * items never rendered at all.
+ */
+function More({ ctx, extra }: { ctx: WidgetContext; extra: number }) {
+  return (
+    <button type="button" className="bw-more bw-meta bw-link" data-extra={Math.max(0, extra)} onClick={ctx.onOpenSchedule}>
+      <span className="bw-more-n" />
+    </button>
+  );
+}
 
 function Head({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
@@ -283,6 +298,7 @@ function Work({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
           })}
         </ul>
       )}
+      {list.length > 0 && <More ctx={ctx} extra={list.length - n} />}
     </>
   );
 }
@@ -665,6 +681,7 @@ function Exams({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
           );
         })}
       </ul>
+      <More ctx={ctx} extra={exams.length - 3} />
     </>
   );
 }

@@ -43,6 +43,7 @@ const ctx: WidgetContext = {
   onOpen: () => {},
   onOpenDay: () => {},
   onOpenCourse: () => {},
+  onOpenSchedule: () => {},
   sized: (m) => m,
   capture: async () => {},
   goals: [],

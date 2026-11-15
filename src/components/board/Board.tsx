@@ -72,6 +72,7 @@ export interface BoardProps {
   onOpen: (a: Assignment) => void;
   onOpenDay: (day: DayKey) => void;
   onOpenCourse: (id: string) => void;
+  onOpenSchedule: () => void;
   sized: (minutes: number | null) => number | null;
   onUndoable: (u: { message: string; undo: () => void }) => void;
 }
@@ -212,6 +213,7 @@ export function Board(props: BoardProps) {
       onOpen: props.onOpen,
       onOpenDay: props.onOpenDay,
       onOpenCourse: props.onOpenCourse,
+      onOpenSchedule: props.onOpenSchedule,
       sized: props.sized,
       capture: (body) => capture(userId, body),
       goals,

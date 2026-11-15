@@ -306,19 +306,25 @@ function DayCell({
   const weight = load(cell);
   const number = Number(cell.day.slice(8));
 
-  const total = cell.assignments.length + cell.events.length;
-  const description =
-    total === 0 ? 'nothing due' : `${total} due`;
+  // Deadlines only: a class is attended, not due, and a timetable put the
+  // same marks on every weekday so the days that mattered could not stand out.
+  const dueEvents = cell.events.filter((e) => e.kind === 'exam' || e.kind === 'presentation');
+  const total = cell.assignments.length + dueEvents.length;
+  const classes = cell.events.length - dueEvents.length;
+  const description = [
+    total === 0 ? 'nothing due' : `${total} due`,
+    classes ? `${classes} ${classes === 1 ? 'event' : 'events'}` : null,
+  ].filter(Boolean).join(', ');
 
   /*
-    Marks, not dots. A deadline is a ring and a class is a bar, each in its
-    course's colour — so a week of lectures and a week of deadlines look
-    different at a glance, which a row of identical grey dots could not say.
+    Marks, not dots. Work due is a ring and an exam or presentation is a bar,
+    each in its course's colour. Classes get no mark (Nov 2026): they are
+    listed under the day when it is opened.
     The accessible name carries the count; the marks are never the only signal.
   */
   const marks = [
     ...cell.assignments.map((a) => ({ id: a.id, due: true, course: courseFor(a.course_id) })),
-    ...cell.events.map((e) => ({ id: e.id, due: false, course: courseFor(e.course_id) })),
+    ...dueEvents.map((e) => ({ id: e.id, due: false, course: courseFor(e.course_id) })),
   ].slice(0, 4);
 
   return (
@@ -346,6 +352,7 @@ function DayCell({
       {/* Marks below lg, where there is no room for anything else. */}
       <span className="flex h-1.5 items-center gap-[3px] lg:hidden" aria-hidden>
         {weight > 0 &&
+          total > 0 &&
           marks.map((m) => (
             <span
               key={m.id}

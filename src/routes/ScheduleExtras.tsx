@@ -33,7 +33,9 @@ export function Briefing({ dep, today }: { dep: TodayData | null; today: DayKey 
    */
   const [text, setText] = useState(() => readBriefing(cacheKey));
   const mentions = useMemo(() => mentionsFrom(dep?.assignments ?? [], dep?.events ?? []), [dep]);
-  const [open, setOpen] = useState(false);
+  // Open by default since Nov 2026: it is under sixty words, and cut to two
+  // lines it hid the suggestion it ends on. Less still folds it.
+  const [open, setOpen] = useState(true);
   const section = useRef<HTMLElement>(null);
   const shownAtOpen = useRef(Boolean(text));
   // Opening or closing it moves what is below as a cascade, never a jump.

@@ -814,3 +814,7 @@ body > div:has(.bw-gallery) { transition: visibility 0s; }
 
 /* Rows that became buttons keep their row layout. */
 .bw-meta.bw-link { display: flex; }
+
+/* "N more" under a cut list: hidden until WidgetFrame finds rows it could
+   not show, then it fills the room the cut row left. */
+.bw-more { display: none; flex-shrink: 0; align-self: flex-start; color: var(--text-mid); }

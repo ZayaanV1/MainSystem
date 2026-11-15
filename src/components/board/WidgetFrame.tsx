@@ -16,20 +16,41 @@ function fitRows(inner: HTMLElement) {
   fitTitles(inner);
   const lists = inner.querySelectorAll<HTMLElement>('ul');
   if (!lists.length) return;
-  const rows: HTMLElement[] = [];
-  lists.forEach((ul) => ul.querySelectorAll<HTMLElement>(':scope > li').forEach((li) => rows.push(li)));
-  rows.forEach((li) => (li.style.display = ''));
   const box = inner.getBoundingClientRect();
   const floor = box.bottom - parseFloat(getComputedStyle(inner).paddingBottom || '0') + 0.5;
-  lists.forEach((ul) => {
+  const cut = (ul: HTMLElement): number => {
+    const items = ul.querySelectorAll<HTMLElement>(':scope > li');
+    items.forEach((li) => (li.style.display = ''));
     const limit = Math.min(floor, ul.getBoundingClientRect().bottom + 0.5);
-    let cut = false;
-    ul.querySelectorAll<HTMLElement>(':scope > li').forEach((li, i) => {
+    let cutting = false;
+    let hidden = 0;
+    items.forEach((li, i) => {
       // The first row always shows; a widget too small for even one row is
       // a size the type does not offer.
-      if (!cut && i > 0 && li.getBoundingClientRect().bottom > limit) cut = true;
-      if (cut) li.style.display = 'none';
+      if (!cutting && i > 0 && li.getBoundingClientRect().bottom > limit) cutting = true;
+      if (cutting) {
+        li.style.display = 'none';
+        hidden += 1;
+      }
     });
+    return hidden;
+  };
+  lists.forEach((ul) => {
+    // A list followed by a "more" line says how much it could not show, in
+    // the room the cut row left, instead of leaving that room blank.
+    const more = ul.nextElementSibling instanceof HTMLElement && ul.nextElementSibling.classList.contains('bw-more')
+      ? ul.nextElementSibling
+      : null;
+    if (more) more.style.display = '';
+    let hidden = cut(ul);
+    const extra = Number(more?.dataset.extra ?? 0);
+    if (!more || hidden + extra === 0) return;
+    more.style.display = 'flex';
+    hidden = cut(ul);
+    const label = more.querySelector<HTMLElement>('.bw-more-n');
+    const text = `${hidden + extra} more`;
+    // Only when it changed: the content observer would otherwise refit forever.
+    if (label && label.textContent !== text) label.textContent = text;
   });
 }
 

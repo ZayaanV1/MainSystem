@@ -94,6 +94,7 @@ export function Today({
   onData,
   onOpenDay,
   onOpenCourse,
+  onOpenSchedule,
   refresh = 0,
 }: {
   onData?: (d: TodayData) => void;
@@ -101,6 +102,8 @@ export function Today({
   onOpenDay: (day: DayKey) => void;
   /** A course from the marks widget, opened on its page. */
   onOpenCourse: (id: string) => void;
+  /** The full list, from a widget that could not show it all. */
+  onOpenSchedule: () => void;
   /** Bumped by the shell after another screen writes, to re-read in place. */
   refresh?: number;
 }) {
@@ -329,6 +332,7 @@ export function Today({
           onOpen={setOpenAssignment}
           onOpenDay={onOpenDay}
           onOpenCourse={onOpenCourse}
+          onOpenSchedule={onOpenSchedule}
           sized={sized}
           onUndoable={setUndoable}
         />
