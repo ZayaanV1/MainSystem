@@ -2277,8 +2277,15 @@ Migration 0057. Not yet seen arriving on a phone.
 - **Not built, on purpose.** Study blocks for exams already exist (Exam prep on
   a course page). Series editing is ruled out in `SeriesList.tsx`. Clearing
   the backlog by proposing new due dates would make deadlines false; Autoplan
-  already schedules overdue work. iOS share through a Shortcut waits for the
-  owner: it is a new token-authenticated endpoint.
+  already schedules overdue work.
+- **Share from an iPhone** (built 15 Nov on the owner's yes). Settings,
+  Connected apps, Share from your iPhone issues a key shown once; only its
+  SHA-256 is stored (`share_token_hash`, migration 0058). An Apple Shortcut
+  posts `{"text": ...}` with `Authorization: Bearer <key>` to the `share`
+  function, which writes an inbox thought with source `share`. Missing and
+  wrong keys get the same 401, with the calendar function's per-instance miss
+  brake; 30 shares in ten minutes per account is the ceiling. Not yet tried
+  from a real Shortcut.
 
 ## Phase 0 — done, verified 17 Aug 2026
 
