@@ -18,10 +18,12 @@ function fitRows(inner: HTMLElement) {
   if (!lists.length) return;
   const box = inner.getBoundingClientRect();
   const floor = box.bottom - parseFloat(getComputedStyle(inner).paddingBottom || '0') + 0.5;
-  const cut = (ul: HTMLElement): number => {
+  const cut = (ul: HTMLElement, below = 0): number => {
     const items = ul.querySelectorAll<HTMLElement>(':scope > li');
     items.forEach((li) => (li.style.display = ''));
-    const limit = Math.min(floor, ul.getBoundingClientRect().bottom + 0.5);
+    // With a "more" line under the list, the rows may run down to it rather
+    // than to the list's own (already shrunk) bottom.
+    const limit = below ? floor - below : Math.min(floor, ul.getBoundingClientRect().bottom + 0.5);
     let cutting = false;
     let hidden = 0;
     items.forEach((li, i) => {
@@ -46,7 +48,8 @@ function fitRows(inner: HTMLElement) {
     const extra = Number(more?.dataset.extra ?? 0);
     if (!more || hidden + extra === 0) return;
     more.style.display = 'flex';
-    hidden = cut(ul);
+    const gap = parseFloat(getComputedStyle(inner).rowGap || '0') || 0;
+    hidden = cut(ul, more.getBoundingClientRect().height + gap);
     const label = more.querySelector<HTMLElement>('.bw-more-n');
     const text = `${hidden + extra} more`;
     // Only when it changed: the content observer would otherwise refit forever.

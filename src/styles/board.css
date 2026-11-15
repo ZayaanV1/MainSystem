@@ -817,4 +817,6 @@ body > div:has(.bw-gallery) { transition: visibility 0s; }
 
 /* "N more" under a cut list: hidden until WidgetFrame finds rows it could
    not show, then it fills the room the cut row left. */
-.bw-more { display: none; flex-shrink: 0; align-self: flex-start; color: var(--text-mid); }
+.bw-in .bw-more { display: none; flex-shrink: 0; align-self: flex-start; font-size: 0.75rem; color: var(--text-mid); }
+/* Pinned to the bottom, so the rows above it keep the widget's full height. */
+.bw-in .bw-more { margin-top: auto; }
