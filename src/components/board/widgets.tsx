@@ -14,14 +14,17 @@ import {
   addDays,
   daysBetween,
   daysUntil,
+  endOfDayUTC,
   formatDay,
   formatTime,
   formatTimeRange,
   localDayKey,
   localHourMinute,
+  startOfDayUTC,
   type DayKey,
 } from '../../lib/time';
 import { safeLink, spotifyEmbed } from './catalogue';
+import { supabase } from '../../lib/supabase';
 
 /**
  * Every widget the board can hold, drawn from the account's own data.
@@ -1325,6 +1328,65 @@ function LinkW({ w }: { w: Widget }) {
   );
 }
 
+/* ----------------------------------------------------------- planned --- */
+
+interface TodayBlock { id: string; assignment_id: string; starts_at: string; minutes: number }
+
+/**
+ * The block Autoplan set for now, or the next one today: "what now" answered
+ * from a plan already made. Read here, bounded to today, rather than replanned:
+ * a replan is the Schedule's job and costs a server call.
+ */
+function PlanW({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
+  const [blocks, setBlocks] = useState<TodayBlock[] | null | 'failed'>(null);
+  useEffect(() => {
+    if (ctx.still) return;
+    let live = true;
+    void supabase
+      .from('planned_blocks')
+      .select('id, assignment_id, starts_at, minutes')
+      .eq('state', 'planned')
+      .gte('starts_at', startOfDayUTC(ctx.today).toISOString())
+      .lt('starts_at', endOfDayUTC(ctx.today).toISOString())
+      .order('starts_at')
+      .limit(20)
+      .then(({ data, error }) => live && setBlocks(error ? 'failed' : ((data ?? []) as TodayBlock[])));
+    return () => {
+      live = false;
+    };
+  }, [ctx.today, ctx.still]);
+
+  if (blocks === null || ctx.assignments === null) return <><Head>Planned</Head><Waiting /></>;
+  if (blocks === 'failed') return <><Head>Planned</Head><p className="bw-t2">Couldn’t load today’s plan. Pull to refresh.</p></>;
+  const nowMs = ctx.now.getTime();
+  const left = blocks.filter((b) => Date.parse(b.starts_at) + b.minutes * 60_000 > nowMs);
+  const b = left[0];
+  const work = b ? ctx.assignments.find((a) => a.id === b.assignment_id) : undefined;
+  if (!b || !work) return <><Head>Planned</Head><Invite>Nothing planned for the rest of today. Schedule plans study time when Autoplan is on.</Invite></>;
+  const start = new Date(b.starts_at);
+  const end = new Date(start.getTime() + b.minutes * 60_000);
+  const head = start.getTime() <= nowMs ? 'Planned now' : 'Planned next';
+  const when = formatTimeRange(start, end);
+  const open = <Hit label={`Open ${work.title}`} onClick={() => ctx.onOpen(work)} />;
+  if (w.size === 'strip')
+    return (
+      <>
+        <div className="bw-strip-main"><Head>{head}</Head><span className="bw-row-t">{work.title}</span></div>
+        <div className="bw-strip-end"><span className="bw-unit">{when}</span></div>
+        {open}
+      </>
+    );
+  return (
+    <>
+      <Head right={left.length > 1 ? <span className="bw-unit">{left.length - 1} more today</span> : undefined}>{head}</Head>
+      <div className="bw-grow" />
+      <span className="bw-t2">{work.title}</span>
+      <span className="bw-meta"><Dot course={courseOf(ctx, work.course_id)} /><span>{when}</span></span>
+      {open}
+    </>
+  );
+}
+
 /* ------------------------------------------------------------ dispatch --- */
 
 export function WidgetBody({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
@@ -1334,6 +1396,7 @@ export function WidgetBody({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
     case 'now': return <Now w={w} ctx={ctx} />;
     case 'list': return <List w={w} ctx={ctx} />;
     case 'class': return <ClassW w={w} ctx={ctx} />;
+    case 'plan': return <PlanW w={w} ctx={ctx} />;
     case 'week': return <Week w={w} ctx={ctx} />;
     case 'month': return <Month w={w} ctx={ctx} />;
     case 'agenda': return <Agenda w={w} ctx={ctx} />;

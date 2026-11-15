@@ -21,7 +21,7 @@ export type WidgetType =
   | 'due' | 'work' | 'now' | 'list' | 'class'
   | 'week' | 'month' | 'agenda' | 'exams'
   | 'clock' | 'clockday' | 'count' | 'focus' | 'term'
-  | 'goal' | 'grades'
+  | 'goal' | 'grades' | 'plan'
   | 'capture'
   | 'photo' | 'music' | 'link';
 
@@ -78,6 +78,7 @@ export const SIZES: Record<WidgetType, readonly WidgetSize[]> = {
   photo: ['peg', 's', 'tall', 'm', 'l'],
   music: ['s', 'm'],
   link: ['peg', 's'],
+  plan: ['strip', 's', 'm'],
 };
 
 export const WIDGET_TYPES = Object.keys(SIZES) as WidgetType[];

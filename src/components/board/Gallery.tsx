@@ -29,6 +29,7 @@ const ICON: Record<WidgetType, string> = {
   now: 'M5 12h12M13 7l5 5-5 5',
   list: 'M5 7l2 2 3-3M5 15l2 2 3-3M13 8h6M13 16h6',
   class: 'M3 9l9-5 9 5-9 5zM7 11v5c3 2 7 2 10 0v-5',
+  plan: 'M4 5h16v15H4zM4 10h16M8 3v4M16 3v4M8 14h5v3H8z',
   week: 'M3 5h18v15H3zM3 10h18M8 3v4M16 3v4M7 14h2M11 14h2M15 14h2',
   month: 'M3 5h18v15H3zM3 10h18M8 3v4M16 3v4M7 13h1M11 13h1M15 13h1M7 16.5h1M11 16.5h1',
   agenda: 'M7 3v18M7 7h11v5H7M7 15h7v4H7',

@@ -20,6 +20,7 @@ export const INFO: Record<WidgetType, WidgetInfo> = {
   work: { name: 'Assignments', cat: 'Today', desc: 'Open work by due date. Tick to finish', keywords: 'homework tasks todo work' },
   now: { name: 'What now?', cat: 'Today', desc: 'Say how long you have, get one task and why', keywords: 'pick next suggest decide' },
   list: { name: 'Checklist', cat: 'Today', desc: 'Today’s daily items, ticked from here', keywords: 'daily routine habits' },
+  plan: { name: 'Planned now', cat: 'Today', desc: 'The study block Autoplan set for now or next, and its work', keywords: 'autoplan block study session schedule' },
   class: { name: 'Next class', cat: 'Today', desc: 'Where you need to be next, and when', keywords: 'lecture lab room schedule up next' },
   week: { name: 'Week', cat: 'Calendar', desc: 'Seven days of deadlines and exams', keywords: 'calendar schedule seven days weekly' },
   month: { name: 'Month', cat: 'Calendar', desc: 'The whole month with deadlines marked. Tap a day', keywords: 'calendar large month view monthly' },
