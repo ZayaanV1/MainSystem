@@ -1553,3 +1553,12 @@
     letter-spacing: 0;
   }
 }
+
+/* A folded Settings section (the delivery log): a full-height tap target
+   whose state is said by the browser's own disclosure marker. */
+.settings-fold {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  cursor: pointer;
+}

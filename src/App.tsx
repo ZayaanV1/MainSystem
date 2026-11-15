@@ -559,7 +559,7 @@ function Shell() {
 
     switch (screen) {
       case 'settings':
-        return <Settings />;
+        return <Settings onChanged={bumped} />;
       case 'week':
         return (
           <Week

@@ -10,7 +10,7 @@ import { useAuth } from '../lib/auth';
 import { askChat } from '../lib/assist';
 import { clearChat, loadChat, markActionTaken, saveMessage, type ChatMessage } from '../lib/chat';
 import { addAssignment, assignmentDueAt, setCompletion, type Course } from '../lib/planner';
-import { formatDay, formatTime, todayKey } from '../lib/time';
+import { formatDay, formatTime, localDayKey, todayKey } from '../lib/time';
 import { useVisionDesk } from '../lib/vision';
 import { AboodChannels, AboodMemory } from '../components/VisionAbood';
 
@@ -266,8 +266,13 @@ export function Chat({ courses, mentions, onBack, onChanged }: {
           </div>
         )}
 
-        {messages.map((m) => (
+        {messages.map((m, idx) => (
           <div key={m.id} className={m.role === 'user' ? 'self-end' : 'self-start'}>
+            {/* When it was said, after any gap of an hour: without it, texts
+                Abood sent over a day read as one breathless stack. */}
+            {stampFor(m, messages[idx - 1]) && (
+              <p className="type-note mb-1 text-text-low">{stampFor(m, messages[idx - 1])}</p>
+            )}
             {/*
               Yours in phthalo glass, Abood's on the app's own lit panel — the
               two voices told apart by material as well as by side, so a long
@@ -457,4 +462,13 @@ function describe(action: Record<string, unknown>, courses: Course[]): string {
 
   void courses;
   return 'Do that.';
+}
+
+/** "Today 3:15 p.m." over a message that follows an hour or more of quiet; otherwise nothing. */
+export function stampFor(m: Pick<ChatMessage, 'created_at'>, prev?: Pick<ChatMessage, 'created_at'>): string | null {
+  const at = new Date(m.created_at);
+  if (Number.isNaN(at.getTime())) return null;
+  if (prev && at.getTime() - new Date(prev.created_at).getTime() < 3_600_000) return null;
+  const day = localDayKey(at);
+  return `${day === todayKey() ? 'Today' : formatDay(day)} ${formatTime(at)}`;
 }

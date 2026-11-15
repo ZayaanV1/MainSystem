@@ -6,7 +6,6 @@ import { Card } from '../components/Card';
 import { RepeatingWork } from './RepeatingWork';
 import { SeriesList } from './SeriesList';
 import { CalendarImport } from './CalendarImport';
-import { CalendarFeeds } from './CalendarFeeds';
 import { ClassList } from './ClassList';
 import { ClassSheet } from './ClassSheet';
 import { loadClasses, type ClassSummary } from '../lib/classes';
@@ -282,13 +281,8 @@ export function Plan({ courses, assignments, onBack, onChanged, onOpenWork, onAd
       </section>
       )}
 
-      {/*
-        Above the one-time importer, because it is now the main way a calendar
-        gets in. The importer stays for what it is good at: a fixed term
-        timetable you want as ordinary events you own and can edit. This is
-        for a calendar that keeps changing and has to stay right on its own.
-      */}
-      {moduleOn('feeds', prefs) && <CalendarFeeds onChanged={onChanged} />}
+      {/* Subscribed calendars moved to Settings, Calendars (Nov 2026), beside
+          the feed that goes the other way. */}
 
       <section className="mb-8">
         <SectionHead title="Bring in your timetable" />

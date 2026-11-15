@@ -45,7 +45,7 @@ const QUIET_HOURS = Number(env('ABOOD_QUIET_HOURS') || '20');
  * row: a friend who keeps texting into silence is not a friend, and it would
  * spend the budget on nobody.
  */
-const MAX_UNANSWERED = 2;
+const MAX_UNANSWERED = 1;
 /**
  * Something happening in their day (see _shared/signals.ts) can bring a
  * check-in forward, but only after this long without a message, at most once

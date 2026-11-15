@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { CalendarFeeds } from './CalendarFeeds';
 import { EASE } from '../lib/motion';
 import { announce } from '../lib/announce';
 import { sweepFrom } from '../lib/transition';
@@ -83,7 +84,7 @@ const PUSH_COPY: Record<PushStatus, string> = {
   subscribed: 'Push is enabled, and the server knows about this device.',
 };
 
-export function Settings() {
+export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = {}) {
   const { signOut, session } = useAuth();
   const userId = session?.user.id ?? '';
 
@@ -151,7 +152,8 @@ export function Settings() {
   const summary = {
     notifications: notificationsSummary(push, digest),
     appearance: appearanceSummary(readTheme(), appearance),
-    abood: aboodSummary(keys, telegram, checkins),
+    abood: aboodSummary(null, telegram, checkins),
+    keys: keys ? (keys.groq || keys.gemini ? `${[keys.groq ? 'Groq' : null, keys.gemini ? 'Gemini' : null].filter(Boolean).join(' and ')} key set` : 'Using the shared model') : null,
   };
 
   // A failed export used to vanish as an unhandled rejection: the button did
@@ -297,8 +299,11 @@ export function Settings() {
             <DigestSettings />
           </section>
 
-          <section className="mb-8">
-            <SectionHead title="Delivery log" />
+          {/* Behind a fold: it is for when a digest did not arrive, not for
+              every visit to this page. */}
+          <details className="mb-8">
+            <summary className="settings-fold px-4 type-label text-text-mid">Troubleshoot: delivery log</summary>
+            <div className="mt-3">
             {log.length === 0 ? (
               <EmptyState>No delivery attempts recorded yet.</EmptyState>
             ) : (
@@ -328,39 +333,57 @@ export function Settings() {
                 ))}
               </Card>
             )}
-          </section>
+            </div>
+          </details>
         </>
       ),
     },
     timezone: { title: 'Time zone', body: <TimeZone userId={userId} bare /> },
     appearance: { title: 'Appearance', body: <Appearance bare userId={userId} /> },
-    arrange: { title: 'Today and modules', body: <ArrangeToday userId={userId} /> },
-    calendar: { title: 'Calendar feed', body: <CalendarFeed bare /> },
-    abood: {
-      // With Abood switched off the keys stay reachable: they also fund food
-      // parsing and the briefing, which do not stop with the chatbot.
-      title: moduleOn('abood', prefs) ? 'Abood' : 'AI keys',
+    arrange: { title: 'Features', body: <ArrangeToday userId={userId} /> },
+    calendar: {
+      title: 'Calendars',
+      body: (
+        <>
+          <CalendarFeeds onChanged={onChanged} />
+          <section className="mb-8">
+            <SectionHead title="Your deadlines in other calendars" />
+            <CalendarFeed bare />
+          </section>
+        </>
+      ),
+    },
+    keys: {
+      // Their own page: the keys fund the briefing and What now too, which do
+      // not stop when Abood is switched off.
+      title: 'AI keys',
       body: (
         <>
           <GroqKey userId={userId} />
           <ApiKey userId={userId} />
-          {moduleOn('abood', prefs) && (
-            <>
-              <TextAbood userId={userId} />
-              <IMessageAbood userId={userId} />
-              <AboodTextsFirst userId={userId} />
-              <GmailAccess />
-              <AboodMemory />
-            </>
-          )}
+        </>
+      ),
+    },
+    abood: {
+      // With Abood switched off the keys stay reachable: they also fund food
+      // parsing and the briefing, which do not stop with the chatbot.
+      title: 'Abood',
+      body: (
+        <>
+          <TextAbood userId={userId} />
+          <IMessageAbood userId={userId} />
+          <AboodTextsFirst userId={userId} />
+          <GmailAccess />
+          <AboodMemory />
         </>
       ),
     },
     connected: { title: 'Connected apps', body: <ConnectedApps userId={userId} /> },
     data: {
-      title: 'Your data',
+      title: 'Account',
       body: (
         <>
+          <TimeZone userId={userId} />
           <section className="mb-8">
             <SectionHead title="Export" />
             <Card className="p-4">
@@ -422,23 +445,21 @@ export function Settings() {
 
               <div className="mat settings-rows">
                 <SettingsRow icon="bell" tone="ember" label="Notifications and digest" value={summary.notifications} onOpen={() => go('notifications')} />
-                <SettingsRow icon="globe" label="Time zone" value={`${activeTimezone().replace(/_/g, ' ')} (${zoneAbbrev()})`} onOpen={() => go('timezone')} />
               </div>
 
               <div className="mat settings-rows">
                 <SettingsRow icon="sun" tone="ink" label="Appearance" value={summary.appearance} onOpen={() => go('appearance')} />
-                <SettingsRow icon="grid" tone="ink" label="Today and modules" value={arrangeSummary(prefs)} onOpen={() => go('arrange')} />
+                <SettingsRow icon="grid" tone="ink" label="Features" value={arrangeSummary(prefs)} onOpen={() => go('arrange')} />
                 {moduleOn('feeds', prefs) && (
-                  <SettingsRow icon="calendar" label="Calendar feed" value="Your deadlines in any calendar app" onOpen={() => go('calendar')} />
+                  <SettingsRow icon="calendar" label="Calendars" value="Subscribed calendars, and your deadlines in others" onOpen={() => go('calendar')} />
                 )}
               </div>
 
               <div className="mat settings-rows">
-                {moduleOn('abood', prefs) ? (
+                {moduleOn('abood', prefs) && (
                   <SettingsRow icon="chat" label="Abood" value={summary.abood} onOpen={() => go('abood')} />
-                ) : (
-                  <SettingsRow icon="chat" tone="ink" label="AI keys" value="Your own Groq or Gemini key" onOpen={() => go('abood')} />
                 )}
+                <SettingsRow icon="key" tone="ink" label="AI keys" value={summary.keys} onOpen={() => go('keys')} />
               </div>
 
               <div className="mat settings-rows">
@@ -446,7 +467,7 @@ export function Settings() {
               </div>
 
               <div className="mat settings-rows">
-                <SettingsRow icon="box" tone="ink" label="Your data" value="Export JSON or CSV · delete the account" onOpen={() => go('data')} />
+                <SettingsRow icon="box" tone="ink" label="Account" value={`${activeTimezone().replace(/_/g, ' ')} (${zoneAbbrev()}) · export · delete`} onOpen={() => go('data')} />
                 <SettingsRow icon="out" tone="ink" label="Sign out" value={email || null} onOpen={() => void signOut()} chevron={false} />
               </div>
             </div>
@@ -465,8 +486,8 @@ export function Settings() {
   );
 }
 
-type PageId = 'help' | 'notifications' | 'timezone' | 'appearance' | 'arrange' | 'calendar' | 'abood' | 'connected' | 'data';
-const PAGE_IDS: PageId[] = ['help', 'notifications', 'timezone', 'appearance', 'arrange', 'calendar', 'abood', 'connected', 'data'];
+type PageId = 'help' | 'notifications' | 'timezone' | 'appearance' | 'arrange' | 'calendar' | 'keys' | 'abood' | 'connected' | 'data';
+const PAGE_IDS: PageId[] = ['help', 'notifications', 'timezone', 'appearance', 'arrange', 'calendar', 'keys', 'abood', 'connected', 'data'];
 
 /** What the arrangement row says: the usual, or how it differs. */
 function arrangeSummary(prefs: Preferences): string {
@@ -488,6 +509,7 @@ const GLYPHS: Record<string, string> = {
   box: 'M21 8v12H3V8M1 3h22v5H1zM10 12h4',
   out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
   help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01',
+  key: 'M15.5 7.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0M12 11v10M12 17h3M12 20h2',
   link: 'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7',
 };
 
