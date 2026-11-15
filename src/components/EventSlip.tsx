@@ -58,10 +58,13 @@ export function EventSlip({
   event,
   course,
   showSource = false,
+  onTrack,
 }: {
   event: PlannerEvent;
   course?: Course;
   showSource?: boolean;
+  /** Offered on a calendar deadline not yet tracked: makes it a piece of work. */
+  onTrack?: () => void;
 }) {
   const { read, when, a, under, place, detail } = eventFace(event, course);
 
@@ -85,6 +88,11 @@ export function EventSlip({
           <span className="type-note text-text-mid">
             {[detail, read.section, place, showSource ? event.source : null].filter(Boolean).join(' · ')}
           </span>
+        )}
+        {onTrack && (
+          <button type="button" className="btn btn-ghost hit-expand self-start px-0 type-label text-text-hi" onClick={onTrack}>
+            Track as work
+          </button>
         )}
       </div>
     </div>

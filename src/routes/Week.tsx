@@ -19,6 +19,9 @@ import {
   type PlannerEvent,
   type TodayData,
   loadCalibrationPairs,
+  alreadyTracked,
+  looksLikeDeadline,
+  trackAsWork,
 } from '../lib/planner';
 import { adjustedEstimate, calibration } from '../lib/intelligence';
 import { moduleOn, usePreferences } from '../lib/preferences';
@@ -95,6 +98,11 @@ export function Week({
    * bar takes it back exactly, deferral record and all.
    */
   const { session } = useAuth();
+  // A calendar deadline not yet tracked can become work with one tap.
+  const trackFor = (e: PlannerEvent) =>
+    session && looksLikeDeadline(e) && !alreadyTracked(e, [...(data?.assignments ?? []), ...(data?.completedToday ?? [])])
+      ? () => void trackAsWork(session.user.id, e)
+      : undefined;
   // The work plan, re-placed whenever the day's data is read again.
   const plan = useAutoplan(session?.user.id ?? null, data);
   const page = useRef<HTMLElement>(null);
@@ -467,6 +475,7 @@ export function Week({
             grouping.days.map((group, i) => (
               <DaySection
                 key={group.day}
+                trackFor={trackFor}
                 group={group}
                 isToday={group.day === today}
                 isLast={i === grouping.days.length - 1}
@@ -696,6 +705,7 @@ function emptyRun(run: DayKey[], today: DayKey): string {
  * came here to see, and collapsing the empty ones hides it.
  */
 function DaySection({
+  trackFor,
   group,
   isToday,
   isLast,
@@ -712,6 +722,8 @@ function DaySection({
   progressFor: (id: string) => { done: number; total: number } | null;
   onToggle: (a: Assignment) => void;
   onOpen: (a: Assignment) => void;
+  /** Track a calendar deadline as work, when it is one not yet tracked. */
+  trackFor?: (e: PlannerEvent) => (() => void) | undefined;
 }) {
   const empty = group.assignments.length === 0 && group.events.length === 0;
   const minutes = effortMinutes(group);
@@ -815,7 +827,12 @@ function DaySection({
             )}
             <div className="flex flex-col gap-2.5">
               {group.events.map((e) => (
-                <EventSlip key={e.id} event={e} course={courseFor(e.course_id)} />
+                <EventSlip
+                  key={e.id}
+                  event={e}
+                  course={courseFor(e.course_id)}
+                  onTrack={trackFor?.(e)}
+                />
               ))}
               {group.assignments.map((a) => (
                 <AssignmentRow

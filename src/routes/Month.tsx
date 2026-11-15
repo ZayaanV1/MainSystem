@@ -16,6 +16,9 @@ import {
   type Course,
   type PlannerEvent,
   type TodayData,
+  alreadyTracked,
+  looksLikeDeadline,
+  trackAsWork,
 } from '../lib/planner';
 import { addDays, formatDay, localDayKey, todayKey, type DayKey } from '../lib/time';
 import { useDragToDay } from '../lib/useDragToDay';
@@ -66,6 +69,11 @@ export function Month({
   // Work dragged from the day's list onto another day's tile, with undo, as
   // in Week (lib/useDragToDay.ts).
   const { session } = useAuth();
+  // A calendar deadline not yet tracked can become work with one tap.
+  const trackFor = (e: PlannerEvent) =>
+    session && looksLikeDeadline(e) && !alreadyTracked(e, [...(data?.assignments ?? []), ...(data?.completedToday ?? [])])
+      ? () => void trackAsWork(session.user.id, e)
+      : undefined;
   const page = useRef<HTMLElement>(null);
   const [moved, setMoved] = useState<{ message: string; undo: () => Promise<void> } | null>(null);
   useDragToDay(page, (id, day) => {
@@ -236,7 +244,8 @@ export function Month({
 
       {openCell && (
         <DayDetail
-          // Keyed on the day, so choosing another one brings its agenda in
+
+          trackFor={trackFor}          // Keyed on the day, so choosing another one brings its agenda in
           // rather than swapping the text under you (rule 12).
           key={openCell.day}
           cell={openCell}
@@ -389,6 +398,7 @@ function DayCell({
 }
 
 function DayDetail({
+  trackFor,
   cell,
   courseFor,
   progressFor,
@@ -400,6 +410,8 @@ function DayDetail({
   progressFor: (id: string) => { done: number; total: number } | null;
   onToggle: (a: Assignment) => void;
   onOpen: (a: Assignment) => void;
+  /** Track a calendar deadline as work, when it is one not yet tracked. */
+  trackFor?: (e: PlannerEvent) => (() => void) | undefined;
 }) {
   const empty = cell.assignments.length === 0 && cell.events.length === 0;
 
@@ -415,7 +427,12 @@ function DayDetail({
       ) : (
         <div className="flex flex-col gap-2.5">
           {cell.events.map((e) => (
-            <EventSlip key={e.id} event={e} course={courseFor(e.course_id)} />
+            <EventSlip
+                  key={e.id}
+                  event={e}
+                  course={courseFor(e.course_id)}
+                  onTrack={trackFor?.(e)}
+                />
           ))}
           {cell.assignments.map((a) => (
             <AssignmentRow
