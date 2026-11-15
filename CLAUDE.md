@@ -2243,6 +2243,16 @@ email and shopping integrations, voice calls, group chats.
 Not verified: no live model run of the new prompt, and no check-in has fired
 with a signal. The litmus has not been re-run.
 
+**Abood's morning text, 15 Nov.** At an hour the account picks (Settings,
+Abood, Morning text), Abood texts what today holds by iMessage or Telegram.
+Off unless chosen, so a new account never receives texts it did not ask for.
+It rides the hourly check-in tick (`checkin`, minute 17), so it arrives at
+about a quarter past the hour, once per local day (`abood_morning_sent_on`,
+claimed before sending). One model call, on the chat budget; when the budget
+is spent or the model fails, the plain digest goes instead. It is stored as a
+check-in, so the ordinary check-in waits for a reply rather than stacking.
+Migration 0057. Not yet seen arriving on a phone.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
