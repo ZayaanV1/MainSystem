@@ -31,10 +31,10 @@ describe('settings row values', () => {
   });
 
   it('reads Abood back', () => {
-    expect(aboodSummary({ groq: true, gemini: false }, true, { on: true, every: null, from: 10, until: 21 })).toBe(
-      'Groq key set · Telegram linked · texts first 10:00 a.m. to 9:00 p.m.',
+    expect(aboodSummary({ groq: true, gemini: false }, true, { on: true, every: null, from: 10, until: 21, morning: 7 })).toBe(
+      'Groq key set · Telegram linked · texts first 10:00 a.m. to 9:00 p.m. · morning text 7:00 a.m.',
     );
-    expect(aboodSummary({ groq: false, gemini: false }, false, { on: false, every: null, from: 10, until: 21 })).toBe(
+    expect(aboodSummary({ groq: false, gemini: false }, false, { on: false, every: null, from: 10, until: 21, morning: null })).toBe(
       'shared model · Telegram not linked · never texts first',
     );
   });

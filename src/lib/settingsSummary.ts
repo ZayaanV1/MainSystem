@@ -65,6 +65,7 @@ export function aboodSummary(
     keys ? (keys.groq || keys.gemini ? `${[keys.groq ? 'Groq' : null, keys.gemini ? 'Gemini' : null].filter(Boolean).join(' and ')} key set` : 'shared model') : null,
     telegram === null ? null : telegram ? 'Telegram linked' : 'Telegram not linked',
     checkins ? (checkins.on ? `texts first ${hour(checkins.from)} to ${hour(checkins.until)}` : 'never texts first') : null,
+    checkins?.morning != null ? `morning text ${hour(checkins.morning)}` : null,
   ]
     .filter(Boolean)
     .join(' · ');

@@ -129,12 +129,14 @@ export interface CheckinSettings {
   every: number | null;
   from: number;
   until: number;
+  /** Local hour of the morning text, or null when it is off. */
+  morning: number | null;
 }
 
 export async function loadCheckins(): Promise<CheckinSettings | null> {
   const { data, error } = await supabase
     .from('app_settings')
-    .select('abood_checkins, abood_checkin_every_hours, abood_checkin_from, abood_checkin_until')
+    .select('abood_checkins, abood_checkin_every_hours, abood_checkin_from, abood_checkin_until, abood_morning_hour')
     .maybeSingle();
   if (error || !data) return null;
   return {
@@ -142,6 +144,7 @@ export async function loadCheckins(): Promise<CheckinSettings | null> {
     every: (data.abood_checkin_every_hours as number | null) ?? null,
     from: Number(data.abood_checkin_from ?? 10),
     until: Number(data.abood_checkin_until ?? 21),
+    morning: (data.abood_morning_hour as number | null) ?? null,
   };
 }
 
@@ -153,6 +156,7 @@ export async function saveCheckins(userId: string, s: CheckinSettings): Promise<
       abood_checkin_every_hours: s.every,
       abood_checkin_from: s.from,
       abood_checkin_until: s.until,
+      abood_morning_hour: s.morning,
     })
     .eq('user_id', userId);
   return !error;

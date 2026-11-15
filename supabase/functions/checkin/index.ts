@@ -31,6 +31,8 @@ import { meterFor, release, reserve } from '../_shared/budget.ts';
 import { scripted } from '../_shared/chat.ts';
 import { checkinSignal, type Due, type Slot } from '../_shared/signals.ts';
 import { endOfDayUTC, localDayKey, localHourMinute, startOfDayUTC } from '../_shared/time.ts';
+import { buildDigest } from '../_shared/digest.ts';
+import { MORNING_INSTRUCTION, morningDue, morningFallback } from '../_shared/morning.ts';
 
 const env = (k: string): string => Deno.env.get(k) ?? '';
 const CRON_SECRET = env('CRON_SECRET');
@@ -226,15 +228,7 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
   const channel = await channelFor(admin, userId);
   if (!channel) return 'no text channel';
 
-  const rawGemini = (settings.gemini_api_key as string | null)?.trim() || null;
-  const ownGemini = rawGemini && !rawGemini.startsWith('gsk_') ? rawGemini : null;
-  const rawGroq = (settings.groq_api_key as string | null)?.trim() || null;
-  const ownGroq = rawGroq && !rawGroq.startsWith('AIza') ? rawGroq : null;
-  const geminiKey = ownGemini ?? env('GEMINI_API_KEY');
-  const gemini = geminiProvider(geminiKey);
-  const groqKey = ownGroq ?? env('GROQ_API_KEY');
-  const provider = groqKey ? withFallback(groqProvider(groqKey, env('GROQ_MODEL') || undefined), gemini) : gemini;
-  const onOwnKey = Boolean(ownGroq || (!groqKey && ownGemini));
+  const { provider, geminiKey, ownGemini, onOwnKey } = providerFor(settings);
 
   const today = localDayKey(new Date(), tz);
   const slot = await reserve(admin, userId, 'chat', today, onOwnKey);
@@ -292,19 +286,7 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
       timeoutMs: 30_000,
     });
     if (!result.ok) return { failure: result.failure, texts: [] as string[] };
-    const titles = context.titles;
-    const raw = (result.value as { texts?: unknown })?.texts;
-    const texts = (Array.isArray(raw) ? raw : [])
-      .filter((t): t is string => typeof t === 'string')
-      .map((t) =>
-        t
-          .trim()
-          .replace(/\[?\b([wecm]\d{1,3})\b\]?/g, (whole, l: string) => titles?.get(l) ?? whole)
-          .slice(0, 400),
-      )
-      .filter(Boolean)
-      .slice(0, 3);
-    return { failure: null, texts };
+    return { failure: null, texts: tidy((result.value as { texts?: unknown })?.texts, context.titles, 3) };
   };
 
   const first = await write();
@@ -328,6 +310,47 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
     texts = second.texts;
   }
 
+  await deliver(admin, userId, channel, texts);
+  return `sent via ${channel.via}`;
+}
+
+/** The model to use: the account's own key when it has one, else the shared one. */
+function providerFor(settings: Record<string, unknown>) {
+  const rawGemini = (settings.gemini_api_key as string | null)?.trim() || null;
+  const ownGemini = rawGemini && !rawGemini.startsWith('gsk_') ? rawGemini : null;
+  const rawGroq = (settings.groq_api_key as string | null)?.trim() || null;
+  const ownGroq = rawGroq && !rawGroq.startsWith('AIza') ? rawGroq : null;
+  const geminiKey = ownGemini ?? env('GEMINI_API_KEY');
+  const gemini = geminiProvider(geminiKey);
+  const groqKey = ownGroq ?? env('GROQ_API_KEY');
+  const provider = groqKey ? withFallback(groqProvider(groqKey, env('GROQ_MODEL') || undefined), gemini) : gemini;
+  return { provider, geminiKey, ownGemini, onOwnKey: Boolean(ownGroq || (!groqKey && ownGemini)) };
+}
+
+/** Names for short labels such as [w2], and texts held to a readable length. */
+function tidy(raw: unknown, titles: Map<string, string> | undefined, max: number): string[] {
+  return (Array.isArray(raw) ? raw : [])
+    .filter((t): t is string => typeof t === 'string')
+    .map((t) =>
+      t
+        .trim()
+        .replace(/\[?\b([wecm]\d{1,3})\b\]?/g, (whole, l: string) => titles?.get(l) ?? whole)
+        .slice(0, 400),
+    )
+    .filter(Boolean)
+    .slice(0, max);
+}
+
+/**
+ * Record the texts in the conversation and send them. Marked as a check-in,
+ * so an ordinary check-in waits for a reply instead of stacking on top.
+ */
+async function deliver(
+  admin: Admin,
+  userId: string,
+  channel: NonNullable<Awaited<ReturnType<typeof channelFor>>>,
+  texts: string[],
+) {
   await admin.from('chat_messages').insert({
     user_id: userId,
     role: 'assistant',
@@ -344,7 +367,60 @@ async function checkIn(admin: Admin, userId: string, settings: Record<string, un
       await tgSend(channel.chatId, t);
     }
   }
-  return `sent via ${channel.via}`;
+}
+
+/**
+ * The morning text: what today holds, at the hour the account chose. The
+ * digest is the fallback, so a spent budget or a failed model call still
+ * sends the day rather than nothing.
+ */
+async function morning(admin: Admin, userId: string, settings: Record<string, unknown>): Promise<string> {
+  const tz = ((settings.timezone as string | null) ?? 'UTC').trim() || 'UTC';
+  const today = localDayKey(new Date(), tz);
+  const { hour } = localHourMinute(new Date(), tz);
+  const at = (settings.abood_morning_hour as number | null) ?? null;
+  if (!morningDue(hour, at, (settings.abood_morning_sent_on as string | null) ?? null, today)) return 'not due';
+
+  const channel = await channelFor(admin, userId);
+  if (!channel) return 'no text channel';
+
+  // Claimed before anything is sent: a tick that dies halfway skips today
+  // rather than risk a second morning text.
+  const { error } = await admin.from('app_settings').update({ abood_morning_sent_on: today }).eq('user_id', userId);
+  if (error) return 'could not claim';
+
+  const digest = await buildDigest(
+    admin,
+    userId,
+    {
+      timezone: tz,
+      assignment_window_days: Number(settings.assignment_window_days ?? 7),
+      event_window_days: Number(settings.event_window_days ?? 7),
+    },
+    today,
+  );
+  let texts = morningFallback(digest.body);
+
+  const { provider, onOwnKey } = providerFor(settings);
+  const slot = await reserve(admin, userId, 'chat', today, onOwnKey);
+  if (slot.allowed) {
+    const context = await gatherContext(admin, userId, today, tz, { scopes: new Set(), shortIds: true });
+    const result = await provider.complete<unknown>({
+      instruction: MORNING_INSTRUCTION,
+      input: context.text,
+      schema: CHECKIN_SCHEMA as unknown as Record<string, unknown>,
+      temperature: 0.5,
+      reasoning: 'low',
+      maxOutputTokens: 700,
+      timeoutMs: 30_000,
+    });
+    const written = result.ok ? tidy((result.value as { texts?: unknown })?.texts, context.titles, 4) : [];
+    if (written.length) texts = written;
+    else await release(admin, userId, 'chat', today, slot);
+  }
+
+  await deliver(admin, userId, channel, texts);
+  return `morning sent via ${channel.via}`;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -357,15 +433,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const { data: accounts } = await admin
     .from('app_settings')
-    .select('user_id, timezone, gemini_api_key, groq_api_key, abood_checkin_every_hours, abood_checkin_from, abood_checkin_until')
-    .eq('abood_checkins', true)
+    .select(
+      'user_id, timezone, gemini_api_key, groq_api_key, abood_checkins, abood_checkin_every_hours, abood_checkin_from, abood_checkin_until, abood_morning_hour, abood_morning_sent_on, assignment_window_days, event_window_days',
+    )
+    .or('abood_checkins.eq.true,abood_morning_hour.not.is.null')
     // Abood switched off as a module: its check-ins stop with it.
     .not('modules_off', 'cs', '{abood}');
 
   const results: Record<string, string> = {};
   for (const a of (accounts ?? []) as Record<string, unknown>[]) {
     try {
-      results[String(a.user_id).slice(0, 8)] = await checkIn(admin, a.user_id as string, a);
+      // The morning text first: once it is out, the check-in below sees it as
+      // unanswered and waits rather than stacking another text on top.
+      const sent = await morning(admin, a.user_id as string, a);
+      const checked = a.abood_checkins ? await checkIn(admin, a.user_id as string, a) : 'off';
+      results[String(a.user_id).slice(0, 8)] = `${sent}; ${checked}`;
     } catch (e) {
       console.error('[checkin]', e);
       results[String(a.user_id).slice(0, 8)] = 'error';

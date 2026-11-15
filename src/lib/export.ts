@@ -31,7 +31,7 @@ export const EXPORTED: Record<string, string> = {
     'assignment_window_days', 'event_window_days', 'critical_days', 'urgent_days',
     'approaching_days', 'created_at', 'updated_at',
     'weekly_review_enabled', 'weekly_review_weekday', 'onboarded_at', 'abood_checkins',
-    'abood_checkin_every_hours', 'abood_checkin_from', 'abood_checkin_until',
+    'abood_checkin_every_hours', 'abood_checkin_from', 'abood_checkin_until', 'abood_morning_hour',
     'theme', 'today_order', 'today_hidden', 'modules_off', 'board', 'backdrop',
     'study_hours', 'plan_off_days', 'plan_day_cap', 'autoplan',
   ].join(','),
