@@ -1194,8 +1194,9 @@ function TextAbood({ userId }: { userId: string }) {
       <Card className="p-4">
         <p className="type-body mb-3 text-text-mid">
           Ask about your week from Telegram, the same way you would here. It is
-          the same conversation and the same memory, and anything it offers to
-          change still waits for you to confirm it in the app.
+          the same conversation and the same memory. A change Abood makes is
+          saved at once and listed under Connected apps, where it can be undone;
+          a delete waits for your yes.
         </p>
         <p className="type-note mb-4 text-text-low">
           {linked === null
