@@ -120,7 +120,7 @@ export function CoursePage({
             <div className="flex flex-col gap-4 px-4">
               <SavedText
                 label="Office hours"
-                placeholder="Tue 2–4 p.m., EV 3.301"
+                placeholder="When and where"
                 value={page.office_hours}
                 rows={2}
                 onSave={(office_hours) => saveCoursePage(userId, course.id, { office_hours })}
@@ -128,7 +128,7 @@ export function CoursePage({
               />
               <SavedText
                 label="Contacts"
-                placeholder="Prof. Okafor, okafor@school.edu · TA Priya, labs"
+                placeholder="Names, emails, who to ask for what"
                 value={page.contacts}
                 rows={2}
                 onSave={(contacts) => saveCoursePage(userId, course.id, { contacts })}
@@ -536,11 +536,11 @@ function Links({ links, onChange }: { links: CourseLink[]; onChange: (links: Cou
         </div>
       )}
       <form onSubmit={add} className="course-link-add px-4" noValidate>
-        <Field label="Name" placeholder="Moodle" value={label} onChange={(e) => setLabel(e.target.value)} autoComplete="off" />
+        <Field label="Name" placeholder="What to call it" value={label} onChange={(e) => setLabel(e.target.value)} autoComplete="off" />
         <Field
           label="Address"
           inputMode="url"
-          placeholder="moodle.school.edu/course/364"
+          placeholder="Paste the address"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           autoComplete="off"

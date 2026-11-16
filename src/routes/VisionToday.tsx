@@ -703,7 +703,7 @@ function GoalCard({ userId, today }: { userId: string; today: DayKey }) {
           <label className="sr-only" htmlFor="v-goal-title">
             Goal
           </label>
-          <input id="v-goal-title" className="well" placeholder="Read Leviathan" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input id="v-goal-title" className="well" placeholder="What you are working toward" value={title} onChange={(e) => setTitle(e.target.value)} />
           <label className="sr-only" htmlFor="v-goal-target">
             How many
           </label>
