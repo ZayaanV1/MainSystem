@@ -6,9 +6,9 @@ import { sweepFrom } from '../lib/transition';
 import { ThemePicker } from '../components/ThemePicker';
 import { ArrangeToday } from '../components/ArrangeToday';
 import { badgeOn, badgeSupported, setBadgeOn } from '../lib/badge';
-import { TODAY_SECTIONS, moduleOn, usePreferences, type Preferences } from '../lib/preferences';
+import { moduleOn, usePreferences } from '../lib/preferences';
 import { currentRoute, formatRoute } from '../lib/route';
-import { aboodSummary, appearanceSummary, notificationsSummary } from '../lib/settingsSummary';
+import { accountValue, featuresValue, lookValue, notificationsValue, textsFirstValue } from '../lib/settingsSummary';
 import {
   bridgeStatus,
   forgetFact,
@@ -136,7 +136,6 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
   }, [page]);
 
   // What each row says it is set to.
-  const appearance = useAppearance();
   const prefs = usePreferences();
   const [digest, setDigest] = useState<DigestSettingsRow | null>(null);
   const [keys, setKeys] = useState<{ groq: boolean; gemini: boolean } | null>(null);
@@ -150,10 +149,12 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
     void loadCheckins().then(setCheckins);
   }, [page]);
   const summary = {
-    notifications: notificationsSummary(push, digest),
-    appearance: appearanceSummary(readTheme(), appearance),
-    abood: aboodSummary(null, telegram, checkins),
-    keys: keys ? (keys.groq || keys.gemini ? `${[keys.groq ? 'Groq' : null, keys.gemini ? 'Gemini' : null].filter(Boolean).join(' and ')} key set` : 'Using the shared model') : null,
+    look: lookValue(document.documentElement.dataset.look, readTheme()),
+    notifications: notificationsValue(digest),
+    features: featuresValue(prefs),
+    textsFirst: textsFirstValue(checkins),
+    keys: keys ? (keys.groq || keys.gemini ? [keys.groq ? 'Groq' : null, keys.gemini ? 'Gemini' : null].filter(Boolean).join(', ') : 'Shared') : null,
+    telegram: telegram === null ? null : telegram ? 'Telegram' : 'This app',
   };
 
   // A failed export used to vanish as an unhandled rejection: the button did
@@ -238,7 +239,7 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
    * removed (rule 13): they were one 5,600 px page in the order they were
    * built, with the AI keys between the delivery log and iMessage.
    */
-  const pages: Record<PageId, { title: string; body: ReactNode }> = {
+  const pages: Record<PageId, { title: string; body: ReactNode; parent?: PageId }> = {
     help: { title: 'How it works', body: <Help /> },
     notifications: {
       title: 'Notifications',
@@ -356,7 +357,8 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
     keys: {
       // Their own page: the keys fund the briefing and What now too, which do
       // not stop when Abood is switched off.
-      title: 'AI keys',
+      title: 'Model and keys',
+      parent: 'abood',
       body: (
         <>
           <GroqKey userId={userId} />
@@ -365,19 +367,39 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
       ),
     },
     abood: {
-      // With Abood switched off the keys stay reachable: they also fund food
-      // parsing and the briefing, which do not stop with the chatbot.
-      title: 'Abood',
+      // Six rows, each opening the section that used to share one page: that
+      // page was 48 buttons and 3,278 px, with two filled buttons for things
+      // nobody does twice (15 Nov 2026). Nothing was removed.
+      title: 'Abood and AI',
+      body: (
+        <div className="mat settings-rows mx-4">
+          {moduleOn('abood', prefs) && (
+            <>
+              <SettingsRow label="Channels" value={summary.telegram} onOpen={() => go('channels')} />
+              <SettingsRow label="Texts first" value={summary.textsFirst} onOpen={() => go('texts')} />
+              <SettingsRow label="Gmail" value={null} onOpen={() => go('gmail')} />
+              <SettingsRow label="Memory" value={null} onOpen={() => go('memory')} />
+            </>
+          )}
+          {/* With Abood off the keys stay: they fund the briefing and the
+              syllabus reader too, which do not stop with the chatbot. */}
+          <SettingsRow label="Model and keys" value={summary.keys} onOpen={() => go('keys')} />
+        </div>
+      ),
+    },
+    channels: {
+      title: 'Channels',
+      parent: 'abood',
       body: (
         <>
           <TextAbood userId={userId} />
           <IMessageAbood userId={userId} />
-          <AboodTextsFirst userId={userId} />
-          <GmailAccess />
-          <AboodMemory />
         </>
       ),
     },
+    texts: { title: 'Texts first', parent: 'abood', body: <AboodTextsFirst userId={userId} /> },
+    gmail: { title: 'Gmail', parent: 'abood', body: <GmailAccess /> },
+    memory: { title: 'Memory', parent: 'abood', body: <AboodMemory /> },
     connected: { title: 'Connected apps', body: <><ShareFromPhone userId={userId} /><ConnectedApps userId={userId} /></> },
     data: {
       title: 'Account',
@@ -419,7 +441,7 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
               <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m15 6-6 6 6 6" />
               </svg>
-              Settings
+              {open.parent ? pages[open.parent].title : 'Settings'}
             </button>
             <h1 className="page-title mb-6 px-4">{open.title}</h1>
             {open.body}
@@ -428,56 +450,36 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
           <>
             <h1 className="page-title mb-6 px-4">Settings</h1>
 
-            <div className="mat settings-account mb-6">
-              <span aria-hidden className="settings-avatar">
-                {(email[0] ?? '?').toUpperCase()}
-              </span>
-              <span className="min-w-0">
-                <b className="block truncate">{email || 'Signed in'}</b>
-                <span className="type-note text-text-low">Signed in · build {__BUILD_ID__}</span>
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-4">
+            {/* Three groups, a word or two of value each, no icons: the
+                tiles came in three colours that meant nothing, and the values
+                ran to an ellipsis on a phone (15 Nov 2026). */}
+            <div className="flex flex-col gap-4 px-4">
               <div className="mat settings-rows">
-                <SettingsRow icon="help" tone="ember" label="How it works" value="A guide to every feature" onOpen={() => go('help')} />
+                <SettingsRow label="Look" value={summary.look} onOpen={() => go('appearance')} />
+                <SettingsRow label="Notifications" value={summary.notifications} onOpen={() => go('notifications')} />
+                {moduleOn('feeds', prefs) && <SettingsRow label="Calendars" value={null} onOpen={() => go('calendar')} />}
+                <SettingsRow label="Features" value={summary.features} onOpen={() => go('arrange')} />
               </div>
 
               <div className="mat settings-rows">
-                <SettingsRow icon="bell" tone="ember" label="Notifications and digest" value={summary.notifications} onOpen={() => go('notifications')} />
+                <SettingsRow label={moduleOn('abood', prefs) ? 'Abood and AI' : 'AI'} value={moduleOn('abood', prefs) ? 'On' : summary.keys} onOpen={() => go('abood')} />
+                <SettingsRow label="Connected apps" value={null} onOpen={() => go('connected')} />
               </div>
 
               <div className="mat settings-rows">
-                <SettingsRow icon="sun" tone="ink" label="Appearance" value={summary.appearance} onOpen={() => go('appearance')} />
-                <SettingsRow icon="grid" tone="ink" label="Features" value={arrangeSummary(prefs)} onOpen={() => go('arrange')} />
-                {moduleOn('feeds', prefs) && (
-                  <SettingsRow icon="calendar" label="Calendars" value="Subscribed calendars, and your deadlines in others" onOpen={() => go('calendar')} />
-                )}
+                <SettingsRow label="Account" value={accountValue(activeTimezone())} onOpen={() => go('data')} />
+                <SettingsRow label="Help" value={null} onOpen={() => go('help')} />
               </div>
 
               <div className="mat settings-rows">
-                {moduleOn('abood', prefs) && (
-                  <SettingsRow icon="chat" label="Abood" value={summary.abood} onOpen={() => go('abood')} />
-                )}
-                <SettingsRow icon="key" tone="ink" label="AI keys" value={summary.keys} onOpen={() => go('keys')} />
-              </div>
-
-              <div className="mat settings-rows">
-                <SettingsRow icon="link" label="Connected apps" value="Claude and other AI apps" onOpen={() => go('connected')} />
-              </div>
-
-              <div className="mat settings-rows">
-                <SettingsRow icon="box" tone="ink" label="Account" value={`${activeTimezone().replace(/_/g, ' ')} (${zoneAbbrev()}) · export · delete`} onOpen={() => go('data')} />
-                <SettingsRow icon="out" tone="ink" label="Sign out" value={email || null} onOpen={() => void signOut()} chevron={false} />
+                <SettingsRow label="Sign out" value={null} onOpen={() => void signOut()} chevron={false} />
               </div>
             </div>
 
-            {/* Which build this device is running. An installed app can keep
-                an old version until it is closed and reopened, and without
-                this there was no way to tell from the phone whether a deploy
-                had arrived. */}
-            <p className="type-note mt-8 mb-12 px-4 text-text-low">
-              Build {__BUILD_ID__} · {__BUILD_TIME__}
+            {/* Who is signed in, and which build this device is running: an
+                installed app can keep an old version until it is reopened. */}
+            <p className="type-note mt-6 mb-12 px-4 text-text-low">
+              {email ? `${email} · ` : ''}build {__BUILD_ID__} · {__BUILD_TIME__}
             </p>
           </>
         )}
@@ -486,32 +488,11 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
   );
 }
 
-type PageId = 'help' | 'notifications' | 'timezone' | 'appearance' | 'arrange' | 'calendar' | 'keys' | 'abood' | 'connected' | 'data';
-const PAGE_IDS: PageId[] = ['help', 'notifications', 'timezone', 'appearance', 'arrange', 'calendar', 'keys', 'abood', 'connected', 'data'];
+type PageId = 'help' | 'notifications' | 'timezone' | 'appearance' | 'arrange' | 'calendar' | 'keys' | 'abood' | 'channels' | 'texts' | 'gmail' | 'memory' | 'connected' | 'data';
+const PAGE_IDS: PageId[] = ['help', 'notifications', 'timezone', 'appearance', 'arrange', 'calendar', 'keys', 'abood', 'channels', 'texts', 'gmail', 'memory', 'connected', 'data'];
 
-/** What the arrangement row says: the usual, or how it differs. */
-function arrangeSummary(prefs: Preferences): string {
-  const parts: string[] = [];
-  if (prefs.order.some((s, i) => s !== TODAY_SECTIONS[i])) parts.push('Rearranged');
-  if (prefs.hidden.length) parts.push(`${prefs.hidden.length} hidden`);
-  if (prefs.modulesOff.length) parts.push(`${prefs.modulesOff.length} ${prefs.modulesOff.length === 1 ? 'module' : 'modules'} off`);
-  return parts.length ? parts.join(' · ') : 'The usual order, everything on';
-}
 const pageFrom = (p: string | undefined): PageId | null => (PAGE_IDS.includes(p as PageId) ? (p as PageId) : null);
 
-const GLYPHS: Record<string, string> = {
-  bell: 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
-  globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20',
-  sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
-  grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
-  calendar: 'M3.5 10h17M8 3v4M16 3v4M6.5 5h11a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3',
-  chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.5A8 8 0 1 1 21 12',
-  box: 'M21 8v12H3V8M1 3h22v5H1zM10 12h4',
-  out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
-  help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01',
-  key: 'M15.5 7.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0M12 11v10M12 17h3M12 20h2',
-  link: 'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7',
-};
 
 /**
  * One Settings row: what it is, what it is set to, and where it goes. The
@@ -519,32 +500,21 @@ const GLYPHS: Record<string, string> = {
  * and a row that says its value answers that without opening anything.
  */
 function SettingsRow({
-  icon,
-  tone = 'phthalo',
   label,
   value,
   onOpen,
   chevron = true,
 }: {
-  icon: keyof typeof GLYPHS;
-  tone?: 'ember' | 'ink' | 'phthalo';
   label: string;
+  /** A word or two. Null while loading, or when the page is its own answer. */
   value: string | null;
   onOpen: () => void;
   chevron?: boolean;
 }) {
   return (
     <button type="button" className="settings-row" onClick={onOpen}>
-      <span aria-hidden className="settings-ico" data-tone={tone}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d={GLYPHS[icon]} />
-        </svg>
-      </span>
-      <span className="settings-row-label">
-        <b>{label}</b>
-        {/* Reserved even while loading, so rows do not grow when values land. */}
-        <span>{value ?? '\u00a0'}</span>
-      </span>
+      <b>{label}</b>
+      <span className="settings-row-value">{value}</span>
       {chevron && (
         <svg aria-hidden className="settings-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
           <path d="m9 6 6 6-6 6" />

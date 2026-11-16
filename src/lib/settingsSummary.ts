@@ -1,74 +1,52 @@
-import type { Appearance } from './appearance';
 import type { CheckinSettings } from './abood';
 import type { DigestSettings } from './planner';
-import type { PushStatus } from './notifications';
+import type { Preferences } from './preferences';
 import type { ThemeChoice } from './theme';
 
 /**
- * The value each Settings row shows.
+ * The value each Settings row shows, in a word or two.
  *
- * Settings was fourteen sections in one 5,600 px page, and finding what was
- * set meant reading all of it. Grouped into rows that open their own pages,
- * each row says what it currently is, so most visits end on the first screen.
- * Null while a value is still loading: a row says nothing rather than
- * something it has not checked.
+ * The rows used to carry a whole sentence each ("Push not available here ·
+ * digest 7:00 a.m. · weekly…"), which ran to an ellipsis on a phone and made
+ * the root a page to read. A row now says the one thing it is set to and its
+ * page says the rest (15 Nov 2026). Null while a value is still loading: a
+ * row says nothing rather than something it has not checked.
  */
 
-const WEEKDAY = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const clock = (h: number, m: number) => {
-  if (h === 12 && m === 0) return 'noon';
-  // 24 is how "until midnight" is stored; it read as 12:00 p.m., which is noon.
-  if (h % 24 === 0 && m === 0) return 'midnight';
-  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'a.m.' : 'p.m.'}`;
-};
-
-const PUSH_SHORT: Record<PushStatus, string> = {
-  unsupported: 'Push not available here',
-  'needs-install': 'Add to the home screen for push',
-  'needs-permission': 'Push off on this device',
-  denied: 'Notifications blocked',
-  'no-service-worker': 'Push not set up',
-  'device-only': 'Push needs registering',
-  subscribed: 'Push on',
-};
-
-export function notificationsSummary(push: PushStatus | null, digest: DigestSettings | null): string | null {
-  if (!push && !digest) return null;
-  return [
-    push ? PUSH_SHORT[push] : null,
-    digest ? (digest.digest_enabled ? `digest ${clock(digest.digest_hour, digest.digest_minute)}` : 'digest off') : null,
-    digest?.weekly_review_enabled ? `weekly review ${WEEKDAY[digest.weekly_review_weekday] ?? ''}`.trim() : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+/** A whole hour as the app says it. 24 is how "until midnight" is stored; it once read as 12:00 p.m. */
+export function clock(h: number, m = 0): string {
+  if (m === 0 && h === 12) return 'noon';
+  if (m === 0 && h % 24 === 0) return 'midnight';
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h % 24 < 12 ? 'a.m.' : 'p.m.'}`;
 }
 
-const THEME: Record<ThemeChoice, string> = { system: 'Auto', light: 'Light', dark: 'Dark' };
+const MODE: Record<ThemeChoice, string> = { system: 'Auto', light: 'Light', dark: 'Dark' };
+const LOOK: Record<string, string> = { glass: 'Glass', dots: 'Dot matrix' };
 
-export function appearanceSummary(theme: ThemeChoice, a: Appearance): string {
-  return [
-    THEME[theme],
-    a.slip === 'ticket' ? 'ticket slips' : 'glass slips',
-    a.glass === 'off' ? 'no glass' : a.glass === 'bars' ? 'glass on bars' : 'glass everywhere',
-    a.motion === 'full' ? 'full motion' : a.motion === 'none' ? 'no motion' : 'calm motion',
-  ].join(' · ');
+/** "Glass · Dark". `look` is the root's data-look, absent for Plain. */
+export function lookValue(look: string | undefined, mode: ThemeChoice): string {
+  return `${LOOK[look ?? ''] ?? 'Plain'} · ${MODE[mode]}`;
 }
 
-const hour = (h: number) => clock(h, 0);
+/** When the digest arrives, or that it does not. */
+export function notificationsValue(digest: DigestSettings | null): string | null {
+  if (!digest) return null;
+  return digest.digest_enabled ? clock(digest.digest_hour, digest.digest_minute) : 'Off';
+}
 
-export function aboodSummary(
-  keys: { groq: boolean; gemini: boolean } | null,
-  telegram: boolean | null,
-  checkins: CheckinSettings | null,
-): string | null {
-  if (!keys && telegram === null && !checkins) return null;
-  return [
-    keys ? (keys.groq || keys.gemini ? `${[keys.groq ? 'Groq' : null, keys.gemini ? 'Gemini' : null].filter(Boolean).join(' and ')} key set` : 'shared model') : null,
-    telegram === null ? null : telegram ? 'Telegram linked' : 'Telegram not linked',
-    checkins ? (checkins.on ? `texts first ${hour(checkins.from)} to ${hour(checkins.until)}` : 'never texts first') : null,
-    checkins?.morning != null ? `morning text ${hour(checkins.morning)}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+/** How Today and the modules differ from the usual, if they do. */
+export function featuresValue(prefs: Pick<Preferences, 'hidden' | 'modulesOff'>): string {
+  const off = prefs.hidden.length + prefs.modulesOff.length;
+  return off ? `${off} off` : 'All on';
+}
+
+/** The city of the account's zone: "America/Toronto" is "Toronto". */
+export function accountValue(zone: string): string {
+  return (zone.split('/').pop() ?? zone).replace(/_/g, ' ');
+}
+
+/** When Abood may text first, for its own row. */
+export function textsFirstValue(checkins: CheckinSettings | null): string | null {
+  if (!checkins) return null;
+  return checkins.on ? `${clock(checkins.from)} to ${clock(checkins.until)}` : 'Off';
 }

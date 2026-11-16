@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aboodSummary, appearanceSummary, notificationsSummary } from './settingsSummary';
+import { accountValue, clock, featuresValue, lookValue, notificationsValue, textsFirstValue } from './settingsSummary';
 
 const digest = {
   digest_hour: 7,
@@ -12,42 +12,28 @@ const digest = {
 };
 
 describe('settings row values', () => {
-  it('says how notifications are set, in one line', () => {
-    expect(notificationsSummary('subscribed', digest)).toBe('Push on · digest 7:00 a.m. · weekly review Sun');
-    expect(notificationsSummary('denied', { ...digest, digest_enabled: false, weekly_review_enabled: false })).toBe(
-      'Notifications blocked · digest off',
-    );
+  it('says each in a word or two', () => {
+    expect(lookValue('glass', 'dark')).toBe('Glass · Dark');
+    expect(lookValue(undefined, 'system')).toBe('Plain · Auto');
+    expect(notificationsValue(digest)).toBe('7:00 a.m.');
+    expect(notificationsValue({ ...digest, digest_enabled: false })).toBe('Off');
+    expect(featuresValue({ hidden: [], modulesOff: [] })).toBe('All on');
+    expect(featuresValue({ hidden: ['checklist'], modulesOff: ['grades'] } as never)).toBe('2 off');
+    expect(accountValue('America/Toronto')).toBe('Toronto');
+    expect(accountValue('America/Argentina/Buenos_Aires')).toBe('Buenos Aires');
   });
 
   it('says nothing it has not checked', () => {
-    expect(notificationsSummary(null, null)).toBeNull();
-    expect(aboodSummary(null, null, null)).toBeNull();
-  });
-
-  it('reads appearance back', () => {
-    expect(appearanceSummary('system', { slip: 'ticket', glass: 'bars', motion: 'full' } as never)).toBe(
-      'Auto · ticket slips · glass on bars · full motion',
-    );
+    expect(notificationsValue(null)).toBeNull();
+    expect(textsFirstValue(null)).toBeNull();
   });
 
   it('calls hour 24 midnight, never 12:00 p.m.', () => {
-    expect(aboodSummary(null, null, { on: true, every: null, from: 8, until: 24, morning: null })).toBe(
-      'texts first 8:00 a.m. to midnight',
-    );
-  });
-
-  it('says no motion when motion is off', () => {
-    expect(appearanceSummary('dark', { slip: 'glass', glass: 'all', motion: 'none' } as never)).toBe(
-      'Dark · glass slips · glass everywhere · no motion',
-    );
-  });
-
-  it('reads Abood back', () => {
-    expect(aboodSummary({ groq: true, gemini: false }, true, { on: true, every: null, from: 10, until: 21, morning: 7 })).toBe(
-      'Groq key set · Telegram linked · texts first 10:00 a.m. to 9:00 p.m. · morning text 7:00 a.m.',
-    );
-    expect(aboodSummary({ groq: false, gemini: false }, false, { on: false, every: null, from: 10, until: 21, morning: null })).toBe(
-      'shared model · Telegram not linked · never texts first',
-    );
+    expect(clock(24)).toBe('midnight');
+    expect(clock(0)).toBe('midnight');
+    expect(clock(12)).toBe('noon');
+    expect(clock(13, 30)).toBe('1:30 p.m.');
+    expect(textsFirstValue({ on: true, every: null, from: 8, until: 24, morning: null })).toBe('8:00 a.m. to midnight');
+    expect(textsFirstValue({ on: false, every: null, from: 8, until: 24, morning: null })).toBe('Off');
   });
 });

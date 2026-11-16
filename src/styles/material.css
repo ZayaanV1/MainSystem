@@ -929,36 +929,6 @@ textarea.well {
 
 /* ---- Settings: grouped rows that say their values ---------------------------- */
 
-.settings-account {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  padding: 0.875rem 1rem;
-}
-
-.settings-account b {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 650;
-  line-height: 1.3;
-  color: var(--text-hi);
-}
-
-.settings-avatar {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 2.875rem;
-  height: 2.875rem;
-  border-radius: var(--r-pill);
-  font-family: var(--font-display);
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--on-accent-2);
-  background: linear-gradient(180deg, var(--accent-2-mid), var(--accent-2-deep));
-  box-shadow: inset 0 1px 0 var(--specular);
-}
-
 .settings-rows {
   display: flex;
   flex-direction: column;
@@ -970,8 +940,8 @@ textarea.well {
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  min-height: 3.5rem;
-  padding: 0.5rem 0.875rem;
+  min-height: 3rem;
+  padding: 0.5rem 1rem;
   text-align: left;
   transition: background-color var(--dur-fast) var(--ease-out);
 }
@@ -990,49 +960,19 @@ textarea.well {
   }
 }
 
-.settings-ico {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 1.875rem;
-  height: 1.875rem;
-  border-radius: 0.5625rem;
-  color: var(--on-accent-2);
-  background: var(--accent-2-mid);
-}
-
-.settings-ico[data-tone='ember'] {
-  color: var(--on-accent);
-  background: var(--accent-deep);
-}
-
-.settings-ico[data-tone='ink'] {
-  color: var(--text-hi);
-  background: var(--ink-500);
-}
-
-.settings-row-label {
-  display: flex;
-  min-width: 0;
+.settings-row b {
   flex: 1;
-  flex-direction: column;
-  gap: 0.0625rem;
-}
-
-.settings-row-label b {
-  font-size: 0.9375rem;
-  font-weight: 600;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 500;
   line-height: 1.3;
   color: var(--text-hi);
 }
 
-.settings-row-label span {
-  overflow: hidden;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--text-low);
+.settings-row-value {
+  flex-shrink: 0;
+  font-size: 0.9375rem;
+  color: var(--text-mid);
 }
 
 .settings-chev {
@@ -4498,18 +4438,6 @@ label.cell:active {
 
 /* Settings: monochrome glyphs in a hairline ring, as Nothing OS draws its
    settings, rather than coloured tiles. */
-:is(:root[data-look='dots'], .look-dots) .settings-ico:not(.theme-mini:not(.look-dots) *) {
-  color: var(--text-hi);
-  background: transparent;
-  box-shadow: none;
-}
-:is(:root[data-look='dots'], .look-dots) .settings-avatar:not(.theme-mini:not(.look-dots) *) {
-  font-family: var(--font-dot);
-  font-weight: 800;
-  color: var(--text-hi);
-  background: var(--ink-700);
-  box-shadow: none;
-}
 
 /* Sheets: one flat surface with a hairline top edge, no light. */
 :is(:root[data-look='dots'], .look-dots) .sheet-panel:not(.theme-mini:not(.look-dots) *) {
