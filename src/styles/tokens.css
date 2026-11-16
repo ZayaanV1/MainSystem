@@ -2426,6 +2426,9 @@
   --v-veil-rgb: 10 10 12;
   --v-smoke-rgb: 20 20 22;
   --v-smoke-tint: rgb(255 255 255 / 0.05);
+  /* The cushion under a label set straight on the photograph (vision.css,
+     "text on the room"). Dark under light text, light under dark. */
+  --room-halo: rgb(0 0 0 / 0.5);
 }
 @media (prefers-color-scheme: light) {
   :root[data-look='glass']:not([data-theme='dark']) {
@@ -2437,6 +2440,7 @@
     --v-veil-rgb: 246 246 248;
     --v-smoke-rgb: 228 228 232;
     --v-smoke-tint: rgb(0 0 0 / 0.04);
+    --room-halo: rgb(255 255 255 / 0.7);
   }
 }
 :root[data-look='glass'][data-theme='light'] {
@@ -2448,6 +2452,7 @@
   --v-veil-rgb: 246 246 248;
   --v-smoke-rgb: 228 228 232;
   --v-smoke-tint: rgb(0 0 0 / 0.04);
+  --room-halo: rgb(255 255 255 / 0.7);
 }
 
 /* ---- Vision: frosted glass over a room at dusk. ----

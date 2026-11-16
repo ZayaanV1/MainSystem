@@ -97,6 +97,39 @@
   backdrop-filter: none;
 }
 
+/* ---- text on the room -------------------------------------------------------
+   Outside a panel a label has only the photograph behind it. Measured on the
+   live build on 15 Nov 2026, secondary text there was 2.3 to 3.7:1 against a
+   floor of 4.5, and the palette test could not see it: it holds tokens to
+   opaque grounds, and the room is not one. Even the brightest text step is
+   about 4:1 over a white patch of sky at the default dimming, so on the room
+   every step is the brightest one and wears a cushion, and hierarchy is left
+   to size and weight. A panel puts the steps back: glass is its own ground.
+   These two rules sit before the very-clear-glass rule on purpose, so that
+   one still gives a clear panel its shadow. */
+:root[data-look='glass'] {
+  --panel-text-mid: var(--text-mid);
+  --panel-text-low: var(--text-low);
+}
+
+:root[data-look='glass']:not([data-v-bg='off']) [data-recede] {
+  --text-mid: var(--text-hi);
+  --text-low: var(--text-hi);
+  text-shadow: 0 1px 2px var(--room-halo), 0 0 0.75rem var(--room-halo);
+}
+
+/* A button starts from the browser's `text-shadow: none`, so the week
+   strip's labels, which are buttons on the bare room, ask for it back. */
+:root[data-look='glass']:not([data-v-bg='off']) [data-recede] .ws-day {
+  text-shadow: inherit;
+}
+
+:root[data-look='glass'] [data-recede] :is(.mat, .v-card, .well, .lgroup, .fold, .compact-bar) {
+  --text-mid: var(--panel-text-mid);
+  --text-low: var(--panel-text-low);
+  text-shadow: none;
+}
+
 /* Very clear glass: text takes a soft shadow, so a bright patch of the room
    behind a label cannot take its contrast. */
 :root[data-look='glass'][data-v-clear='high'] :is(.mat, .v-card, .v-head) {
