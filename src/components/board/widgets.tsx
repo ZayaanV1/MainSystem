@@ -413,7 +413,8 @@ function ClassW({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
   const mins = Math.max(0, Math.round((target.getTime() - ctx.now.getTime()) / 60_000));
   const rel = mins >= 120 ? `${Math.round(mins / 60)} h` : `${mins} min`;
   const until = live ? 'until it ends' : 'until it starts';
-  const head = live ? 'In class now' : label;
+  // Only a class is a class: the gym was announced as "In class now".
+  const head = live ? (e.kind === 'class' ? 'In class now' : 'On now') : label;
   const course = courseOf(ctx, e.course_id);
   const when = `${daysBetween(ctx.today, localDayKey(start)) === 0 ? '' : `${formatDay(localDayKey(start)).split(',')[0]} `}${formatTimeRange(start, e.ends_at ? new Date(e.ends_at) : null)}`;
   const hit = <Hit label={`Open ${formatDay(dayOf(e.starts_at))}`} onClick={() => ctx.onOpenDay(dayOf(e.starts_at))} />;
