@@ -34,6 +34,7 @@ import {
 } from '../_shared/summary.ts';
 import { addDays, endOfDayUTC, formatTime, localDayKey, startOfDayUTC } from '../_shared/time.ts';
 import { readBody } from '../_shared/body.ts';
+import { looksLikeDeadline, untrackedDeadlines } from '../_shared/deadline.ts';
 import { meterFor, release, reserve, standDownMessage, type AiKind, type Reservation } from '../_shared/budget.ts';
 import { groqProvider } from '../_shared/llm/groq.ts';
 import { withFallback } from '../_shared/llm/chain.ts';
@@ -88,7 +89,7 @@ function describe(i: SummaryItem): string {
 async function gatherSummary(admin: any, userId: string, today: string, tz: string): Promise<SummaryInput> {
   const weekOut = addDays(today, 7);
 
-  const [assignments, dueEvents, classEvents, checklist, completions] = await Promise.all([
+  const [assignments, dueEvents, classEvents, calendarEvents, checklist, completions] = await Promise.all([
     admin
       .from('assignments')
       .select('title, due_at, effort_minutes')
@@ -112,7 +113,7 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
     // Today's timetable: attended, not due.
     admin
       .from('events')
-      .select('title, kind, starts_at, all_day')
+      .select('title, kind, starts_at, all_day, feed_id')
       .eq('user_id', userId)
       .not('kind', 'in', `(${DUE_EVENT_KINDS.join(',')})`)
       .eq('all_day', false)
@@ -120,6 +121,19 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
       .lte('starts_at', endOfDayUTC(today, tz).toISOString())
       .order('starts_at', { ascending: true })
       .limit(12),
+    // The week's subscribed-calendar events, read for the deadlines among
+    // them. A school that posts due dates to its calendar never makes a row
+    // in assignments, and the briefing called a day with two of them clear.
+    admin
+      .from('events')
+      .select('title, starts_at, feed_id')
+      .eq('user_id', userId)
+      .not('feed_id', 'is', null)
+      .not('kind', 'in', `(${DUE_EVENT_KINDS.join(',')})`)
+      .gte('starts_at', startOfDayUTC(today, tz).toISOString())
+      .lte('starts_at', endOfDayUTC(weekOut, tz).toISOString())
+      .order('starts_at', { ascending: true })
+      .limit(300),
     admin
       .from('checklist_items')
       .select('id, title')
@@ -159,8 +173,18 @@ async function gatherSummary(admin: any, userId: string, today: string, tz: stri
     else if (day > today) dueSoon.push(item);
   }
 
+  // Due, though only the calendar says so. Listed as work to hand in, and
+  // left out of the timetable below, which is for things to attend.
   // deno-lint-ignore no-explicit-any
-  const classes: SummaryClass[] = ((classEvents.data ?? []) as any[]).map((e) => {
+  for (const e of untrackedDeadlines((calendarEvents.data ?? []) as any[], (assignments.data ?? []) as any[])) {
+    const day = localDayKey(new Date(e.starts_at), tz);
+    const item: SummaryItem = { title: e.title, due: day, kind: 'assignment', minutes: null };
+    if (day === today) dueToday.push(item);
+    else if (day > today) dueSoon.push(item);
+  }
+
+  // deno-lint-ignore no-explicit-any
+  const classes: SummaryClass[] = ((classEvents.data ?? []) as any[]).filter((e) => !looksLikeDeadline(e)).map((e) => {
     // The app's own time format: the model repeats what it is given, and "13:30" read oddly beside "1:30 p.m.".
     return { title: e.title, at: formatTime(new Date(e.starts_at), tz) };
   });

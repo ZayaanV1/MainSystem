@@ -958,20 +958,9 @@ export async function capture(userId: string, body: string): Promise<void> {
   });
 }
 
-/**
- * A subscribed-calendar event that reads like something to hand in ("Lab 3
- * is due", "WeBWorK 8 closes"). Those can be tracked as work with one tap;
- * a lecture cannot, so it is never offered.
- */
-export function looksLikeDeadline(e: Pick<PlannerEvent, 'title' | 'feed_id'>): boolean {
-  return Boolean(e.feed_id) && /\b(due|deadline|closes|submi\w*|assignment|homework|quiz|webwork|problem set|lab report)\b/i.test(e.title);
-}
-
-/** Whether work with this title and due time already exists, so a deadline is never tracked twice. */
-export function alreadyTracked(e: Pick<PlannerEvent, 'title' | 'starts_at'>, work: Pick<Assignment, 'title' | 'due_at'>[]): boolean {
-  const title = e.title.trim().toLowerCase();
-  return work.some((a) => a.title.trim().toLowerCase() === title && a.due_at !== null && Date.parse(a.due_at) === Date.parse(e.starts_at));
-}
+// The rule for a calendar deadline is shared with the briefing, so the app and
+// the sentence at the top of Schedule cannot disagree about what is due.
+export { alreadyTracked, looksLikeDeadline, untrackedDeadlines } from '../../supabase/functions/_shared/deadline';
 
 /** Track a calendar deadline as work: due when the event is, in its course. */
 export function trackAsWork(userId: string, e: Pick<PlannerEvent, 'title' | 'starts_at' | 'course_id' | 'all_day'>): Promise<void> {

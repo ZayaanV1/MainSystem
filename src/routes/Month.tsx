@@ -18,6 +18,7 @@ import {
   type TodayData,
   alreadyTracked,
   looksLikeDeadline,
+  untrackedDeadlines,
   trackAsWork,
 } from '../lib/planner';
 import { addDays, formatDay, localDayKey, todayKey, type DayKey } from '../lib/time';
@@ -318,8 +319,10 @@ function DayCell({
   // Deadlines only: a class is attended, not due, and a timetable put the
   // same marks on every weekday so the days that mattered could not stand out.
   const dueEvents = cell.events.filter((e) => e.kind === 'exam' || e.kind === 'presentation');
-  const total = cell.assignments.length + dueEvents.length;
-  const classes = cell.events.length - dueEvents.length;
+  // A deadline the calendar holds and nothing tracks yet is due all the same.
+  const calendarDue = untrackedDeadlines(cell.events, cell.assignments).filter((e) => !dueEvents.includes(e));
+  const total = cell.assignments.length + dueEvents.length + calendarDue.length;
+  const classes = cell.events.length - dueEvents.length - calendarDue.length;
   const description = [
     total === 0 ? 'nothing due' : `${total} due`,
     classes ? `${classes} ${classes === 1 ? 'event' : 'events'}` : null,
@@ -333,6 +336,7 @@ function DayCell({
   */
   const marks = [
     ...cell.assignments.map((a) => ({ id: a.id, due: true, course: courseFor(a.course_id) })),
+    ...calendarDue.map((e) => ({ id: e.id, due: true, course: courseFor(e.course_id) })),
     ...dueEvents.map((e) => ({ id: e.id, due: false, course: courseFor(e.course_id) })),
   ].slice(0, 4);
 

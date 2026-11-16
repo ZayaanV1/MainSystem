@@ -1,5 +1,5 @@
 import { addDays, localDayKey, type DayKey } from './time';
-import type { Assignment, PlannerEvent } from './planner';
+import { untrackedDeadlines, type Assignment, type PlannerEvent } from './planner';
 
 /**
  * Grouping work into days for the Week view.
@@ -89,6 +89,15 @@ export function groupWeek(
     undated,
     later: later.sort((x, y) => (x.due_at ?? '').localeCompare(y.due_at ?? '')),
   };
+}
+
+/**
+ * How many things are due on a day: tracked work, plus the calendar's own
+ * deadlines that nothing tracks yet. Counting work alone drew an empty day
+ * over two things due that night.
+ */
+export function dueCount(group: Pick<DayGroup, 'assignments' | 'events'>): number {
+  return group.assignments.length + untrackedDeadlines(group.events, group.assignments).length;
 }
 
 /** Total estimated effort in a group, for the Phase 6 workload forecast. */

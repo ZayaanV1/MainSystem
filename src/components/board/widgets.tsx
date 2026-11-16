@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Widget } from '../../lib/board';
 import type { Assignment, Course, InboxItem, PlannerEvent } from '../../lib/planner';
-import { courseVar, loadEvents } from '../../lib/planner';
+import { courseVar, loadEvents, untrackedDeadlines } from '../../lib/planner';
 import type { ChecklistItem } from '../../lib/checklist';
 import { urgencyFor } from '../../lib/urgency';
 import { whatNow, type Task } from '../../lib/intelligence';
@@ -465,6 +465,8 @@ interface DayThing {
   at: Date;
   course: Course | undefined;
   exam: boolean;
+  /** No time of its own: an all-day exam printed "12:00 a.m.", its stored start. */
+  allDay?: boolean;
   work?: Assignment;
 }
 
@@ -480,10 +482,13 @@ function thingsByDay(ctx: WidgetContext, events: PlannerEvent[]): Map<DayKey, Da
     const at = new Date(a.due_at);
     put(localDayKey(at), { key: a.id, title: a.title, at, course: courseOf(ctx, a.course_id), exam: false, work: a });
   }
+  // A deadline the calendar holds and nothing tracks yet is due all the same.
+  const calendarDue = new Set(untrackedDeadlines(events, ctx.assignments ?? []));
   for (const e of events) {
-    if (e.kind !== 'exam' && e.kind !== 'presentation') continue;
+    const exam = e.kind === 'exam' || e.kind === 'presentation';
+    if (!exam && !calendarDue.has(e)) continue;
     const at = new Date(e.starts_at);
-    put(localDayKey(at), { key: e.id, title: e.title, at, course: courseOf(ctx, e.course_id), exam: true });
+    put(localDayKey(at), { key: e.id, title: e.title, at, course: courseOf(ctx, e.course_id), exam, allDay: e.all_day });
   }
   for (const list of out.values()) list.sort((a, b) => a.at.getTime() - b.at.getTime());
   return out;
@@ -546,7 +551,7 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
             <Hit label={t.work ? `Open ${t.title}` : `Open ${formatDay(d)}`} onClick={() => (t.work ? ctx.onOpen(t.work) : ctx.onOpenDay(d))} />
             <span className="bw-unit">{weekday(d, 'short')}</span>
             <span className="bw-meta bw-strong"><Dot course={t.course} /><span>{t.exam ? `Exam: ${t.title}` : t.title}</span></span>
-            <span className="bw-unit">{formatTime(t.at)}</span>
+            <span className="bw-unit">{t.allDay ? 'All day' : formatTime(t.at)}</span>
           </li>
         )) : <li><span /><span className="bw-meta"><span>Nothing due this week.</span></span></li>}
       </ul>

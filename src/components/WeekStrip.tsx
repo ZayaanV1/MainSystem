@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
-import { effortMinutes, type DayGroup } from '../lib/week';
+import { dueCount, effortMinutes, type DayGroup } from '../lib/week';
 import { EASE } from '../lib/motion';
 
 /**
@@ -60,7 +60,7 @@ export function WeekStrip({
     <div className="week-strip" role="group" aria-label="Work due each day. Choose a day to jump to it.">
       {days.map((group, i) => {
         const m = minutes[i];
-        const count = group.assignments.length;
+        const count = dueCount(group);
         const isToday = group.day === today;
         const date = new Date(`${group.day}T12:00:00Z`);
         const weekday = WEEKDAY[date.getUTCDay()];
