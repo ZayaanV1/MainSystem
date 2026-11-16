@@ -108,10 +108,16 @@ export function EventRow({
   event,
   course,
   showSource = false,
+  rail = false,
+  onTrack,
 }: {
   event: PlannerEvent;
   course?: Course;
   showSource?: boolean;
+  /** Hang the row from the day's rail, in its course's colour, instead of a dot. */
+  rail?: boolean;
+  /** A calendar deadline not yet tracked: one tap makes it work. */
+  onTrack?: () => void;
 }) {
   const { read, when, a, b, place, detail } = eventFace(event, course);
   // The code once: a timetable headline ("COEN 231 Lecture") already says it.
@@ -139,11 +145,12 @@ export function EventRow({
           </>
         )}
       </span>
+      {rail && <span aria-hidden data-block className="lrail" style={tint(course)} />}
       <span className="lrow-main">
         <span className="slip-title lrow-title text-text-hi">{read.headline}</span>
         {facts.length > 0 && (
           <span className="lrow-meta">
-            {course && <span aria-hidden data-block className="chip-dot" style={tint(course)} />}
+            {course && !rail && <span aria-hidden data-block className="chip-dot" style={tint(course)} />}
             {facts.map((part, i) => (
               <span key={i} className="whitespace-nowrap">
                 {i > 0 && <span aria-hidden className="lrow-sep">·</span>}
@@ -152,6 +159,30 @@ export function EventRow({
             ))}
           </span>
         )}
+      </span>
+      {onTrack && (
+        <button type="button" className="btn btn-quiet btn-sm self-center" onClick={onTrack}>
+          Track
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A commute between two things, drawn as a break in the rail: the day's line
+ * carries on, dotted, with how long it takes beside it. Not a row to read.
+ */
+export function HopRow({ event }: { event: PlannerEvent }) {
+  const start = new Date(event.starts_at);
+  const minutes = Math.round((Date.parse(event.ends_at ?? event.starts_at) - start.getTime()) / 60_000);
+  const what = event.title.replace(/^[^\p{L}]+/u, '').toLowerCase();
+  return (
+    <div className="lhop">
+      <span className="lhop-time">{formatTime(start).replace(/ [ap]\.m\.$/u, '')}</span>
+      <span aria-hidden className="lhop-dots" />
+      <span>
+        {minutes} min {what}
       </span>
     </div>
   );

@@ -100,6 +100,29 @@ export function dueCount(group: Pick<DayGroup, 'assignments' | 'events'>): numbe
   return group.assignments.length + untrackedDeadlines(group.events, group.assignments).length;
 }
 
+/**
+ * A commute or other buffer between two things: short, timed, no course, and
+ * named for getting somewhere. Schedule draws these as a break in the day's
+ * rail rather than as rows of their own: five "Travel" rows on a Monday
+ * outweighed its three lectures (the 15 Nov 2026 audit).
+ */
+export function isBuffer(e: Pick<PlannerEvent, 'title' | 'course_id' | 'all_day' | 'starts_at' | 'ends_at'>): boolean {
+  if (e.all_day || e.course_id || !e.ends_at) return false;
+  const minutes = (Date.parse(e.ends_at) - Date.parse(e.starts_at)) / 60_000;
+  // Leading emoji and punctuation are how calendars decorate these titles.
+  const words = e.title.replace(/^[^\p{L}]+/u, '');
+  return minutes > 0 && minutes <= 60 && /^(travel|commute|transit|bus|metro|train|drive|walk)\b/i.test(words);
+}
+
+/**
+ * A day in the order Schedule draws it: what is due first (tracked work, then
+ * the calendar's own deadlines nothing tracks yet), then the timetable.
+ */
+export function dayParts(group: Pick<DayGroup, 'assignments' | 'events'>): { calendarDue: PlannerEvent[]; timetable: PlannerEvent[] } {
+  const calendarDue = untrackedDeadlines(group.events, group.assignments);
+  return { calendarDue, timetable: group.events.filter((e) => !calendarDue.includes(e)) };
+}
+
 /** Total estimated effort in a group, for the Phase 6 workload forecast. */
 export function effortMinutes(group: DayGroup): number {
   return group.assignments.reduce((n, a) => n + (a.effort_minutes ?? 0), 0);

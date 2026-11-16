@@ -3,7 +3,7 @@ import { lazyRetry } from '../lib/lazyRetry';
 import { flushSync } from 'react-dom';
 import { Button } from '../components/Button';
 import { AssignmentRow } from '../components/AssignmentRow';
-import { EventRow, EventSlip } from '../components/EventSlip';
+import { EventRow, EventSlip, HopRow } from '../components/EventSlip';
 import { SectionHead } from '../components/SectionHead';
 import { EmptyState } from '../components/EmptyState';
 import { CompactBar } from '../components/CompactBar';
@@ -27,7 +27,7 @@ import { adjustedEstimate, calibration } from '../lib/intelligence';
 import { moduleOn, usePreferences } from '../lib/preferences';
 import { Ahead, Briefing, InboxSection } from './ScheduleExtras';
 import { addDays, formatDay, localDayKey, todayKey, type DayKey } from '../lib/time';
-import { effortMinutes, groupWeek, type DayGroup } from '../lib/week';
+import { dayParts, effortMinutes, groupWeek, isBuffer, type DayGroup } from '../lib/week';
 import { WeekStrip, weekTotal } from '../components/WeekStrip';
 import { BubbleWeek, LedgerWeek, StyleGlyph, TicketWeek, type StyleProps } from '../components/calendar/WeekStyles';
 import { HoursWeek } from '../components/calendar/Hours';
@@ -486,7 +486,7 @@ export function Week({
               />
             ))
           ) : (
-            <ListWeek {...styleProps} />
+            <ListWeek {...styleProps} trackFor={trackFor} />
           )}
         </div>
       )}
@@ -619,7 +619,7 @@ export function Week({
  * three empty headings. The strip at the top already shows the week's shape,
  * gaps included, so the list below can spend its height on what is in it.
  */
-function ListWeek({ days, today, now, courseFor, progressFor, onToggle, onOpen, showSource }: StyleProps) {
+function ListWeek({ days, today, now, courseFor, progressFor, onToggle, onOpen, showSource, trackFor }: StyleProps & { trackFor?: (e: PlannerEvent) => (() => void) | undefined }) {
   const out: ReactNode[] = [];
   let run: DayKey[] = [];
   const flush = () => {
@@ -639,6 +639,10 @@ function ListWeek({ days, today, now, courseFor, progressFor, onToggle, onOpen, 
     }
     flush();
     const minutes = effortMinutes(g);
+    // What is due leads the day; the timetable follows on a rail, with a
+    // commute as a break in it (approved from the prototype, 16 Nov 2026).
+    const { calendarDue, timetable } = dayParts(g);
+    const anyDue = g.assignments.length + calendarDue.length > 0;
     out.push(
       <section key={g.day} data-day={g.day} className="lday" aria-labelledby={`day-${g.day}`}>
         <h2 id={`day-${g.day}`} className="lday-head">
@@ -649,9 +653,7 @@ function ListWeek({ days, today, now, courseFor, progressFor, onToggle, onOpen, 
           )}
         </h2>
         <div className="lgroup">
-          {g.events.map((e) => (
-            <EventRow key={e.id} event={e} course={courseFor(e.course_id)} showSource={showSource} />
-          ))}
+          {anyDue && timetable.length > 0 && <p className="kicker lgroup-label">Due</p>}
           {g.assignments.map((a) => (
             <AssignmentRow
               key={a.id}
@@ -665,6 +667,17 @@ function ListWeek({ days, today, now, courseFor, progressFor, onToggle, onOpen, 
               onOpen={() => onOpen(a)}
             />
           ))}
+          {calendarDue.map((e) => (
+            <EventRow key={e.id} event={e} course={courseFor(e.course_id)} showSource={showSource} onTrack={trackFor?.(e)} />
+          ))}
+          {anyDue && timetable.length > 0 && <p className="kicker lgroup-label">Timetable</p>}
+          {timetable.map((e) =>
+            isBuffer(e) ? (
+              <HopRow key={e.id} event={e} />
+            ) : (
+              <EventRow key={e.id} rail event={e} course={courseFor(e.course_id)} showSource={showSource} />
+            ),
+          )}
         </div>
       </section>,
     );

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { AssignmentRow } from '../components/AssignmentRow';
 import { CaptureBox } from '../components/CaptureBox';
 import { NowNext } from '../components/NowNext';
-import { EventRow, EventSlip } from '../components/EventSlip';
+import { EventRow, EventSlip, HopRow } from '../components/EventSlip';
 import { CompactBar } from '../components/CompactBar';
 import { useAppearance } from '../lib/appearance';
 import { CachedNotice, LoadFailure } from '../components/LoadFailure';
@@ -205,8 +205,10 @@ export function Specimen() {
       <Section title="EventRow — an event among list rows, its time where work has its circle">
         <div className="lgroup">
           {sampleClasses().map((e) => (
-            <EventRow key={e.id} event={e} />
+            <EventRow key={e.id} rail event={e} />
           ))}
+          {/* A commute: the rail goes dotted across it. */}
+          <HopRow event={{ id: 'hop', course_id: null, title: 'Travel', kind: 'other', starts_at: '2026-10-14T14:00:00Z', ends_at: '2026-10-14T14:30:00Z', all_day: false, location: null }} />
         </div>
       </Section>
 

@@ -3552,6 +3552,47 @@ label.cell:active {
   color: var(--text-hi);
 }
 
+/* The day's rail: a class hangs from it in its course's colour, and a
+   commute is where it goes dotted. Stretches to the row's full height so
+   consecutive rows read as one line. */
+.lrail {
+  width: 3px;
+  flex-shrink: 0;
+  align-self: stretch;
+  margin-block: -0.6875rem;
+  background: var(--blk-mark, var(--ink-600));
+}
+
+.lhop {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 1.625rem;
+  padding: 0 1rem 0 0.875rem;
+  background: var(--ink-800);
+  font-size: 0.75rem;
+  color: var(--text-low);
+}
+
+.lhop-time {
+  min-width: 4.5rem;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.lhop-dots {
+  width: 3px;
+  flex-shrink: 0;
+  align-self: stretch;
+  background: repeating-linear-gradient(to bottom, var(--text-low) 0 3px, transparent 3px 7px);
+}
+
+.lgroup-label {
+  display: flex;
+  padding: 0.75rem 1rem 0.125rem 0.875rem;
+  background: var(--ink-800);
+}
+
 .lev-time small {
   font-size: 0.75rem;
   font-weight: 500;
