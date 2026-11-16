@@ -30,6 +30,18 @@ describe('settings row values', () => {
     );
   });
 
+  it('calls hour 24 midnight, never 12:00 p.m.', () => {
+    expect(aboodSummary(null, null, { on: true, every: null, from: 8, until: 24, morning: null })).toBe(
+      'texts first 8:00 a.m. to midnight',
+    );
+  });
+
+  it('says no motion when motion is off', () => {
+    expect(appearanceSummary('dark', { slip: 'glass', glass: 'all', motion: 'none' } as never)).toBe(
+      'Dark · glass slips · glass everywhere · no motion',
+    );
+  });
+
   it('reads Abood back', () => {
     expect(aboodSummary({ groq: true, gemini: false }, true, { on: true, every: null, from: 10, until: 21, morning: 7 })).toBe(
       'Groq key set · Telegram linked · texts first 10:00 a.m. to 9:00 p.m. · morning text 7:00 a.m.',

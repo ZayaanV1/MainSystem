@@ -18,6 +18,8 @@ const WEEKDAY = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const clock = (h: number, m: number) => {
   if (h === 12 && m === 0) return 'noon';
+  // 24 is how "until midnight" is stored; it read as 12:00 p.m., which is noon.
+  if (h % 24 === 0 && m === 0) return 'midnight';
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'a.m.' : 'p.m.'}`;
 };
 
@@ -49,7 +51,7 @@ export function appearanceSummary(theme: ThemeChoice, a: Appearance): string {
     THEME[theme],
     a.slip === 'ticket' ? 'ticket slips' : 'glass slips',
     a.glass === 'off' ? 'no glass' : a.glass === 'bars' ? 'glass on bars' : 'glass everywhere',
-    a.motion === 'full' ? 'full motion' : 'calm motion',
+    a.motion === 'full' ? 'full motion' : a.motion === 'none' ? 'no motion' : 'calm motion',
   ].join(' · ');
 }
 
