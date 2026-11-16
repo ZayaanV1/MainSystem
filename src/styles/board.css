@@ -371,6 +371,10 @@
 .bw-wk-d { font-size: 0.6875rem; font-weight: 600; color: var(--text-low); }
 .bw-wk-n { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: 1.0625rem; font-variant-numeric: tabular-nums; }
 .bw-wk [data-today] .bw-wk-n { background: var(--accent); color: var(--on-accent); }
+/* The picked day wears a ring; today keeps its disc and gains one outside it. */
+.bw-wk-n { transition: box-shadow var(--dur-fast) var(--ease-out); }
+.bw-wk [aria-pressed='true'] .bw-wk-n { box-shadow: inset 0 0 0 1.5px var(--text-hi); }
+.bw-wk [data-today][aria-pressed='true'] .bw-wk-n { box-shadow: 0 0 0 2px var(--ink-800), 0 0 0 3.5px var(--text-hi); }
 .bw-wk-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; min-height: 6px; }
 .bw-wklist { display: grid; gap: 7px; margin: 8px 0 0; padding: 10px 0 0; list-style: none; border-top: 1px solid var(--glass-edge); }
 .bw-wklist li { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px; align-items: center; }

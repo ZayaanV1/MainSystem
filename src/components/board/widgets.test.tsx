@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { SIZES, WIDGET_TYPES, type Widget } from '../../lib/board';
 import type { Assignment, Course, PlannerEvent } from '../../lib/planner';
 import type { DayKey } from '../../lib/time';
-import { WidgetBody, type WidgetContext } from './widgets';
+import { WidgetBody, weekRows, type WidgetContext } from './widgets';
 
 /**
  * Every widget at every size it offers, drawn from one ordinary week, and
@@ -85,7 +85,32 @@ describe('board widgets', () => {
     expect(draw('agenda', 'tall')).toMatch(/class="bw-tl-b"[^>]*><button type="button" class="bw-hit"/u);
   });
 
-  it('makes each day of the week strip a button', () => {
-    expect(draw('week', 'm').match(/<button type="button"[^>]*aria-label="Open /gu)?.length).toBeGreaterThanOrEqual(7);
+  it('makes each day of the week strip a button that picks the day, not one that leaves', () => {
+    const html = draw('week', 'm');
+    expect(html.match(/<button type="button"[^>]*aria-pressed="false"/gu)?.length).toBe(7);
+    expect(html).toContain('aria-label="Tue, Nov 10, 1 due"');
+    expect(html).toContain('aria-label="Wed, Nov 11, nothing due"');
+  });
+
+  it('lists the week, or only the picked day', () => {
+    const days = ['2026-11-10', '2026-11-11', '2026-11-12'] as DayKey[];
+    const byDay = new Map<DayKey, string[]>([[days[0], ['essay']], [days[2], ['set', 'quiz']]]);
+    expect(weekRows(days, byDay, null).map((r) => r.t)).toEqual(['essay', 'set', 'quiz']);
+    expect(weekRows(days, byDay, days[2]).map((r) => r.t)).toEqual(['set', 'quiz']);
+    expect(weekRows(days, byDay, days[1])).toEqual([]);
+    // A pick left over from yesterday shows the week, not an empty list.
+    expect(weekRows(days, byDay, '2026-11-09' as DayKey).length).toBe(3);
+  });
+
+  it('never calls a calendar deadline an exam, or an all-day exam a midnight one', () => {
+    const due = { ...event('e3', 'WeBWorK 9 is due', 'other', '2026-11-12T04:59:00Z', '2026-11-12T05:00:00Z'), feed_id: 'f1' };
+    const allDay = { ...event('e4', 'Final', 'exam', '2026-11-13T05:00:00Z', '2026-11-14T05:00:00Z'), all_day: true };
+    const html = renderToStaticMarkup(
+      <WidgetBody w={{ id: 'w', type: 'week', size: 'l', opts: {} }} ctx={{ ...ctx, events: [...ctx.events!, due, allDay] }} />,
+    );
+    expect(html).toContain('<span>WeBWorK 9 is due</span>');
+    expect(html).not.toContain('Exam: WeBWorK');
+    expect(html).toContain('All day');
+    expect(html).not.toMatch(/Exam: Final<\/span><\/span><span class="bw-unit">12:00/u);
   });
 });

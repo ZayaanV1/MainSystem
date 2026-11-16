@@ -497,12 +497,39 @@ function thingsByDay(ctx: WidgetContext, events: PlannerEvent[]): Map<DayKey, Da
 const weekday = (day: DayKey, style: 'narrow' | 'short') =>
   new Intl.DateTimeFormat('en-CA', { weekday: style, timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`));
 
+/**
+ * What the week widget lists under its strip: the whole week in order, or
+ * only the day that was picked. Null when the picked day has left the strip
+ * (the date rolled over), so a stale pick never hides the week.
+ */
+export function weekRows<T>(days: DayKey[], byDay: Map<DayKey, T[]>, picked: DayKey | null): { d: DayKey; t: T }[] {
+  const shown = picked && days.includes(picked) ? [picked] : days;
+  return shown.flatMap((d) => (byDay.get(d) ?? []).map((t) => ({ d, t })));
+}
+
 function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
+  // A tap picks a day: it is ringed and the list becomes that day's. It used
+  // to leave for Schedule, which answered "what is on Thursday" by taking
+  // Today away (the owner, 15 Nov 2026). A second tap lets go of it.
+  const [pick, setPick] = useState<DayKey | null>(null);
   if (ctx.assignments === null || ctx.events === null) return <><Head>Next 7 days</Head><Waiting /></>;
   const byDay = thingsByDay(ctx, ctx.events);
   const days = Array.from({ length: 7 }, (_, i) => addDays(ctx.today, i));
+  const picked = pick && days.includes(pick) ? pick : null;
   const count = days.reduce((n, d) => n + (byDay.get(d)?.length ?? 0), 0);
-  const head = <Head right={<span className="bw-unit">{count} due</span>}>Next 7 days</Head>;
+  const head = (
+    <Head
+      right={
+        picked && w.size !== 'tall' ? (
+          <button type="button" className="bw-link" onClick={() => ctx.onOpenDay(picked)}>Open {weekday(picked, 'short')}</button>
+        ) : (
+          <span className="bw-unit">{count} due</span>
+        )
+      }
+    >
+      Next 7 days
+    </Head>
+  );
   if (w.size === 'tall')
     return (
       <>
@@ -528,7 +555,14 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
   const strip = (
     <div className="bw-wk">
       {days.map((d, i) => (
-        <button key={d} type="button" data-today={i === 0 || undefined} aria-label={`Open ${formatDay(d)}`} onClick={() => ctx.onOpenDay(d)}>
+        <button
+          key={d}
+          type="button"
+          data-today={i === 0 || undefined}
+          aria-pressed={d === picked}
+          aria-label={`${formatDay(d)}, ${byDay.get(d)?.length ? `${byDay.get(d)!.length} due` : 'nothing due'}`}
+          onClick={() => setPick(d === picked ? null : d)}
+        >
           <span className="bw-wk-d">{weekday(d, 'narrow')}</span>
           <span className="bw-wk-n bw-num">{Number(d.slice(8))}</span>
           <span className="bw-wk-dots">
@@ -540,7 +574,7 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
   );
   // Medium and large: the strip, then what is due in order, as many rows as
   // fit (WidgetFrame). Medium used to put empty space above the strip.
-  const list = days.flatMap((d) => (byDay.get(d) ?? []).map((t) => ({ d, t }))).slice(0, 12);
+  const list = weekRows(days, byDay, picked).slice(0, 12);
   return (
     <>
       {head}
@@ -553,7 +587,7 @@ function Week({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
             <span className="bw-meta bw-strong"><Dot course={t.course} /><span>{t.exam ? `Exam: ${t.title}` : t.title}</span></span>
             <span className="bw-unit">{t.allDay ? 'All day' : formatTime(t.at)}</span>
           </li>
-        )) : <li><span /><span className="bw-meta"><span>Nothing due this week.</span></span></li>}
+        )) : <li><span /><span className="bw-meta"><span>{picked ? `Nothing due ${picked === ctx.today ? 'today' : `on ${formatDay(picked)}`}.` : 'Nothing due this week.'}</span></span></li>}
       </ul>
     </>
   );
@@ -597,9 +631,9 @@ function Month({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
             data-today={c.isToday || undefined}
             aria-pressed={c.day === sel}
             aria-label={`${formatDay(c.day)}${things.length ? `, ${things.length} due` : ''}`}
-            // Small has no room to list a day, so a tap opens it; elsewhere the
-            // first tap lists the day below and a second opens it.
-            onClick={() => (w.size === 's' || c.day === sel ? ctx.onOpenDay(c.day) : setSel(c.day))}
+            // The first tap picks the day (ringed, and listed below where
+            // there is room); a second tap on it opens it.
+            onClick={() => (c.day === sel ? ctx.onOpenDay(c.day) : setSel(c.day))}
           >
             {Number(c.day.slice(8))}
             {things.length > 0 && (
@@ -620,9 +654,9 @@ function Month({ w, ctx }: { w: Widget; ctx: WidgetContext }) {
           {t.work ? (
             <button type="button" className="bw-link bw-strong" onClick={() => ctx.onOpen(t.work!)}>{t.title}</button>
           ) : (
-            <button type="button" className="bw-link bw-strong" onClick={() => ctx.onOpenDay(sel)}>Exam: {t.title}</button>
+            <button type="button" className="bw-link bw-strong" onClick={() => ctx.onOpenDay(sel)}>{t.exam ? `Exam: ${t.title}` : t.title}</button>
           )}
-          <em>{formatTime(t.at)}</em>
+          <em>{t.allDay ? 'All day' : formatTime(t.at)}</em>
         </li>
       )) : <li><span className="bw-unit">{dayName}: nothing due</span></li>}
     </ul>
