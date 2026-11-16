@@ -116,10 +116,13 @@ export function isBuffer(e: Pick<PlannerEvent, 'title' | 'course_id' | 'all_day'
 
 /**
  * A day in the order Schedule draws it: what is due first (tracked work, then
- * the calendar's own deadlines nothing tracks yet), then the timetable.
+ * exams, and the calendar's own deadlines nothing tracks yet), then the
+ * timetable.
  */
 export function dayParts(group: Pick<DayGroup, 'assignments' | 'events'>): { calendarDue: PlannerEvent[]; timetable: PlannerEvent[] } {
-  const calendarDue = untrackedDeadlines(group.events, group.assignments);
+  const untracked = untrackedDeadlines(group.events, group.assignments);
+  // An exam or presentation is due in the sense that matters: it leads the day.
+  const calendarDue = group.events.filter((e) => e.kind === 'exam' || e.kind === 'presentation' || untracked.includes(e));
   return { calendarDue, timetable: group.events.filter((e) => !calendarDue.includes(e)) };
 }
 

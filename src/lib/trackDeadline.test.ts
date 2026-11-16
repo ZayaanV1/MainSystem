@@ -29,6 +29,8 @@ describe('tracking a calendar deadline as work', () => {
     const parts = dayParts({ assignments: [], events: [lecture, due] as never });
     expect(parts.calendarDue).toEqual([due]);
     expect(parts.timetable).toEqual([lecture]);
+    const exam = { title: 'Midterm 2', kind: 'exam', feed_id: null, starts_at: '2026-11-18T05:00:00Z' };
+    expect(dayParts({ assignments: [], events: [lecture, exam] as never }).calendarDue).toEqual([exam]);
   });
 
   it('knows a commute from a class', () => {

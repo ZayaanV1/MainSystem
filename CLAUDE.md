@@ -2357,6 +2357,41 @@ keyboard), unchanged by it. Dot matrix, Plain and onboarding were not
 walked; typing into the new title field was not possible on the simulator;
 no frame times were taken.
 
+### Schedule, memory and the urgency ramp — 16 Nov 2026
+
+Three decisions from the 15 Nov audit, each chosen by the owner from a
+prototype (https://claude.ai/artifact/VDZChVHXmhK23G2F3EvPDp).
+
+**Schedule's list leads each day with what is due.** Tracked work, exams and
+the calendar's untracked deadlines (with Track) come first, then the
+timetable (`dayParts`, lib/week.ts). The timetable hangs from a rail in each
+course's colour, and a commute is a break in it: `isBuffer` (short, timed,
+no course, named for getting somewhere) draws as a 26 px dotted stretch with
+its minutes, not a row. The owner asked for travel "designed into" the day
+rather than written as text; five Travel rows had outweighed three lectures.
+The other four week styles are unchanged.
+
+**Abood keeps sensitive things only for an account that switches it on**
+(`app_settings.abood_sensitive`, 0059, off by default). The Sep rule said
+memory never held health or money, and it did. `learn` reads the switch
+itself, so no door can forget to, and drops what `isSensitive` matches: a
+word list in `_shared/sensitive.ts`, not a model, because Settings must give
+the same answer for the same sentence. It errs toward yes. Turning the
+switch off asks once whether to forget what is already held; it never
+deletes on its own. On a laptop the memory list beside the chat stays closed
+until Show is pressed, on every visit.
+
+**The urgency ramp clears 4.5:1 on the raised surface in every theme**
+(option A: retune, not move the colour off the text). One ramp is shared by
+all seventeen schemes, so each step was moved the least that clears the
+worst `--ink-700` among them; overdue went from #ff3b5c to #ff5673 in the
+dark and #d5203e to #c11d38 in the light. `palette.test.ts` holds urgency on
+`--ink-700` now, as it already did the text steps.
+
+**Not verified.** The memory switch needs 0059 applied and the functions
+deployed before it exists; it was never seen working against a live account.
+The commute row was seen live in dark Glass only.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
