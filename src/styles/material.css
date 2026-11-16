@@ -3335,6 +3335,17 @@ label.cell:active {
 /* iOS gives date and time fields an intrinsic width of their own, which is
    how the time field ran off the edge of the sheet: each now takes exactly
    its half. */
+.cell-dt label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.sheet-title-input::placeholder {
+  color: var(--text-low);
+}
+
 .cell-dt input {
   display: block;
   width: 100%;

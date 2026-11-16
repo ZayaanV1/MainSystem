@@ -293,7 +293,7 @@ export function AssignmentEditor({
       title={isNew ? 'New assignment' : assignment.title || 'Edit work'}
       // The title is edited where it is read: the row's title flies into
       // this field (Phase B), and there is no second Title field below it.
-      titleInput={{ value: fields.title, onChange: (v) => set('title', v), label: 'Title' }}
+      titleInput={{ value: fields.title, onChange: (v) => set('title', v), label: 'Title', placeholder: 'Name this work', focus: isNew }}
       flightFrom={isNew ? undefined : `[data-row="${CSS.escape(assignment.id)}"] .slip-title`}
       url={url}
       bar={
@@ -416,20 +416,28 @@ export function AssignmentEditor({
                   No date
                 </Chip>
               </div>
+              {/* Named on screen: iOS draws an empty date or time field as a
+                  blank box, and two of them side by side said nothing. */}
               <div className="cell-dt">
-                <input
-                  type="date"
-                  aria-label="Due day"
-                  value={fields.due_day ?? ''}
-                  onChange={(e) => setDueDay(e.target.value || null)}
-                />
-                <input
-                  type="time"
-                  aria-label="Due time"
-                  disabled={!fields.due_day}
-                  value={fields.due_time ?? ''}
-                  onChange={(e) => set('due_time', e.target.value || null)}
-                />
+                <label>
+                  <span className="kicker">Day</span>
+                  <input
+                    type="date"
+                    aria-label="Due day"
+                    value={fields.due_day ?? ''}
+                    onChange={(e) => setDueDay(e.target.value || null)}
+                  />
+                </label>
+                <label>
+                  <span className="kicker">Time</span>
+                  <input
+                    type="time"
+                    aria-label="Due time"
+                    disabled={!fields.due_day}
+                    value={fields.due_time ?? ''}
+                    onChange={(e) => set('due_time', e.target.value || null)}
+                  />
+                </label>
               </div>
               <p className="type-note text-text-low">Clear the time to make it due at the end of the day.</p>
             </div>

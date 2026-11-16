@@ -90,7 +90,15 @@ interface SheetProps {
    * flying title lands, rather than once in the heading and again in a Title
    * field below it.
    */
-  titleInput?: { value: string; onChange: (value: string) => void; label: string };
+  titleInput?: {
+    value: string;
+    onChange: (value: string) => void;
+    label: string;
+    /** What an empty title asks for. Without one a new item opened on a blank gap. */
+    placeholder?: string;
+    /** Put the cursor in the title on opening: something new has nothing else to start with. */
+    focus?: boolean;
+  };
   /**
    * The address while the sheet is open, such as "?work=<id>" on the current
    * screen, so the open thing can be linked to and reloaded into. Without it
@@ -111,6 +119,10 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
   const open = openProp && !presence?.closing;
   const panel = useRef<HTMLDivElement>(null);
   const restoreFocusTo = useRef<HTMLElement | null>(null);
+  // Read through a ref for the reason `onClose` is, below: the focus effect
+  // must run on opening only.
+  const wantsTitle = useRef(false);
+  wantsTitle.current = Boolean(titleInput?.focus);
 
   /*
    * `onClose` is read through a ref rather than depended on.
@@ -167,7 +179,8 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
     if (!open) return;
 
     restoreFocusTo.current = document.activeElement as HTMLElement | null;
-    panel.current?.focus();
+    if (wantsTitle.current && heading.current instanceof HTMLTextAreaElement) heading.current.focus();
+    else panel.current?.focus();
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeRef.current();
@@ -354,6 +367,7 @@ export function Sheet({ open: openProp, onClose, title, children, dock = false, 
               }}
               rows={1}
               value={titleInput.value}
+              placeholder={titleInput.placeholder}
               aria-label={titleInput.label}
               onChange={(e) => titleInput.onChange(e.target.value)}
               onInput={(e) => {
