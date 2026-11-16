@@ -154,6 +154,7 @@ export function ThemePicker({ userId }: { userId: string }) {
       <p className="kicker mt-4">Wallpaper</p>
       <Wallpaper userId={userId} glass={shown.look === 'glass'} />
       {shown.look === 'glass' && <GlassSettings />}
+      {shown.look === 'riso' && <RisoSettings />}
     </div>
   );
 }
@@ -318,6 +319,30 @@ function GlassSettings() {
         The clearer the glass, the more the wallpaper dims behind it, so text always stays readable. These are
         remembered on this device.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Risograph's one setting: how far out of register the second ink lands. Per
+ * device, like the glass: a hair of misregistration on a laptop is a blur on
+ * a small phone.
+ */
+function RisoSettings() {
+  const look = useAppearance();
+  return (
+    <div className="mat flex flex-col gap-2 p-4">
+      <span className="kicker">Risograph</span>
+      <Slider
+        label="Misregistration"
+        value={look.risoReg}
+        max={5}
+        step={1}
+        shown={look.risoReg ? `${look.risoReg} px` : 'Off'}
+        ends={['In register', 'Loose']}
+        onChange={(v) => setAppearance({ risoReg: v })}
+      />
+      <p className="type-note text-text-low">How far the second ink lands off the first. Remembered on this device.</p>
     </div>
   );
 }

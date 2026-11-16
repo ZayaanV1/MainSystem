@@ -1,3 +1,4 @@
+import { watchFlaps } from '../lib/flapTurn';
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { TodayData } from '../lib/planner';
@@ -87,6 +88,7 @@ export function AppShell<T extends string>({
     if (look !== 'glass') return;
     void loadBackdrop().then(showBackdrop);
   }, [look]);
+  useEffect(() => (look === 'flap' ? watchFlaps() : undefined), [look]);
   return (
     <div className={`atmosphere lg:flex lg:min-h-svh ${vision ? 'vision-desk' : ''}`} data-dock={vision ? visionDock : undefined}>
       {vision ? (

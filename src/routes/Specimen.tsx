@@ -11,6 +11,7 @@ import { SkeletonList } from '../components/Skeleton';
 import { UndoBar } from '../components/UndoBar';
 import { WeekStrip } from '../components/WeekStrip';
 import { DotClock } from '../components/DotClock';
+import { FlapClock } from '../components/FlapClock';
 import { groupWeek } from '../lib/week';
 import { todayKey } from '../lib/time';
 import type { PlannerEvent } from '../lib/planner';
@@ -216,6 +217,13 @@ export function Specimen() {
         <div className="masthead-matrix flex items-end justify-between gap-3 px-4">
           <p aria-hidden className="type-masthead text-text-hi">Thursday</p>
           <DotClock />
+        </div>
+      </Section>
+
+      <Section title="FlapClock — the account's time on split flaps (Today, in the Split-flap theme, which draws the flaps)">
+        <div className="masthead-matrix flex items-end justify-between gap-3 px-4">
+          <p aria-hidden className="type-masthead text-text-hi">Thursday</p>
+          <FlapClock />
         </div>
       </Section>
 

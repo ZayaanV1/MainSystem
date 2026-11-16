@@ -2392,6 +2392,43 @@ dark and #d5203e to #c11d38 in the light. `palette.test.ts` holds urgency on
 deployed before it exists; it was never seen working against a live account.
 The commute row was seen live in dark Glass only.
 
+### Two more themes: Risograph and Split-flap — 16 Nov 2026
+
+Both chosen by the owner from prototypes
+(https://claude.ai/artifact/8JXi3Xi7VVs9APErFwnxpC and
+https://claude.ai/artifact/KBY3dzEQBxLidgbFKt2qWp). Each is a theme (`look`),
+so each takes any of the seventeen schemes. Migration 0060 widens the `look`
+check; until it is pushed, choosing either saves on the device only and the
+picker says so.
+
+**Risograph** (`riso`, styles/riso.css) is two inks and the paper: the
+scheme's accent and its second accent. A panel is a keyline with a sliver of
+the second ink where the drum landed off, by `--riso-reg`, which is a
+per-device setting (Settings, Look, shown under Risograph). The paper is
+`--ink-800`, not the ground: that is the surface the text steps and the
+urgency ramp are held on, so a panel that is only an outline keeps its
+floors. Ink 2 as a LINE is `--accent-2-lit`, because the fill itself is as low
+as 1.2:1 on the card in some schemes.
+
+**Split-flap** (`flap`, styles/flap.css) puts the app's own facts on flaps
+and never the user's words: a flap is capitals, and text the app did not
+write is never capitalised. The flaps are CSS alone. A monospace face makes
+one character one cell, and a mask repeated at that width cuts a number into
+a flap per character, so no component knows it is on a board. The one real
+mechanism is the clock on Today (`FlapClock`). `lib/flapTurn.ts` replays a
+turn when a flap's text changes. Flaps stay dark in both modes, so urgency on
+a flap is the canonical dark ramp (`--flap-*`, tokens.css), not the scheme's.
+
+Two things verifying turned up. A black square for an unticked box read as
+filled in, so the slot is an outline until something lands in it. And the
+board's `small` unit letters reset their tracking, which pushed every flap
+after them off the grid by 4 px: measured as a strip 99 px wide that should
+have been 107.8.
+
+Deliberately not built: the prototype's Heavy and Light ink switch, and load
+dots on Schedule's week strip, which keeps its bars (neutral for every day
+but today, as everywhere).
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:

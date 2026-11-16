@@ -9,7 +9,7 @@
     if (!GROUNDS[s]) s = 'vision';
     if (s !== 'cloisonne') root.setAttribute('data-skin', s);
     var l = localStorage.getItem('planner.look');
-    if (l !== 'dots' && l !== 'plain') l = 'glass';
+    if (l !== 'dots' && l !== 'riso' && l !== 'flap' && l !== 'plain') l = 'glass';
     if (l !== 'plain') root.setAttribute('data-look', l);
     var dark =
       c === 'dark' ||

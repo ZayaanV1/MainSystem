@@ -12,6 +12,7 @@ import { Button } from '../components/Button';
 import { CachedNotice, LoadFailure } from '../components/LoadFailure';
 import { Chip } from '../components/Chip';
 import { DotClock } from '../components/DotClock';
+import { FlapClock } from '../components/FlapClock';
 import { TickPills } from '../components/TickPills';
 
 /*
@@ -468,7 +469,7 @@ export function Today({
       <>
       <header className="mb-3 px-4">
         <h1 className="sr-only">Today</h1>
-        {prefs.look === 'dots' ? (
+        {prefs.look === 'dots' || prefs.look === 'flap' ? (
           /*
             The Dot matrix theme's masthead, after a Nothing OS clock widget:
             the date and What now on a line of mono capitals, the weekday and
@@ -495,7 +496,7 @@ export function Today({
               <p aria-hidden className="type-masthead min-w-0 text-text-hi">
                 {weekdayName(today)}
               </p>
-              <DotClock />
+              {prefs.look === 'flap' ? <FlapClock /> : <DotClock />}
             </div>
           </div>
         ) : (

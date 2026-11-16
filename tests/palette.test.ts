@@ -358,6 +358,8 @@ const PAIRS: [fg: string, bg: string, floor: number][] = [
   ['t-done', 'ink-700', 4.5],
   // A mark, not text: a filled button has to stand out from the page.
   ['accent', 'ink-900', 3],
+  // Risograph prints its masthead and every keyline in the accent, on the card.
+  ['accent', 'ink-800', 3],
 ];
 
 describe('every theme holds its floors, in both modes', () => {

@@ -198,15 +198,20 @@ export function cacheSkin(skin: Skin): void {
 
    Glass is frosted panels over a wallpaper, with the desk dashboard on a
    laptop (vision.css). Dot matrix is round-cornered slabs, dot numerals and a
-   clock on Today (material.css). Plain is the scheme's own material. Root
-   attribute `data-look`, absent for Plain.
+   clock on Today (material.css). Risograph is a two-ink stencil print, the
+   scheme's two accents on its paper (riso.css). Split-flap is a departures
+   board: the app's own figures on flaps, and a flap clock on Today
+   (flap.css). Plain is the scheme's own material. Root attribute
+   `data-look`, absent for Plain.
    ========================================================================= */
 
-export type Look = 'glass' | 'dots' | 'plain';
+export type Look = 'glass' | 'dots' | 'riso' | 'flap' | 'plain';
 
 export const LOOKS: { id: Look; name: string; line: string }[] = [
   { id: 'glass', name: 'Glass', line: 'Frosted panels over a wallpaper, and a dashboard on a laptop' },
   { id: 'dots', name: 'Dot matrix', line: 'Round slabs, dot numerals and a clock on Today' },
+  { id: 'riso', name: 'Risograph', line: 'Two inks on paper, printed a hair out of register' },
+  { id: 'flap', name: 'Split-flap', line: 'A departures board, with a flap clock on Today' },
   { id: 'plain', name: 'Plain', line: 'Just the colour scheme, on its own material' },
 ];
 

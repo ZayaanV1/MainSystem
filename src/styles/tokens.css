@@ -5161,3 +5161,66 @@
   --fold-btn-ink: #fafafa;
   --fold-dot: rgb(0 0 0 / 0.1);
 }
+
+/* ---- Risograph, over any scheme (riso.css), 16 Nov 2026. ----
+   A two-drum stencil print. Ink 1 is the scheme's accent and ink 2 its second
+   accent, so no new colour is named here. The paper is the card surface, which
+   is the one every text step and the whole urgency ramp are held on
+   (tests/palette.test.ts), so a panel that is only a keyline keeps its floors.
+   --riso-2-line is ink 2 where it is a line or a sliver rather than a fill:
+   the readable second accent, which clears 4.5:1 on the paper in every scheme
+   where the fill itself can be as low as 1.2:1. Last in the file so the print's
+   square corners win over a scheme's own. */
+:root[data-look='riso'], .look-riso {
+  --riso-1: var(--accent);
+  --riso-2: var(--accent-2);
+  --riso-2-line: var(--accent-2-lit);
+  --riso-paper: var(--ink-800);
+  --riso-hair: color-mix(in oklab, var(--text-low) 26%, transparent);
+  /* How far the second drum lands off the first. Set per device (appearance.ts). */
+  --riso-reg: 2px;
+  --grain-strength: 0.06;
+  --r-tight: 2px;
+  --r-card: 3px;
+  --r-hero: 3px;
+  --r-sheet: 6px;
+  --r-slip: 3px;
+}
+
+/* ---- Split-flap, over any scheme (flap.css), 16 Nov 2026. ----
+   After Solari boards and the Cifra 3. The flaps stay dark in both modes and
+   only the housing follows the mode, so a flap's ink is the scheme's lightest
+   colour either way. Urgency on a flap is the canonical dark ramp above, in
+   both modes: a scheme's light ramp is drawn for a pale card and would be
+   unreadable on a black flap. */
+:root[data-look='flap'], .look-flap {
+  --flap: color-mix(in oklab, var(--ink-900), black 45%);
+  --flap-hi: color-mix(in oklab, var(--flap), white 9%);
+  --flap-ink: var(--text-hi);
+  --flap-quiet: color-mix(in oklab, var(--flap-ink) 74%, var(--flap));
+  --flap-split: color-mix(in srgb, black 62%, transparent);
+  --flap-edge: color-mix(in oklab, var(--text-low) 24%, transparent);
+  --flap-shade: color-mix(in srgb, black 20%, transparent);
+  --flap-distant: #8d93aa;
+  --flap-approaching: #bd8396;
+  --flap-urgent: #d07a91;
+  --flap-critical: #e76b84;
+  --flap-overdue: #ff5673;
+  --flap-done: #2ed4a0;
+  --font-flap: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --r-tight: 5px;
+  --r-card: 14px;
+  --r-hero: 14px;
+  --r-sheet: 16px;
+  --r-slip: 10px;
+}
+@media (prefers-color-scheme: light) {
+  :root[data-look='flap']:not([data-theme='dark']) {
+    --flap: color-mix(in oklab, var(--text-hi), black 55%);
+    --flap-ink: var(--ink-800);
+  }
+}
+:root[data-look='flap'][data-theme='light'], .look-flap.mode-light {
+  --flap: color-mix(in oklab, var(--text-hi), black 55%);
+  --flap-ink: var(--ink-800);
+}

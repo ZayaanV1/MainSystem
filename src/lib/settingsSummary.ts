@@ -21,7 +21,7 @@ export function clock(h: number, m = 0): string {
 }
 
 const MODE: Record<ThemeChoice, string> = { system: 'Auto', light: 'Light', dark: 'Dark' };
-const LOOK: Record<string, string> = { glass: 'Glass', dots: 'Dot matrix' };
+const LOOK: Record<string, string> = { glass: 'Glass', dots: 'Dot matrix', riso: 'Risograph', flap: 'Split-flap' };
 
 /** "Glass · Dark". `look` is the root's data-look, absent for Plain. */
 export function lookValue(look: string | undefined, mode: ThemeChoice): string {

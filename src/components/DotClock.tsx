@@ -11,11 +11,15 @@ import { localHourMinute } from '../lib/time';
  * not the device's: a clock that disagreed with "due at 3:00 p.m." on the
  * same screen would make one of them look wrong.
  *
- * It re-reads at each minute boundary and whenever the app comes back to the
- * front, rather than every second: a phone that slept for an hour would
- * otherwise show the hour it fell asleep until the next tick happened to land.
  */
-export function DotClock({ className = '' }: { className?: string }) {
+
+/**
+ * The account's hour and minute, kept current. Re-read at each minute boundary
+ * and whenever the app comes back to the front, rather than every second: a
+ * phone that slept for an hour would otherwise show the hour it fell asleep
+ * until the next tick happened to land.
+ */
+export function useMinuteClock() {
   const [now, setNow] = useState(() => localHourMinute());
 
   useEffect(() => {
@@ -41,7 +45,11 @@ export function DotClock({ className = '' }: { className?: string }) {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
+  return now;
+}
 
+export function DotClock({ className = '' }: { className?: string }) {
+  const now = useMinuteClock();
   const { text, period } = clockFace(now.hour, now.minute);
   const { dots, cols } = layoutMatrix(text);
   const spoken = `${text.trim()} ${period === 'AM' ? 'a.m.' : 'p.m.'}`;

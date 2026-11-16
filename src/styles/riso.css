@@ -1,0 +1,273 @@
+/* =============================================================================
+   Risograph (theme `riso`), 16 Nov 2026. After a two-drum stencil duplicator.
+
+   Two inks and the paper. Ink 1 is the scheme's accent and ink 2 its second
+   accent (tokens.css, Risograph), so the theme takes any colour scheme. What
+   makes it a print and not two flat colours:
+
+   - a panel is a keyline in ink 1, with a sliver of ink 2 showing where the
+     second drum landed a hair off (--riso-reg, set per device in Settings);
+   - a filled thing is one ink with the other's sliver beside it, and pressing
+     it pulls the two into register;
+   - a halftone screen, never a gradient, wherever a tint is wanted;
+   - display type keeps a ghost of the second ink.
+
+   Type stays the scheme's own and nothing is recoloured that carries meaning:
+   urgency, done and the course marks are the tokens they always were.
+
+   The picker draws every theme's miniature on one page, so a rule that can
+   match inside a miniature stops at another theme's (the :not(.theme-mini…)
+   guard). Rules for things a miniature never holds do not carry it.
+   ========================================================================== */
+
+@layer components {
+  :is(:root[data-look='riso'], .look-riso) {
+    /* ---- the panel: a keyline and the second drum's sliver ---- */
+    .mat:not(.theme-mini:not(.look-riso) *) {
+      background:
+        linear-gradient(var(--mat-wash), var(--mat-wash)),
+        var(--riso-paper);
+      box-shadow:
+        inset 0 0 0 1.5px var(--riso-1),
+        var(--riso-reg) var(--riso-reg) 0 var(--riso-2-line);
+    }
+    .mat:not(.theme-mini:not(.look-riso) *)::before {
+      display: none;
+    }
+    /* The surface a screen is built around carries a halftone in its far
+       corner, fading out before it reaches the first words. */
+    .mat-hero::after {
+      opacity: 0.7;
+      background:
+        radial-gradient(circle, var(--riso-1) 0 0.75px, transparent 1.35px) 0 0 / 4px 4px,
+        radial-gradient(circle, var(--riso-1) 0 0.75px, transparent 1.35px) 2px 2px / 4px 4px;
+      -webkit-mask-image: linear-gradient(120deg, transparent 52%, var(--text-hi) 110%);
+      mask-image: linear-gradient(120deg, transparent 52%, var(--text-hi) 110%);
+    }
+    /* A list is one printed panel, its rows ruled apart. */
+    .lgroup {
+      border-radius: var(--r-card);
+      background: var(--riso-paper);
+      /* An outline, not an inset shadow: the rows paint over the group. */
+      outline: 1.5px solid var(--riso-1);
+      outline-offset: -1.5px;
+      box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-2-line);
+    }
+    .mat-row + .mat-row {
+      box-shadow: inset 0 1px 0 var(--riso-hair);
+    }
+    .sheet-panel {
+      background: var(--riso-paper);
+      box-shadow: inset 0 1.5px 0 var(--riso-1);
+    }
+
+    /* ---- buttons: one ink, the other beside it; a press registers them ---- */
+    .btn-primary:not(.theme-mini:not(.look-riso) *) {
+      background: var(--riso-1);
+      box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-2-line);
+    }
+    .btn-secondary:not(.theme-mini:not(.look-riso) *) {
+      background: var(--riso-2);
+      box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-1);
+    }
+    .btn-quiet {
+      color: var(--text-hi);
+      background: transparent;
+      box-shadow: inset 0 0 0 1.5px var(--riso-1);
+    }
+    :is(.btn-primary, .btn-secondary):active:not(:disabled) {
+      transform: translate(var(--riso-reg), var(--riso-reg));
+      box-shadow: none;
+      filter: none;
+    }
+
+    /* ---- pills: a thin keyline; chosen is ink 2 ---- */
+    :is(.chip, .nav-capsule, .style-seg),
+    .tick-pill:not(.theme-mini:not(.look-riso) *) {
+      background: transparent;
+      box-shadow: inset 0 0 0 1.5px var(--ink-500);
+    }
+    .chip[aria-pressed='true'] {
+      color: var(--on-accent-2);
+      background: var(--riso-2);
+      box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-1);
+    }
+    /* A course's dot stays a mark on the filled chip. */
+    .chip[aria-pressed='true'] .chip-dot {
+      box-shadow: 0 0 0 1.5px currentColor;
+    }
+    /* Where you are is a halftone tint in ink 2, not a third outline inside
+       a bar that is already one: a tab's label can be wider than its capsule,
+       and a keyline there cut through the word. */
+    :is(.style-opt-lit, .nav-lit) {
+      background: radial-gradient(circle, var(--riso-2-line) 0 0.7px, transparent 1.3px) 0 0 / 4px 4px;
+      box-shadow: none;
+    }
+
+    /* ---- fields: a rule to write on, as a printed form has ---- */
+    .well {
+      border-color: transparent;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: inset 0 -2px 0 var(--riso-1);
+    }
+    :is(.well:focus, .well:focus-within) {
+      border-color: transparent;
+      box-shadow:
+        inset 0 -2px 0 var(--riso-1),
+        0 var(--riso-reg) 0 var(--riso-2-line);
+    }
+
+    /* ---- ticks: done keeps its own colour, with ink 1 a hair behind it ---- */
+    .tick:not(.theme-mini:not(.look-riso) *) {
+      background: transparent;
+      box-shadow: none;
+    }
+    .tick[data-done]:not(.theme-mini:not(.look-riso) *) {
+      background: var(--t-done);
+      box-shadow: calc(var(--riso-reg) * -1) calc(var(--riso-reg) * -1) 0 var(--riso-1);
+    }
+
+    /* ---- the switch: a keyline track; on is ink 2 ---- */
+    .settings-switch {
+      background: transparent;
+      box-shadow: inset 0 0 0 2px var(--riso-1);
+    }
+    .settings-switch::after {
+      background: var(--riso-1);
+      box-shadow: none;
+    }
+    .settings-switch:checked {
+      background: var(--riso-2);
+      box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-1);
+    }
+    .settings-switch:checked::after {
+      background: var(--on-accent-2);
+    }
+
+    /* ---- display type: the ghost of the second ink ---- */
+    :is(.type-masthead, .page-title, .month-title, .signin-word, .firstrun-h1):not(.theme-mini:not(.look-riso) *) {
+      text-shadow: var(--riso-reg) calc(var(--riso-reg) * 0.6) 0 var(--riso-2-line);
+    }
+    .section-rule {
+      background: var(--riso-1);
+    }
+
+    /* ---- navigation: paper bars, where you are is a keyline ---- */
+    :is(.tab-bar, .tab-menu) {
+      box-shadow:
+        inset 0 0 0 1.5px var(--riso-1),
+        var(--riso-reg) var(--riso-reg) 0 var(--riso-2-line);
+    }
+
+    /* ---- the day you are on, wherever a calendar marks it ---- */
+    .ws-day[aria-current] .ws-n,
+    .day-num[data-today] {
+      color: var(--on-accent);
+      background: var(--riso-1);
+      box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-2-line);
+    }
+    .ws-track {
+      border-radius: 0;
+      background: transparent;
+      box-shadow: inset 0 0 0 1px var(--ink-500);
+    }
+    /* Minutes stay neutral for every day but today, as everywhere. */
+    .ws-bar {
+      border-radius: 0;
+    }
+    .ws-day[aria-current] .ws-bar {
+      background: var(--riso-1);
+    }
+    .now-pill {
+      background: var(--riso-1);
+      box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-2-line);
+    }
+
+    /* ---- conversation: your side is ink 2 ---- */
+    .chat-mine {
+      background: var(--riso-2);
+      box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-1);
+    }
+    .capture-send {
+      color: var(--text-hi);
+      background: transparent;
+      box-shadow: inset 0 0 0 1.5px var(--riso-1);
+    }
+    .capture-send::before {
+      background: var(--riso-1);
+      box-shadow: none;
+    }
+    .capture-send[data-ready] {
+      box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-2-line);
+    }
+
+    /* ---- an empty place is crop marks: space kept on the sheet ---- */
+    .empty-slot {
+      --cm: var(--text-low);
+      border: 0;
+      background:
+        linear-gradient(var(--cm), var(--cm)) 0 0 / 16px 1.5px,
+        linear-gradient(var(--cm), var(--cm)) 0 0 / 1.5px 16px,
+        linear-gradient(var(--cm), var(--cm)) 100% 0 / 16px 1.5px,
+        linear-gradient(var(--cm), var(--cm)) 100% 0 / 1.5px 16px,
+        linear-gradient(var(--cm), var(--cm)) 0 100% / 16px 1.5px,
+        linear-gradient(var(--cm), var(--cm)) 0 100% / 1.5px 16px,
+        linear-gradient(var(--cm), var(--cm)) 100% 100% / 16px 1.5px,
+        linear-gradient(var(--cm), var(--cm)) 100% 100% / 1.5px 16px;
+      background-repeat: no-repeat;
+    }
+  }
+
+  /* The picker's miniature, on the paper. */
+  .theme-mini.look-riso {
+    background: var(--riso-paper);
+  }
+}
+
+/* The bars are paper, not glass, and their own border would double the
+   keyline. Outside the layer: both have to win over a utility class. */
+:root[data-look='riso'] .fx-glass {
+  background: var(--riso-paper);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-look='riso'] :is(.tab-bar, .tab-menu) {
+  border-color: transparent;
+}
+
+/* The ground: one sheet, with the grain the app already lays over it turned
+   up into paper tooth (--grain-strength, tokens.css). No light, no wash. */
+:root[data-look='riso'] .atmosphere::before {
+  background: var(--riso-paper);
+}
+
+/* Loading is an unprinted halftone. */
+:root[data-look='riso'] .skeleton {
+  background:
+    radial-gradient(circle, var(--ink-500) 0 0.75px, transparent 1.35px) 0 0 / 4px 4px,
+    radial-gradient(circle, var(--ink-500) 0 0.75px, transparent 1.35px) 2px 2px / 4px 4px;
+}
+
+/* ---- the widget board (board.css is unlayered and loads later) ---- */
+:is(:root[data-look='riso'], .look-riso) .bw-in {
+  --mat-r: var(--r-card);
+}
+:is(:root[data-look='riso'], .look-riso) :is(.bw-n-l, .bw-n-xl, .bw-n-xxl) {
+  text-shadow: calc(var(--riso-reg) * 0.75) calc(var(--riso-reg) * 0.5) 0 var(--riso-2-line);
+}
+/* A unit is too small to carry a ghost: at 13 px it is only a smear. */
+:is(:root[data-look='riso'], .look-riso) .bw-num small {
+  text-shadow: none;
+}
+:is(:root[data-look='riso'], .look-riso) :is(.bw-wk [data-today]:not([aria-pressed='true']) .bw-wk-n, .bw-dy[data-today]) {
+  background: var(--riso-1);
+  box-shadow: var(--riso-reg) var(--riso-reg) 0 var(--riso-2-line);
+}
+:is(:root[data-look='riso'], .look-riso) .bw-tick {
+  background: transparent;
+}
+:is(:root[data-look='riso'], .look-riso) .bw-tick[aria-pressed='true'] {
+  background: var(--t-done);
+  box-shadow: calc(var(--riso-reg) * -1) calc(var(--riso-reg) * -1) 0 var(--riso-1);
+}

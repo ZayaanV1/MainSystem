@@ -61,6 +61,8 @@ export interface Appearance {
   visionLift: boolean;
   visionGlass: VisionGlass;
   visionDock: VisionDock;
+  /** Risograph: how far the second ink lands off the first, in px; 0 is in register. */
+  risoReg: number;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -76,6 +78,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   visionLift: true,
   visionGlass: 'frost',
   visionDock: 'floating',
+  risoReg: 2,
 };
 
 /** What each glass preset sets; the sliders stay free to move after. */
@@ -101,6 +104,7 @@ const OPTIONS: { [K in keyof Appearance]: readonly Appearance[K][] } = {
   visionLift: [true, false],
   visionGlass: ['frost', 'smoke'],
   visionDock: ['floating', 'full'],
+  risoReg: steps(5, 1),
 };
 
 /**
@@ -146,6 +150,8 @@ function apply(a: Appearance) {
   root.dataset.motion = a.motion;
   if (a.animatedBlur) root.dataset.animatedBlur = 'true';
   else delete root.dataset.animatedBlur;
+
+  root.style.setProperty('--riso-reg', `${a.risoReg}px`);
 
   // Vision reads these; every other theme ignores them (vision.css).
   root.style.setProperty('--v-alpha', String(Math.round((0.85 - a.visionClear * 0.008) * 1000) / 1000));
