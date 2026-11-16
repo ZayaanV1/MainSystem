@@ -347,6 +347,15 @@ const PAIRS: [fg: string, bg: string, floor: number][] = [
   ['t-critical', 'ink-800', 4.5],
   ['t-overdue', 'ink-800', 4.5],
   ['t-done', 'ink-800', 4.5],
+  // Urgency on the raised surface too. Held on cards only until 16 Nov 2026,
+  // when a count found the whole ramp at 4.0 to 4.5 on sheets and the tab bar
+  // in most themes: the same third-surface gap as the text steps above.
+  ['t-distant', 'ink-700', 4.5],
+  ['t-approaching', 'ink-700', 4.5],
+  ['t-urgent', 'ink-700', 4.5],
+  ['t-critical', 'ink-700', 4.5],
+  ['t-overdue', 'ink-700', 4.5],
+  ['t-done', 'ink-700', 4.5],
   // A mark, not text: a filled button has to stand out from the page.
   ['accent', 'ink-900', 3],
 ];
