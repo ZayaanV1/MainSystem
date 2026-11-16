@@ -86,6 +86,9 @@ export function AboodChannels({ starters, onAsk, spent }: { starters: string[]; 
 export function AboodMemory({ refresh }: { refresh: number }) {
   const [facts, setFacts] = useState<MemoryFact[] | null>(null);
   const [failed, setFailed] = useState(false);
+  // Closed on every visit. The list sat open beside the chat, where anyone
+  // glancing at the laptop could read what Abood knows (the 15 Nov audit).
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
     void loadMemory().then(({ facts: f, failed: bad }) => {
@@ -111,15 +114,20 @@ export function AboodMemory({ refresh }: { refresh: number }) {
         </span>
         <div>
           <h2 className="v-h">Abood</h2>
-          <p className="v-meta">What it remembers about you</p>
+          <p className="v-meta">{facts ? `Remembers ${facts.length} ${facts.length === 1 ? 'thing' : 'things'} about you` : 'What it remembers about you'}</p>
         </div>
+        {facts && facts.length > 0 && (
+          <button type="button" className="v-link ml-auto" aria-expanded={shown} onClick={() => setShown(!shown)}>
+            {shown ? 'Hide' : 'Show'}
+          </button>
+        )}
       </div>
       {failed && <p className="v-meta text-t-critical">Couldn’t load or change its memory. Try again.</p>}
       {facts && facts.length === 0 && !failed && (
         <p className="v-empty">Nothing yet. When it learns something, it says so in the conversation.</p>
       )}
       <ul className="v-stagger v-facts">
-        {facts?.map((f, j) => (
+        {shown && facts?.map((f, j) => (
           <li key={f.id} style={{ ['--j' as string]: Math.min(j, 10) }}>
             <p>{f.fact}</p>
             <button type="button" className="v-link" onClick={() => void forget(f)}>
