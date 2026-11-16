@@ -1,4 +1,5 @@
 import { replan } from './autoplan.ts';
+import { isSensitive } from './sensitive.ts';
 import { asPending, describeCall, isNo, isRead, isUndo, isYes, needsYes, outcomeText, outsideTextInFront, runCalls, TOOL_NAMES, toolMenu, type PendingChange } from './aboodtools.ts';
 import { buildContext, type BuildOptions, type Scope } from './context.ts';
 import { CHAT_INSTRUCTION, CHAT_SCHEMA, scripted, validateChat, type ChatReply } from './chat.ts';
@@ -386,8 +387,14 @@ export async function learn(
     .eq('archived', false);
   const courses = (courseRows ?? []) as CourseRef[];
 
+  // Sensitive things are kept only for an account that switched that on
+  // (0059). Read here rather than by each caller, so no door can forget to.
+  const { data: settings } = await admin.from('app_settings').select('abood_sensitive').eq('user_id', userId).maybeSingle();
+  const keepSensitive = Boolean((settings as { abood_sensitive?: boolean } | null)?.abood_sensitive);
+
   const saved: string[] = [];
   for (const fact of validateFacts({ facts: offered }, known)) {
+    if (!keepSensitive && isSensitive(fact)) continue;
     const v = await embed(fact, geminiKey, allow);
     const { data } = await admin.rpc('remember_fact', {
       p_user_id: userId,

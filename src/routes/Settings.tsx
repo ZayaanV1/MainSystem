@@ -12,6 +12,9 @@ import { accountValue, featuresValue, lookValue, notificationsValue, textsFirstV
 import {
   bridgeStatus,
   forgetFact,
+  isSensitive,
+  loadKeepSensitive,
+  saveKeepSensitive,
   imessageLink,
   issueBridgeKey,
   loadCheckins,
@@ -399,7 +402,7 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
     },
     texts: { title: 'Texts first', parent: 'abood', body: <AboodTextsFirst userId={userId} /> },
     gmail: { title: 'Gmail', parent: 'abood', body: <GmailAccess /> },
-    memory: { title: 'Memory', parent: 'abood', body: <AboodMemory /> },
+    memory: { title: 'Memory', parent: 'abood', body: <AboodMemory userId={userId} /> },
     connected: { title: 'Connected apps', body: <><ShareFromPhone userId={userId} /><ConnectedApps userId={userId} /></> },
     data: {
       title: 'Account',
@@ -1294,9 +1297,39 @@ function GmailAccess() {
   );
 }
 
-function AboodMemory() {
+function AboodMemory({ userId }: { userId: string }) {
   const [facts, setFacts] = useState<MemoryFact[] | null>(null);
   const [failed, setFailed] = useState(false);
+  // Whether sensitive things are kept (0059). Null until read: the switch is
+  // not drawn in a position it has not checked.
+  const [keep, setKeep] = useState<boolean | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    void loadKeepSensitive().then(setKeep);
+  }, []);
+  const held = (facts ?? []).filter((f) => isSensitive(f.fact));
+
+  async function changeKeep(on: boolean) {
+    setKeep(on);
+    setNote(null);
+    const ok = await saveKeepSensitive(userId, on);
+    if (!ok) {
+      setKeep(!on);
+      setNote('Couldn’t save that. Try again.');
+      return;
+    }
+    // Switching it off does not decide for you what happens to what is
+    // already held: it asks, once.
+    setAsking(!on && held.length > 0);
+  }
+
+  async function forgetHeld() {
+    setAsking(false);
+    const done = await Promise.all(held.map((f) => forgetFact(f.id)));
+    setNote(done.every(Boolean) ? null : 'Some could not be forgotten. Try again.');
+    reload();
+  }
 
   const reload = useCallback(() => {
     void loadMemory().then((r) => {
@@ -1311,6 +1344,32 @@ function AboodMemory() {
 
   return (
     <section className="mb-8">
+      {keep !== null && (
+        <Card className="mb-6 p-4">
+          <label className="flex min-h-[var(--tap)] items-center justify-between gap-4">
+            <span className="type-label text-text-hi">Remember sensitive things</span>
+            <input type="checkbox" className="settings-switch" checked={keep} onChange={(e) => void changeKeep(e.target.checked)} />
+          </label>
+          <p className="type-note text-text-low">
+            Health, money, relationships and the like. Off, Abood still listens and answers; it keeps none of it
+            afterwards.
+          </p>
+          {asking && (
+            <div className="enter-fade mt-3 flex flex-wrap items-center gap-2" role="status">
+              <span className="type-note min-w-0 flex-1 text-text-mid">
+                Abood already holds {held.length} sensitive {held.length === 1 ? 'thing' : 'things'}.
+              </span>
+              <Button variant="secondary" size="sm" onClick={() => void forgetHeld()}>
+                Forget {held.length === 1 ? 'it' : 'them'}
+              </Button>
+              <Button variant="quiet" size="sm" onClick={() => setAsking(false)}>
+                Keep
+              </Button>
+            </div>
+          )}
+          {note && <p role="alert" className="type-note mt-2 text-t-overdue">{note}</p>}
+        </Card>
+      )}
       <SectionHead title="What Abood remembers" count={facts?.length || null} />
       {failed ? (
         <p className="px-4 type-note text-text-mid">Couldn&rsquo;t load this. Nothing has been lost.</p>
@@ -1322,7 +1381,10 @@ function AboodMemory() {
         <Card>
           {facts.map((f) => (
             <div key={f.id} className="mat-row flex items-center justify-between gap-3 px-4 py-2.5">
-              <span className="type-body text-text-hi">{f.fact}</span>
+              <span className="min-w-0">
+                <span className="type-body block text-text-hi">{f.fact}</span>
+                {isSensitive(f.fact) && <span className="type-caption text-text-low">Sensitive</span>}
+              </span>
               <Button
                 variant="quiet"
                 size="sm"

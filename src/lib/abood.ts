@@ -172,3 +172,16 @@ export async function saveShareAbood(userId: string, on: boolean): Promise<boole
   const { error } = await supabase.from('app_settings').update({ share_abood: on }).eq('user_id', userId);
   return !error;
 }
+
+/** Whether Abood may remember sensitive things: health, money, relationships (migration 0059). */
+export async function loadKeepSensitive(): Promise<boolean | null> {
+  const { data, error } = await supabase.from('app_settings').select('abood_sensitive').maybeSingle();
+  return error || !data ? null : Boolean(data.abood_sensitive);
+}
+
+export async function saveKeepSensitive(userId: string, on: boolean): Promise<boolean> {
+  const { error } = await supabase.from('app_settings').update({ abood_sensitive: on }).eq('user_id', userId);
+  return !error;
+}
+
+export { isSensitive } from '../../supabase/functions/_shared/sensitive';
