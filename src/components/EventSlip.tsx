@@ -39,7 +39,7 @@ function eventFace(event: PlannerEvent, course?: Course) {
       ? name
       : null;
 
-  return { read, when, a, under, place, detail };
+  return { read, when, a, b, under, place, detail };
 }
 
 /**
@@ -113,8 +113,7 @@ export function EventRow({
   course?: Course;
   showSource?: boolean;
 }) {
-  const { read, when, a, place, detail } = eventFace(event, course);
-  const end = event.ends_at ? new Date(event.ends_at) : null;
+  const { read, when, a, b, place, detail } = eventFace(event, course);
   // The code once: a timetable headline ("COEN 231 Lecture") already says it.
   const code = course ? (course.code ?? course.name) : null;
   const codeShown = code && !read.headline.toLowerCase().includes(code.toLowerCase()) ? code : null;
@@ -130,8 +129,13 @@ export function EventRow({
         ) : (
           <>
             <span className="sr-only">{when}</span>
-            <span aria-hidden>{a.hm}</span>
-            <small aria-hidden>{end ? formatTime(end) : a.period}</small>
+            {/* The start keeps its period whenever the end's differs: "11:45"
+                over "1:00 p.m." read as a class at night. */}
+            <span aria-hidden>
+              {a.hm}
+              {b && b.period !== a.period && <small> {a.period}</small>}
+            </span>
+            <small aria-hidden>{b ? `${b.hm} ${b.period}` : a.period}</small>
           </>
         )}
       </span>

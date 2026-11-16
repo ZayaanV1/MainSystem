@@ -3589,7 +3589,8 @@ label.cell:active {
 
 .lev-time {
   display: flex;
-  min-width: 3.75rem;
+  /* Room for "11:45 a.m.", the widest start, so every title shares an edge. */
+  min-width: 4.5rem;
   flex-shrink: 0;
   flex-direction: column;
   gap: 0.125rem;

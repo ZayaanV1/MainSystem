@@ -265,7 +265,12 @@ export function zoneAbbrev(instant: Date, tz: string): string {
 
 /** Render a stored instant as local wall-clock time, e.g. '7:00 a.m.' */
 export function formatTime(instant: Date, tz: string): string {
-  return formatter('time', tz, 'en-CA', { hour: 'numeric', minute: '2-digit' }).format(instant);
+  // The period is written here, not left to the runtime: Safari prints
+  // en-CA's as "PM" where Chrome, Node and Deno print "p.m.", and every rule
+  // that joins or splits two times reads that suffix.
+  const parts = formatter('time', tz, 'en-CA', { hour: 'numeric', minute: '2-digit', hour12: true }).formatToParts(instant);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${part('hour')}:${part('minute')} ${/^p/i.test(part('dayPeriod')) ? 'p.m.' : 'a.m.'}`;
 }
 
 /** Render a day key for display, e.g. 'Sat, Aug 15'. */
