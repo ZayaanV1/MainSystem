@@ -6,6 +6,7 @@ import { Button } from './Button';
 import { Chip } from './Chip';
 import { clearBackdrop, loadBackdrop, setBackdrop } from '../lib/backdrop';
 import { GLASS_PRESETS, setAppearance, useAppearance } from '../lib/appearance';
+import { useMediaQuery } from '../lib/useMediaQuery';
 
 /**
  * Choosing a theme, a colour scheme and a wallpaper.
@@ -95,8 +96,15 @@ export function ThemePicker({ userId }: { userId: string }) {
         ))}
       </div>
 
-      <p className="kicker mt-4">Colour scheme</p>
-      <div className="theme-cards" role="radiogroup" aria-label="Colour scheme">
+      {/* Folded, and named by what is chosen: seventeen cards with a kicker
+          and three lines each were most of a 2,947 px page, above the one
+          control people come here for (15 Nov 2026). A preview needs no
+          description, so the cards inside carry a name and nothing else. */}
+      <details className="theme-fold">
+        <summary className="settings-fold type-label text-text-mid">
+          Colours: <b className="text-text-hi">{SKINS.find((k) => k.id === shown.skin)?.name}</b>
+        </summary>
+      <div className="theme-cards mt-3" role="radiogroup" aria-label="Colour scheme">
         {SKINS.map((s) => (
           <button
             key={s.id}
@@ -110,12 +118,11 @@ export function ThemePicker({ userId }: { userId: string }) {
             <span aria-hidden className={`theme-mini skin-${s.id} look-${shown.look} mode-${mode}`}>
               <MiniToday />
             </span>
-            <span className="kicker">{s.reference}</span>
             <span className="theme-card-name">{s.name}</span>
-            <span className="type-note text-text-low">{s.line}</span>
           </button>
         ))}
       </div>
+      </details>
 
       {preview && (
         <div className="theme-preview-bar enter-fade" role="status">
@@ -235,6 +242,10 @@ function Wallpaper({ userId, glass }: { userId: string; glass: boolean }) {
  */
 function GlassSettings() {
   const look = useAppearance();
+  // The dock and the hover lift exist only on a wide screen with a mouse;
+  // on a phone they were two controls that did nothing.
+  const desk = useMediaQuery('(min-width: 64rem)');
+  const mouse = useMediaQuery('(hover: hover) and (pointer: fine)');
 
   return (
     <div className="mat flex flex-col gap-2 p-4">
@@ -283,6 +294,7 @@ function GlassSettings() {
         disabled={look.visionBackground === 'off'}
         onChange={(v) => setAppearance({ visionDim: v })}
       />
+      {desk && (
       <div role="radiogroup" aria-label="Navigation on a laptop" className="flex flex-wrap gap-2">
         {(['floating', 'full'] as const).map((d) => (
           <Chip key={d} role="radio" aria-checked={look.visionDock === d} selected={look.visionDock === d} onClick={() => setAppearance({ visionDock: d })}>
@@ -290,6 +302,8 @@ function GlassSettings() {
           </Chip>
         ))}
       </div>
+      )}
+      {mouse && (
       <label className="flex min-h-[var(--tap)] items-center justify-between gap-4">
         <span className="type-label text-text-hi">Cards lift under the mouse</span>
         <input
@@ -299,6 +313,7 @@ function GlassSettings() {
           onChange={(e) => setAppearance({ visionLift: e.target.checked })}
         />
       </label>
+      )}
       <p className="type-note text-text-low">
         The clearer the glass, the more the wallpaper dims behind it, so text always stays readable. These are
         remembered on this device.

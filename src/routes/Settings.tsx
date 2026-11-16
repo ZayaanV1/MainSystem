@@ -340,7 +340,7 @@ export function Settings({ onChanged = () => {} }: { onChanged?: () => void } = 
       ),
     },
     timezone: { title: 'Time zone', body: <TimeZone userId={userId} bare /> },
-    appearance: { title: 'Appearance', body: <Appearance bare userId={userId} /> },
+    appearance: { title: 'Look', body: <Appearance bare userId={userId} /> },
     arrange: { title: 'Features', body: <ArrangeToday userId={userId} /> },
     calendar: {
       title: 'Calendars',
@@ -848,11 +848,9 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
   return (
     <section className="mb-8">
       {!bare && <SectionHead title="Appearance" />}
-      <div className="mb-6 px-4">
-        <ThemePicker userId={userId} />
-      </div>
-      <Card className="p-4">
-        <p className="kicker mb-2">Light or dark</p>
+      {/* The mode first: it is the one control most visits are for, and it
+          sat below twenty preview cards. */}
+      <Card className="mb-6 p-4">
         <div role="radiogroup" aria-label="Light or dark" className="flex flex-wrap gap-2">
           {options.map((o) => (
             <Chip
@@ -873,12 +871,12 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
             </Chip>
           ))}
         </div>
-        <p className="type-note mt-3 text-text-low">
-          {options.find((o) => o.value === choice)?.hint}. Remembered on this device, because the right mode
-          depends on where the screen is.
-        </p>
-
-        <p className="kicker mt-6 mb-2">Work</p>
+      </Card>
+      <div className="mb-6 px-4">
+        <ThemePicker userId={userId} />
+      </div>
+      <Card className="p-4">
+        <p className="kicker mb-2">Work</p>
         <div role="radiogroup" aria-label="How work is drawn" className="flex flex-wrap gap-2">
           {slipOptions.map((o) => (
             <Chip
@@ -892,9 +890,44 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
             </Chip>
           ))}
         </div>
-        <p className="type-note mt-3 text-text-low">{slipOptions.find((o) => o.value === look.slip)?.hint}</p>
 
-        <p className="kicker mt-6 mb-2">Translucency</p>
+        <p className="kicker mt-6 mb-2">Motion</p>
+        <div role="radiogroup" aria-label="Motion" className="flex flex-wrap gap-2">
+          {motionOptions.map((o) => (
+            <Chip
+              key={o.value}
+              role="radio"
+              aria-checked={look.motion === o.value}
+              selected={look.motion === o.value}
+              onClick={() => setAppearance({ motion: o.value })}
+            >
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+
+        <p className="kicker mt-6 mb-2">Changing screens</p>
+        <div role="radiogroup" aria-label="Changing screens" className="flex flex-wrap gap-2">
+          {tabOptions.map((o) => (
+            <Chip
+              key={o.value}
+              role="radio"
+              aria-checked={look.tabs === o.value}
+              selected={look.tabs === o.value}
+              onClick={() => setAppearance({ tabs: o.value })}
+            >
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+        {/* The one note kept: Slide costs something a person should know. */}
+        {look.tabs === 'slide' && <p className="type-note mt-3 text-text-low">Taps wait until the slide finishes.</p>}
+
+        {/* Nothing removed (rule 13): the two glass controls few people touch
+            are one tap down. */}
+        <details className="mt-6">
+          <summary className="settings-fold type-label text-text-mid">More glass options</summary>
+        <p className="kicker mt-4 mb-2">Translucency</p>
         <div role="radiogroup" aria-label="Translucency" className="flex flex-wrap gap-2">
           {glassOptions.map((o) => (
             <Chip
@@ -924,38 +957,8 @@ function Appearance({ bare = false, userId }: { bare?: boolean; userId: string }
           Glass behind sheets and menus sharpens as they open. The most demanding option; best on a recent phone.
         </p>
 
-        <p className="kicker mt-6 mb-2">Motion</p>
-        <div role="radiogroup" aria-label="Motion" className="flex flex-wrap gap-2">
-          {motionOptions.map((o) => (
-            <Chip
-              key={o.value}
-              role="radio"
-              aria-checked={look.motion === o.value}
-              selected={look.motion === o.value}
-              onClick={() => setAppearance({ motion: o.value })}
-            >
-              {o.label}
-            </Chip>
-          ))}
-        </div>
-        <p className="type-note mt-3 text-text-low">{motionOptions.find((o) => o.value === look.motion)?.hint}</p>
-
-        <p className="kicker mt-6 mb-2">Switching screens</p>
-        <div role="radiogroup" aria-label="Switching screens" className="flex flex-wrap gap-2">
-          {tabOptions.map((o) => (
-            <Chip
-              key={o.value}
-              role="radio"
-              aria-checked={look.tabs === o.value}
-              selected={look.tabs === o.value}
-              onClick={() => setAppearance({ tabs: o.value })}
-            >
-              {o.label}
-            </Chip>
-          ))}
-        </div>
-        <p className="type-note mt-3 text-text-low">{tabOptions.find((o) => o.value === look.tabs)?.hint}</p>
-        <p className="type-note mt-2 text-text-low">These are remembered on this device only.</p>
+        </details>
+        <p className="type-note mt-6 text-text-low">Saved on this device.</p>
       </Card>
     </section>
   );
