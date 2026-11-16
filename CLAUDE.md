@@ -2287,6 +2287,76 @@ Migration 0057. Not yet seen arriving on a phone.
   brake; 30 shares in ten minutes per account is the ceiling. Not yet tried
   from a real Shortcut.
 
+### Audit and first fixes — 15 Nov 2026
+
+A walk of the live build on the iPhone simulator and a laptop, measured
+rather than described, then a ranked proposal; items 1 to 3 were approved
+and shipped (b637937 to 242c3e7). The report and its screenshots are kept
+outside this public repo because they show a real account.
+
+**A deadline that lives only in a subscribed calendar counts as due.** The
+briefing said "your day is clear" above two things due at 11:59 that night:
+a school that posts due dates to its calendar never makes a row in
+`assignments`, and the briefing, the week strip, Month's marks and Today's
+calendar widgets all counted work alone. One rule, `_shared/deadline.ts`,
+now feeds all of them, so the app and the sentence above it cannot disagree.
+It stops counting an event the moment work with the same title and time
+exists. The digest and the home-screen badge still count tracked work only.
+
+**Times are written by the app, not the browser.** Safari formats en-CA as
+"5:00 PM" where Chrome, Node and Deno print "5:00 p.m.", and every rule that
+joins or splits two times read that suffix, so a phone never got the
+shared-period form and a row's start lost its period ("11:45" over "1:00
+PM"). `formatTime` now builds the string from parts. Anything that depends on
+the exact text a runtime's locale data returns is the Vancouver test again.
+
+**On the Glass room every text step is the brightest one.** Secondary text
+set straight on the wallpaper measured 2.3 to 3.7:1, and `palette.test.ts`
+could not see it: it holds tokens to opaque grounds, and a photograph is not
+one. Even `--text-hi` is about 4:1 over a white patch of sky at the default
+dimming, so promoting one step would not have been enough. On the room
+(`[data-recede]`, outside any panel) `--text-mid` and `--text-low` are
+`--text-hi` with a cushion (`--room-halo`); a panel puts them back.
+Hierarchy there is size and weight. `tests/room-text.test.ts` holds the
+decision, since no token test can hold the number.
+
+**Settings is eight rows in three groups, a word of value each, no icons.**
+The icon tiles came in three colours that meant nothing, and the values ran
+to an ellipsis. Abood and AI is six rows that open the sections that used to
+share one 48-button page; Model and keys lives there, and stays reachable
+with Abood off. Look puts light or dark first and folds the seventeen colour
+schemes behind one row named for the current one; the per-option sentences
+went, except the one that warns Slide makes taps wait. Laptop-only controls
+are not drawn on a phone (rule 11). Nothing was removed (rule 13).
+
+**Next 7 days picks a day instead of leaving.** A tap rings the day and the
+widget lists it; "Open Thu" in the head goes to Schedule; a second tap lets
+go. The owner's request: asking what is on Thursday should not take Today
+away. The Month widget does the same at every size.
+
+**Smaller, each verified:** hour 24 reads "midnight" (it read "12:00 p.m.");
+new work opens on a title that asks for a name, with the day and time fields
+labelled; placeholders ask for something and never read as a fact ("Prof.
+Okafor…" was one); "In class now" only for a class; an all-day exam no
+longer prints "12:00 a.m.".
+
+**Corrected from the audit.** It said two urgency tokens fell under 4.5:1 on
+`--ink-700`. A fuller count found 179 pairs across the 51 theme blocks at
+4.0 to 4.5: the ramp is tuned and tested on `--ink-800`. Not changed. It
+needs a decision: retune the ramp on the raised surface, or guard that
+urgency text never sits on it.
+
+**Open, the owner's call.** Abood's memory holds health facts, which the
+Sep 2026 rule says it never stores, and the laptop shows the memory list
+beside the chat. The Schedule redesign is a prototype awaiting a yes
+(https://claude.ai/artifact/VDZChVHXmhK23G2F3EvPDp).
+
+**Not verified.** `npm run e2e` was already red before this work: 24
+failures on c4ee901 (every theme of board.spec, classes, tabs, week, iPad,
+keyboard), unchanged by it. Dot matrix, Plain and onboarding were not
+walked; typing into the new title field was not possible on the simulator;
+no frame times were taken.
+
 ## Phase 0 — done, verified 17 Aug 2026
 
 The gate is met. A scheduled server job delivered a real notification to the phone. Verified in production, not inferred:
