@@ -109,7 +109,7 @@ export async function adoptPreferences(): Promise<void> {
   const { data, error } = await startupSettings();
   if (error || !data?.[0]) return;
   const row = data[0] as { theme: string | null; look: string | null; today_order: unknown; today_hidden: unknown; modules_off: unknown };
-  // Null is "never chosen": a new account starts on Glass in Dusk.
+  // Null is "never chosen": a new account starts on Glass in Velvet.
   const skin = isSkin(row.theme) ? row.theme : DEFAULT_SKIN;
   const look = isLook(row.look) ? row.look : DEFAULT_LOOK;
   cacheSkin(skin);
@@ -125,7 +125,7 @@ async function save(userId: string, patch: Record<string, unknown>): Promise<{ e
 export async function saveSkin(userId: string, skin: Skin) {
   cacheSkin(skin);
   set({ ...state, skin });
-  // Stored by name, Cloisonné too: null now means the default, Dusk.
+  // Stored by name, Cloisonné too: null now means the default, Velvet.
   return save(userId, { theme: skin });
 }
 

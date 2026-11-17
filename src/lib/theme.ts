@@ -114,7 +114,7 @@ export function watchSystemTheme(onChange: () => void): () => void {
    or dark (above) stays per device. Both are cached here so index.html can
    apply them before the first paint.
 
-   The default is Dusk under Glass: a new account starts on the glass theme.
+   The default is Velvet under Glass: a new account starts on the glass theme.
    ========================================================================= */
 
 export type Skin =
@@ -157,7 +157,7 @@ export const SKINS: { id: Skin; name: string; line: string; reference: string }[
 ];
 
 /** The scheme an account has before it chooses one. */
-export const DEFAULT_SKIN: Skin = 'vision';
+export const DEFAULT_SKIN: Skin = 'velvet';
 
 const SKIN_KEY = 'planner.skin';
 
@@ -185,7 +185,7 @@ export function applySkin(skin: Skin): void {
 /** Remember a scheme on this device, for the pre-paint script, and show it. */
 export function cacheSkin(skin: Skin): void {
   try {
-    // Written even for Cloisonné: an empty key now means the default, Dusk.
+    // Written even for Cloisonné: an empty key now means the default, Velvet.
     localStorage.setItem(SKIN_KEY, skin);
   } catch {
     // Not fatal: the account still holds it, and it applies after load.
