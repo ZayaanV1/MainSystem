@@ -88,11 +88,14 @@ export function CoursePage({
         {course.code && course.name !== course.code && <p className="type-body text-text-mid">{course.name}</p>}
       </header>
 
-      <div className="mb-6 px-4">
-        <Button type="button" variant="secondary" onClick={() => setExplaining(true)}>
-          Explain something
-        </Button>
-      </div>
+      {/* Prototype, parked 17 Nov 2026: dev builds only until the assist function is deployed with it. */}
+      {import.meta.env.DEV && (
+        <div className="mb-6 px-4">
+          <Button type="button" variant="secondary" onClick={() => setExplaining(true)}>
+            Explain something
+          </Button>
+        </div>
+      )}
       <SheetPresence>{explaining && <LessonSheet courseName={course.name} onClose={() => setExplaining(false)} />}</SheetPresence>
 
       {loaded === null ? (
