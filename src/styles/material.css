@@ -264,8 +264,14 @@ textarea.well {
   inset: -1px;
   z-index: -1;
   border-radius: inherit;
-  background: linear-gradient(180deg, var(--accent-lit), var(--accent) 55%, var(--accent-deep));
+  background: linear-gradient(
+    180deg,
+    var(--button-lit, var(--accent-lit)),
+    var(--button, var(--accent)) 55%,
+    var(--button-deep, var(--accent-deep))
+  );
   box-shadow:
+    inset 0 0 0 1px var(--button-rim, transparent),
     inset 0 1px 0 var(--specular),
     inset 0 -1px 0 var(--shadow-drop);
   opacity: 0;
@@ -474,12 +480,18 @@ textarea.well {
 }
 
 .btn-primary {
-  color: var(--on-accent);
-  background: linear-gradient(180deg, var(--accent-lit), var(--accent) 55%, var(--accent-deep));
+  color: var(--on-button, var(--on-accent));
+  background: linear-gradient(
+    180deg,
+    var(--button-lit, var(--accent-lit)),
+    var(--button, var(--accent)) 55%,
+    var(--button-deep, var(--accent-deep))
+  );
   box-shadow:
+    inset 0 0 0 1px var(--button-rim, transparent),
     inset 0 1px 0 var(--specular),
     inset 0 -1px 0 var(--shadow-drop),
-    var(--shadow-ember);
+    var(--button-shadow, var(--shadow-ember));
 }
 
 .btn-secondary {

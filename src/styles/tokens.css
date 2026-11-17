@@ -2288,10 +2288,15 @@
 }
 
 /* ---- Velvet: Obsidian Ink, Velvet Curfew and Almond Hearth. ----
-   Ink black, almond and a velvet burgundy. Burgundy on black cannot be
-   seen, so dark mode lights its buttons in almond with velvet lettering, and
-   the velvet fills a shape only in light mode. Like Kraft's, it never colours
-   text, so it cannot be mistaken for the overdue rose. */
+   Ink black, almond and a velvet burgundy. The primary button is phthalo
+   green with cream lettering in both modes, and today's bar is the burgundy
+   in both. Neither can be seen as a fill on ink, so dark mode draws a thin
+   cream rim around each (--button-rim, --bar-now-rim), which light mode
+   leaves clear. --accent stays almond in dark, because the focus ring,
+   selection and a few lines of text are drawn in it. Like Kraft's, the
+   burgundy never colours text, so it cannot be mistaken for the overdue rose.
+   The button's green is near the hue of --t-done: it is a fill carrying a
+   written label, never a status, and a finished thing is shown by its tick. */
 :root[data-skin='velvet'] {
   --ink-900: #151311;
   --ink-800: #1e1b18;
@@ -2329,6 +2334,16 @@
   --atmo-phthalo: rgb(168 154 140 / 0.2);
   --grain-strength: 0.04;
   --focus-ring: #eed3ba;
+  --button: #12493b;
+  --button-lit: #1b5c4b;
+  --button-deep: #0c3a2f;
+  --on-button: #fefbf7;
+  --button-rim: rgb(254 251 247 / 0.42);
+  --button-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.5);
+  --bar-now: #4b262f;
+  --bar-now-lit: #5d3540;
+  --bar-now-rim: rgb(254 251 247 / 0.42);
+  --bar-now-glow: rgb(238 211 186 / 0.18);
   color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
@@ -2369,6 +2384,16 @@
     --atmo-phthalo: rgb(107 90 76 / 0.09);
     --grain-strength: 0.04;
     --focus-ring: #4b262f;
+    --button: #12493b;
+    --button-lit: #1b5c4b;
+    --button-deep: #0c3a2f;
+    --on-button: #fefbf7;
+    --button-rim: transparent;
+    --button-shadow: 0 10px 28px -10px rgb(18 73 59 / 0.45);
+    --bar-now: #4b262f;
+    --bar-now-lit: #5d3540;
+    --bar-now-rim: transparent;
+    --bar-now-glow: rgb(75 38 47 / 0.55);
     color-scheme: light;
   }
 }
@@ -2409,6 +2434,16 @@
   --atmo-phthalo: rgb(107 90 76 / 0.09);
   --grain-strength: 0.04;
   --focus-ring: #4b262f;
+  --button: #12493b;
+  --button-lit: #1b5c4b;
+  --button-deep: #0c3a2f;
+  --on-button: #fefbf7;
+  --button-rim: transparent;
+  --button-shadow: 0 10px 28px -10px rgb(18 73 59 / 0.45);
+  --bar-now: #4b262f;
+  --bar-now-lit: #5d3540;
+  --bar-now-rim: transparent;
+  --bar-now-glow: rgb(75 38 47 / 0.55);
   color-scheme: light;
 }
 
@@ -4802,6 +4837,16 @@
   --atmo-phthalo: rgb(168 154 140 / 0.2);
   --grain-strength: 0.04;
   --focus-ring: #eed3ba;
+  --button: #12493b;
+  --button-lit: #1b5c4b;
+  --button-deep: #0c3a2f;
+  --on-button: #fefbf7;
+  --button-rim: rgb(254 251 247 / 0.42);
+  --button-shadow: 0 10px 28px -10px rgb(0 0 0 / 0.5);
+  --bar-now: #4b262f;
+  --bar-now-lit: #5d3540;
+  --bar-now-rim: rgb(254 251 247 / 0.42);
+  --bar-now-glow: rgb(238 211 186 / 0.18);
   --t-distant: #8d93aa;
   --t-approaching: #bd8396;
   --t-urgent: #d07a91;
@@ -4870,6 +4915,16 @@
   --atmo-phthalo: rgb(107 90 76 / 0.09);
   --grain-strength: 0.04;
   --focus-ring: #4b262f;
+  --button: #12493b;
+  --button-lit: #1b5c4b;
+  --button-deep: #0c3a2f;
+  --on-button: #fefbf7;
+  --button-rim: transparent;
+  --button-shadow: 0 10px 28px -10px rgb(18 73 59 / 0.45);
+  --bar-now: #4b262f;
+  --bar-now-lit: #5d3540;
+  --bar-now-rim: transparent;
+  --bar-now-glow: rgb(75 38 47 / 0.55);
   --t-distant: #5c6178;
   --t-approaching: #8e5067;
   --t-urgent: #a2435f;

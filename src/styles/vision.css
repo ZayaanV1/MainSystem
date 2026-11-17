@@ -542,8 +542,8 @@
   width: 2.5rem;
   height: 2.5rem;
   border-radius: var(--r-pill);
-  background: linear-gradient(135deg, var(--accent-lit), var(--accent-deep));
-  color: var(--on-accent);
+  background: linear-gradient(135deg, var(--button-lit, var(--accent-lit)), var(--button-deep, var(--accent-deep)));
+  color: var(--on-button, var(--on-accent));
   font-size: 0.875rem;
   font-weight: 600;
   box-shadow:
@@ -1275,11 +1275,13 @@
   height: 2.375rem;
   border-radius: var(--r-pill);
   padding-inline: 1.1rem;
-  background: linear-gradient(180deg, var(--accent-lit), var(--accent));
-  color: var(--on-accent);
+  background: linear-gradient(180deg, var(--button-lit, var(--accent-lit)), var(--button, var(--accent)));
+  color: var(--on-button, var(--on-accent));
   font-size: 0.75rem;
   font-weight: 600;
-  box-shadow: var(--shadow-ember);
+  box-shadow:
+    inset 0 0 0 1px var(--button-rim, transparent),
+    var(--button-shadow, var(--shadow-ember));
   transition:
     transform 220ms var(--v-ease),
     opacity 200ms;
@@ -1531,8 +1533,10 @@
 }
 
 .v-bar.is-today .v-bar-fill {
-  background: linear-gradient(180deg, var(--accent-lit), var(--accent));
-  box-shadow: 0 0 30px -4px var(--now-glow);
+  background: linear-gradient(180deg, var(--bar-now-lit, var(--accent-lit)), var(--bar-now, var(--accent)));
+  box-shadow:
+    inset 0 0 0 1px var(--bar-now-rim, transparent),
+    0 0 30px -4px var(--bar-now-glow, var(--now-glow));
 }
 
 .v-bar-day {

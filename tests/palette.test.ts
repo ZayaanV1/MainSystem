@@ -400,3 +400,19 @@ describe('every theme holds its floors, in both modes', () => {
     }
   });
 });
+
+describe('Velvet button and today bar', () => {
+  // Phthalo buttons and maroon bars are fills on ink: the lettering has to be
+  // readable on them, and dark mode has to draw the rim that gives the shape.
+  for (const mode of MODES) {
+    it(`${mode}: lettering on the button holds 4.5:1, and the rim is there only in dark`, () => {
+      for (const sel of [`:root[data-skin='velvet']${mode === 'light' ? "[data-theme='light']" : ''}`, `.skin-velvet.mode-${mode}`]) {
+        const t = block(sel);
+        expect(contrast(t['on-button'], t['button'])).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(t['on-button'], t['bar-now'])).toBeGreaterThanOrEqual(4.5);
+        expect(t['button-rim'] === 'transparent').toBe(mode === 'light');
+        expect(t['bar-now-rim'] === 'transparent').toBe(mode === 'light');
+      }
+    });
+  }
+});
