@@ -18,6 +18,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { geminiProvider } from '../_shared/llm/gemini.ts';
 import { BREAKDOWN_INSTRUCTION, BREAKDOWN_SCHEMA, validateBreakdown } from '../_shared/breakdown.ts';
+import { LESSON_INSTRUCTION, LESSON_SCHEMA, validateLesson } from '../_shared/lesson.ts';
 import { GUIDE_INSTRUCTION, GUIDE_SCHEMA, validateGuide } from '../_shared/guide.ts';
 import { SYLLABUS_INSTRUCTION, SYLLABUS_SCHEMA, validateSyllabus } from '../_shared/syllabus.ts';
 import { askAbood, learn } from '../_shared/abood.ts';
@@ -435,6 +436,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    return json({ ok: true, provider: result.provider, ...validated });
+  }
+
+  /* --------------------------------------------------------------- lesson */
+  if (body.task === 'lesson') {
+    const notes = (body.text ?? '').trim().slice(0, 30_000);
+    if (!notes) return json({ error: 'nothing to teach from' }, 400);
+    const input = [body.courseName ? `Course: ${body.courseName}` : '', `Notes:\n${notes}`].filter(Boolean).join('\n');
+
+    const day = localDayKey(new Date(), accountTz);
+    const slot = await reserve(admin, userData.user.id, 'lesson', day, Boolean(ownKey));
+    if (!slot.allowed) return json(standDown(slot, 'lesson'));
+
+    const result = await provider.complete<unknown>({
+      instruction: LESSON_INSTRUCTION,
+      input,
+      schema: LESSON_SCHEMA as unknown as Record<string, unknown>,
+      temperature: 0.3,
+      timeoutMs: 90_000,
+    });
+    if (!result.ok) {
+      await release(admin, userData.user.id, 'lesson', day, slot);
+      return fail(result.failure, result.message);
+    }
+
+    const validated = validateLesson(result.value);
+    if (validated.lesson.steps.length === 0) {
+      return json({
+        ok: false,
+        failure: 'malformed',
+        reason: 'No lesson could be made from that. Paste more of the notes, or try again.',
+        detail: validated.warnings.join(' '),
+      });
+    }
     return json({ ok: true, provider: result.provider, ...validated });
   }
 

@@ -19,6 +19,8 @@ import { SectionHead } from '../components/SectionHead';
 import { usePresence } from '../lib/usePresence';
 import type { Assignment } from '../lib/planner';
 import { Button } from '../components/Button';
+import { LessonView } from './LessonSheet';
+import type { Lesson } from '../../supabase/functions/_shared/lesson';
 import { Card } from '../components/Card';
 import { CheckRow } from '../components/CheckRow';
 import { TickPills } from '../components/TickPills';
@@ -165,6 +167,12 @@ export function Specimen() {
 
       <Section title="Capture">
         <CaptureBox send={async () => undefined} />
+      </Section>
+
+      <Section title="Lesson">
+        <div className="px-4">
+          <LessonView lesson={SAMPLE_LESSON} warnings={['A curve the app cannot draw was left out: window.x.']} onAgain={() => {}} onClose={() => {}} />
+        </div>
       </Section>
 
       <Section title="Timetable">
@@ -458,6 +466,68 @@ export function Specimen() {
     </main>
   );
 }
+
+/** One lesson using every figure type, so each draws here without a model call. */
+const SAMPLE_LESSON: Lesson = {
+  title: 'The derivative as a slope',
+  steps: [
+    {
+      say: 'Start with the curve y = x^2 and a point on it, P = (1, 1).',
+      source: 'lecture 4, slide 12',
+      figure: { type: 'plot', x: [-2, 2.5], y: [-1, 4], items: [{ kind: 'curve', expr: 'x^2', label: 'y = x^2', role: 'given' }, { kind: 'point', x: 1, y: 1, label: 'P', role: 'given' }] },
+    },
+    {
+      say: 'The tangent at P touches the curve there and nowhere nearby. Its slope is the derivative, 2x, which is 2 at P.',
+      figure: {
+        type: 'plot',
+        x: [-2, 2.5],
+        y: [-1, 4],
+        items: [
+          { kind: 'curve', expr: 'x^2', role: 'given' },
+          { kind: 'point', x: 1, y: 1, label: 'P', role: 'given' },
+          { kind: 'curve', expr: '2x - 1', label: 'slope 2', role: 'new' },
+        ],
+      },
+    },
+    {
+      say: 'Getting there by limits takes three moves.',
+      figure: {
+        type: 'steps',
+        lines: [
+          { text: 'slope of a secant = ((1+h)^2 - 1) / h', status: 'given' },
+          { text: '= (2h + h^2) / h = 2 + h', status: 'derived', why: 'expand and cancel h' },
+          { text: 'as h goes to 0, the slope goes to 2', status: 'goal' },
+        ],
+      },
+    },
+    {
+      say: 'The same idea runs through every derivative rule.',
+      figure: {
+        type: 'flow',
+        nodes: [
+          { id: 'f', label: 'Function f(x)', role: 'given' },
+          { id: 's', label: 'Secant slope', role: 'given' },
+          { id: 'l', label: 'Limit as h to 0', role: 'new' },
+          { id: 'd', label: "Derivative f'(x)", role: 'new' },
+        ],
+        edges: [
+          { from: 'f', to: 's', label: 'two points' },
+          { from: 's', to: 'l' },
+          { from: 'l', to: 'd' },
+        ],
+      },
+    },
+    {
+      say: 'Two slopes students mix up.',
+      figure: {
+        type: 'compare',
+        left: { title: 'Secant', points: ['Through two points', 'Average rate of change'] },
+        right: { title: 'Tangent', points: ['Touches at one point', 'Instant rate of change'] },
+      },
+    },
+  ],
+  check: { question: 'What is the slope of y = x^2 at x = 3?', options: ['3', '6', '9'], answer: 1, why: 'The derivative is 2x, and 2 times 3 is 6.' },
+};
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

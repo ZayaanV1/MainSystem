@@ -4,6 +4,7 @@ import { Field } from '../components/Field';
 import { SectionHead } from '../components/SectionHead';
 import { SheetPresence } from '../components/Sheet';
 import { ExamPrep } from './ExamPrep';
+import { LessonSheet } from './LessonSheet';
 import {
   EMPTY_PAGE,
   forgetCourseFact,
@@ -53,6 +54,7 @@ export function CoursePage({
   const [page, setPage] = useState<Page>(EMPTY_PAGE);
   const [facts, setFacts] = useState<CourseFact[]>([]);
   const [prepFor, setPrepFor] = useState<CourseEvent | null>(null);
+  const [explaining, setExplaining] = useState(false);
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
@@ -85,6 +87,13 @@ export function CoursePage({
         <h1 className="page-title">{course.code ?? course.name}</h1>
         {course.code && course.name !== course.code && <p className="type-body text-text-mid">{course.name}</p>}
       </header>
+
+      <div className="mb-6 px-4">
+        <Button type="button" variant="secondary" onClick={() => setExplaining(true)}>
+          Explain something
+        </Button>
+      </div>
+      <SheetPresence>{explaining && <LessonSheet courseName={course.name} onClose={() => setExplaining(false)} />}</SheetPresence>
 
       {loaded === null ? (
         <p className="px-4 type-note text-text-low">Loading the course.</p>

@@ -38,7 +38,7 @@
  * pool, so neither limit applies to it, and its use is not counted.
  */
 
-export type AiKind = 'chat' | 'summary' | 'breakdown' | 'syllabus' | 'guide' | 'embed' | 'feed';
+export type AiKind = 'chat' | 'summary' | 'breakdown' | 'syllabus' | 'guide' | 'lesson' | 'embed' | 'feed';
 
 // Reached through globalThis so this file type-checks in the app's own build as
 // well as under Deno: its tests live in src/ beside the code they cover.
@@ -70,6 +70,8 @@ export function caps(): Record<AiKind, number> {
     syllabus: envNumber('SYLLABUS_CALLS_PER_DAY', 10),
     // Also reads a whole PDF, but of one assignment and only on request.
     guide: envNumber('GUIDE_CALLS_PER_DAY', 8),
+    // A visual lesson from pasted notes: one call, a page of text in, on request.
+    lesson: envNumber('LESSON_CALLS_PER_DAY', 10),
     // Abood remembers things by embedding them: one call to look a memory up
     // per question and one per fact learned. Cheap, but on the same shared key
     // and until now not counted at all.

@@ -15,6 +15,7 @@
 @import './styles/riso.css';
 @import './styles/flap.css';
 @import './styles/folders.css';
+@import './styles/lesson.css';
 
 /* ============================================================================
    Fonts — self-hosted latin subsets. No runtime request to Google.

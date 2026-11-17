@@ -1,0 +1,130 @@
+/*
+ * Explain lessons. A figure draws itself on in order: each stroke has
+ * pathLength 1 and its dash offset runs from 1 to 0, delayed by its place in
+ * the explanation (--i). Roles reuse the theme's own accents, so a lesson
+ * matches whichever theme and scheme is on: no new colours.
+ */
+
+.lesson-fig {
+  --step: 300ms;
+  width: 100%;
+}
+
+.lesson-svg {
+  max-height: 260px;
+  overflow: visible;
+  border-radius: var(--r-card);
+  background: var(--tag-surface);
+  padding: var(--sp-2);
+}
+
+.lesson [data-role='given'] { --role: var(--text-mid); }
+.lesson [data-role='new'] { --role: var(--accent); }
+.lesson [data-role='other'] { --role: var(--accent-2); }
+
+.lesson-axis {
+  fill: none;
+  stroke: var(--text-low);
+  stroke-width: 1;
+}
+
+.lesson-stroke {
+  fill: none;
+  stroke: var(--role);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lesson-dot { fill: var(--role); }
+
+.lesson-label {
+  fill: var(--role, var(--text-mid));
+  font: 500 11px var(--font-sans);
+}
+
+.lesson-node {
+  fill: none;
+  stroke: var(--role);
+  stroke-width: 1.6;
+}
+
+.lesson-node-text {
+  fill: var(--text-hi);
+  font: 500 11px var(--font-sans);
+}
+
+.lesson-edge {
+  fill: none;
+  stroke: var(--text-low);
+  stroke-width: 1.4;
+}
+
+.lesson-arrowhead { fill: var(--text-low); }
+
+.lesson-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: lesson-draw 650ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * var(--step, 300ms));
+}
+
+.lesson-appear {
+  opacity: 0;
+  animation: lesson-appear 320ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * var(--step, 300ms) + 250ms);
+}
+
+.lesson-say {
+  opacity: 0;
+  animation: lesson-appear 320ms var(--ease-out) 120ms forwards;
+}
+
+@keyframes lesson-draw { to { stroke-dashoffset: 0; } }
+@keyframes lesson-appear { to { opacity: 1; } }
+
+.lesson-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.lesson-lines li {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  column-gap: var(--sp-2);
+  padding-left: var(--sp-2);
+  border-left: 3px solid var(--text-low);
+}
+
+.lesson-lines li[data-status='derived'] { border-left-color: var(--accent); }
+.lesson-lines li[data-status='goal'] { border-left-color: var(--accent-2); }
+.lesson-lines li > :nth-child(3) { grid-column: 2; }
+
+.lesson-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.lesson-compare > div {
+  padding-left: var(--sp-2);
+  border-left: 3px solid var(--role);
+}
+
+.lesson-compare ul {
+  margin-top: var(--sp-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  color: var(--text-mid);
+}
+
+/* Reduce Motion: strokes fade in place instead of travelling along their path. */
+@media (prefers-reduced-motion: reduce) {
+  .lesson-draw {
+    stroke-dashoffset: 0;
+    opacity: 0;
+    animation-name: lesson-appear;
+  }
+}

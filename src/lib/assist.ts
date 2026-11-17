@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import type { BreakdownStep } from '../../supabase/functions/_shared/breakdown';
 import type { SyllabusItem } from '../../supabase/functions/_shared/syllabus';
 import type { Guide } from '../../supabase/functions/_shared/guide';
+import type { Lesson } from '../../supabase/functions/_shared/lesson';
 
 /**
  * Client for the assist edge function.
@@ -135,6 +136,19 @@ export async function generateGuide(fileId: string): Promise<GuideResponse | Ass
   const body = await call({ task: 'guide', fileId });
   if (body.ok !== true) return failureOf(body);
   return { ok: true, guide: body.guide as Guide, warnings: (body.warnings ?? []) as string[] };
+}
+
+export interface LessonResponse {
+  ok: true;
+  lesson: Lesson;
+  warnings: string[];
+}
+
+/** A visual lesson from pasted notes. Read-only: nothing is saved. */
+export async function makeLesson(text: string, courseName?: string | null): Promise<LessonResponse | AssistFailure> {
+  const body = await call({ task: 'lesson', text, courseName: courseName ?? undefined });
+  if (body.ok !== true) return failureOf(body);
+  return { ok: true, lesson: body.lesson as Lesson, warnings: (body.warnings ?? []) as string[] };
 }
 
 export interface ChatResponse {
