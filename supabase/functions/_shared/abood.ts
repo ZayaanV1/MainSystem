@@ -719,18 +719,26 @@ export async function askAbood(opts: {
    * work, steps, a far date). It is read, and he is asked once more with the
    * result; the ids in it become ones he may act on.
    */
-  const reads = reply.actions.filter(isRead).slice(0, 3);
+  let reads = reply.actions.filter(isRead).slice(0, 3);
   let lookedUp = '';
-  if (reads.length) {
+  // A second round only when an email search came up empty: a narrow first guess
+  // ("psych") should not end in "nothing came up" when broader words would find it.
+  for (let round = 0; reads.length && round < 2; round++) {
     const looked = await runCalls(admin, userId, tz, reads);
     const seen = looked.read.join('\n\n');
-    lookedUp = seen;
-    const again = await ask(...used, `\nYOU LOOKED THIS UP (ids here may be used in actions as they are):\n${seen || looked.failed.join(' ')}\nNow answer them.`);
+    lookedUp = [lookedUp, seen].filter(Boolean).join('\n\n');
+    const emptyMail = round === 0 && /No emails match/.test(seen);
+    const retry = emptyMail
+      ? '\nAn email search found nothing. If it could be worded differently, search once more with broader words (fewer words, or OR between likely ones, e.g. "appointment OR booking OR confirmation newer_than:90d") instead of answering; otherwise answer them.'
+      : '\nNow answer them.';
+    const again = await ask(...used, `\nYOU LOOKED THIS UP (ids here may be used in actions as they are):\n${lookedUp || looked.failed.join(' ')}${retry}`);
+    reads = [];
     if (again.result.ok) {
-      for (const id of seen.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? []) again.context.knownIds.add(id.toLowerCase());
+      for (const id of lookedUp.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? []) again.context.knownIds.add(id.toLowerCase());
       reply = validateChat(again.result.value, again.context.knownIds, again.context.aliases, again.context.titles, TOOL_NAMES);
       context = again.context;
       result = again.result;
+      if (emptyMail) reads = reply.actions.filter((c) => c.tool === 'search_email').slice(0, 1);
     }
   }
 
