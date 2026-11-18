@@ -2295,6 +2295,9 @@
    leaves clear. --accent stays almond in dark, because the focus ring,
    selection and a few lines of text are drawn in it. Like Kraft's, the
    burgundy never colours text, so it cannot be mistaken for the overdue rose.
+   The second accent, for secondary buttons, links and selected states, is
+   sage (#9fc7b0 on ink, #2d5a47 on ivory): a cool counterweight to the warm
+   neutrals that stays clear of the rose urgency ramp.
    The button's green is near the hue of --t-done: it is a fill carrying a
    written label, never a status, and a finished thing is shown by its tick. */
 :root[data-skin='velvet'] {
@@ -2312,10 +2315,10 @@
   --accent-lit: #f2dcc8;
   --accent-deep: #d9bda3;
   --on-accent: #4b262f;
-  --accent-2: #a89a8c;
-  --accent-2-mid: #b3a597;
-  --accent-2-deep: #93867a;
-  --accent-2-lit: #c4b6a8;
+  --accent-2: #9fc7b0;
+  --accent-2-mid: #abd0bb;
+  --accent-2-deep: #89b09a;
+  --accent-2-lit: #b9dac7;
   --on-accent-2: #151311;
   --glass-fill: rgb(246 232 218 / 0.08);
   --glass-edge: rgb(246 232 218 / 0.17);
@@ -2328,10 +2331,10 @@
   --shadow-ember: 0 10px 28px -10px rgb(238 211 186 / 0.45);
   --now-glow: rgb(238 211 186 / 0.55);
   --specular: rgb(255 255 255 / 0.2);
-  --aura-phthalo: rgb(168 154 140 / 0.42);
+  --aura-phthalo: rgb(159 199 176 / 0.42);
   --scrim: rgb(8 7 6 / 0.62);
   --atmo-ember: rgb(238 211 186 / 0.09);
-  --atmo-phthalo: rgb(168 154 140 / 0.2);
+  --atmo-phthalo: rgb(159 199 176 / 0.2);
   --grain-strength: 0.04;
   --focus-ring: #eed3ba;
   --button: #12493b;
@@ -2362,10 +2365,10 @@
     --accent-lit: #5d3540;
     --accent-deep: #3d1e26;
     --on-accent: #fefbf7;
-    --accent-2: #6b5a4c;
-    --accent-2-mid: #766456;
-    --accent-2-deep: #5a4b3f;
-    --accent-2-lit: #6b5a4c;
+    --accent-2: #2d5a47;
+    --accent-2-mid: #366a54;
+    --accent-2-deep: #234a3a;
+    --accent-2-lit: #2d5a47;
     --on-accent-2: #ffffff;
     --glass-fill: rgb(21 19 17 / 0.06);
     --glass-edge: rgb(21 19 17 / 0.14);
@@ -2378,10 +2381,10 @@
     --shadow-ember: 0 10px 28px -10px rgb(75 38 47 / 0.32);
     --now-glow: rgb(75 38 47 / 0.55);
     --specular: rgb(255 255 255 / 0.65);
-    --aura-phthalo: rgb(107 90 76 / 0.22);
+    --aura-phthalo: rgb(45 90 71 / 0.22);
     --scrim: rgb(0 0 0 / 0.4);
     --atmo-ember: rgb(75 38 47 / 0.07);
-    --atmo-phthalo: rgb(107 90 76 / 0.09);
+    --atmo-phthalo: rgb(45 90 71 / 0.09);
     --grain-strength: 0.04;
     --focus-ring: #4b262f;
     --button: #12493b;
@@ -2412,10 +2415,10 @@
   --accent-lit: #5d3540;
   --accent-deep: #3d1e26;
   --on-accent: #fefbf7;
-  --accent-2: #6b5a4c;
-  --accent-2-mid: #766456;
-  --accent-2-deep: #5a4b3f;
-  --accent-2-lit: #6b5a4c;
+  --accent-2: #2d5a47;
+  --accent-2-mid: #366a54;
+  --accent-2-deep: #234a3a;
+  --accent-2-lit: #2d5a47;
   --on-accent-2: #ffffff;
   --glass-fill: rgb(21 19 17 / 0.06);
   --glass-edge: rgb(21 19 17 / 0.14);
@@ -2428,10 +2431,10 @@
   --shadow-ember: 0 10px 28px -10px rgb(75 38 47 / 0.32);
   --now-glow: rgb(75 38 47 / 0.55);
   --specular: rgb(255 255 255 / 0.65);
-  --aura-phthalo: rgb(107 90 76 / 0.22);
+  --aura-phthalo: rgb(45 90 71 / 0.22);
   --scrim: rgb(0 0 0 / 0.4);
   --atmo-ember: rgb(75 38 47 / 0.07);
-  --atmo-phthalo: rgb(107 90 76 / 0.09);
+  --atmo-phthalo: rgb(45 90 71 / 0.09);
   --grain-strength: 0.04;
   --focus-ring: #4b262f;
   --button: #12493b;
@@ -4815,10 +4818,10 @@
   --accent-lit: #f2dcc8;
   --accent-deep: #d9bda3;
   --on-accent: #4b262f;
-  --accent-2: #a89a8c;
-  --accent-2-mid: #b3a597;
-  --accent-2-deep: #93867a;
-  --accent-2-lit: #c4b6a8;
+  --accent-2: #9fc7b0;
+  --accent-2-mid: #abd0bb;
+  --accent-2-deep: #89b09a;
+  --accent-2-lit: #b9dac7;
   --on-accent-2: #151311;
   --glass-fill: rgb(246 232 218 / 0.08);
   --glass-edge: rgb(246 232 218 / 0.17);
@@ -4831,10 +4834,10 @@
   --shadow-ember: 0 10px 28px -10px rgb(238 211 186 / 0.45);
   --now-glow: rgb(238 211 186 / 0.55);
   --specular: rgb(255 255 255 / 0.2);
-  --aura-phthalo: rgb(168 154 140 / 0.42);
+  --aura-phthalo: rgb(159 199 176 / 0.42);
   --scrim: rgb(8 7 6 / 0.62);
   --atmo-ember: rgb(238 211 186 / 0.09);
-  --atmo-phthalo: rgb(168 154 140 / 0.2);
+  --atmo-phthalo: rgb(159 199 176 / 0.2);
   --grain-strength: 0.04;
   --focus-ring: #eed3ba;
   --button: #12493b;
@@ -4893,10 +4896,10 @@
   --accent-lit: #5d3540;
   --accent-deep: #3d1e26;
   --on-accent: #fefbf7;
-  --accent-2: #6b5a4c;
-  --accent-2-mid: #766456;
-  --accent-2-deep: #5a4b3f;
-  --accent-2-lit: #6b5a4c;
+  --accent-2: #2d5a47;
+  --accent-2-mid: #366a54;
+  --accent-2-deep: #234a3a;
+  --accent-2-lit: #2d5a47;
   --on-accent-2: #ffffff;
   --glass-fill: rgb(21 19 17 / 0.06);
   --glass-edge: rgb(21 19 17 / 0.14);
@@ -4909,10 +4912,10 @@
   --shadow-ember: 0 10px 28px -10px rgb(75 38 47 / 0.32);
   --now-glow: rgb(75 38 47 / 0.55);
   --specular: rgb(255 255 255 / 0.65);
-  --aura-phthalo: rgb(107 90 76 / 0.22);
+  --aura-phthalo: rgb(45 90 71 / 0.22);
   --scrim: rgb(0 0 0 / 0.4);
   --atmo-ember: rgb(75 38 47 / 0.07);
-  --atmo-phthalo: rgb(107 90 76 / 0.09);
+  --atmo-phthalo: rgb(45 90 71 / 0.09);
   --grain-strength: 0.04;
   --focus-ring: #4b262f;
   --button: #12493b;
